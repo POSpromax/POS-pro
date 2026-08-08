@@ -1,0 +1,6 @@
+{
+  "name": "Nusantara POS & Resto System",
+  "description": "Sistem Kasir POS, Kitchen Display System (KDS), Self-Order Meja, Stok HPP Resep, Shift Monitor & Bluetooth Printer PWA",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

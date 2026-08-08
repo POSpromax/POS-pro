@@ -1,0 +1,927 @@
+import React, { useState } from 'react';
+import {
+  ShoppingBag,
+  Plus,
+  Minus,
+  X,
+  CheckCircle2,
+  ArrowRight,
+  Search,
+  Sparkles,
+  QrCode,
+  ChevronRight,
+  Clock,
+  ChevronDown,
+  Info,
+  PhoneCall,
+  Instagram,
+  Share2,
+  ArrowLeft,
+  Utensils,
+  UserCheck
+} from 'lucide-react';
+import {
+  MenuItem,
+  Order,
+  OrderItem,
+  RestaurantProfile,
+  CategoryType,
+  CondimentGroup,
+  SelectedCondimentGroup,
+  RestaurantTable,
+  Branch
+} from '../../types/pos';
+import { CondimentSelectionModal } from '../POS/CondimentSelectionModal';
+
+export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'ORDER_SUCCESS';
+
+interface SelfOrderLandingPageProps {
+  tables: RestaurantTable[];
+  menuItems: MenuItem[];
+  profile: RestaurantProfile;
+  condimentGroups: CondimentGroup[];
+  isSelfOrderSystemEnabled?: boolean;
+  orders?: Order[];
+  onSubmitCustomerOrder: (order: Order) => void;
+  initialTableNumber?: string;
+  currentBranch: Branch;
+}
+
+export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
+  tables,
+  menuItems,
+  profile,
+  condimentGroups,
+  isSelfOrderSystemEnabled = true,
+  orders = [],
+  onSubmitCustomerOrder,
+  initialTableNumber = '01',
+  currentBranch
+}) => {
+  // Navigation State Flow
+  const [activeStep, setActiveStep] = useState<SelfOrderStep>('LANDING');
+
+  // Customer Data State
+  const [selectedTable, setSelectedTable] = useState<string>(initialTableNumber);
+  const [customerName, setCustomerName] = useState<string>('');
+  const [tableErrorMsg, setTableErrorMsg] = useState<string>('');
+
+  // Menu Search & Filter State
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [cartItems, setCartItems] = useState<OrderItem[]>([]);
+  const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
+
+  // Submitted Order Tracking State
+  const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
+
+  // Find active live order from global state
+  const liveSubmittedOrder = orders.find((o) => o.id === submittedOrderId) || null;
+
+  // Table status check
+  const selectedTableObj = tables.find((t) => t.number === selectedTable);
+  const isSelectedTableEnabled = selectedTableObj
+    ? selectedTableObj.isSelfOrderEnabled !== false && (!selectedTableObj.branchId || selectedTableObj.branchId === currentBranch.id)
+    : false;
+
+  const categories: { key: CategoryType; label: string; icon: string }[] = [
+    { key: 'ALL', label: 'Semua Menu', icon: '🔥' },
+    { key: 'BAKSO', label: 'Bakso Utama', icon: '🍲' },
+    { key: 'MIE AYAM', label: 'Mie Ayam', icon: '🍜' },
+    { key: 'MAKANAN', label: 'Makanan', icon: '🍱' },
+    { key: 'TAMBAHAN', label: 'Topping', icon: '🥟' },
+    { key: 'KRIUK', label: 'Kriuk', icon: '🥨' },
+    { key: 'MINUMAN', label: 'Minuman', icon: '🥤' },
+    { key: 'BUNDLING', label: 'Paket Hemat', icon: '🎁' }
+  ];
+
+  const filteredMenu = menuItems.filter((m) => {
+    const matchesCategory = selectedCategory === 'ALL' || m.category === selectedCategory;
+    const matchesSearch =
+      !searchQuery ||
+      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.category.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const handleStartOrder = () => {
+    if (!isSelfOrderSystemEnabled) {
+      alert('Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
+      return;
+    }
+    setActiveStep('TABLE_INPUT');
+  };
+
+  const handleProceedToMenu = () => {
+    setTableErrorMsg('');
+    if (!selectedTable) {
+      setTableErrorMsg('Silakan pilih nomor meja Anda.');
+      return;
+    }
+    if (!selectedTableObj) {
+      setTableErrorMsg('QR atau nomor meja tidak valid untuk outlet ini. Silakan hubungi kasir.');
+      return;
+    }
+    if (!isSelectedTableEnabled) {
+      setTableErrorMsg(`Meja ${selectedTable} sedang dinonaktifkan oleh Kasir.`);
+      return;
+    }
+    if (!customerName.trim()) {
+      setTableErrorMsg('Silakan masukkan nama pemesan terlebih dahulu.');
+      return;
+    }
+    setActiveStep('MENU');
+  };
+
+  const handleItemClick = (item: MenuItem) => {
+    const hasCondiments = condimentGroups.some(
+      (g) => g.isActive && (g.targetCategories.includes('ALL') || g.targetCategories.includes(item.category))
+    );
+
+    if (hasCondiments) {
+      setActiveItemForCondiment(item);
+    } else {
+      setCartItems((prev) => {
+        const existingIdx = prev.findIndex((i) => i.menuId === item.id && !i.selectedCondiments?.length && !i.notes);
+        if (existingIdx > -1) {
+          const updated = [...prev];
+          updated[existingIdx].quantity += 1;
+          return updated;
+        }
+        return [
+          ...prev,
+          {
+            id: 'cust-' + Date.now() + Math.random().toString(36).substring(2, 4),
+            menuId: item.id,
+            menuName: item.name,
+            price: item.price,
+            quantity: 1,
+            category: item.category
+          }
+        ];
+      });
+    }
+  };
+
+  const handleConfirmCondiments = (
+    item: MenuItem,
+    selectedCondiments: SelectedCondimentGroup[],
+    notes: string,
+    extraPrice: number
+  ) => {
+    setCartItems((prev) => [
+      ...prev,
+      {
+        id: 'cust-' + Date.now() + Math.random().toString(36).substring(2, 4),
+        menuId: item.id,
+        menuName: item.name,
+        price: item.price + extraPrice,
+        quantity: 1,
+        category: item.category,
+        notes: notes,
+        selectedCondiments: selectedCondiments
+      }
+    ]);
+  };
+
+  const handleUpdateQty = (cartItemId: string, delta: number) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.id === cartItemId) {
+            const next = item.quantity + delta;
+            return next > 0 ? { ...item, quantity: next } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as OrderItem[]
+    );
+  };
+
+  const getItemCartQty = (menuId: string) => {
+    return cartItems
+      .filter((i) => i.menuId === menuId)
+      .reduce((sum, curr) => sum + curr.quantity, 0);
+  };
+
+  const totalCartQty = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
+  const totalAmount = cartItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
+
+  const handleSubmitOrder = () => {
+    if (!isSelfOrderSystemEnabled) {
+      alert('Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
+      return;
+    }
+    if (!isSelectedTableEnabled) {
+      alert(`Meja ${selectedTable} sedang dinonaktifkan oleh Kasir.`);
+      return;
+    }
+    if (!customerName.trim()) {
+      alert('Silakan masukkan nama pemesan.');
+      return;
+    }
+    if (cartItems.length === 0) {
+      alert('Keranjang belanja masih kosong!');
+      return;
+    }
+
+    const orderId = 'ord-cust-' + Date.now().toString().slice(-4);
+    const newOrder: Order = {
+      id: orderId,
+      orderNumber: '#' + Math.floor(100 + Math.random() * 900),
+      customerName: customerName.trim(),
+      tableNumber: selectedTable,
+      type: 'DINE_IN',
+      items: cartItems,
+      subtotal: totalAmount,
+      tax: 0,
+      discount: 0,
+      total: totalAmount,
+      paymentMethod: 'CASH',
+      paymentStatus: 'UNPAID',
+      status: 'NEW',
+      createdAt: new Date().toISOString(),
+      shiftId: 'shift-self',
+      branchId: currentBranch.id,
+      cashierName: `Self Order • ${currentBranch.code || currentBranch.name}`,
+      source: 'SELF_ORDER',
+      parentOrderId: selectedTableObj?.activeOrderId
+    };
+
+    onSubmitCustomerOrder(newOrder);
+    setSubmittedOrderId(orderId);
+    setActiveStep('ORDER_SUCCESS');
+  };
+
+  const handleResetToLanding = () => {
+    setSubmittedOrderId(null);
+    setCartItems([]);
+    setActiveStep('LANDING');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 md:bg-slate-950 flex flex-col items-center justify-center p-0 md:p-6 font-sans text-slate-800 antialiased select-none">
+      
+      {/* Isolated Mobile Phone Wrapper */}
+      <div className="w-full max-w-[440px] bg-slate-50 min-h-screen md:min-h-[860px] md:max-h-[920px] md:rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative border-0 md:border-8 md:border-slate-800">
+        
+        {/* =========================================
+            STEP 1: LANDING PAGE (Exact Match to User Reference)
+           ========================================= */}
+        {activeStep === 'LANDING' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 flex flex-col justify-between">
+            <div className="space-y-4">
+              
+              {/* Top Restaurant Profile Header Card */}
+              <div className="bg-white rounded-[28px] p-4 shadow-sm border border-slate-200/70 flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white font-black text-xl flex items-center justify-center shadow-md overflow-hidden">
+                    {profile.logoUrl ? (
+                      <img src={profile.logoUrl} alt={profile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      'BM'
+                    )}
+                  </div>
+                  <span className="w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full absolute -bottom-0.5 -right-0.5 shadow-xs" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-black text-base text-slate-900 tracking-tight leading-tight uppercase truncate">
+                    {profile.name || 'BAKSO MAS GINO'}
+                  </h1>
+                  <p className="text-[11px] font-medium text-slate-500 line-clamp-2 mt-0.5 leading-snug">
+                    📍 {currentBranch.address || profile.address}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center px-2.5 py-0.5 bg-[#1A1714] text-white rounded-full text-[9px] font-black uppercase tracking-wide">
+                      {currentBranch.code || currentBranch.name}
+                    </span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 bg-[#FFF0E8] text-[#D94B15] rounded-full text-[9px] font-black uppercase tracking-wide">
+                      MEJA {selectedTable}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Disabled System Banner Notice */}
+              {!isSelfOrderSystemEnabled && (
+                <div className="bg-red-600 text-white text-xs font-black p-3.5 rounded-2xl text-center space-y-1 shadow-md flex items-center justify-center gap-2">
+                  <Info className="w-4 h-4 shrink-0" />
+                  <span>Sistem Self-Order QR sedang dinonaktifkan oleh Kasir.</span>
+                </div>
+              )}
+
+              {/* Featured Promo Card */}
+              <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/60 border border-amber-200/80 rounded-[28px] p-4.5 space-y-1.5 relative overflow-hidden shadow-2xs">
+                <div className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-800 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3 text-amber-600" />
+                  <span>FEATURED</span>
+                </div>
+                <h3 className="font-black text-sm text-slate-900 leading-tight">
+                  FREE ICE CREAM ATAU ES TEH MANIS
+                </h3>
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  TUNJUKAN REVIEW GMAPS DIKASIR
+                </p>
+              </div>
+
+              {/* Primary Call-to-Action Button Card (Pesan Makan ->) */}
+              <button
+                type="button"
+                onClick={handleStartOrder}
+                className="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-[28px] p-4.5 px-5 shadow-lg shadow-orange-500/25 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
+              >
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-100 block opacity-90">
+                    MENU TERSEDIA
+                  </span>
+                  <span className="text-xl font-black text-white tracking-tight">
+                    Pesan Makan
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-white text-orange-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                  <ArrowRight className="w-6 h-6 stroke-[3]" />
+                </div>
+              </button>
+
+              {/* Info Grid (Clock & Phone) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-[24px] p-4 border border-slate-200/70 shadow-2xs text-center flex flex-col items-center justify-center space-y-1">
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">JAM BUKA</span>
+                  <span className="text-xs font-black text-slate-900">10:00 - 22:00</span>
+                </div>
+
+                <a
+                  href={`https://wa.me/${profile.phone?.replace(/[^0-9]/g, '') || '628123456789'}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-white rounded-[24px] p-4 border border-slate-200/70 shadow-2xs text-center flex flex-col items-center justify-center space-y-1 hover:border-orange-200 transition-all cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
+                    <PhoneCall className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">WHATSAPP</span>
+                  <span className="text-xs font-black text-slate-900">Hubungi</span>
+                </a>
+              </div>
+
+              {/* Review Google Maps Card */}
+              <div className="bg-white rounded-[28px] p-4 border border-slate-200/70 shadow-2xs text-center space-y-1">
+                <div className="flex justify-center gap-1 text-amber-400">
+                  {'★'.repeat(5).split('').map((_, i) => (
+                    <span key={i} className="text-base">⭐</span>
+                  ))}
+                </div>
+                <h4 className="font-black text-sm text-slate-900">Ulas Kami</h4>
+                <p className="text-[11px] font-semibold text-slate-400">
+                  Bagikan pengalaman makanmu disini
+                </p>
+              </div>
+
+            </div>
+
+            {/* Social Icons Footer */}
+            <div className="flex items-center justify-center gap-3 pt-4 pb-2">
+              <a
+                href={profile.instagram ? `https://instagram.com/${profile.instagram.replace('@', '')}` : '#'}
+                target="_blank"
+                rel="noreferrer"
+                className="w-11 h-11 rounded-2xl bg-white border border-slate-200/80 text-slate-600 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({ title: profile.name, url: window.location.href }).catch(() => {});
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Link e-order berhasil disalin!');
+                  }
+                }}
+                className="w-11 h-11 rounded-2xl bg-white border border-slate-200/80 text-slate-600 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* =========================================
+            STEP 2: TABLE & NAME INPUT SCREEN
+           ========================================= */}
+        {activeStep === 'TABLE_INPUT' && (
+          <div className="flex-1 bg-white p-5 flex flex-col justify-between overflow-y-auto animate-fadeIn">
+            
+            <div className="space-y-5">
+              {/* Top Navigation */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep('LANDING')}
+                  className="flex items-center gap-1.5 text-slate-600 font-extrabold text-xs hover:text-slate-900"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Kembali</span>
+                </button>
+                <span className="text-xs font-black uppercase text-slate-400 tracking-wider">INFO PESANAN</span>
+              </div>
+
+              {/* Title Header */}
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-slate-900">
+                  Selamat Datang! 👋
+                </h2>
+                <p className="text-xs font-semibold text-slate-500">
+                  Silakan tentukan nomor meja dan nama Anda untuk memulai e-order.
+                </p>
+              </div>
+
+              {tableErrorMsg && (
+                <div className="bg-red-50 text-red-600 text-xs font-extrabold p-3 rounded-2xl border border-red-200">
+                  ⚠️ {tableErrorMsg}
+                </div>
+              )}
+
+              {/* Select Table Grid */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-700 block">
+                  1. PILIH NOMOR MEJA:
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {tables.map((t) => {
+                    const isEnabled = t.isSelfOrderEnabled !== false;
+                    const isSelected = selectedTable === t.number;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTable(t.number)}
+                        className={`py-3 rounded-2xl font-black text-xs transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? isEnabled
+                              ? 'bg-orange-500 text-white shadow-md scale-105'
+                              : 'bg-red-600 text-white shadow-md'
+                            : isEnabled
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                            : 'bg-slate-100/60 text-slate-400 line-through'
+                        }`}
+                      >
+                        <span>M-{t.number}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isEnabled ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Customer Name Input */}
+              <div className="space-y-1.5 pt-2">
+                <label className="text-xs font-black uppercase text-slate-700 block">
+                  2. NAMA PEMESAN <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Masukkan nama Anda (misal: Siska / Budi)"
+                    className="w-full bg-slate-50 text-slate-900 font-extrabold text-xs pl-10 pr-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Proceed Action Button */}
+            <div className="pt-6">
+              <button
+                type="button"
+                onClick={handleProceedToMenu}
+                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Buka Menu Makanan (Meja #{selectedTable})</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* =========================================
+            STEP 3: MENU GRID SCREEN
+           ========================================= */}
+        {activeStep === 'MENU' && (
+          <div className="flex-1 flex flex-col h-full overflow-hidden animate-fadeIn">
+            
+            {/* Header Menu Bar */}
+            <div className="bg-slate-900 text-white p-4 pt-5 pb-3 shrink-0 shadow-md">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep('LANDING')}
+                  className="flex items-center gap-1 bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:text-white"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Beranda</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl">
+                    Meja #{selectedTable}
+                  </span>
+                  <span className="text-xs font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-xl">
+                    {customerName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari bakso, mie, minuman..."
+                  className="w-full bg-slate-800 text-white placeholder-slate-400 text-xs pl-9 pr-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 border border-slate-700/60 font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Filter Slider */}
+            <div className="bg-white border-b border-slate-200 p-2 overflow-x-auto scrollbar-none shrink-0 shadow-2xs">
+              <div className="flex gap-1.5 min-w-max px-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.key)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+                      selectedCategory === cat.key
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Menu Items Grid */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24 bg-slate-100/60">
+              <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">
+                {categories.find((c) => c.key === selectedCategory)?.label || 'Daftar Menu'} ({filteredMenu.length})
+              </h2>
+
+              {filteredMenu.length === 0 ? (
+                <div className="bg-white rounded-3xl p-8 text-center text-slate-400 space-y-2 border border-slate-200/80">
+                  <span className="text-3xl block">🔍</span>
+                  <p className="text-xs font-bold text-slate-700">Menu tidak ditemukan</p>
+                  <p className="text-[10px] text-slate-400">Silakan gunakan kata kunci pencarian lain.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {filteredMenu.map((item) => {
+                    const qtyInCart = getItemCartQty(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleItemClick(item)}
+                        className="bg-white rounded-3xl p-2.5 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+                      >
+                        <div>
+                          <div className="relative aspect-4/3 rounded-2xl overflow-hidden mb-2 bg-slate-100 flex items-center justify-center">
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex flex-col items-center justify-center text-white p-2 text-center">
+                                <span className="text-2xl mb-0.5">🍲</span>
+                                <span className="text-[9px] font-black uppercase tracking-wider">{item.category}</span>
+                              </div>
+                            )}
+
+                            <div className="absolute top-1.5 right-1.5 bg-slate-900/90 backdrop-blur-xs text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                              Rp {item.price.toLocaleString('id-ID')}
+                            </div>
+
+                            {qtyInCart > 0 && (
+                              <div className="absolute top-1.5 left-1.5 bg-orange-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scaleUp">
+                                {qtyInCart}
+                              </div>
+                            )}
+                          </div>
+
+                          <h3 className="font-extrabold text-xs text-slate-900 leading-snug line-clamp-2">
+                            {item.name}
+                          </h3>
+                        </div>
+
+                        <button
+                          type="button"
+                          className={`mt-2.5 w-full py-1.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                            qtyInCart > 0
+                              ? 'bg-orange-600 text-white shadow-xs'
+                              : 'bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white'
+                          }`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{qtyInCart > 0 ? `Tambah (${qtyInCart})` : 'Tambah'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Cart Bar Footer */}
+            {cartItems.length > 0 && (
+              <div className="absolute bottom-3 left-3 right-3 z-30 animate-slideUp">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep('CART')}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-2xl shadow-xl border border-slate-700/80 flex items-center justify-between gap-3 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                      {totalCartQty}
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase leading-tight">KERANJANG PESANAN</span>
+                      <span className="text-xs font-black text-white leading-none">
+                        Rp {totalAmount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all">
+                    <span>Lihat Keranjang</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </button>
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* =========================================
+            STEP 4: CART CHECKOUT SCREEN
+           ========================================= */}
+        {activeStep === 'CART' && (
+          <div className="flex-1 bg-white flex flex-col justify-between overflow-hidden animate-fadeIn">
+            
+            {/* Cart Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-orange-600" />
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
+                    Konfirmasi Keranjang
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-500">
+                    Meja #{selectedTable} • {customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveStep('MENU')}
+                className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Cart Items List */}
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              <h4 className="text-xs font-black uppercase text-slate-400">Item Pesanan ({cartItems.length}):</h4>
+              
+              {cartItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-start justify-between gap-2"
+                >
+                  <div className="flex-1 space-y-0.5">
+                    <h5 className="text-xs font-extrabold text-slate-900">{item.menuName}</h5>
+                    
+                    {item.selectedCondiments && item.selectedCondiments.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {item.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
+                          <span
+                            key={i}
+                            className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-md"
+                          >
+                            + {opt.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {item.notes && (
+                      <p className="text-[10px] font-medium text-amber-600 italic pt-0.5">
+                        "{item.notes}"
+                      </p>
+                    )}
+
+                    <span className="text-xs font-black text-orange-600 block pt-1">
+                      Rp {item.price.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl border border-slate-200 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateQty(item.id, -1)}
+                      className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-xs font-black text-slate-900 w-4 text-center">
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateQty(item.id, 1)}
+                      className="w-6 h-6 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="bg-orange-50/70 border border-orange-200/80 p-3 rounded-2xl text-[11px] text-orange-900 font-semibold space-y-1">
+                <p className="font-extrabold">ℹ️ Informasi Pembayaran:</p>
+                <p>Pesanan akan langsung dikirim ke Dapur & Kasir. Pembayaran dilakukan di Kasir saat hidangan selesai / sebelum pulang.</p>
+              </div>
+            </div>
+
+            {/* Cart Footer */}
+            <div className="p-4 border-t border-slate-100 bg-white space-y-3">
+              <div className="flex justify-between text-sm font-black text-slate-900">
+                <span>TOTAL BAYAR</span>
+                <span className="text-orange-600 text-base">Rp {totalAmount.toLocaleString('id-ID')}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSubmitOrder}
+                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Kirim Pesanan ke Dapur & Kasir</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* =========================================
+            STEP 5: ORDER SUCCESS & LIVE STATUS TRACKER
+           ========================================= */}
+        {activeStep === 'ORDER_SUCCESS' && (
+          <div className="flex-1 bg-slate-50 p-5 flex flex-col justify-between overflow-y-auto animate-fadeIn space-y-4">
+            <div className="space-y-4">
+              
+              {/* Success Badge Banner */}
+              <div className="bg-emerald-500 text-white p-5 rounded-3xl shadow-md text-center space-y-1.5">
+                <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-100 animate-bounce" />
+                <h3 className="font-extrabold text-lg">Pesanan Berhasil Dikirim!</h3>
+                <p className="text-xs text-emerald-100 font-medium">
+                  Meja #{selectedTable} • {customerName}
+                </p>
+              </div>
+
+              {/* Real-time Order Progress Step Timeline */}
+              <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-black text-slate-800">
+                    STATUS PESANAN {liveSubmittedOrder?.orderNumber || '#000'}
+                  </span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase bg-amber-100 text-amber-800">
+                    {liveSubmittedOrder?.status === 'NEW' && 'Diterima Dapur ⏳'}
+                    {liveSubmittedOrder?.status === 'COOKING' && 'Sedang Dimasak 🍳'}
+                    {liveSubmittedOrder?.status === 'READY' && 'Siap Disajikan 🍜'}
+                    {liveSubmittedOrder?.status === 'COMPLETED' && 'Selesai ✨'}
+                    {(!liveSubmittedOrder || liveSubmittedOrder.status === 'NEW') && 'Diterima Dapur ⏳'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1 text-center py-2">
+                  <div className="space-y-1">
+                    <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center text-xs font-black text-white ${
+                      ['NEW', 'COOKING', 'READY', 'COMPLETED'].includes(liveSubmittedOrder?.status || 'NEW') ? 'bg-orange-500' : 'bg-slate-200 text-slate-500'
+                    }`}>1</div>
+                    <span className="text-[10px] font-bold text-slate-700 block leading-tight">Diterima</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center text-xs font-black text-white ${
+                      ['COOKING', 'READY', 'COMPLETED'].includes(liveSubmittedOrder?.status || '') ? 'bg-amber-500' : 'bg-slate-200 text-slate-500'
+                    }`}>2</div>
+                    <span className="text-[10px] font-bold text-slate-700 block leading-tight">Dimasak</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center text-xs font-black text-white ${
+                      ['READY', 'COMPLETED'].includes(liveSubmittedOrder?.status || '') ? 'bg-emerald-500' : 'bg-slate-200 text-slate-500'
+                    }`}>3</div>
+                    <span className="text-[10px] font-bold text-slate-700 block leading-tight">Siap</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center text-xs font-black text-white ${
+                      liveSubmittedOrder?.status === 'COMPLETED' ? 'bg-blue-600' : 'bg-slate-200 text-slate-500'
+                    }`}>4</div>
+                    <span className="text-[10px] font-bold text-slate-700 block leading-tight">Selesai</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 text-center italic border-t border-slate-100 pt-2 font-medium">
+                  Pesanan Anda telah otomatis masuk ke Dapur & Kasir.
+                </p>
+              </div>
+
+              {/* Submitted Items Card */}
+              {liveSubmittedOrder && (
+                <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-2xs space-y-2.5">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Rincian Pesanan:</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {liveSubmittedOrder.items.map((it) => (
+                      <div key={it.id} className="text-xs font-bold text-slate-800 flex justify-between items-start border-b border-slate-50 pb-1.5">
+                        <div>
+                          <span>{it.quantity}x {it.menuName}</span>
+                          {it.notes && (
+                            <p className="text-[10px] font-medium text-amber-600 italic">Catatan: {it.notes}</p>
+                          )}
+                        </div>
+                        <span className="shrink-0 font-extrabold text-slate-900">
+                          Rp {(it.price * it.quantity).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-slate-100 pt-2 flex justify-between font-black text-sm text-slate-900">
+                    <span>TOTAL ORDER:</span>
+                    <span className="text-orange-600 text-base">Rp {liveSubmittedOrder.total.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveStep('MENU')}
+                className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-2xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Pesan Menu Tambahan
+              </button>
+              <button
+                type="button"
+                onClick={handleResetToLanding}
+                className="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs rounded-2xl transition-all cursor-pointer"
+              >
+                Kembali ke Beranda
+              </button>
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+      {/* Condiment Selection Modal */}
+      <CondimentSelectionModal
+        isOpen={!!activeItemForCondiment}
+        onClose={() => setActiveItemForCondiment(null)}
+        menuItem={activeItemForCondiment}
+        condimentGroups={condimentGroups}
+        onConfirm={handleConfirmCondiments}
+      />
+
+    </div>
+  );
+};
