@@ -35,6 +35,7 @@ import {
 import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
 import { isSupabaseConfigured } from './lib/supabase';
+import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -429,6 +430,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #F7F7F7 0%, #EEEEEE 52%, #F5F5F5 100%)' }}>
+      <PWAUpdatePrompt />
       {toastNotification && (
         <div className="fixed top-4 right-4 z-50 bg-[#1A1714] text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10 animate-fadeIn flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full bg-[#EA580C] animate-pulse" />
