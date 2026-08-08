@@ -16,7 +16,6 @@ interface HeaderBarProps {
   tables?: RestaurantTable[];
   orders?: Order[];
   isOnline: boolean;
-  onToggleOnlineState: () => void;
   pendingSyncCount: number;
   onManualSync: () => void;
   activeUser: UserAccount;
@@ -41,7 +40,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   tables = [],
   orders = [],
   isOnline,
-  onToggleOnlineState,
   pendingSyncCount,
   onManualSync,
   activeUser,
@@ -91,18 +89,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
         </div>
 
-        <button
+        <div
           id="btn-toggle-online-status"
-          onClick={onToggleOnlineState}
-          className={`h-5 px-2 rounded-md border transition-all cursor-pointer flex items-center justify-center shrink-0 text-[8px] font-bold tracking-wider ${
+          role="status"
+          className={`h-5 px-2 rounded-md border flex items-center justify-center shrink-0 text-[8px] font-bold tracking-wider ${
             isOnline
-              ? 'bg-[#FFF4EE] text-[#C94716] border-[#F1C7B5] hover:bg-[#FFE9DE]'
-              : 'bg-[#F2F2F2] text-[#626262] border-[#DADADA] hover:bg-[#EAEAEA]'
+              ? 'bg-[#FFF4EE] text-[#C94716] border-[#F1C7B5]'
+              : 'bg-[#F2F2F2] text-[#626262] border-[#DADADA]'
           }`}
-          title={`Status Koneksi: ${isOnline ? 'Online' : 'Offline'}`}
+          title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
         >
-          {isOnline ? 'ONLINE' : 'OFFLINE'}
-        </button>
+          {isOnline ? 'INTERNET' : 'OFFLINE'}
+        </div>
       </div>
 
       {/* Middle & Right Controls */}

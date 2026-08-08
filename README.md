@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# OmniPOS Multi Cabang
 
-# Run and deploy your AI Studio app
+POS restoran multi-cabang dengan terminal kasir, KDS, shift, absensi, inventory,
+self-order, PWA, Supabase, Cloudinary, dan deployment Vercel.
 
-This contains everything you need to run your app locally.
+## Menjalankan lokal
 
-View your app in AI Studio: https://ai.studio/apps/ef343fda-710a-4f2e-84a8-24fabd46db8b
+1. Gunakan Node.js 20 atau lebih baru.
+2. Salin `.env.example` menjadi `.env.local`, lalu isi variable publik saja.
+3. Jalankan `npm install` dan `npm run dev`.
+4. Validasi dengan `npm run lint` dan `npm run build:web`.
 
-## Run Locally
+Jangan simpan secret Supabase atau Cloudinary di variable yang diawali `VITE_`.
+Semua nilai `VITE_*` akan menjadi bagian dari bundle browser.
 
-**Prerequisites:**  Node.js
+## Status arsitektur
 
+- PWA, lazy-loaded route, cache media Cloudinary, dan deployment Vercel: tersedia.
+- Schema tenant/cabang, RLS, private Realtime Broadcast, workflow security, dan
+  audit ledger: tersedia sebagai migration di `supabase/migrations`.
+- Cloudinary memakai signed upload dan memverifikasi user, tenant, cabang, dan role.
+- Terminal sekarang terkunci saat halaman operasional pertama dibuka.
+- Adapter transaksi UI masih memakai browser storage. Jangan melakukan pilot
+  transaksi nyata sampai migration dijalankan, seed dibuat, dan cutover adapter
+  Supabase selesai.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Lihat `DEPLOYMENT_SECURITY_CHECKLIST.md` dan
+`BLUEPRINT_OPTIMASI_WORKFLOW_MULTI_CABANG.md` sebelum deployment produksi.

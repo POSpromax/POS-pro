@@ -34,6 +34,7 @@ import {
 } from './types/pos';
 import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
+import { isSupabaseConfigured } from './lib/supabase';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -131,7 +132,13 @@ export default function App() {
 
   // 3. System Data State
   const [activeUser, setActiveUser] = useState<UserAccount>(() => DBStorage.getActiveUser());
-  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+  const [isTerminalUnlocked, setIsTerminalUnlocked] = useState<boolean>(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(true);
+
+  const lockTerminal = () => {
+    setIsTerminalUnlocked(false);
+    setIsPinModalOpen(true);
+  };
 
   const [branches, setBranches] = useState<Branch[]>(() => DBStorage.getBranches());
   const [currentBranch, setCurrentBranch] = useState<Branch>(() => {
@@ -211,10 +218,11 @@ export default function App() {
 
   // Sync Offline Queue
   const handleManualSync = () => {
-    DBStorage.clearOfflineQueue();
-    setPendingSyncCount(0);
-    setOrders(DBStorage.getOrders());
-    showPushToast('Sinkronisasi Sukses', 'Semua transaksi offline telah disinkronkan ke server!');
+    if (!isSupabaseConfigured()) {
+      showPushToast('Sinkronisasi Belum Aktif', 'Konfigurasi publik Supabase belum tersedia pada build ini. Antrean lokal tetap disimpan.');
+      return;
+    }
+    showPushToast('Sinkronisasi Belum Diaktifkan', 'Adapter transaksi Supabase belum menjalankan proses upload. Antrean lokal tidak dihapus untuk mencegah kehilangan data.');
   };
 
   // Order Handlers
@@ -438,7 +446,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={handleTabChange}
         activeUser={activeUser}
-        onLockPin={() => setIsPinModalOpen(true)}
+        onLockPin={lockTerminal}
         pendingSyncCount={pendingSyncCount}
         accessRule={activeAccessRule}
       />
@@ -465,7 +473,6 @@ export default function App() {
             tables={branchTables}
             orders={branchOrders}
             isOnline={isOnline}
-            onToggleOnlineState={() => setIsOnline(!isOnline)}
             pendingSyncCount={pendingSyncCount}
             onManualSync={handleManualSync}
             activeUser={activeUser}
@@ -500,7 +507,6 @@ export default function App() {
                   tables={branchTables}
                   orders={branchOrders}
                   isOnline={isOnline}
-                  onToggleOnlineState={() => setIsOnline(!isOnline)}
                   pendingSyncCount={pendingSyncCount}
                   onManualSync={handleManualSync}
                   activeUser={activeUser}
@@ -697,8 +703,12 @@ export default function App() {
       {/* Global Modals */}
       <PinAuthModal
         isOpen={isPinModalOpen}
-        onClose={() => setIsPinModalOpen(false)}
+        onClose={() => {
+          if (isTerminalUnlocked) setIsPinModalOpen(false);
+        }}
+        canClose={isTerminalUnlocked}
         onSuccessLogin={(user, selectedBranch) => {
+          setIsTerminalUnlocked(true);
           setActiveUser(user);
           DBStorage.setActiveUser(user);
           if (selectedBranch) {

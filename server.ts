@@ -10,32 +10,26 @@ async function startServer() {
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
+    const checks = {
+      supabaseUrl: Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+      supabasePublicKey: Boolean(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY),
+      supabaseServerKey: Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+      cloudinaryCredentials: Boolean(process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET && process.env.CLOUDINARY_CLOUD_NAME))
+    };
+    const ready = Object.values(checks).every(Boolean);
+    res.status(ready ? 200 : 503);
     res.json({
-      status: 'ok',
-      system: 'Nusantara POS & Resto Server',
-      timestamp: new Date().toISOString()
+      status: ready ? 'ready' : 'configuration_required',
+      checks
     });
   });
 
-  // Simulated push notification endpoint for real-time order alerts
-  app.post('/api/push-notify', (req, res) => {
-    const { target, title, message, orderId } = req.body;
-    console.log(`[PUSH NOTIFICATION] Target: ${target} | Title: ${title} | ${message}`);
-    res.json({
-      success: true,
-      deliveredAt: new Date().toISOString(),
-      details: { target, title, message, orderId }
-    });
+  app.post('/api/push-notify', (_req, res) => {
+    res.status(501).json({error: 'Push notification adapter belum dikonfigurasi'});
   });
 
-  // Simulated Supabase/Cloudinary sync mock endpoints
   app.get('/api/sync/status', (_req, res) => {
-    res.json({
-      supabaseConnected: true,
-      cloudinaryStorage: 'Optimal (Free Tier - 25GB)',
-      syncLatencyMs: 42,
-      lastSyncedAt: new Date().toISOString()
-    });
+    res.status(501).json({status: 'not_implemented', message: 'Adapter sinkronisasi transaksi belum aktif'});
   });
 
   // Vite middleware for development vs static serve for production

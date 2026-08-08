@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Settings,
   Lock,
-  Power,
   Grid2X2,
   Building2,
   Crown,
@@ -208,9 +207,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id="btn-lock-system"
           onClick={onLockPin}
           className="w-8 h-7 text-[#B8B0A8] hover:text-rose-500 hover:bg-rose-50 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
-          title="Kunci Akses PIN / Switch User"
+          title="Kunci terminal dan ganti petugas"
         >
-          <Power className="w-3.5 h-3.5" />
+          <Lock className="w-3.5 h-3.5" />
         </button>
       </div>
     </aside>

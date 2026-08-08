@@ -19,11 +19,13 @@ interface UploadSignature {
   cloudName: string;
   folder: string;
   uploadPreset: string;
+  overwrite: string;
+  uniqueFilename: string;
 }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-export async function uploadImage(file: File, folder: MediaFolder): Promise<UploadedMedia> {
+export async function uploadImage(file: File, folder: MediaFolder, branchId: string): Promise<UploadedMedia> {
   if (!file.type.startsWith('image/')) throw new Error('File harus berupa gambar.');
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Ukuran gambar maksimal 5 MB.');
   if (!runtimeEnv.cloudinaryCloudName) throw new Error('Cloudinary belum dikonfigurasi.');
@@ -38,7 +40,7 @@ export async function uploadImage(file: File, folder: MediaFolder): Promise<Uplo
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({folder}),
+    body: JSON.stringify({folder, branchId}),
   });
 
   if (!signatureResponse.ok) throw new Error('Gagal memperoleh izin upload media.');
@@ -51,6 +53,8 @@ export async function uploadImage(file: File, folder: MediaFolder): Promise<Uplo
   body.append('signature', signed.signature);
   body.append('folder', signed.folder);
   body.append('upload_preset', signed.uploadPreset);
+  body.append('overwrite', signed.overwrite);
+  body.append('unique_filename', signed.uniqueFilename);
 
   const uploadResponse = await fetch(
     `https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/image/upload`,

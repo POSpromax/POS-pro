@@ -147,6 +147,24 @@ Semua entitas operasional membutuhkan `organizationId`, `branchId`, `createdAt`,
 
 Setiap task selesai bila acceptance test lulus, audit event tersedia, kegagalan aman, tidak ada kebocoran lintas outlet, migrasi/rollback terdokumentasi, dan UAT disetujui pemilik operasional.
 
+## Status implementasi cloud foundation (8 Agustus 2026)
+
+- **Selesai di repository:** Vercel/PWA/lazy loading, signed Cloudinary signer,
+  pengecekan tenant-cabang-role untuk upload, security headers, branch-scoped
+  private Realtime, RLS awal, konsistensi foreign key tenant/cabang, hashed PIN
+  server-only, lockout terminal, trusted device, jadwal, shift, absensi,
+  self-order session, order event, dan immutable audit schema.
+- **Selesai di UX prototipe:** terminal operasional terkunci saat startup; tombol
+  power yang ambigu diganti menjadi aksi kunci; status `INTERNET` hanya mewakili
+  koneksi browser; sinkronisasi tidak lagi menghapus antrean atau melaporkan
+  sukses palsu.
+- **Belum diterapkan ke project Supabase:** migration harus dijalankan manual dan
+  tenant, cabang, Auth user, membership, trusted device, serta PIN harus di-seed.
+- **Masih P0/blocking:** cutover seluruh `DBStorage` ke repository Supabase,
+  transaksi order/payment atomik, signed self-order QR, realtime subscriber di
+  POS/KDS, offline idempotent sync, serta automated cross-branch authorization
+  tests.
+
 ## Batas implementasi saat ini
 
 Repository sudah memperbaiki UX dan kontrak data untuk demonstrasi, tetapi masih memakai storage browser. Label “aman” pada UI berarti PIN tidak ditampilkan dan ada kontrol percobaan lokal—bukan keamanan produksi. Seluruh P0 wajib diselesaikan sebelum menerima data staf, biometrik absensi, atau pembayaran nyata.

@@ -14,6 +14,7 @@ interface PinAuthModalProps {
   onSelectBranch?: (branch: Branch) => void;
   onOpenSelfOrderDemo?: () => void;
   staffAccounts: UserAccount[];
+  canClose?: boolean;
 }
 
 export const PinAuthModal: React.FC<PinAuthModalProps> = ({
@@ -24,7 +25,8 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   currentBranch = INITIAL_BRANCHES[0],
   onSelectBranch,
   onOpenSelfOrderDemo,
-  staffAccounts
+  staffAccounts,
+  canClose = true
 }) => {
   const [selectedBranchId, setSelectedBranchId] = useState(currentBranch.id);
   const [pinInput, setPinInput] = useState('');
@@ -193,7 +195,9 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             <button type="button" aria-label="Hapus digit" onClick={() => { setPinInput((value) => value.slice(0, -1)); setErrorMessage(''); }} className="flex h-12 items-center justify-center rounded-2xl bg-[#1A1917] text-white transition hover:bg-black"><Delete className="h-4 w-4" /></button>
           </div>
 
-          <button type="button" onClick={onClose} className="mt-5 w-full py-2 text-[10px] font-bold text-[#918A84] hover:text-[#1A1714]">Batal dan kembali</button>
+          {canClose && (
+            <button type="button" onClick={onClose} className="mt-5 w-full py-2 text-[10px] font-bold text-[#918A84] hover:text-[#1A1714]">Batal dan kembali</button>
+          )}
         </section>
       </div>
     </div>
