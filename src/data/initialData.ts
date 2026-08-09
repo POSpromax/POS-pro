@@ -788,16 +788,18 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
 ];
 
 export const INITIAL_TABLES: RestaurantTable[] = [
-  { id: 'tbl-1', number: '01', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-038', branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-2', number: '02', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-037', branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-3', number: '03', capacity: 2, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-036', branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-4', number: '04', capacity: 6, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-035', branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-5', number: '05', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-6', number: '06', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-7', number: '07', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-8', number: '08', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-9', number: '09', capacity: 8, status: 'FREE', isSelfOrderEnabled: false, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-10', number: '10', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' }
+  { id: 'tbl-1', number: '1', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-2', number: '2', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-3', number: '3', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-4', number: '4', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-5', number: '5', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-6', number: '6', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-7', number: '7', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-8', number: '8', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-9', number: '9', capacity: 8, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-10', number: '10', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-11', number: '11', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-12', number: '12', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' }
 ];
 
 export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {

@@ -84,8 +84,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   // Find active live order from global state
   const liveSubmittedOrder = orders.find((o) => o.id === submittedOrderId) || null;
 
+  const normalizeTableNum = (str: string) => {
+    if (!str) return '';
+    const digits = str.trim().toUpperCase().replace(/^M-?/i, '').replace(/^0+/, '');
+    return digits || str.trim().toUpperCase();
+  };
+
   // Table status check
-  const selectedTableObj = tables.find((t) => t.number === selectedTable);
+  const selectedTableObj = tables.find((t) => normalizeTableNum(t.number) === normalizeTableNum(selectedTable));
   const isSelectedTableEnabled = selectedTableObj
     ? selectedTableObj.isSelfOrderEnabled !== false && (!selectedTableObj.branchId || selectedTableObj.branchId === currentBranch.id)
     : true;
@@ -129,13 +135,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       return;
     }
 
-    const tableInputClean = selectedTable.trim().toUpperCase().replace(/^M-?/i, '');
-    const foundTable = tables.find(
-      (t) =>
-        t.number.toUpperCase() === tableInputClean ||
-        t.number.toUpperCase() === 'M-' + tableInputClean ||
-        t.number.toUpperCase() === selectedTable.trim().toUpperCase()
-    );
+    const inputNormalized = normalizeTableNum(selectedTable);
+    const foundTable = tables.find((t) => {
+      const storedNormalized = normalizeTableNum(t.number);
+      return (
+        storedNormalized === inputNormalized ||
+        t.number.trim().toUpperCase() === selectedTable.trim().toUpperCase()
+      );
+    });
 
     if (!foundTable) {
       setTableErrorMsg(`Meja "${selectedTable}" tidak ditemukan. Silakan periksa nomor yang tertera di meja Anda.`);
@@ -274,10 +281,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 md:bg-slate-950 flex flex-col items-center justify-center p-0 md:p-6 font-sans text-slate-800 antialiased select-none">
+    <div className="min-h-screen bg-[#F4F5F7] flex flex-col items-center font-sans text-slate-800 antialiased select-none w-full">
       
-      {/* Isolated Mobile Phone Wrapper */}
-      <div className="w-full max-w-[440px] bg-[#F4F5F7] min-h-screen md:min-h-[860px] md:max-h-[920px] md:rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative border-0 md:border-8 md:border-slate-800">
+      {/* Clean Responsive Web App Wrapper */}
+      <div className="w-full max-w-lg min-h-screen bg-[#F4F5F7] flex flex-col relative shadow-sm">
         
         {/* =========================================
             STEP 1: LANDING PAGE (Screenshot 1 Match)
