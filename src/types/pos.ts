@@ -253,6 +253,8 @@ export interface RestaurantProfile {
   requireGpsActive?: boolean;
   isAttendanceEnabled?: boolean;
   isSelfOrderEnabled?: boolean;
+  weeklyOffDays?: number[];
+  weeklyOffNotice?: string;
   maxPinAttempts?: number;
   pinLockoutMinutes?: number;
   masterPinAdmin?: string;

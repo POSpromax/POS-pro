@@ -141,12 +141,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
           setFormProfile((prev) => ({
             ...prev,
-            gpsLatitude: pos.coords.latitude,
-            gpsLongitude: pos.coords.longitude
+            gpsLatitude: lat,
+            gpsLongitude: lng
           }));
-          alert(`Lokasi GPS berhasil diperbarui: Lat ${pos.coords.latitude}, Lng ${pos.coords.longitude}`);
+          const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+          window.open(mapsUrl, '_blank');
+          alert(`Lokasi GPS berhasil diambil!\nLatitude: ${lat}\nLongitude: ${lng}\nGoogle Maps telah dibuka di tab baru untuk verifikasi titik lokasi.`);
         },
         (err) => {
           alert('Gagal mengambil lokasi GPS: ' + err.message);
@@ -997,14 +1001,75 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleGetCurrentLocation}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-2 cursor-pointer"
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>Ambil Lokasi Saat Ini</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleGetCurrentLocation}
+                      className="text-xs font-black text-[#EA580C] hover:text-orange-700 bg-orange-50 border border-orange-200 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                    >
+                      <MapPin className="w-4 h-4 text-[#EA580C]" />
+                      <span>📍 Ambil Lokasi & Buka Google Maps</span>
+                    </button>
+
+                    <a
+                      href={`https://www.google.com/maps?q=${formProfile.gpsLatitude || -6.609013171412514},${formProfile.gpsLongitude || 106.78293233420759}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-black text-slate-700 hover:text-slate-900 bg-slate-100 border border-slate-200 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                    >
+                      <ExternalLink className="w-4 h-4 text-slate-500" />
+                      <span>🗺️ Lihat Titik di Google Maps</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Jadwal Libur Rutin Harian / Mingguan */}
+                <div className="border border-[#E8E0D8] rounded-2xl p-5 bg-[#FAFAF8]/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-black text-slate-900">
+                      <Clock className="w-4 h-4 text-[#EA580C]" />
+                      <span>JADWAL LIBUR RUTIN HARIAN (OUTLET & STAFF)</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Tentukan hari libur rutin operasional outlet. Jika staf melakukan absensi pada hari libur, absensi akan dicatat sebagai Lembur / Ekstra Shift.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { day: 1, label: 'Senin' },
+                      { day: 2, label: 'Selasa' },
+                      { day: 3, label: 'Rabu' },
+                      { day: 4, label: 'Kamis' },
+                      { day: 5, label: 'Jumat' },
+                      { day: 6, label: 'Sabtu' },
+                      { day: 0, label: 'Minggu' }
+                    ].map((d) => {
+                      const isOff = (formProfile.weeklyOffDays || [0]).includes(d.day);
+                      return (
+                        <button
+                          key={d.day}
+                          type="button"
+                          onClick={() => {
+                            const current = formProfile.weeklyOffDays || [0];
+                            const updated = isOff ? current.filter((x) => x !== d.day) : [...current, d.day];
+                            setFormProfile({ ...formProfile, weeklyOffDays: updated });
+                          }}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isOff
+                              ? 'bg-rose-600 text-white shadow-md'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{d.label}</span>
+                          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md ${isOff ? 'bg-rose-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                            {isOff ? 'LIBUR' : 'KERJA'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Daftar Staff & PIN (Matching Image 6) */}

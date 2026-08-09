@@ -220,6 +220,23 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               </p>
             </div>
 
+            {(() => {
+              const todayDayOfWeek = new Date().getDay();
+              const isTodayWeeklyOff = (profile.weeklyOffDays || [0]).includes(todayDayOfWeek);
+              const dayNameToday = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][todayDayOfWeek];
+
+              return isTodayWeeklyOff ? (
+                <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 font-black text-xs text-rose-900">
+                    <span>🌴 JADWAL LIBUR RUTIN OUTLET ({dayNameToday.toUpperCase()})</span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                    Hari ini adalah jadwal libur rutin operasional outlet. Presensi hari ini akan dicatat sebagai <strong>Kerja Lembur / Ekstra Shift</strong>.
+                  </p>
+                </div>
+              ) : null;
+            })()}
+
             <div className="space-y-3">
               {!terminalMode && (
                 <div>
