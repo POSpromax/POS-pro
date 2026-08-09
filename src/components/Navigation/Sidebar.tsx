@@ -187,29 +187,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </span>
         </button>}
 
-        <button
+        <div
           id="btn-user-avatar-badge"
-          onClick={onLockPin}
-          className="relative group w-8 h-8 rounded-xl bg-[#F5F5F5] border border-[#E1E1E1] flex items-center justify-center font-bold text-[10px] text-[#1C1B19] overflow-hidden hover:ring-2 hover:ring-black/10 transition-all cursor-pointer"
-          title={`Pengguna Aktif: ${activeUser.name} (${activeUser.role}) - Ganti PIN`}
+          className="relative w-8 h-8 rounded-xl bg-[#F5F5F5] border border-[#E1E1E1] flex items-center justify-center font-bold text-[10px] text-[#1C1B19] overflow-hidden"
+          title={`Pengguna aktif: ${activeUser.name} (${activeUser.role})`}
         >
           {activeUser.avatar ? (
             <img src={activeUser.avatar} alt={activeUser.name} className="w-full h-full object-cover" />
           ) : (
             activeUser.name.substring(0, 2).toUpperCase()
           )}
-          <div className="absolute inset-0 bg-[#1A1714]/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-            <Lock className="w-3 h-3" />
-          </div>
-        </button>
+        </div>
 
         <button
           id="btn-lock-system"
           onClick={onLockPin}
-          className="w-8 h-7 text-[#B8B0A8] hover:text-rose-500 hover:bg-rose-50 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
-          title="Kunci terminal dan ganti petugas"
+          className="w-11 h-8 text-[#8E8882] hover:text-[#D94B15] hover:bg-[#FFF4EE] rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer"
+          title="Kunci terminal dan akhiri sesi petugas"
+          aria-label="Kunci terminal dan akhiri sesi petugas"
         >
           <Lock className="w-3.5 h-3.5" />
+          <span className="text-[6px] font-black uppercase tracking-wide">Kunci</span>
         </button>
       </div>
     </aside>

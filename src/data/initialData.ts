@@ -12,30 +12,54 @@ import {
 } from '../types/pos';
 
 export const INITIAL_STAFF: UserAccount[] = [
-  { id: 'usr-1', name: 'Gugun (Owner)', pin: '1234', role: 'OWNER', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', branchIds: ['br-1', 'br-2', 'br-3'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-2', name: 'Citra (Kasir)', pin: '1111', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', branchIds: ['br-1'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-3', name: 'Budi (Admin)', pin: '2222', role: 'ADMIN', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', branchIds: ['br-1'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '3333', role: 'KITCHEN', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', branchIds: ['br-1'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] }
+  { id: 'usr-1', name: 'Gugun (Owner)', pin: '123456', role: 'OWNER', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', branchIds: ['00000000-0000-4000-a000-000000000010', '00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-2', name: 'Citra (Kasir)', pin: '111111', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-3', name: 'Budi (Admin)', pin: '222222', role: 'ADMIN', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '333333', role: 'KITCHEN', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] }
 ];
 
 export const INITIAL_BRANCHES: Branch[] = [
-  { id: 'br-1', name: 'Bakso Ujo - Pasirmulya Bogor', code: 'BGR-01', address: 'Jl. Re. Abdullah No. 7-9, Bogor Barat', phone: '089634627808', isMainBranch: true, isHeadquarters: true, managerName: 'Gugun (HO)', gpsLatitude: -6.609013171412514, gpsLongitude: 106.78293233420759, gpsRadiusMeters: 20 },
-  { id: 'br-2', name: 'Bakso Ujo - Pajajaran Branch', code: 'BGR-02', address: 'Jl. Pajajaran No. 45, Bogor', phone: '081234567890', isMainBranch: false, isHeadquarters: false, managerName: 'Manager Pajajaran' },
-  { id: 'br-3', name: 'Bakso Ujo - Jakarta Selatan', code: 'JKT-01', address: 'Jl. Senopati No. 88, Jakarta', phone: '081987654321', isMainBranch: false, isHeadquarters: false, managerName: 'Manager Jakarta' }
+  { id: '00000000-0000-4000-a000-000000000010', name: 'Bakso Ujo - Pasirmulya Bogor', code: 'BGR-01', address: 'Jl. Re. Abdullah No.7-9, RT.01/RW.07, Pasirmulya BOGOR BARAT', phone: '089634627808', isMainBranch: true, isHeadquarters: true, managerName: 'Gugun (HO)', gpsLatitude: -6.609013171412514, gpsLongitude: 106.78293233420759, gpsRadiusMeters: 20 },
+  { id: '00000000-0000-4000-a000-000000000020', name: 'Bakso Ujo - Pasar Anyar', code: 'BGR-02', address: 'Pasar Anyar, Bogor', phone: '', isMainBranch: false, isHeadquarters: false, managerName: '' }
 ];
 
 export const INITIAL_RAW_MATERIALS: RawMaterial[] = [
-  { id: 'raw-1', name: 'Daging Sapi Urat', unit: 'kg', stockQuantity: 28.5, minStockThreshold: 10, costPerUnit: 120000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-2', name: 'Daging Sapi Halus', unit: 'kg', stockQuantity: 35.0, minStockThreshold: 10, costPerUnit: 115000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-3', name: 'Tepung Tapioka Super', unit: 'kg', stockQuantity: 42.0, minStockThreshold: 15, costPerUnit: 14000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-4', name: 'Telur Ayam Broiler', unit: 'pcs', stockQuantity: 240, minStockThreshold: 50, costPerUnit: 2000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-5', name: 'Keju Mozzarella', unit: 'kg', stockQuantity: 8.5, minStockThreshold: 3, costPerUnit: 95000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-6', name: 'Mie Basah Telur', unit: 'kg', stockQuantity: 18.0, minStockThreshold: 5, costPerUnit: 18000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-7', name: 'Tetelan & Tulang Rangu', unit: 'kg', stockQuantity: 12.0, minStockThreshold: 4, costPerUnit: 65000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-8', name: 'Ayam Fillet Pejantan', unit: 'kg', stockQuantity: 22.0, minStockThreshold: 8, costPerUnit: 52000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-9', name: 'Teh Celup Resto', unit: 'pack', stockQuantity: 50, minStockThreshold: 10, costPerUnit: 12000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-10', name: 'Es Batu Crystal', unit: 'kg', stockQuantity: 60, minStockThreshold: 20, costPerUnit: 2000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-11', name: 'Durian Monthong Frozen', unit: 'kg', stockQuantity: 6.0, minStockThreshold: 2, costPerUnit: 110000, branchId: 'br-1', branchName: 'Pasirmulya Bogor' }
+  // BAHAN (Olahan Porsi / Prepared Stock)
+  { id: 'raw-b1', name: 'Bakso Daging', unit: 'pcs', stockQuantity: 17698, minStockThreshold: 20, costPerUnit: 1500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b2', name: 'Bakso Isi Daging Sedang', unit: 'pcs', stockQuantity: 10706, minStockThreshold: 5000, costPerUnit: 2500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b3', name: 'BAKSO KEJU', unit: 'pcs', stockQuantity: 23094, minStockThreshold: 10000, costPerUnit: 3000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b4', name: 'Bakso Polos Kecil', unit: 'pcs', stockQuantity: 10158, minStockThreshold: 5000, costPerUnit: 1000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b5', name: 'Bakso Urat', unit: 'pcs', stockQuantity: 14835, minStockThreshold: 15, costPerUnit: 2200, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b6', name: 'Bakso Urat Gimbal', unit: 'pcs', stockQuantity: 68, minStockThreshold: 50, costPerUnit: 3500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b7', name: 'Bakso Urat Jumbo', unit: 'pcs', stockQuantity: 954, minStockThreshold: 100, costPerUnit: 8500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-b8', name: 'Mie Ayam', unit: 'pcs', stockQuantity: 7719, minStockThreshold: 10, costPerUnit: 4000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+
+  // DAPUR (Bahan Baku Mentah & Bumbu)
+  { id: 'raw-d1', name: 'Beras', unit: 'kg', stockQuantity: 5, minStockThreshold: 5, costPerUnit: 14000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d2', name: 'Keju', unit: 'pcs', stockQuantity: 6, minStockThreshold: 10, costPerUnit: 25000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d3', name: 'Minyak', unit: 'pcs', stockQuantity: 2, minStockThreshold: 10, costPerUnit: 18000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d4', name: 'Rumput Laut', unit: 'pcs', stockQuantity: 5, minStockThreshold: 10, costPerUnit: 15000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d5', name: 'Skm', unit: 'pcs', stockQuantity: 3, minStockThreshold: 10, costPerUnit: 12000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d6', name: 'Skm Coklat', unit: 'pcs', stockQuantity: 2, minStockThreshold: 10, costPerUnit: 12500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d7', name: 'Sunlight', unit: 'pcs', stockQuantity: 4, minStockThreshold: 10, costPerUnit: 15000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d8', name: 'Susu Skm', unit: 'pcs', stockQuantity: 5, minStockThreshold: 10, costPerUnit: 12000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d9', name: 'Terigu', unit: 'pcs', stockQuantity: 2, minStockThreshold: 10, costPerUnit: 11000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d10', name: 'Tiga Sapi', unit: 'pcs', stockQuantity: 4, minStockThreshold: 10, costPerUnit: 13000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d11', name: 'Bihun', unit: 'pcs', stockQuantity: 45, minStockThreshold: 10, costPerUnit: 5000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d12', name: 'gula', unit: 'pcs', stockQuantity: 29, minStockThreshold: 10, costPerUnit: 17000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d13', name: 'KECAP', unit: 'pack', stockQuantity: 29, minStockThreshold: 5, costPerUnit: 22000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d14', name: 'Mie', unit: 'pcs', stockQuantity: 40, minStockThreshold: 10, costPerUnit: 4500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d15', name: 'Mozza', unit: 'pcs', stockQuantity: 22, minStockThreshold: 10, costPerUnit: 45000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d16', name: 'Mutiara', unit: 'pcs', stockQuantity: 125, minStockThreshold: 10, costPerUnit: 8000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d17', name: 'Nata D Coco', unit: 'pcs', stockQuantity: 48, minStockThreshold: 10, costPerUnit: 14000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d18', name: 'Nutrijel', unit: 'pcs', stockQuantity: 23, minStockThreshold: 10, costPerUnit: 4500, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d19', name: 'Sagu Tani', unit: 'pcs', stockQuantity: 23, minStockThreshold: 10, costPerUnit: 16000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d20', name: 'Sasa', unit: 'pcs', stockQuantity: 16, minStockThreshold: 10, costPerUnit: 6000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d21', name: 'Saus Cabe', unit: 'pcs', stockQuantity: 71, minStockThreshold: 10, costPerUnit: 15000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d22', name: 'SAUS TOMAT', unit: 'pack', stockQuantity: 66, minStockThreshold: 10, costPerUnit: 15000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d23', name: 'Swallow', unit: 'pcs', stockQuantity: 12, minStockThreshold: 10, costPerUnit: 5000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d24', name: 'Teh Bendera', unit: 'pack', stockQuantity: 39, minStockThreshold: 10, costPerUnit: 8000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-d25', name: 'Tepung Beras', unit: 'pcs', stockQuantity: 30, minStockThreshold: 10, costPerUnit: 12000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' }
 ];
 
 export const INITIAL_MENU_ITEMS: MenuItem[] = [
@@ -764,16 +788,16 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
 ];
 
 export const INITIAL_TABLES: RestaurantTable[] = [
-  { id: 'tbl-1', number: '01', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-038', branchId: 'br-1' },
-  { id: 'tbl-2', number: '02', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-037', branchId: 'br-1' },
-  { id: 'tbl-3', number: '03', capacity: 2, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-036', branchId: 'br-1' },
-  { id: 'tbl-4', number: '04', capacity: 6, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-035', branchId: 'br-1' },
-  { id: 'tbl-5', number: '05', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: 'br-1' },
-  { id: 'tbl-6', number: '06', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: 'br-1' },
-  { id: 'tbl-7', number: '07', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: 'br-1' },
-  { id: 'tbl-8', number: '08', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: 'br-1' },
-  { id: 'tbl-9', number: '09', capacity: 8, status: 'FREE', isSelfOrderEnabled: false, branchId: 'br-1' },
-  { id: 'tbl-10', number: '10', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: 'br-1' }
+  { id: 'tbl-1', number: '01', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-038', branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-2', number: '02', capacity: 4, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-037', branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-3', number: '03', capacity: 2, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-036', branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-4', number: '04', capacity: 6, status: 'OCCUPIED', isSelfOrderEnabled: true, activeOrderId: 'ord-035', branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-5', number: '05', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-6', number: '06', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-7', number: '07', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-8', number: '08', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-9', number: '09', capacity: 8, status: 'FREE', isSelfOrderEnabled: false, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-10', number: '10', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' }
 ];
 
 export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {
@@ -854,7 +878,7 @@ export const INITIAL_CURRENT_SHIFT: Shift = {
   totalIncome: 0,
   status: 'OPEN',
   notes: 'Shift Pagi Kasir Utama',
-  branchId: 'br-1',
+  branchId: '00000000-0000-4000-a000-000000000010',
   branchName: 'Bakso Ujo - Pasirmulya Bogor',
   scheduledStart: '08:00',
   scheduledEnd: '16:00'
@@ -883,7 +907,7 @@ export const INITIAL_ORDERS: Order[] = [
     status: 'NEW',
     createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
     shiftId: 'shf-101',
-    branchId: 'br-1',
+    branchId: '00000000-0000-4000-a000-000000000010',
     cashierName: 'CITRA',
     syncStatus: 'SYNCED'
   },
@@ -908,7 +932,7 @@ export const INITIAL_ORDERS: Order[] = [
     status: 'COOKING',
     createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     shiftId: 'shf-101',
-    branchId: 'br-1',
+    branchId: '00000000-0000-4000-a000-000000000010',
     cashierName: 'CITRA',
     syncStatus: 'SYNCED'
   },
@@ -935,7 +959,7 @@ export const INITIAL_ORDERS: Order[] = [
     status: 'COOKING',
     createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     shiftId: 'shf-101',
-    branchId: 'br-1',
+    branchId: '00000000-0000-4000-a000-000000000010',
     cashierName: 'CITRA',
     syncStatus: 'SYNCED'
   },
@@ -961,7 +985,7 @@ export const INITIAL_ORDERS: Order[] = [
     status: 'READY',
     createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     shiftId: 'shf-101',
-    branchId: 'br-1',
+    branchId: '00000000-0000-4000-a000-000000000010',
     cashierName: 'CITRA',
     syncStatus: 'SYNCED'
   }

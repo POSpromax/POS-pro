@@ -1,31 +1,23 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
   Building2,
-  Plus,
-  TrendingUp,
-  Receipt,
+  CheckCircle2,
+  Compass,
+  DollarSign,
+  ExternalLink,
   Grid2X2,
-  Store,
   MapPin,
   Phone,
-  ArrowRight,
-  ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
-  X,
-  Sparkles,
+  Plus,
+  Receipt,
   Search,
-  DollarSign,
   Settings,
-  Boxes,
+  Store,
   Users,
-  Percent,
-  Printer,
-  Crown,
-  Lock,
-  PieChart,
-  Compass
+  X,
 } from 'lucide-react';
 import { Branch, Order, RestaurantTable, RawMaterial } from '../../types/pos';
 
@@ -58,22 +50,59 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   const [newBranchPhone, setNewBranchPhone] = useState('');
   const [isMainBranchCheck, setIsMainBranchCheck] = useState(false);
 
-  const totalMultiOutletOmset = orders
-    .filter((o) => o.paymentStatus === 'PAID')
-    .reduce((sum, o) => sum + o.total, 0);
-
+  const totalMultiOutletOmset = orders.filter((o) => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.total, 0);
   const totalOrdersCount = orders.length;
   const occupiedTablesCount = tables.filter((t) => t.status === 'OCCUPIED').length;
   const totalTablesCount = tables.length;
+  const lowStockItemsCount = rawMaterials.filter((m) => m.stockQuantity <= m.minStockThreshold).length;
 
-  const lowStockItemsCount = rawMaterials.filter(
-    (m) => m.stockQuantity <= m.minStockThreshold
-  ).length;
-
-  const filteredBranches = branches.filter((b) =>
-    b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.address.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBranches = useMemo(
+    () =>
+      branches.filter(
+        (b) =>
+          b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          b.address.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [branches, searchTerm],
   );
+
+  const summaryCards = [
+    {
+      title: 'Omset Terkonfirmasi',
+      value: `Rp ${totalMultiOutletOmset.toLocaleString('id-ID')}`,
+      note: 'Akumulasi transaksi lunas seluruh outlet',
+      icon: DollarSign,
+      tone: 'accent',
+    },
+    {
+      title: 'Total Transaksi',
+      value: `${totalOrdersCount} order`,
+      note: 'Semua transaksi yang tersimpan hari ini',
+      icon: Receipt,
+      tone: 'neutral',
+    },
+    {
+      title: 'Okupansi Meja',
+      value: `${occupiedTablesCount} / ${totalTablesCount || 0}`,
+      note: totalTablesCount > 0 ? `${Math.round((occupiedTablesCount / totalTablesCount) * 100)}% meja aktif` : 'Belum ada data meja',
+      icon: Grid2X2,
+      tone: 'neutral',
+    },
+    {
+      title: 'Stok Kritis',
+      value: `${lowStockItemsCount} item`,
+      note: lowStockItemsCount > 0 ? 'Butuh restock atau koreksi stok minimum' : 'Belum ada bahan di ambang minimum',
+      icon: AlertTriangle,
+      tone: lowStockItemsCount > 0 ? 'warning' : 'neutral',
+    },
+  ] as const;
+
+  const actionCards = [
+    { title: 'Konfigurasi Operasional', description: 'Pajak, katalog, staff, hak akses, dan pengaturan outlet', icon: Settings, onClick: () => onNavigateTab('settings') },
+    { title: 'Rancang Bangun Workflow', description: 'Audit workflow, denah, blueprint implementasi, dan checklist', icon: Compass, onClick: () => onNavigateTab('blueprint') },
+    { title: 'Laporan Dan Ringkasan', description: 'Ekspor omzet, histori transaksi, dan status readiness outlet', icon: BookOpen, onClick: () => onNavigateTab('analytics') },
+    { title: 'Tambah Outlet Baru', description: 'Daftarkan cabang baru dengan identitas dan kontak operasional', icon: Building2, onClick: () => setIsAddModalOpen(true) },
+  ] as const;
 
   const handleCreateBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,289 +129,305 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   };
 
   return (
-    <div className="flex-1 bg-transparent text-[#1A1714] overflow-y-auto p-4 md:p-5 font-sans">
-      {/* Header Banner */}
-      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-5 mb-5 relative overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="bg-violet-50 text-violet-700 border border-violet-200 text-[10px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 uppercase tracking-wider">
-                <Crown className="w-3 h-3 text-violet-500" /> Executive Portal Owner
+    <div className="flex-1 overflow-y-auto bg-[#F8FAFC] px-4 py-5 text-slate-900 md:px-6 font-sans select-none">
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs md:p-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#EA580C]">
+                <Store className="h-3.5 w-3.5" />
+                Portal Multi-Cabang Owner
               </span>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold px-2.5 py-1 rounded-lg">
-                {branches.length} Outlet Aktif
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] px-3.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#EA580C]" />
+                {branches.length} Outlet Terdaftar
               </span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-[#1A1714] tracking-tight">
-              Dashboard Executive Owner
+            <h1 className="text-2xl font-black tracking-tight text-[#1A1714] md:text-[28px]">
+              Ringkasan Kesiapan & Operasional Cabang
             </h1>
-            <p className="text-[#9C9590] text-xs mt-1 max-w-xl font-medium leading-relaxed">
-              Pusat kendali utama: pantau performa omset, margin profit, persediaan stok, serta lakukan konfigurasi sistem usaha.
+            <p className="mt-2 max-w-2xl text-xs font-bold leading-relaxed text-slate-500">
+              Pantau omzet real-time, kesiapan teknis outlet (Shift, GPS, Printer, QR Self-Order), dan navigasi kontrol owner dalam satu layar modern.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => onNavigateTab('blueprint')}
-              className="bg-violet-600 hover:bg-violet-700 text-white font-semibold text-[11px] px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
-              style={{ boxShadow: '0 2px 8px rgba(99,102,241,0.2)' }}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1A1714] hover:bg-slate-800 px-4 py-3 text-[11px] font-black text-white transition shadow-xs cursor-pointer active:scale-95"
             >
-              <Compass className="w-3.5 h-3.5" />
-              <span>Studio Rancang Bangun</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-[#1A1714] hover:bg-[#2A2520] text-white font-semibold text-[11px] px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Outlet</span>
+              <Compass className="h-3.5 w-3.5 text-orange-400" />
+              Studio Workflow
             </button>
             <button
               type="button"
               onClick={() => onNavigateTab('settings')}
-              className="bg-white hover:bg-[#F5EFE8] border border-[#E8E0D8] text-[#6B6560] font-semibold text-[11px] px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] hover:bg-white px-4 py-3 text-[11px] font-black text-slate-800 transition cursor-pointer active:scale-95"
             >
-              <Settings className="w-3.5 h-3.5 text-violet-500" />
-              <span>Pengaturan</span>
+              <Settings className="h-3.5 w-3.5 text-[#EA580C]" />
+              Pengaturan
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 px-4 py-3 text-[11px] font-black text-white shadow-md shadow-orange-500/20 transition cursor-pointer active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Tambah Outlet
             </button>
           </div>
         </div>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-5 border-t border-[#F0E8E0]">
-          <div className="bg-[#FAFAF8] border border-[#E8E0D8] p-3.5 rounded-xl">
-            <div className="flex items-center justify-between text-[#9C9590] mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Total Omset</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-            </div>
-            <p className="text-lg md:text-xl font-bold text-emerald-600 tracking-tight">
-              Rp {totalMultiOutletOmset.toLocaleString('id-ID')}
-            </p>
-            <p className="text-[10px] text-[#B8B0A8] font-medium mt-1">Akumulasi seluruh outlet</p>
-          </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map((card) => {
+            const Icon = card.icon;
+            const toneClass =
+              card.tone === 'accent'
+                ? 'border-orange-200 bg-orange-50'
+                : card.tone === 'warning'
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-slate-200 bg-slate-50';
+            const iconClass =
+              card.tone === 'accent'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : card.tone === 'warning'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-slate-900 text-white';
 
-          <div className="bg-[#FAFAF8] border border-[#E8E0D8] p-3.5 rounded-xl">
-            <div className="flex items-center justify-between text-[#9C9590] mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Total Transaksi</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Receipt className="w-3.5 h-3.5 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-lg md:text-xl font-bold text-[#1A1714] tracking-tight">
-              {totalOrdersCount} <span className="text-xs font-normal text-[#9C9590]">order</span>
-            </p>
-            <p className="text-[10px] text-[#B8B0A8] font-medium mt-1">Transaksi hari ini</p>
-          </div>
-
-          <div className="bg-[#FAFAF8] border border-[#E8E0D8] p-3.5 rounded-xl">
-            <div className="flex items-center justify-between text-[#9C9590] mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Okupansi Meja</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Grid2X2 className="w-3.5 h-3.5 text-amber-600" />
-              </div>
-            </div>
-            <p className="text-lg md:text-xl font-bold text-[#1A1714] tracking-tight">
-              {occupiedTablesCount} / {totalTablesCount}{' '}
-              <span className="text-xs font-normal text-[#9C9590]">terisi</span>
-            </p>
-            <p className="text-[10px] text-[#B8B0A8] font-medium mt-1">
-              {totalTablesCount > 0 ? Math.round((occupiedTablesCount / totalTablesCount) * 100) : 0}% Tingkat terisi
-            </p>
-          </div>
-
-          <div className="bg-[#FAFAF8] border border-[#E8E0D8] p-3.5 rounded-xl">
-            <div className="flex items-center justify-between text-[#9C9590] mb-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Stok Kritis</span>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${lowStockItemsCount > 0 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                <AlertTriangle className={`w-3.5 h-3.5 ${lowStockItemsCount > 0 ? 'text-amber-500' : 'text-[#B8B0A8]'}`} />
-              </div>
-            </div>
-            <p className={`text-lg md:text-xl font-bold tracking-tight ${lowStockItemsCount > 0 ? 'text-amber-600' : 'text-[#1A1714]'}`}>
-              {lowStockItemsCount} <span className="text-xs font-normal text-[#9C9590]">item</span>
-            </p>
-            <p className="text-[10px] text-[#B8B0A8] font-medium mt-1">Bahan batas minimum</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Configuration Hub */}
-      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-4 mb-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F0E8E0]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-200">
-              <Settings className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-[#1A1714]">Pusat Konfigurasi</h2>
-              <p className="text-[10px] text-[#9C9590] font-medium">Akses pengaturan profil, pajak, menu, staff, dan laporan</p>
-            </div>
-          </div>
-          <span className="bg-violet-50 text-violet-600 border border-violet-200 text-[9px] font-semibold px-2 py-0.5 rounded-lg uppercase tracking-wider">
-            Owner
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {[
-            { onClick: () => onNavigateTab('blueprint'), bg: 'bg-amber-50', iconBg: 'bg-amber-100 text-amber-700', icon: Compass, title: 'Rancang Bangun', sub: 'Denah, Printer & PIN' },
-            { onClick: () => onNavigateTab('settings'), bg: 'bg-[#FAFAF8]', iconBg: 'bg-violet-100 text-violet-600', icon: Percent, title: 'Resto & Pajak', sub: 'PB1 11% & Service' },
-            { onClick: () => onNavigateTab('settings'), bg: 'bg-[#FAFAF8]', iconBg: 'bg-blue-100 text-blue-600', icon: Sparkles, title: 'Menu & Topping', sub: 'Katalog & Custom Isian' },
-            { onClick: () => onNavigateTab('settings'), bg: 'bg-[#FAFAF8]', iconBg: 'bg-emerald-100 text-emerald-600', icon: Users, title: 'Staff & PIN', sub: 'Role & Hak Otoritas' },
-            { onClick: () => onNavigateTab('inventory'), bg: 'bg-[#FAFAF8]', iconBg: 'bg-amber-100 text-amber-600', icon: Boxes, title: 'Stok & HPP', sub: 'Bahan Baku & Resep' },
-            { onClick: () => onNavigateTab('analytics'), bg: 'bg-[#FAFAF8]', iconBg: 'bg-teal-100 text-teal-600', icon: PieChart, title: 'Analitik & Export', sub: 'Excel & PDF' },
-            { onClick: () => setIsAddModalOpen(true), bg: 'bg-[#FAFAF8]', iconBg: 'bg-rose-100 text-rose-600', icon: Building2, title: '+ Cabang', sub: 'Registrasi Outlet' },
-          ].map((item, i) => {
-            const Icon = item.icon;
             return (
-              <button
-                key={i}
-                type="button"
-                onClick={item.onClick}
-                className={`p-3 ${item.bg} hover:bg-[#F0E8E0] border border-[#E8E0D8] rounded-xl flex flex-col items-start gap-2 transition-all text-left group cursor-pointer`}
-              >
-                <div className={`w-8 h-8 rounded-lg ${item.iconBg} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                  <Icon className="w-4 h-4" />
+              <div key={card.title} className={`rounded-2xl border p-4 shadow-2xs ${toneClass}`}>
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{card.title}</span>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconClass}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[11px] font-bold text-[#1A1714]">{item.title}</p>
-                  <p className="text-[9px] text-[#9C9590] font-medium mt-0.5">{item.sub}</p>
-                </div>
-              </button>
+                <p className="text-xl font-black tracking-tight text-slate-900">{card.value}</p>
+                <p className="mt-1 text-[10px] font-bold leading-relaxed text-slate-500">{card.note}</p>
+              </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Search & Filter */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-3.5 h-3.5 text-[#9C9590] absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Cari outlet berdasarkan nama atau alamat..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all placeholder:text-[#B8B0A8] font-medium"
-          />
+      <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_1.3fr]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Kontrol Utama</p>
+              <h2 className="mt-1 text-lg font-black text-slate-900">Navigasi Keputusan Owner</h2>
+            </div>
+            <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-orange-700">
+              Super-App
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {actionCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <button
+                  key={card.title}
+                  type="button"
+                  onClick={card.onClick}
+                  className="group flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-900 hover:bg-white shadow-2xs cursor-pointer"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-slate-900">{card.title}</p>
+                    <p className="mt-1 text-[10px] font-bold leading-relaxed text-slate-500">{card.description}</p>
+                  </div>
+                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-900" />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="text-xs text-[#6B6560] font-medium flex items-center gap-2">
-          <span>Outlet Aktif:</span>
-          <span className="bg-violet-600 text-white px-3 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1.5">
-            <Store className="w-3 h-3" /> {currentBranch.name}
-          </span>
-        </div>
-      </div>
+        <div className="rounded-2xl border border-[#EAE3DB] bg-white p-5 shadow-2xs">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Filter & Status Cabang</p>
+              <h2 className="mt-1 text-lg font-black text-[#1A1714]">Status Kesiapan Outlet</h2>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] px-3.5 py-1.5 text-[11px] font-black text-slate-800">
+              <Store className="h-3.5 w-3.5 text-[#EA580C]" />
+              Outlet Aktif: {currentBranch.name}
+            </div>
+          </div>
 
-      {/* Outlet Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="relative mt-4">
+            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari outlet berdasarkan nama atau alamat..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-[#EAE3DB] bg-[#F6EFE7] py-3 pl-9 pr-4 text-xs font-bold text-[#1A1714] outline-none transition focus:border-[#EA580C] focus:bg-white"
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#EAE3DB] bg-[#F8F2EC] p-4 shadow-2xs">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Outlet</p>
+              <p className="mt-2 text-2xl font-black text-[#1A1714]">{branches.length}</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">Cabang terdaftar dalam tenant bisnis.</p>
+            </div>
+            <div className="rounded-2xl border border-[#EAE3DB] bg-[#F8F2EC] p-4 shadow-2xs">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hasil Filter</p>
+              <p className="mt-2 text-2xl font-black text-[#1A1714]">{filteredBranches.length}</p>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">Outlet sesuai kata kunci pencarian.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredBranches.map((branch) => {
           const isSelected = branch.id === currentBranch.id;
           const branchOrders = orders.filter((o) => o.branchId === branch.id || (!o.branchId && branch.isMainBranch));
-          const branchOmset = branchOrders
-            .filter((o) => o.paymentStatus === 'PAID')
-            .reduce((sum, o) => sum + o.total, 0);
+          const branchOmset = branchOrders.filter((o) => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.total, 0);
+          const branchOccupied = tables.filter((table) => (!table.branchId || table.branchId === branch.id) && table.status === 'OCCUPIED').length;
+          const branchTotalTables = tables.filter((table) => !table.branchId || table.branchId === branch.id).length;
+          const branchSelfOrderTables = tables.filter((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled).length;
 
           return (
             <div
               key={branch.id}
-              className={`bg-white border rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 relative group ${
+              className={`flex flex-col justify-between rounded-2xl border p-5 transition shadow-2xs ${
                 isSelected
-                  ? 'border-violet-400 ring-1 ring-violet-400/20'
-                  : 'border-[#E8E0D8] hover:border-[#D5CFC8]'
+                  ? 'border-[#EA580C] bg-[#FFF8F3] ring-2 ring-orange-500/10'
+                  : 'border-[#EAE3DB] bg-white hover:border-[#EA580C]'
               }`}
-              style={{ boxShadow: isSelected ? '0 4px 12px rgba(99,102,241,0.08)' : '0 1px 3px rgba(0,0,0,0.04)' }}
             >
               <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
                       {branch.isMainBranch ? (
-                        <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-semibold px-2 py-0.5 rounded-md uppercase">
-                          Pusat
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-800">
+                          Outlet Pusat
                         </span>
                       ) : (
-                        <span className="bg-[#FAFAF8] text-[#9C9590] border border-[#E8E0D8] text-[9px] font-semibold px-2 py-0.5 rounded-md uppercase">
+                        <span className="rounded-full border border-[#EAE3DB] bg-[#F6EFE7] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-600">
                           Cabang
                         </span>
                       )}
                       {isSelected && (
-                        <span className="bg-violet-50 text-violet-600 border border-violet-200 text-[9px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> Aktif
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#EA580C]">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
+                          Aktif Dipilih
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-bold text-[#1A1714] group-hover:text-violet-600 transition-colors">
-                      {branch.name}
-                    </h3>
+                    <h3 className="text-lg font-black leading-tight text-[#1A1714]">{branch.name}</h3>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {branch.code || 'OUTLET'}
+                    </p>
                   </div>
-                  <div className="w-9 h-9 rounded-xl bg-[#FAFAF8] border border-[#E8E0D8] flex items-center justify-center text-violet-500 shrink-0">
-                    <Store className="w-4 h-4" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs">
+                    <Store className="h-5 w-5" />
                   </div>
                 </div>
 
-                <div className="space-y-1 text-xs text-[#9C9590] font-medium mb-3">
-                  <p className="flex items-start gap-1.5">
-                    <MapPin className="w-3 h-3 text-[#B8B0A8] shrink-0 mt-0.5" />
+                <div className="mb-4 space-y-2 text-xs font-bold text-slate-600">
+                  <p className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#EA580C]" />
                     <span className="line-clamp-2">{branch.address}</span>
                   </p>
-                  <p className="flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-[#B8B0A8] shrink-0" />
+                  <p className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 shrink-0 text-[#EA580C]" />
                     <span>{branch.phone}</span>
                   </p>
                 </div>
 
-                <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl p-3 mb-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-[9px] text-[#9C9590] font-semibold uppercase tracking-wider">Omset Hari Ini</span>
-                    <p className="text-sm font-bold text-emerald-600 mt-0.5">
-                      Rp {branchOmset > 0 ? branchOmset.toLocaleString('id-ID') : '0'}
-                    </p>
+                {/* Readiness Health Checklist Badge Box */}
+                <div className="mb-4 rounded-2xl border border-[#EAE3DB] bg-[#F8F2EC] p-3 text-[10px] font-bold space-y-1.5">
+                  <p className="font-black text-slate-800 uppercase tracking-wider text-[9px] border-b border-slate-200 pb-1">
+                    Checklist Readiness Outlet:
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-[10px]">
+                    <span className="flex items-center gap-1 text-emerald-700 font-black">
+                      ✓ Meja: {branchTotalTables} Meja ({branchSelfOrderTables} QR ON)
+                    </span>
+                    <span className="flex items-center gap-1 text-emerald-700 font-black">
+                      ✓ GPS: {branch.gpsLatitude ? 'Valid' : 'Outlet Standard'}
+                    </span>
+                    <span className="flex items-center gap-1 text-slate-700 font-bold">
+                      • Printer BT: Ready 58mm
+                    </span>
+                    <span className="flex items-center gap-1 text-slate-700 font-bold">
+                      • Pembayaran: Cash / QRIS
+                    </span>
                   </div>
-                  <div>
-                    <span className="text-[9px] text-[#9C9590] font-semibold uppercase tracking-wider">Total Order</span>
-                    <p className="text-sm font-bold text-[#1A1714] mt-0.5">
-                      {branchOrders.length} <span className="text-[10px] text-[#9C9590] font-normal">transaksi</span>
-                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-[#EAE3DB] bg-[#F6EFE7] p-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Omset Hari Ini</p>
+                    <p className="text-base font-black text-[#1A1714]">Rp {branchOmset.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Order</p>
+                    <p className="text-base font-black text-[#1A1714]">{branchOrders.length}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Meja Terisi</p>
+                    <p className="text-xs font-black text-slate-700">{branchOccupied} dari {branchTotalTables || 0}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Status Monitor</p>
+                    <p className="text-xs font-black text-slate-700">{isSelected ? 'Sedang Dipantau' : 'Tersedia'}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5 pt-3 border-t border-[#F0E8E0]">
+              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     onSelectBranch(branch);
                     onNavigateTab('pos');
                   }}
-                  className={`w-full py-2 px-4 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-[11px] font-black transition cursor-pointer active:scale-95 ${
                     isSelected
-                      ? 'bg-violet-600 text-white hover:bg-violet-700'
-                      : 'bg-[#FAFAF8] hover:bg-[#F0E8E0] text-[#6B6560] border border-[#E8E0D8]'
+                      ? 'bg-gradient-to-r from-[#EA580C] to-[#F97316] text-white shadow-md shadow-orange-500/20 hover:from-orange-700 hover:to-orange-600'
+                      : 'border border-[#EAE3DB] bg-[#F6EFE7] text-slate-800 hover:bg-white'
                   }`}
                 >
-                  <span>{isSelected ? 'Buka Kasir POS' : 'Pilih & Buka POS'}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>{isSelected ? 'Buka Terminal POS Outlet' : 'Pilih Outlet Ini & Buka POS'}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
 
                 <a
                   href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '01')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full py-1.5 px-3 rounded-xl bg-[#FAFAF8] hover:bg-[#F0E8E0] text-[#9C9590] hover:text-[#6B6560] text-[10px] font-medium flex items-center justify-center gap-1.5 border border-[#E8E0D8] transition-colors"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-2.5 text-[10px] font-black text-[#EA580C] transition hover:bg-[#FFE9DE] cursor-pointer"
                 >
-                  <ExternalLink className="w-3 h-3 text-amber-500" />
-                  <span>Buka Self-Order Mobile</span>
+                  <ExternalLink className="h-3 w-3" />
+                  <span>Buka Pratinjau QR Self-Order Publik</span>
                 </a>
               </div>
             </div>
           );
         })}
-      </div>
+      </section>
+
+      {filteredBranches.length === 0 && (
+        <div className="rounded-[28px] border border-dashed border-[#D8D2CC] bg-white p-12 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-[#FFF4EE] text-[#F05A1F]">
+            <Search className="h-5 w-5" />
+          </div>
+          <h3 className="mt-4 text-lg font-black text-[#1A1714]">Outlet tidak ditemukan</h3>
+          <p className="mt-2 text-sm font-medium text-[#7A746F]">
+            Ubah kata kunci pencarian atau tambahkan outlet baru bila cabang belum terdaftar.
+          </p>
+        </div>
+      )}
 
       {/* Add Outlet Modal */}
       {isAddModalOpen && (
@@ -390,7 +435,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           <div className="bg-white border border-[#E8E0D8] w-full max-w-lg rounded-2xl p-5 relative overflow-hidden" style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)' }}>
             <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-4 mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-600">
+                <div className="w-9 h-9 rounded-xl bg-[#FFF4EE] border border-[#F1C7B5] flex items-center justify-center text-[#D94B15]">
                   <Building2 className="w-4.5 h-4.5" />
                 </div>
                 <div>

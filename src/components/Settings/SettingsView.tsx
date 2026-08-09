@@ -5,6 +5,7 @@ import {
   Smartphone,
   Volume2,
   Users,
+  Layers,
   Grid,
   CreditCard,
   Shield,
@@ -21,6 +22,8 @@ import {
   RotateCcw,
   CheckCircle2,
   Trash2,
+  Edit2,
+  X,
   Info,
   ExternalLink,
   Play,
@@ -52,6 +55,7 @@ interface SettingsViewProps {
   branches: Branch[];
   currentBranch: Branch;
   onSaveStaff: (staff: UserAccount) => void;
+  onDeleteStaff?: (id: string) => void;
   accessControl: AccessControlRule[];
   onSaveAccessControl: (rules: AccessControlRule[]) => void;
 }
@@ -69,6 +73,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   branches,
   currentBranch,
   onSaveStaff,
+  onDeleteStaff,
   accessControl,
   onSaveAccessControl
 }) => {
@@ -88,6 +93,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newStaffShiftEnd, setNewStaffShiftEnd] = useState('16:00');
   const [newStaffBranchId, setNewStaffBranchId] = useState(currentBranch.id);
 
+  // Edit Staff Modal State
+  const [editingStaff, setEditingStaff] = useState<UserAccount | null>(null);
+
   useEffect(() => {
     setNewStaffBranchId(currentBranch.id);
   }, [currentBranch.id]);
@@ -105,6 +113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // New Option State per group
   const [newOptionNames, setNewOptionNames] = useState<Record<string, string>>({});
   const [newOptionPrices, setNewOptionPrices] = useState<Record<string, number>>({});
+  const [showCondimentTips, setShowCondimentTips] = useState<boolean>(false);
 
   const handleSaveAll = () => {
     onSaveProfile(formProfile);
@@ -231,22 +240,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-slate-100/90 p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between">
+    <div className="flex-1 bg-[#F8FAFC] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900">
       <div>
         {/* Main Header Bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+            <div className="w-12 h-12 bg-gradient-to-tr from-[#EA580C] to-[#F97316] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
               <Settings className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-[#1A1714] tracking-tight">Pengaturan</h1>
-              <p className="text-xs text-[#9C9590] font-semibold uppercase tracking-widest">CONTROL CENTER</p>
+              <h1 className="text-2xl font-black text-[#1A1714] tracking-tight">Pengaturan Operasional</h1>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">CONTROL CENTER TOKO</p>
             </div>
           </div>
 
           {isSavedAlert && (
-            <div className="bg-emerald-600 text-white px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg animate-fadeIn">
+            <div className="bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-black flex items-center gap-2 shadow-lg animate-fadeIn">
               <CheckCircle2 className="w-4 h-4" />
               <span>Perubahan Berhasil Disimpan!</span>
             </div>
@@ -254,26 +263,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Navigation Sidebar matching user reference images */}
+          {/* Left Navigation Sidebar */}
           <div className="space-y-5">
             {/* UMUM */}
             <div>
-              <p className="text-[10px] font-bold text-[#B8B0A8] uppercase tracking-widest px-2 mb-2">UMUM</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">UMUM</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('PROFILE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'PROFILE'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Store className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Profil & Brand</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Identitas, Logo, Sosmed</p>
+                    <p className="text-xs font-black text-[#1A1714]">Profil & Brand</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Identitas, Logo, Sosmed</p>
                   </div>
                 </button>
 
@@ -281,16 +290,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('LANDING')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'LANDING'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Landing Page</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Tampilan App Pelanggan</p>
+                    <p className="text-xs font-black text-[#1A1714]">Landing Self-Order</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Tampilan App Pelanggan</p>
                   </div>
                 </button>
               </div>
@@ -298,22 +307,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* OPERASIONAL */}
             <div>
-              <p className="text-[10px] font-bold text-[#B8B0A8] uppercase tracking-widest px-2 mb-2">OPERASIONAL</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">OPERASIONAL</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('KDS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'KDS'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Volume2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Dapur & KDS</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Timer, Alarm, Running Text</p>
+                    <p className="text-xs font-black text-[#1A1714]">Dapur & KDS</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Timer, Alarm, Running Text</p>
                   </div>
                 </button>
 
@@ -321,16 +330,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('STAFF')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'STAFF'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Karyawan & Shift</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Absensi, GPS, Gaji</p>
+                    <p className="text-xs font-black text-[#1A1714]">Karyawan & Shift</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Absensi, GPS, Shift Staff</p>
                   </div>
                 </button>
 
@@ -338,16 +347,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('CONDIMENTS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'CONDIMENTS'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Grid className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Daftar Isian / Topping</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Opsi Kuah, Isian, Paket</p>
+                    <p className="text-xs font-black text-[#1A1714]">Daftar Isian / Topping</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Opsi Kuah, Isian, Paket</p>
                   </div>
                 </button>
               </div>
@@ -355,22 +364,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* SYSTEM */}
             <div>
-              <p className="text-[10px] font-bold text-[#B8B0A8] uppercase tracking-widest px-2 mb-2">SYSTEM</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">SYSTEM</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('FINANCE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'FINANCE'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Keuangan</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Pajak, Service, Diskon</p>
+                    <p className="text-xs font-black text-[#1A1714]">Keuangan & Pajak</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Pajak, Service, Diskon</p>
                   </div>
                 </button>
 
@@ -378,16 +387,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('ACCESS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'ACCESS'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-slate-700 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Hak Akses</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Role & Permissions</p>
+                    <p className="text-xs font-black text-[#1A1714]">Hak Akses</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Role & Permissions</p>
                   </div>
                 </button>
 
@@ -395,16 +404,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('DATABASE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'DATABASE'
-                      ? 'bg-white border-blue-500 ring-2 ring-blue-500/20 text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/70 border-[#E8E0D8]/80 text-slate-600 hover:bg-white'
+                      ? 'bg-white border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] shadow-2xs font-black'
+                      : 'bg-white/80 border-[#EAE3DB] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[#EA580C] to-[#F97316] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Database className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#1A1714]">Database & Reset</p>
-                    <p className="text-[10px] text-[#9C9590] font-medium">Reset & Maintenance</p>
+                    <p className="text-xs font-black text-[#1A1714]">Database & Reset</p>
+                    <p className="text-[10px] text-slate-500 font-bold">Reset & Maintenance</p>
                   </div>
                 </button>
               </div>
@@ -414,7 +423,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               type="button"
               onClick={handleSaveAll}
-              className="w-full py-4 bg-[#1C1B19] hover:bg-black text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-black/20 active:scale-95 transition-all cursor-pointer mt-4"
+              className="w-full py-3.5 bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 text-white rounded-full font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer mt-4"
             >
               <Save className="w-4 h-4" />
               <span>SIMPAN PERUBAHAN</span>
@@ -422,7 +431,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Right Main Form Content Panel */}
-          <div className="lg:col-span-3 bg-white border border-[#E8E0D8]/80 rounded-2xl p-6 shadow-xs min-h-[600px]">
+          <div className="lg:col-span-3 bg-white border border-[#EAE3DB] rounded-2xl p-6 shadow-2xs min-h-[600px]">
             {/* 1. PROFIL & BRAND (Matching Image 1) */}
             {activeTab === 'PROFILE' && (
               <div className="space-y-6">
@@ -816,17 +825,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-xs font-bold text-[#1A1714]">Aktifkan Absensi Outlet</p>
                     <p className="text-[10px] text-[#8E8E8E] mt-0.5">Jika nonaktif, staff tidak dapat melakukan clock-in atau clock-out.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormProfile({ ...formProfile, isAttendanceEnabled: formProfile.isAttendanceEnabled === false })}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-bold border ${
-                      formProfile.isAttendanceEnabled !== false
-                        ? 'bg-[#1C1B19] text-white border-[#1C1B19]'
-                        : 'bg-[#F5F5F5] text-[#666666] border-[#DDDDDD]'
-                    }`}
-                  >
-                    {formProfile.isAttendanceEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/attendance?branch=${encodeURIComponent(currentBranch.id)}`, '_blank', 'noopener,noreferrer')}
+                      className="flex items-center gap-1.5 rounded-xl border border-[#E2E2E2] bg-white px-3 py-2 text-[10px] font-bold text-[#1A1714] hover:bg-[#F5F5F5]"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Buka Terminal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormProfile({ ...formProfile, isAttendanceEnabled: formProfile.isAttendanceEnabled === false })}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold border ${
+                        formProfile.isAttendanceEnabled !== false
+                          ? 'bg-[#1C1B19] text-white border-[#1C1B19]'
+                          : 'bg-[#F5F5F5] text-[#666666] border-[#DDDDDD]'
+                      }`}
+                    >
+                      {formProfile.isAttendanceEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Jadwal Shift & Toleransi Card (Matching Image 5) */}
@@ -1053,57 +1071,93 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Staff List Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                     {staffAccounts.map((stf) => (
-                      <div key={stf.id} className="bg-white border border-[#E8E0D8] rounded-2xl p-3.5 shadow-xs space-y-3">
-                        <div className="flex items-center justify-between gap-3">
+                      <div key={stf.id} className="bg-white border border-[#E8E0D8] rounded-2xl p-3.5 shadow-xs space-y-3 relative">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
                           <div className="flex items-center gap-3 min-w-0">
                             <img
                               src={stf.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
                               alt={stf.name}
-                              className="w-10 h-10 rounded-xl object-cover border"
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-200"
                             />
                             <div className="min-w-0">
-                              <p className="text-xs font-bold text-[#1A1714] truncate">{stf.name}</p>
-                              <p className="text-[10px] text-[#777777] font-semibold">{stf.role} · {stf.shiftStart || '-'}–{stf.shiftEnd || '-'}</p>
-                              <p className="text-[9px] text-[#A0A0A0] mt-0.5 truncate">{branches.find((branch) => stf.branchIds?.includes(branch.id))?.name || 'Semua outlet'}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-black text-[#1A1714] truncate">{stf.name}</p>
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-indigo-700 font-mono text-[9px] font-bold">
+                                  {stf.role}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 font-bold">{stf.shiftStart || '-'} – {stf.shiftEnd || '-'}</p>
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => onSaveStaff({ ...stf, isActive: stf.isActive === false })}
-                            className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase ${stf.isActive === false ? 'border-[#D8D8D8] text-[#777777] bg-[#F5F5F5]' : 'border-[#F1C7B5] text-[#D94B15] bg-[#FFF7F3]'}`}
-                          >
-                            {stf.isActive === false ? 'Nonaktif' : 'Aktif'}
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingStaff({ ...stf })}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                              title="Edit Detail Staff & PIN"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Hapus akun staf ${stf.name}?`)) {
+                                  if (onDeleteStaff) onDeleteStaff(stf.id);
+                                }
+                              }}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              title="Hapus Staff"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => onSaveStaff({ ...stf, isActive: stf.isActive === false })}
+                              className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase cursor-pointer ${stf.isActive === false ? 'border-slate-300 text-slate-500 bg-slate-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50'}`}
+                            >
+                              {stf.isActive === false ? 'Nonaktif' : 'Aktif'}
+                            </button>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
                           <label className="space-y-1">
-                            <span className="text-[9px] font-bold text-[#777777] uppercase">Mulai shift</span>
-                            <input type="time" value={stf.shiftStart || ''} onChange={(e) => onSaveStaff({ ...stf, shiftStart: e.target.value })} className="w-full rounded-xl border border-[#E2E2E2] bg-[#FAFAFA] px-2.5 py-2 text-xs font-bold" />
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Mulai Shift</span>
+                            <input type="time" value={stf.shiftStart || ''} onChange={(e) => onSaveStaff({ ...stf, shiftStart: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2.5 py-1.5 text-xs font-bold" />
                           </label>
                           <label className="space-y-1">
-                            <span className="text-[9px] font-bold text-[#777777] uppercase">Selesai shift</span>
-                            <input type="time" value={stf.shiftEnd || ''} onChange={(e) => onSaveStaff({ ...stf, shiftEnd: e.target.value })} className="w-full rounded-xl border border-[#E2E2E2] bg-[#FAFAFA] px-2.5 py-2 text-xs font-bold" />
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Selesai Shift</span>
+                            <input type="time" value={stf.shiftEnd || ''} onChange={(e) => onSaveStaff({ ...stf, shiftEnd: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2.5 py-1.5 text-xs font-bold" />
                           </label>
                         </div>
 
-                        <div className="flex items-end gap-2">
-                          <label className="space-y-1 flex-1 min-w-0">
-                            <span className="text-[9px] font-bold text-[#777777] uppercase">Outlet penugasan</span>
+                        <div className="grid grid-cols-2 gap-2 items-end pt-1">
+                          <label className="space-y-1 min-w-0">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Outlet Penugasan</span>
                             <select
                               value={stf.branchIds?.length === branches.length ? '' : stf.branchIds?.[0] || ''}
                               onChange={(e) => onSaveStaff({ ...stf, branchIds: e.target.value ? [e.target.value] : branches.map((branch) => branch.id) })}
-                              className="w-full rounded-xl border border-[#E2E2E2] bg-[#FAFAFA] px-2.5 py-2 text-[10px] font-bold"
+                              className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2 py-1.5 text-[10px] font-bold"
                             >
-                              <option value="">Semua outlet</option>
+                              <option value="">Semua Outlet</option>
                               {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
                             </select>
                           </label>
-                          <div className="pb-1 text-right">
-                            <p className="text-[9px] text-[#8E8E8E] font-semibold uppercase">PIN terlindungi</p>
-                            <p className="text-xs font-mono font-bold text-[#D94B15]">••••••</p>
-                          </div>
+
+                          <label className="space-y-1 min-w-0">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">PIN (6-Angka Edit)</span>
+                            <input
+                              type="password"
+                              maxLength={6}
+                              value={stf.pin || '123456'}
+                              onChange={(e) => onSaveStaff({ ...stf, pin: e.target.value })}
+                              className="w-full rounded-xl border border-indigo-200 bg-indigo-50/50 px-2.5 py-1.5 text-xs font-mono font-bold text-indigo-900 tracking-widest outline-none focus:border-indigo-600 focus:bg-white"
+                              title="Ubah PIN 6-Angka Langsung"
+                            />
+                          </label>
                         </div>
                       </div>
                     ))}
@@ -1112,7 +1166,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* 5. DAFTAR ISIAN / TOPPING (Matching Image 4) */}
+            {/* 5. DAFTAR ISIAN / TOPPING (Matching Screenshots 4 & 5) */}
             {activeTab === 'CONDIMENTS' && (
               <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1124,99 +1178,217 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setShowCondimentTips(true)}
+                      className="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Info className="w-4 h-4 text-blue-600" />
+                      <span>& Tips</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const defaultGroup: CondimentGroup = {
+                          id: 'cg-preset-' + Date.now(),
+                          name: 'Pilihan Kuah',
+                          mode: 'PAKET',
+                          isRequired: true,
+                          targetCategory: 'BAKSO',
+                          isActive: true,
+                          options: [
+                            { id: 'opt-1', name: 'Original', price: 0, isAvailable: true },
+                            { id: 'opt-2', name: 'Kuah Mercon Pedas', price: 2000, isAvailable: true }
+                          ]
+                        };
+                        onSaveCondimentGroup(defaultGroup);
+                        alert('Preset grup kuah standar berhasil ditambahkan!');
+                      }}
+                      className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      <span>Standar</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setNewGroupModalOpen(true)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-md shadow-indigo-500/20 cursor-pointer"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-md shadow-indigo-500/20 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Tambah Grup</span>
+                      <span>+ Grup</span>
                     </button>
                   </div>
                 </div>
 
-                {/* List of Condiment Groups Accordion */}
-                <div className="space-y-3">
+                {/* List of Condiment Groups Accordion (Matching Screenshot 5) */}
+                <div className="space-y-4">
                   {condimentGroups.map((group) => {
                     const isExpanded = expandedGroupIds.includes(group.id);
                     return (
-                      <div key={group.id} className="border border-[#E8E0D8] rounded-2xl overflow-hidden bg-white shadow-xs">
+                      <div key={group.id} className="border border-[#E8E0D8] rounded-3xl overflow-hidden bg-white shadow-xs">
                         {/* Group Header */}
                         <div
                           onClick={() => toggleAccordion(group.id)}
                           className="p-4 flex items-center justify-between bg-[#FAFAF8]/80 hover:bg-slate-100/80 cursor-pointer transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] font-bold">
-                              •
-                            </div>
+                            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 shrink-0" />
                             <div>
                               <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-bold text-[#1A1714]">{group.name}</h3>
-                                <span className="bg-slate-200 text-[#6B6560] text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
+                                <h3 className="text-sm font-black text-[#1A1714]">{group.name}</h3>
+                                <span className="bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-md uppercase">
                                   MODE {group.mode}
                                 </span>
-                                <span className="text-xs text-[#B8B0A8] font-bold">• {group.options.length} Opsi</span>
+                                <span className="text-xs text-slate-400 font-bold">• {group.options.length} Opsi</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full">
-                              🏷️ 1 Target Category
+                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                              <span>🏷️</span>
+                              <span>1 Target</span>
                             </span>
-                            {isExpanded ? <ChevronUp className="w-5 h-5 text-[#B8B0A8]" /> : <ChevronDown className="w-5 h-5 text-[#B8B0A8]" />}
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                           </div>
                         </div>
 
-                        {/* Group Options Content */}
+                        {/* Group Options Content matching Screenshot 5 */}
                         {isExpanded && (
-                          <div className="p-4 border-t border-[#F0E8E0] bg-white space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {group.options.map((opt) => (
-                                <div
-                                  key={opt.id}
-                                  className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAFAF8] border border-[#E8E0D8]/80 text-xs font-bold text-slate-800"
-                                >
-                                  <span>{opt.name}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[#9C9590] font-mono">
-                                      {opt.price > 0 ? `+Rp ${opt.price.toLocaleString('id-ID')}` : 'GRATIS'}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => onToggleOptionAvailable(group.id, opt.id, !opt.isAvailable)}
-                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer ${
-                                        opt.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                                      }`}
-                                    >
-                                      {opt.isAvailable ? 'Aktif' : 'Nonaktif'}
-                                    </button>
-                                  </div>
+                          <div className="p-5 border-t border-[#F0E8E0] bg-white space-y-5 font-sans">
+                            {/* Form Fields Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">NAMA GRUP</label>
+                                <input
+                                  type="text"
+                                  value={group.name}
+                                  onChange={(e) => onSaveCondimentGroup({ ...group, name: e.target.value })}
+                                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-indigo-600 focus:bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">TIPE PILIHAN</label>
+                                <div className="flex items-center gap-2 bg-[#F6EFE7] p-1 rounded-2xl border border-[#EAE3DB]">
+                                  <button
+                                    type="button"
+                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET' })}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-500'}`}
+                                  >
+                                    Pilih 1 (Wajib)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON' })}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-500'}`}
+                                  >
+                                    Pilih Banyak (Opsi)
+                                  </button>
                                 </div>
-                              ))}
+                              </div>
                             </div>
 
-                            {/* Add Option Form */}
-                            <div className="pt-2 flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="+ Tambah Opsi Isian Baru"
-                                value={newOptionNames[group.id] || ''}
-                                onChange={(e) => setNewOptionNames({ ...newOptionNames, [group.id]: e.target.value })}
-                                className="flex-1 bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 font-medium"
-                              />
-                              <input
-                                type="number"
-                                placeholder="Harga (+Rp)"
-                                value={newOptionPrices[group.id] || ''}
-                                onChange={(e) => setNewOptionPrices({ ...newOptionPrices, [group.id]: Number(e.target.value) })}
-                                className="w-28 bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 font-medium"
-                              />
+                            {/* Mode Pilihan & Berlaku Untuk */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">MODE PILIHAN</label>
+                                <div className="flex items-center gap-2 bg-[#F6EFE7] p-1 rounded-2xl border border-[#EAE3DB]">
+                                  <button
+                                    type="button"
+                                    onClick={() => onSaveCondimentGroup({ ...group, isRequired: true })}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${group.isRequired !== false ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500'}`}
+                                  >
+                                    Wajib Pilih (Harus Ada)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onSaveCondimentGroup({ ...group, isRequired: false })}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}
+                                  >
+                                    Opsional (Boleh Kosong)
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">BERLAKU UNTUK</label>
+                                <select
+                                  value={group.targetCategory || 'ALL'}
+                                  onChange={(e) => onSaveCondimentGroup({ ...group, targetCategory: e.target.value as any })}
+                                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none"
+                                >
+                                  <option value="ALL">Semua Kategori (ALL)</option>
+                                  <option value="BAKSO">Bakso</option>
+                                  <option value="MIE AYAM">Mie Ayam</option>
+                                  <option value="MINUMAN">Minuman</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Options List Tags */}
+                            <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">DAFTAR OPSI / PILIHAN</label>
+
+                              <div className="flex items-center gap-2 mb-3">
+                                <input
+                                  type="text"
+                                  placeholder="Ketik nama pilihan (misal: Bakso Halus)..."
+                                  value={newOptionNames[group.id] || ''}
+                                  onChange={(e) => setNewOptionNames({ ...newOptionNames, [group.id]: e.target.value })}
+                                  className="flex-1 bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white"
+                                />
+                                <input
+                                  type="number"
+                                  placeholder="Harga (+Rp)"
+                                  value={newOptionPrices[group.id] || ''}
+                                  onChange={(e) => setNewOptionPrices({ ...newOptionPrices, [group.id]: Number(e.target.value) })}
+                                  className="w-28 bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddOptionToGroup(group)}
+                                  className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black flex items-center justify-center cursor-pointer shadow-xs"
+                                >
+                                  <Plus className="w-5 h-5" />
+                                </button>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                {group.options.map((opt) => (
+                                  <span
+                                    key={opt.id}
+                                    className="bg-slate-100 border border-slate-200 rounded-full px-3 py-1 text-xs font-black text-slate-800 flex items-center gap-2"
+                                  >
+                                    <span>{opt.name.toUpperCase()}</span>
+                                    {opt.price > 0 && <span className="text-indigo-600 font-mono">+Rp{opt.price.toLocaleString('id-ID')}</span>}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedOpts = group.options.filter((o) => o.id !== opt.id);
+                                        onSaveCondimentGroup({ ...group, options: updatedOpts });
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Bottom Delete Group Action */}
+                            <div className="pt-3 border-t border-slate-100 flex justify-end">
                               <button
                                 type="button"
-                                onClick={() => handleAddOptionToGroup(group)}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer"
+                                onClick={() => {
+                                  if (confirm(`Hapus grup topping/isian ${group.name}?`)) {
+                                    onSaveCondimentGroup({ ...group, isActive: false });
+                                  }
+                                }}
+                                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-black text-xs rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
                               >
-                                Tambah
+                                <Trash2 className="w-4 h-4" /> Hapus Grup
                               </button>
                             </div>
                           </div>
@@ -1549,6 +1721,204 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Staff & PIN */}
+      {editingStaff && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (editingStaff) {
+                onSaveStaff(editingStaff);
+                setEditingStaff(null);
+              }
+            }}
+            className="bg-white border border-slate-200 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 font-sans text-slate-900"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-[#1A1714] uppercase">Edit Detail Staff & PIN</h3>
+              <button
+                type="button"
+                onClick={() => setEditingStaff(null)}
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">NAMA STAFF</label>
+                <input
+                  type="text"
+                  required
+                  value={editingStaff.name || ''}
+                  onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black outline-none focus:border-indigo-600 focus:bg-white text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">ROLE</label>
+                  <select
+                    value={editingStaff.role || 'KASIR'}
+                    onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as any })}
+                    className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black outline-none focus:border-indigo-600 focus:bg-white text-slate-900"
+                  >
+                    <option value="KASIR">Kasir</option>
+                    <option value="KITCHEN">Kitchen / Dapur</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="OWNER">Owner</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">PIN 6-ANGKA</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    value={editingStaff.pin || '123456'}
+                    onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value })}
+                    className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-mono font-black tracking-widest outline-none focus:border-indigo-600 focus:bg-white text-indigo-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">MULAI SHIFT</label>
+                  <input
+                    type="time"
+                    value={editingStaff.shiftStart || '08:00'}
+                    onChange={(e) => setEditingStaff({ ...editingStaff, shiftStart: e.target.value })}
+                    className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">SELESAI SHIFT</label>
+                  <input
+                    type="time"
+                    value={editingStaff.shiftEnd || '16:00'}
+                    onChange={(e) => setEditingStaff({ ...editingStaff, shiftEnd: e.target.value })}
+                    className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">OUTLET PENUGASAN</label>
+                <select
+                  value={editingStaff.branchIds?.length === branches.length ? '' : editingStaff.branchIds?.[0] || ''}
+                  onChange={(e) => setEditingStaff({ ...editingStaff, branchIds: e.target.value ? [e.target.value] : branches.map((b) => b.id) })}
+                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black outline-none focus:border-indigo-600 focus:bg-white text-slate-900"
+                >
+                  <option value="">Semua Outlet</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingStaff(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-bold cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-indigo-500/20 cursor-pointer"
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal Panduan Konfigurasi Menu & Tips (Matching Screenshot 4) */}
+      {showCondimentTips && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-indigo-600 font-black text-sm">
+                <Info className="w-5 h-5 text-blue-600" />
+                <span>Panduan Konfigurasi Menu</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCondimentTips(false)}
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-black text-xs text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-indigo-600" />
+                  <span>Apa Fungsi Grup?</span>
+                </h4>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  Grup adalah wadah untuk mengelompokkan opsi tambahan pada menu. Anda bisa membuat banyak grup sesuai kebutuhan.
+                </p>
+                <div className="space-y-2 mt-3">
+                  <div className="bg-amber-50/60 border border-amber-200/80 p-3 rounded-2xl">
+                    <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-mono mr-2">SINGLE</span>
+                    <strong className="text-xs font-black text-slate-900">Pilih 1 (Wajib)</strong>
+                    <p className="text-[11px] text-slate-600 font-medium mt-1">Pelanggan HARUS memilih satu opsi. Cocok untuk varian rasa, level pedas, atau jenis kuah.</p>
+                  </div>
+
+                  <div className="bg-indigo-50/60 border border-indigo-200/80 p-3 rounded-2xl">
+                    <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-mono mr-2">MULTIPLE</span>
+                    <strong className="text-xs font-black text-slate-900">Pilih Banyak (Opsional)</strong>
+                    <p className="text-[11px] text-slate-600 font-medium mt-1">Pelanggan bisa memilih lebih dari satu atau tidak sama sekali. Cocok untuk topping atau isian.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-black text-xs text-amber-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>Apa Fungsi Preset?</span>
+                </h4>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  Preset adalah template konfigurasi siap pakai. Gunakan tombol <strong className="text-amber-700">"Preset Standar"</strong> untuk membuat struktur grup umum (seperti Varian + Topping) secara otomatis tanpa perlu mengetik manual.
+                </p>
+              </div>
+
+              <div className="bg-blue-50/60 border border-blue-200 p-4 rounded-2xl space-y-2">
+                <h4 className="font-black text-xs text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="w-4 h-4 text-blue-600" />
+                  <span>Tips Konfigurasi Kuah</span>
+                </h4>
+                <p className="text-[11px] text-slate-600 font-bold">Untuk menu dengan varian kuah (misal: Bakso):</p>
+                <ol className="text-xs text-slate-700 space-y-1 list-decimal pl-5 font-medium">
+                  <li>Buat Grup tipe <strong>SINGLE</strong> (misal: "Pilihan Kuah").</li>
+                  <li>Isi opsi kuah (misal: Original, Mercon).</li>
+                  <li>Targetkan ke kategori menu yang sesuai.</li>
+                  <li>Sistem akan memaksa pelanggan memilih salah satu saat order.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCondimentTips(false)}
+                className="px-5 py-2.5 bg-indigo-600 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md cursor-pointer"
+              >
+                Paham & Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

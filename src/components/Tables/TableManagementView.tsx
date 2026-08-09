@@ -16,28 +16,28 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   onOpenCustomerSelfOrderModal
 }) => {
   return (
-    <div className="flex-1 bg-[#F5F5F5] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between">
+    <div className="flex-1 bg-[#F8FAFC] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1A1714] tracking-tight flex items-center gap-2">
-            <Grid2X2 className="w-7 h-7 text-[#F05A1F]" />
-            Manajemen Meja & Control Self-Order QR
+          <h1 className="text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">
+            <Grid2X2 className="w-7 h-7 text-[#EA580C]" />
+            Manajemen Meja & Kontrol Self-Order QR
           </h1>
-          <p className="text-xs text-[#9C9590] font-bold mt-1">
+          <p className="text-xs text-slate-500 font-bold mt-1">
             Atur status meja (Merah/Hijau) & kontrol akses pemesanan langsung dari HP pembeli agar terhindar dari pemesanan ganda.
           </p>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 ios-card bg-white border border-black/5 px-4 py-2 rounded-2xl text-xs font-bold shadow-xs">
+        <div className="flex items-center gap-3 bg-white border border-[#EAE3DB] px-4 py-2 rounded-full text-xs font-bold shadow-2xs">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-[#F05A1F]" />
-            <span className="text-[#6B6560]">Hijau (Kosong)</span>
+            <span className="w-3 h-3 rounded-full bg-emerald-500" />
+            <span className="text-slate-700">Hijau (Bebas / Kosong)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-[#FF3B30] animate-pulse" />
-            <span className="text-[#6B6560]">Merah (Terisi / Terkunci)</span>
+            <span className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
+            <span className="text-slate-700">Merah (Terisi / Active Order)</span>
           </div>
         </div>
       </div>
@@ -50,50 +50,50 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           return (
             <div
               key={table.id}
-              className={`ios-card bg-white rounded-2xl p-5 border shadow-xs flex flex-col justify-between transition-all ${
+              className={`bg-white rounded-2xl p-5 border shadow-2xs flex flex-col justify-between transition-all ${
                 isOccupied
-                  ? 'border-[#FF3B30]/40 ring-2 ring-[#FF3B30]/20 bg-[#FF3B30]/5'
-                  : 'border-black/5 hover:border-[#F05A1F]/40'
+                  ? 'border-rose-300 ring-2 ring-rose-500/20 bg-rose-50/50'
+                  : 'border-[#EAE3DB] hover:border-[#EA580C]'
               }`}
             >
               <div>
                 {/* Table Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-[#1A1714]">MEJA {table.number}</span>
-                    <span className="text-[10px] text-[#B8B0A8] font-bold">Kapasitas: {table.capacity} Org</span>
+                    <span className="text-xl font-black text-[#1A1714]">MEJA {table.number}</span>
+                    <span className="text-[10px] text-slate-400 font-bold">{table.capacity} Org</span>
                   </div>
 
                   {/* Status Indicator */}
                   <span
-                    className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                       isOccupied
-                        ? 'bg-[#FF3B30] text-white shadow-xs'
-                        : 'bg-[#F2F2F2] text-[#444444]'
+                        ? 'bg-rose-500 text-white shadow-2xs'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                     }`}
                   >
-                    {isOccupied ? 'RED (TERISI)' : 'GREEN (KOSONG)'}
+                    {isOccupied ? 'TERISI (RED)' : 'BEBAS (GREEN)'}
                   </span>
                 </div>
 
                 {/* QR Code Graphic Box */}
-                <div className="bg-[#FAFAF8] border border-black/5 rounded-2xl p-4 text-center my-3 flex flex-col items-center">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center my-3 flex flex-col items-center">
                   <QrCode className="w-16 h-16 text-slate-800 mb-1" />
-                  <p className="text-[10px] text-[#9C9590] font-bold">QR Self-Order Meja {table.number}</p>
+                  <p className="text-[10px] text-slate-500 font-bold">QR Self-Order Meja {table.number}</p>
                 </div>
 
                 {/* Self-Order Toggle Control */}
-                <div className="flex items-center justify-between bg-slate-100/80 p-2.5 rounded-2xl border border-black/5 my-2">
+                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-full border border-slate-200 my-2">
                   <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-[#F05A1F]" />
+                    <Smartphone className="w-4 h-4 text-orange-600" />
                     <span className="text-xs font-bold text-slate-800">Self-Order HP:</span>
                   </div>
 
                   <button
                     onClick={() => onToggleSelfOrder(table.number, !table.isSelfOrderEnabled)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                    className={`px-3 py-1 rounded-full text-xs font-black transition-all cursor-pointer ${
                       table.isSelfOrderEnabled
-                        ? 'bg-[#1C1B19] text-white shadow-xs'
+                        ? 'bg-slate-900 text-white shadow-2xs'
                         : 'bg-slate-300 text-slate-600'
                     }`}
                   >
@@ -103,11 +103,11 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2 pt-2 border-t border-black/5">
+              <div className="space-y-2 pt-2 border-t border-slate-100">
                 <button
                   disabled={!table.isSelfOrderEnabled}
                   onClick={() => onOpenCustomerSelfOrderModal(table.number)}
-                  className="w-full py-2.5 rounded-2xl bg-[#1C1B19] hover:bg-black text-white font-semibold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
+                  className="w-full py-2.5 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-black text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer active:scale-95"
                 >
                   <Smartphone className="w-4 h-4" /> Simulator QR Order
                 </button>
@@ -115,9 +115,9 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 {isOccupied && (
                   <button
                     onClick={() => onClearTableStatus(table.number)}
-                    className="w-full py-2 rounded-2xl bg-slate-200 hover:bg-[#F05A1F] hover:text-white text-[#6B6560] font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                    className="w-full py-2 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
                   >
-                    Reset Meja (Kosongkan)
+                    Reset Meja (Bebaskan)
                   </button>
                 )}
               </div>

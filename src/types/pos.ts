@@ -45,6 +45,7 @@ export interface MenuItem {
   ingredients: RecipeIngredient[];
   isAvailable: boolean;
   stockCount?: number; // Calculated or manual
+  isAutoStock?: boolean; // Gunakan Resep (Auto-Stock)
 }
 
 export interface RawMaterial {
@@ -95,10 +96,12 @@ export interface CondimentGroup {
   id: string;
   name: string; // e.g., "Kuah", "ISIAN", "TEH MANIS", "AIR MINERAL", "Tambahan"
   mode: 'ADD_ON' | 'PAKET';
-  required: boolean; // e.g. *WAJIB
-  minSelect: number;
-  maxSelect: number;
-  targetCategories: CategoryType[];
+  required?: boolean; // e.g. *WAJIB
+  isRequired?: boolean;
+  minSelect?: number;
+  maxSelect?: number;
+  targetCategory?: CategoryType;
+  targetCategories?: CategoryType[];
   options: CondimentOption[];
   isActive: boolean; // Toggle Aktif / Non-Aktif
 }

@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { getSupabaseAdmin } from './src/server/supabaseAdmin';
+import { handlePinLogin } from './src/server/pinLogin';
 
 async function startServer() {
   const app = express();
@@ -22,6 +25,16 @@ async function startServer() {
       status: ready ? 'ready' : 'configuration_required',
       checks
     });
+  });
+
+  app.post('/api/auth/pin-login', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const result = await handlePinLogin(req.body, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server autentikasi belum dikonfigurasi' });
+    }
   });
 
   app.post('/api/push-notify', (_req, res) => {

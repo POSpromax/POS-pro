@@ -20,7 +20,6 @@ import {
   INITIAL_TABLES,
   INITIAL_RESTAURANT_PROFILE,
   INITIAL_CURRENT_SHIFT,
-  INITIAL_ORDERS,
   INITIAL_STAFF,
   INITIAL_CONDIMENT_GROUPS,
   INITIAL_BRANCHES,
@@ -43,8 +42,34 @@ const STORAGE_KEYS = {
   BRANCHES: 'nusantara_pos_branches',
   STAFF: 'nusantara_pos_staff',
   AUTH_SECURITY: 'nusantara_pos_auth_security',
-  ACCESS_CONTROL: 'nusantara_pos_access_control'
+  ACCESS_CONTROL: 'nusantara_pos_access_control',
+  DATA_VERSION: 'nusantara_pos_data_version'
 };
+
+const CURRENT_DATA_VERSION = 5;
+const DEMO_ORDER_IDS = new Set(['ord-038', 'ord-037', 'ord-036', 'ord-035']);
+const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
+  'br-1': '00000000-0000-4000-a000-000000000010',
+  'br-2': '00000000-0000-4000-a000-000000000020'
+};
+
+const migrateBranchId = (branchId?: string): string | undefined =>
+  branchId ? (LEGACY_BRANCH_ID_MAP[branchId] || branchId) : branchId;
+
+const createEmptyShift = (): Shift => ({
+  id: 'shift-not-opened',
+  staffId: '',
+  staffName: 'Belum ada petugas',
+  staffRole: 'KASIR',
+  startTime: new Date(0).toISOString(),
+  initialCash: 0,
+  grossOmset: 0,
+  cashSales: 0,
+  nonCashSales: 0,
+  totalExpense: 0,
+  totalIncome: 0,
+  status: 'CLOSED'
+});
 
 // Helper to get item from localStorage or default
 function getStoredItem<T>(key: string, defaultValue: T): T {
@@ -68,8 +93,7 @@ function setStoredItem<T>(key: string, value: T): void {
 export class DBStorage {
   // Initialize default data if empty
   static initDefaults(): void {
-    const storedMenu = getStoredItem<MenuItem[]>(STORAGE_KEYS.MENU, []);
-    if (!localStorage.getItem(STORAGE_KEYS.MENU) || storedMenu.length < INITIAL_MENU_ITEMS.length) {
+    if (!localStorage.getItem(STORAGE_KEYS.MENU)) {
       setStoredItem(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS);
     }
     if (!localStorage.getItem(STORAGE_KEYS.RAW_MATERIALS)) {
@@ -79,10 +103,10 @@ export class DBStorage {
       setStoredItem(STORAGE_KEYS.TABLES, INITIAL_TABLES);
     }
     if (!localStorage.getItem(STORAGE_KEYS.CURRENT_SHIFT)) {
-      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, INITIAL_CURRENT_SHIFT);
+      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
     }
     if (!localStorage.getItem(STORAGE_KEYS.ORDERS)) {
-      setStoredItem(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+      setStoredItem(STORAGE_KEYS.ORDERS, []);
     }
     if (!localStorage.getItem(STORAGE_KEYS.PROFILE)) {
       setStoredItem(STORAGE_KEYS.PROFILE, INITIAL_RESTAURANT_PROFILE);
@@ -102,16 +126,52 @@ export class DBStorage {
     const storedStaff = getStoredItem<UserAccount[]>(STORAGE_KEYS.STAFF, INITIAL_STAFF);
     const migratedStaff = storedStaff.map((staff) => ({
       ...staff,
-      branchIds: staff.branchIds?.length ? staff.branchIds : ['br-1'],
+      branchIds: staff.branchIds?.length ? staff.branchIds : ['00000000-0000-4000-a000-000000000010'],
       isActive: staff.isActive !== false
     }));
     setStoredItem(STORAGE_KEYS.STAFF, migratedStaff);
 
     const migratedTables = this.getTables().map((table) => ({
       ...table,
-      branchId: table.branchId || 'br-1'
+      branchId: table.branchId || '00000000-0000-4000-a000-000000000010'
     }));
     setStoredItem(STORAGE_KEYS.TABLES, migratedTables);
+
+    // One-time cleanup for prototype records that must never appear as live sales.
+    const dataVersion = Number(localStorage.getItem(STORAGE_KEYS.DATA_VERSION) || 0);
+    if (dataVersion < CURRENT_DATA_VERSION) {
+      setStoredItem(STORAGE_KEYS.ORDERS, []);
+      setStoredItem(STORAGE_KEYS.EXPENSES, []);
+      setStoredItem(STORAGE_KEYS.ATTENDANCE, []);
+      setStoredItem(STORAGE_KEYS.OFFLINE_QUEUE, []);
+      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+
+      const cleanTables = getStoredItem<RestaurantTable[]>(STORAGE_KEYS.TABLES, INITIAL_TABLES).map((table) => ({
+        ...table,
+        branchId: migrateBranchId(table.branchId) || '00000000-0000-4000-a000-000000000010',
+        status: 'FREE' as const,
+        activeOrderId: undefined,
+        isSelfOrderEnabled: true
+      }));
+      setStoredItem(STORAGE_KEYS.TABLES, cleanTables);
+
+      const migratedMaterials = getStoredItem<RawMaterial[]>(STORAGE_KEYS.RAW_MATERIALS, INITIAL_RAW_MATERIALS)
+        .map((material) => ({ ...material, branchId: migrateBranchId(material.branchId) || material.branchId }));
+      setStoredItem(STORAGE_KEYS.RAW_MATERIALS, migratedMaterials);
+
+      const migratedStaff = getStoredItem<UserAccount[]>(STORAGE_KEYS.STAFF, INITIAL_STAFF).map((staff) => ({
+        ...staff,
+        branchIds: (staff.branchIds || []).map((branchId) => migrateBranchId(branchId) || branchId)
+      }));
+      setStoredItem(STORAGE_KEYS.STAFF, migratedStaff);
+
+      const customBranches = getStoredItem<Branch[]>(STORAGE_KEYS.BRANCHES, [])
+        .filter((branch) => !['br-1', 'br-2', 'br-3'].includes(branch.id))
+        .filter((branch) => !INITIAL_BRANCHES.some((initial) => initial.id === branch.id));
+      setStoredItem(STORAGE_KEYS.BRANCHES, [...INITIAL_BRANCHES, ...customBranches]);
+
+      localStorage.setItem(STORAGE_KEYS.DATA_VERSION, String(CURRENT_DATA_VERSION));
+    }
   }
 
   // Branches / Outlets
@@ -187,6 +247,12 @@ export class DBStorage {
     const index = staff.findIndex((item) => item.id === user.id);
     if (index >= 0) staff[index] = user;
     else staff.push(user);
+    setStoredItem(STORAGE_KEYS.STAFF, staff);
+    return staff;
+  }
+
+  static deleteStaff(id: string): UserAccount[] {
+    const staff = this.getStaff().filter((item) => item.id !== id);
     setStoredItem(STORAGE_KEYS.STAFF, staff);
     return staff;
   }
@@ -298,7 +364,7 @@ export class DBStorage {
 
   // Orders
   static getOrders(): Order[] {
-    return getStoredItem<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+    return getStoredItem<Order[]>(STORAGE_KEYS.ORDERS, []);
   }
 
   static clearAllOrders(): void {
@@ -318,12 +384,14 @@ export class DBStorage {
       this.deductInventoryForOrder(newOrder);
     }
 
-    // Auto update table status
+    // Keep table occupancy aligned with the latest operational order state.
     if (newOrder.tableNumber && newOrder.tableNumber !== '-') {
+      const isFinished = newOrder.paymentStatus === 'PAID' || newOrder.status === 'COMPLETED' || newOrder.status === 'CANCELLED';
+      const nextTableStatus: RestaurantTable['status'] = isFinished ? 'FREE' : 'OCCUPIED';
       this.updateTableStatus(
         newOrder.tableNumber,
-        newOrder.paymentStatus === 'PAID' ? 'OCCUPIED' : 'OCCUPIED',
-        newOrder.id,
+        nextTableStatus,
+        isFinished ? undefined : newOrder.id,
         newOrder.branchId
       );
     }
@@ -395,6 +463,11 @@ export class DBStorage {
     setStoredItem(STORAGE_KEYS.RAW_MATERIALS, list);
   }
 
+  static deleteRawMaterial(id: string): void {
+    const list = this.getRawMaterials().filter((r) => r.id !== id);
+    setStoredItem(STORAGE_KEYS.RAW_MATERIALS, list);
+  }
+
   // Menu Items
   static getMenuItems(): MenuItem[] {
     return getStoredItem<MenuItem[]>(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS);
@@ -406,6 +479,20 @@ export class DBStorage {
     if (idx >= 0) list[idx] = item;
     else list.push(item);
     setStoredItem(STORAGE_KEYS.MENU, list);
+  }
+
+  static deleteMenuItem(id: string): void {
+    const list = this.getMenuItems().filter((m) => m.id !== id);
+    setStoredItem(STORAGE_KEYS.MENU, list);
+  }
+
+  static resetCatalogDefaults(): { menuItems: MenuItem[]; rawMaterials: RawMaterial[] } {
+    setStoredItem(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS);
+    setStoredItem(STORAGE_KEYS.RAW_MATERIALS, INITIAL_RAW_MATERIALS);
+    return {
+      menuItems: INITIAL_MENU_ITEMS,
+      rawMaterials: INITIAL_RAW_MATERIALS
+    };
   }
 
   // Tables
@@ -448,7 +535,7 @@ export class DBStorage {
 
   // Shift & Cash Accounting
   static getCurrentShift(): Shift {
-    return getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, INITIAL_CURRENT_SHIFT);
+    return getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
   }
 
   static updateShiftMetricsForOrder(order: Order): void {
@@ -580,5 +667,23 @@ export class DBStorage {
       o.syncStatus = 'SYNCED';
     });
     setStoredItem(STORAGE_KEYS.ORDERS, orders);
+  }
+
+  // Purge all prototype dummy transactions & test records for real-time trial
+  static purgeDummyTrialData(): void {
+    setStoredItem(STORAGE_KEYS.ORDERS, []);
+    setStoredItem(STORAGE_KEYS.EXPENSES, []);
+    setStoredItem(STORAGE_KEYS.ATTENDANCE, []);
+    setStoredItem(STORAGE_KEYS.OFFLINE_QUEUE, []);
+
+    const cleanTables = this.getTables().map((t) => ({
+      ...t,
+      status: 'FREE' as const,
+      activeOrderId: undefined,
+      isSelfOrderEnabled: true
+    }));
+    setStoredItem(STORAGE_KEYS.TABLES, cleanTables);
+
+    setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
   }
 }

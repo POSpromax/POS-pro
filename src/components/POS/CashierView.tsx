@@ -173,6 +173,8 @@ interface CashierViewProps {
   onOpenTableModal?: () => void;
   currentBranch: Branch;
   currentShift: Shift;
+  headerElement?: React.ReactNode;
+  onOpenShiftTab?: () => void;
 }
 
 export const CashierView: React.FC<CashierViewProps> = ({
@@ -191,7 +193,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   onOpenTableModal,
   currentBranch,
   currentShift,
-  headerElement
+  headerElement,
+  onOpenShiftTab
 }) => {
   // Top Table Panel State
   const [isTablePanelExpanded, setIsTablePanelExpanded] = useState<boolean>(true);
@@ -239,6 +242,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // Current loaded order check (for Paid / Read-Only handling)
   const currentEditingOrder = orders.find((o) => o.id === currentEditingOrderId);
   const isPaidOrder = currentEditingOrder?.paymentStatus === 'PAID' || currentEditingOrder?.status === 'COMPLETED';
+  const isShiftActiveForCurrentContext = currentShift.status === 'OPEN';
+
+  if (!isShiftActiveForCurrentContext) {
+    return (
+      <div className="flex-1 bg-[#F1F5FA] flex items-center justify-center font-sans select-none text-slate-700 min-h-0">
+        <p className="font-black text-xs md:text-sm tracking-widest text-[#475569] uppercase">
+          POS TERKUNCI – BUKA SHIFT DULU
+        </p>
+      </div>
+    );
+  }
 
   // Filtered Menu Items
   const filteredMenu = menuItems.filter((item) => {
@@ -621,6 +635,15 @@ export const CashierView: React.FC<CashierViewProps> = ({
             </div>
           )}
 
+          {!isShiftActiveForCurrentContext && (
+            <div className="mb-2 rounded-xl border border-[#F2C9B6] bg-[#FFF7F3] p-3 text-[#A53A12] shrink-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]">Shift wajib aktif</p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed">
+                Buka shift untuk outlet {currentBranch.name} sebelum menyimpan order atau menerima pembayaran.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-1.5 mb-2 shrink-0">
             <div className="col-span-2">
               <label className="text-[9px] font-bold text-[#6B6B6B] uppercase block mb-1 tracking-wider">
@@ -794,7 +817,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      disabled={cartItems.length === 0}
+                      disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
                       onClick={() => {
                         const draft = buildCurrentOrderDraft() as Order;
                         onSaveHoldOrder(draft);
@@ -806,7 +829,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     </button>
 
                     <button
-                      disabled={cartItems.length === 0}
+                      disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
                       onClick={() => onOpenCheckoutModal(buildCurrentOrderDraft())}
                       className="py-2.5 bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 active:scale-95 disabled:opacity-40 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       style={{ boxShadow: '0 2px 8px rgba(234,88,12,0.25)' }}

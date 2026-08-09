@@ -34,8 +34,9 @@ import {
 } from './types/pos';
 import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
-import { isSupabaseConfigured } from './lib/supabase';
+import { cloudReadiness } from './lib/runtimeEnv';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
+import { cloudSignOut } from './services/authService';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -48,6 +49,12 @@ const AnalyticsExportView = lazy(() => import('./components/Analytics/AnalyticsE
 const SettingsView = lazy(() => import('./components/Settings/SettingsView').then((m) => ({ default: m.SettingsView })));
 const SuperOwnerDashboardView = lazy(() => import('./components/Analytics/SuperOwnerDashboardView').then((m) => ({ default: m.SuperOwnerDashboardView })));
 const BlueprintArchitectureView = lazy(() => import('./components/Owner/BlueprintArchitectureView').then((m) => ({ default: m.BlueprintArchitectureView })));
+
+const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
+
+if (typeof window !== 'undefined') {
+  DBStorage.initDefaults();
+}
 
 const RouteFallback = () => (
   <div className="flex flex-1 items-center justify-center bg-[#f5f5f4] text-sm font-bold text-stone-500">
@@ -78,12 +85,7 @@ const getDefaultAccessDestination = (rule: AccessControlRule): { portal: 'KASIR'
 };
 
 export default function App() {
-  // 1. Initialize local DB defaults
-  useEffect(() => {
-    DBStorage.initDefaults();
-  }, []);
-
-  // 2. Navigation State & System Portals ('KASIR' | 'OWNER')
+  // 1. Navigation State & System Portals ('KASIR' | 'OWNER')
   const [systemPortal, setSystemPortal] = useState<'KASIR' | 'OWNER'>('KASIR');
   const [activeTab, setActiveTab] = useState<string>('pos');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -131,20 +133,42 @@ export default function App() {
     }
   };
 
-  // 3. System Data State
+  // 2. System Data State
   const [activeUser, setActiveUser] = useState<UserAccount>(() => DBStorage.getActiveUser());
-  const [isTerminalUnlocked, setIsTerminalUnlocked] = useState<boolean>(false);
-  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(true);
+  const [isTerminalUnlocked, setIsTerminalUnlocked] = useState<boolean>(
+    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked'
+  );
+  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(
+    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
+  );
+  const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
 
-  const lockTerminal = () => {
+  const clearTerminalSessionState = () => {
+    sessionStorage.removeItem(TERMINAL_SESSION_KEY);
     setIsTerminalUnlocked(false);
     setIsPinModalOpen(true);
+    setSystemPortal('KASIR');
+    setActiveTab('pos');
+  };
+
+  const lockTerminal = async () => {
+    clearTerminalSessionState();
+    if (cloudReadiness.supabase) {
+      try {
+        await cloudSignOut();
+      } catch {
+        // Ignore sign-out failures so the terminal can still lock locally.
+      }
+    }
   };
 
   const [branches, setBranches] = useState<Branch[]>(() => DBStorage.getBranches());
   const [currentBranch, setCurrentBranch] = useState<Branch>(() => {
     const list = DBStorage.getBranches();
-    return list[0] || INITIAL_BRANCHES[0];
+    const requestedBranchId = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('branch')
+      : null;
+    return list.find((branch) => branch.id === requestedBranchId) || list[0] || INITIAL_BRANCHES[0];
   });
 
   const handleAddBranch = (newBranch: Branch) => {
@@ -177,6 +201,77 @@ export default function App() {
     setSystemPortal(destination.portal);
     setActiveTab(destination.tab);
   }, [accessControl, activeUser.role]);
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase) {
+      setIsSessionValidated(true);
+      return;
+    }
+
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
+
+    const syncTerminalWithSession = (hasSession: boolean) => {
+      const hasLocalUnlock = sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked';
+      if (hasSession && hasLocalUnlock) {
+        setIsTerminalUnlocked(true);
+        setIsPinModalOpen(false);
+        return;
+      }
+      clearTerminalSessionState();
+    };
+
+    const initializeSessionGuard = async () => {
+      try {
+        const { getSupabase } = await import('./lib/supabase');
+        const supabase = getSupabase();
+        const navigationEntry = typeof performance !== 'undefined'
+          ? performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+          : undefined;
+        const isReloadNavigation = navigationEntry?.type === 'reload';
+
+        if (isReloadNavigation) {
+          clearTerminalSessionState();
+          await supabase.auth.signOut();
+          if (!isMounted) return;
+          setIsSessionValidated(true);
+          return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        syncTerminalWithSession(Boolean(session));
+        setIsSessionValidated(true);
+
+        const authListener = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          if (!isMounted) return;
+          syncTerminalWithSession(Boolean(nextSession));
+        });
+        unsubscribe = () => authListener.data.subscription.unsubscribe();
+      } catch {
+        if (!isMounted) return;
+        clearTerminalSessionState();
+        setIsSessionValidated(true);
+      }
+    };
+
+    void initializeSessionGuard();
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem(TERMINAL_SESSION_KEY);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // System Self Order restriction toggle state & Global Condiment Topping Toggle state
   const [isSelfOrderSystemEnabled, setIsSelfOrderSystemEnabled] = useState<boolean>(() => DBStorage.getProfile().isSelfOrderEnabled !== false);
@@ -217,9 +312,19 @@ export default function App() {
     setTimeout(() => setToastNotification(null), 4000);
   };
 
+  const ensureOpenShift = (actionLabel: string): boolean => {
+    const isShiftOpen = currentShift.status === 'OPEN';
+    if (isShiftOpen) return true;
+
+    setSystemPortal('KASIR');
+    setActiveTab('shift');
+    showPushToast('Shift Belum Dibuka', `Buka shift kasir aktif untuk ${currentBranch.name} sebelum ${actionLabel}.`);
+    return false;
+  };
+
   // Sync Offline Queue
   const handleManualSync = () => {
-    if (!isSupabaseConfigured()) {
+    if (!cloudReadiness.supabase) {
       showPushToast('Sinkronisasi Belum Aktif', 'Konfigurasi publik Supabase belum tersedia pada build ini. Antrean lokal tetap disimpan.');
       return;
     }
@@ -228,6 +333,7 @@ export default function App() {
 
   // Order Handlers
   const handleSaveHoldOrder = (draftOrder: Order) => {
+    if (!ensureOpenShift('menyimpan transaksi')) return;
     const saved = DBStorage.saveOrder(draftOrder, isOnline);
     setOrders(DBStorage.getOrders());
     setRawMaterials(DBStorage.getRawMaterials());
@@ -239,12 +345,14 @@ export default function App() {
   };
 
   const handleOpenCheckoutModal = (draftOrder: Partial<Order>) => {
+    if (!ensureOpenShift('membuka pembayaran')) return;
     setActiveCheckoutOrder(draftOrder);
     setIsPaymentModalOpen(true);
   };
 
   const handleProcessPayment = (paymentMethod: PaymentMethod, cashPaid: number, shouldPrint: boolean) => {
     if (!activeCheckoutOrder) return;
+    if (!ensureOpenShift('memproses pembayaran')) return;
 
     const fullOrder: Order = {
       ...(activeCheckoutOrder as Order),
@@ -373,10 +481,18 @@ export default function App() {
     showPushToast('Meja Baru Ditambahkan', `Meja ${tableNumber} (Kapasitas ${capacity} orang) berhasil dibuat.`);
   };
 
-  // URL Search Parameter check for isolated Self Order URL
+  // URL Search Parameter & Path check for isolated Standalone Self-Order Web Link
   const isSelfOrderUrlParam = typeof window !== 'undefined' && (
     window.location.search.includes('selforder') ||
-    window.location.search.includes('table=')
+    window.location.search.includes('table=') ||
+    window.location.pathname.startsWith('/order') ||
+    window.location.pathname.startsWith('/self-order') ||
+    window.location.hash.includes('self-order') ||
+    window.location.hash.includes('order')
+  );
+  const isAttendanceTerminal = typeof window !== 'undefined' && (
+    window.location.pathname === '/attendance' ||
+    new URLSearchParams(window.location.search).get('mode') === 'attendance'
   );
 
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
@@ -387,7 +503,7 @@ export default function App() {
   );
 
   // If isolated self order tab or URL param is active, render native standalone mobile self-order
-  if (activeTab === 'selforder' || isSelfOrderUrlParam) {
+  if (isSelfOrderUrlParam) {
     const selfOrderParams = new URLSearchParams(window.location.search);
     const tableFromUrl = selfOrderParams.get('table') || '01';
     const requestedBranchId = selfOrderParams.get('branch');
@@ -428,6 +544,105 @@ export default function App() {
     );
   }
 
+  if (!isSessionValidated) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#F5F5F4]">
+        <RouteFallback />
+      </div>
+    );
+  }
+
+  const handleSuccessfulLogin = (
+    user: { id: string; name: string | null; role: string | null; tenantId?: string | null; branchId?: string; permissions?: Record<string, boolean> },
+    selectedBranch: Branch,
+    mode: 'SYSTEM' | 'ATTENDANCE',
+  ) => {
+    const userAccount: UserAccount = {
+      id: user.id,
+      name: user.name || 'Staff',
+      pin: '',
+      role: (user.role as UserAccount['role']) || 'KASIR',
+      branchIds: [selectedBranch.id],
+      isActive: true,
+    };
+
+    setIsTerminalUnlocked(true);
+    setIsPinModalOpen(false);
+    sessionStorage.setItem(TERMINAL_SESSION_KEY, 'unlocked');
+    setActiveUser(userAccount);
+    DBStorage.setActiveUser(userAccount);
+    setCurrentBranch(selectedBranch);
+
+    if (mode === 'ATTENDANCE') {
+      showPushToast('Identitas Terverifikasi', `${userAccount.name} dapat melanjutkan presensi.`);
+      return;
+    }
+
+    const rule = accessControl.find((item) => item.role === userAccount.role);
+    if (!rule) {
+      lockTerminal();
+      showPushToast('Akses Belum Diatur', `Role ${userAccount.role} belum memiliki matriks akses.`);
+      return;
+    }
+    const destination = getDefaultAccessDestination(rule);
+    if (!destination.tab) {
+      lockTerminal();
+      showPushToast('Akses Ditolak', `Role ${userAccount.role} belum diberi akses ke modul apa pun.`);
+      return;
+    }
+    setSystemPortal(destination.portal);
+    setActiveTab(destination.tab);
+    showPushToast('Akses Berhasil', `${userAccount.name} masuk sebagai ${userAccount.role}. Hak menu diterapkan otomatis.`);
+  };
+
+  // Authentication is a separate entry portal. The protected POS shell is not
+  // mounted until a terminal session has been established.
+  if (!isTerminalUnlocked || isPinModalOpen) {
+    return (
+      <PinAuthModal
+        isOpen
+        onClose={() => undefined}
+        canClose={false}
+        onSuccessLogin={handleSuccessfulLogin}
+        branches={branches}
+        currentBranch={currentBranch}
+        onSelectBranch={setCurrentBranch}
+      />
+    );
+  }
+
+  // Attendance kiosks intentionally run outside the administrative/POS shell.
+  if (isAttendanceTerminal) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F3F3F2] text-[#181715]">
+        <div className="flex h-16 items-center justify-between border-b border-[#E2E2E2] bg-white px-5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D94B15]">Terminal absensi</p>
+            <p className="text-sm font-black">{currentBranch.name}</p>
+          </div>
+          <button type="button" onClick={lockTerminal} className="rounded-xl border border-[#E2E2E2] bg-white px-4 py-2 text-xs font-bold hover:bg-[#F5F5F5]">
+            Selesai & kunci terminal
+          </button>
+        </div>
+        <AttendanceView
+          attendanceRecords={branchAttendanceRecords}
+          onSaveAttendance={(record) => {
+            DBStorage.saveAttendance(record);
+            setAttendanceRecords(DBStorage.getAttendanceRecords());
+            window.setTimeout(() => {
+              void lockTerminal();
+            }, 400);
+          }}
+          activeUser={activeUser}
+          staffAccounts={staffAccounts}
+          profile={profile}
+          currentBranch={currentBranch}
+          terminalMode
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #F7F7F7 0%, #EEEEEE 52%, #F5F5F5 100%)' }}>
       <PWAUpdatePrompt />
@@ -455,8 +670,12 @@ export default function App() {
 
       {/* Main App Canvas */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header for non-POS pages */}
-        {activeTab !== 'pos' && (
+        {/*
+          The owner portal uses dedicated page banners inside each screen.
+          Reusing the cashier utility header here creates duplicated chrome and
+          a misleading "Terminal POS" strip above owner content.
+        */}
+        {systemPortal === 'KASIR' && activeTab !== 'pos' && (
           <HeaderBar
             systemPortal={systemPortal}
             onSwitchPortal={handleSwitchPortal}
@@ -535,6 +754,7 @@ export default function App() {
                 showPushToast('Order Loaded', `Order ${ord.orderNumber} dimuat ke Kasir.`);
               }}
               onOpenTableModal={() => setIsQuickTableModalOpen(true)}
+              onOpenShiftTab={() => handleTabChange('shift')}
             />
           )}
 
@@ -596,11 +816,45 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'selforder' && (
+            <div className="flex-1 overflow-y-auto bg-[#F3F3F2] p-5">
+              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-2xl border border-[#E2E2E2] bg-white px-5 py-4">
+                <div>
+                  <h2 className="text-base font-black text-[#1A1714]">Pratinjau Landing Self-Order</h2>
+                  <p className="mt-0.5 text-[11px] font-medium text-[#8E8882]">Pratinjau admin tetap berada di portal Owner. Halaman pelanggan dibuka terpisah.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.open(`/?selforder&branch=${encodeURIComponent(currentBranch.id)}&table=01`, '_blank', 'noopener,noreferrer')}
+                  className="rounded-xl bg-[#1C1B19] px-4 py-2 text-[10px] font-bold text-white hover:bg-black"
+                >
+                  Buka Halaman Publik
+                </button>
+              </div>
+              <div className="mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-[28px] border-[8px] border-[#1C1B19] bg-white shadow-xl">
+                <div className="h-full overflow-y-auto">
+                  <SelfOrderLandingPage
+                    tables={branchTables}
+                    menuItems={menuItems}
+                    profile={profile}
+                    condimentGroups={condimentGroups}
+                    isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
+                    orders={branchOrders}
+                    currentBranch={currentBranch}
+                    onSubmitCustomerOrder={handleSubmitCustomerOrder}
+                    initialTableNumber="01"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'shift' && (
             <ShiftMonitorView
               currentShift={currentShift}
               orders={branchOrders}
               expenseRecords={expenseRecords}
+              activeUser={activeUser}
               onAddExpenseIncome={(rec) => {
                 DBStorage.addExpenseOrIncome(rec);
                 setExpenseRecords(DBStorage.getExpenseRecords());
@@ -609,6 +863,7 @@ export default function App() {
               onCloseShift={(notes) => {
                 DBStorage.closeShift(notes);
                 setCurrentShift(DBStorage.getCurrentShift());
+                showPushToast('Shift Ditutup', 'Shift kasir telah berhasil ditutup dan dicatat.');
               }}
               onOpenNewShift={(name, role, cash) => {
                 const matchingStaff = staffAccounts.find((staff) => staff.name === name);
@@ -622,6 +877,7 @@ export default function App() {
                   matchingStaff?.shiftEnd
                 );
                 setCurrentShift(ns);
+                showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
               }}
             />
           )}
@@ -642,16 +898,35 @@ export default function App() {
 
           {activeTab === 'inventory' && (
             <InventoryHppView
-              rawMaterials={branchRawMaterials}
+              rawMaterials={rawMaterials}
               menuItems={menuItems}
               branches={branches}
+              currentBranch={currentBranch}
               onUpdateRawMaterial={(mat) => {
                 DBStorage.updateRawMaterial(mat);
                 setRawMaterials(DBStorage.getRawMaterials());
+                showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} berhasil diperbarui.`);
               }}
-              onUpdateMenuItem={(menu) => {
+              onDeleteRawMaterial={(id) => {
+                DBStorage.deleteRawMaterial(id);
+                setRawMaterials(DBStorage.getRawMaterials());
+                showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari sistem.');
+              }}
+              onSaveMenuItem={(menu) => {
                 DBStorage.saveMenuItem(menu);
                 setMenuItems(DBStorage.getMenuItems());
+                showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} berhasil disimpan ke katalog.`);
+              }}
+              onDeleteMenuItem={(id) => {
+                DBStorage.deleteMenuItem(id);
+                setMenuItems(DBStorage.getMenuItems());
+                showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari katalog.');
+              }}
+              onResetCatalogDefaults={() => {
+                const res = DBStorage.resetCatalogDefaults();
+                setMenuItems(res.menuItems);
+                setRawMaterials(res.rawMaterials);
+                showPushToast('Katalog Direset', 'Katalog menu & bahan baku berhasil dikembalikan ke standar resto.');
               }}
             />
           )}
@@ -678,6 +953,12 @@ export default function App() {
               onSaveStaff={(staff) => {
                 const updated = DBStorage.saveStaff(staff);
                 setStaffAccounts(updated);
+                showPushToast('Staff Disimpan', `Detail akun staf ${staff.name} berhasil diperbarui.`);
+              }}
+              onDeleteStaff={(id) => {
+                const updated = DBStorage.deleteStaff(id);
+                setStaffAccounts(updated);
+                showPushToast('Staff Dihapus', 'Akun staf berhasil dihapus.');
               }}
               accessControl={accessControl}
               onSaveAccessControl={(rules) => {
@@ -689,8 +970,14 @@ export default function App() {
               onToggleGroupActive={handleToggleGroupActive}
               onToggleOptionAvailable={handleToggleOptionAvailable}
               onClearTransactions={() => {
-                DBStorage.saveOrders([]);
-                setOrders([]);
+                DBStorage.purgeDummyTrialData();
+                setOrders(DBStorage.getOrders());
+                setExpenseRecords(DBStorage.getExpenseRecords());
+                setAttendanceRecords(DBStorage.getAttendanceRecords());
+                setTables(DBStorage.getTables());
+                setCurrentShift(DBStorage.getCurrentShift());
+                setPendingSyncCount(0);
+                showPushToast('Data Dummy Dibersihkan!', 'Seluruh riwayat transaksi, presensi, & shift telah dibersihkan. Siap untuk trial real-time!');
               }}
               onFactoryReset={() => {
                 localStorage.clear();
@@ -703,43 +990,6 @@ export default function App() {
       </div>
 
       {/* Global Modals */}
-      <PinAuthModal
-        isOpen={isPinModalOpen}
-        onClose={() => {
-          if (isTerminalUnlocked) setIsPinModalOpen(false);
-        }}
-        canClose={isTerminalUnlocked}
-        onSuccessLogin={(user, selectedBranch) => {
-          setIsTerminalUnlocked(true);
-          setActiveUser(user);
-          DBStorage.setActiveUser(user);
-          if (selectedBranch) {
-            setCurrentBranch(selectedBranch);
-          }
-
-          const rule = accessControl.find((item) => item.role === user.role);
-          if (!rule) {
-            showPushToast('Akses Belum Diatur', `Role ${user.role} belum memiliki matriks akses.`);
-            return;
-          }
-          const destination = getDefaultAccessDestination(rule);
-          if (!destination.tab) {
-            showPushToast('Akses Ditolak', `Role ${user.role} belum diberi akses ke modul apa pun.`);
-            setIsPinModalOpen(true);
-            return;
-          }
-          setSystemPortal(destination.portal);
-          setActiveTab(destination.tab);
-          showPushToast('Akses Berhasil', `${user.name} masuk sebagai ${user.role}. Hak menu diterapkan otomatis.`);
-        }}
-        activeUser={activeUser}
-        branches={branches}
-        currentBranch={currentBranch}
-        onSelectBranch={(b) => setCurrentBranch(b)}
-        onOpenSelfOrderDemo={() => setIsSelfOrderModalOpen(true)}
-        staffAccounts={staffAccounts}
-      />
-
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
