@@ -117,22 +117,39 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
   }
 }
 
+// Keys that require cloud real-time broadcast across different devices/origins
+const CRITICAL_CLOUD_SYNC_KEYS = new Set([
+  STORAGE_KEYS.CURRENT_SHIFT,
+  STORAGE_KEYS.ORDERS,
+  STORAGE_KEYS.EXPENSES,
+  STORAGE_KEYS.TABLES
+]);
+
+const cloudBroadcastDebounceMap = new Map<string, number>();
+
 function setStoredItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
 
     if (typeof window !== 'undefined') {
+      // 1. Instant Local Tab/Window Sync (100% Free - 0 Supabase CPU)
       window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
       posBroadcastChannel?.postMessage({ key, value, timestamp: Date.now() });
 
-      if (supabaseSyncChannel && cloudReadiness.supabase) {
-        supabaseSyncChannel
-          .send({
-            type: 'broadcast',
-            event: 'pos_sync',
-            payload: { key, value, timestamp: Date.now() }
-          })
-          .catch(() => {});
+      // 2. Selective Cloud Broadcast (Only for Critical Events with 1.5s Throttling to protect Free Tier Quota)
+      if (supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
+        const lastSent = cloudBroadcastDebounceMap.get(key) || 0;
+        const now = Date.now();
+        if (now - lastSent > 1500) {
+          cloudBroadcastDebounceMap.set(key, now);
+          supabaseSyncChannel
+            .send({
+              type: 'broadcast',
+              event: 'pos_sync',
+              payload: { key, value, timestamp: now }
+            })
+            .catch(() => {});
+        }
       }
     }
   } catch (e) {
