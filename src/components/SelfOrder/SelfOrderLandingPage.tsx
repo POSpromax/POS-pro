@@ -120,14 +120,34 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   const handleProceedToMenu = () => {
     setTableErrorMsg('');
-    if (!selectedTable) {
-      setTableErrorMsg('Silakan isi nomor meja Anda.');
-      return;
-    }
     if (!customerName.trim()) {
       setTableErrorMsg('Silakan masukkan nama pemesan terlebih dahulu.');
       return;
     }
+    if (!selectedTable || !selectedTable.trim()) {
+      setTableErrorMsg('Silakan masukkan nomor meja Anda.');
+      return;
+    }
+
+    const tableInputClean = selectedTable.trim().toUpperCase().replace(/^M-?/i, '');
+    const foundTable = tables.find(
+      (t) =>
+        t.number.toUpperCase() === tableInputClean ||
+        t.number.toUpperCase() === 'M-' + tableInputClean ||
+        t.number.toUpperCase() === selectedTable.trim().toUpperCase()
+    );
+
+    if (!foundTable) {
+      setTableErrorMsg(`Meja "${selectedTable}" tidak ditemukan. Silakan periksa nomor yang tertera di meja Anda.`);
+      return;
+    }
+
+    if (foundTable.isSelfOrderEnabled === false) {
+      setTableErrorMsg(`Meja ${foundTable.number} saat ini sedang dinonaktifkan oleh Kasir.`);
+      return;
+    }
+
+    setSelectedTable(foundTable.number);
     setActiveStep('MENU');
   };
 
