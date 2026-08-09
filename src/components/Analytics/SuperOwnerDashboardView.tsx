@@ -403,7 +403,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 </button>
 
                 <a
-                  href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '01')}`}
+                  href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '1')}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-2.5 text-[10px] font-black text-[#EA580C] transition hover:bg-[#FFE9DE] cursor-pointer"

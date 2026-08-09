@@ -72,7 +72,7 @@ export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
             isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
             orders={orders}
             onSubmitCustomerOrder={onSubmitCustomerOrder}
-            initialTableNumber={tableNumber || '01'}
+            initialTableNumber={tableNumber || '1'}
             currentBranch={currentBranch}
           />
         </div>

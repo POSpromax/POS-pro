@@ -291,7 +291,7 @@ export default function App() {
   const [isSelfOrderModalOpen, setIsSelfOrderModalOpen] = useState<boolean>(false);
   const [isTableManagementOpen, setIsTableManagementOpen] = useState<boolean>(false);
   const [isQuickTableModalOpen, setIsQuickTableModalOpen] = useState<boolean>(false);
-  const [selectedSelfOrderTable, setSelectedSelfOrderTable] = useState<string>('01');
+  const [selectedSelfOrderTable, setSelectedSelfOrderTable] = useState<string>('1');
 
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState<boolean>(false);
 
@@ -505,7 +505,7 @@ export default function App() {
   // If isolated self order tab or URL param is active, render native standalone mobile self-order
   if (isSelfOrderUrlParam) {
     const selfOrderParams = new URLSearchParams(window.location.search);
-    const tableFromUrl = selfOrderParams.get('table') || '01';
+    const tableFromUrl = selfOrderParams.get('table') || '1';
     const requestedBranchId = selfOrderParams.get('branch');
     const selfOrderBranch = branches.find((branch) => branch.id === requestedBranchId) || currentBranch;
     const selfOrderTables = tables.filter((table) => !table.branchId || table.branchId === selfOrderBranch.id);
@@ -686,7 +686,7 @@ export default function App() {
             printerConfig={printerConfig}
             onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
             onOpenCustomerSelfOrder={() => {
-              setSelectedSelfOrderTable('01');
+              setSelectedSelfOrderTable('1');
               setIsSelfOrderModalOpen(true);
             }}
             onOpenTableManagement={() => setIsTableManagementOpen(true)}
@@ -720,7 +720,7 @@ export default function App() {
                   printerConfig={printerConfig}
                   onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
                   onOpenCustomerSelfOrder={() => {
-                    setSelectedSelfOrderTable('01');
+                    setSelectedSelfOrderTable('1');
                     setIsSelfOrderModalOpen(true);
                   }}
                   onOpenTableManagement={() => setIsTableManagementOpen(true)}
@@ -842,7 +842,7 @@ export default function App() {
                     orders={branchOrders}
                     currentBranch={currentBranch}
                     onSubmitCustomerOrder={handleSubmitCustomerOrder}
-                    initialTableNumber="01"
+                    initialTableNumber="1"
                   />
                 </div>
               </div>

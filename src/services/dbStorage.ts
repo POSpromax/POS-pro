@@ -46,7 +46,7 @@ const STORAGE_KEYS = {
   DATA_VERSION: 'nusantara_pos_data_version'
 };
 
-const CURRENT_DATA_VERSION = 5;
+const CURRENT_DATA_VERSION = 6;
 const DEMO_ORDER_IDS = new Set(['ord-038', 'ord-037', 'ord-036', 'ord-035']);
 const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
   'br-1': '00000000-0000-4000-a000-000000000010',

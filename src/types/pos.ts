@@ -77,7 +77,7 @@ export type TableStatus = 'FREE' | 'OCCUPIED' | 'RESERVED';
 
 export interface RestaurantTable {
   id: string;
-  number: string; // e.g. "01", "02", "VIP-1"
+  number: string; // e.g. "1", "2", "VIP-1"
   capacity: number;
   status: TableStatus;
   isSelfOrderEnabled: boolean; // Turn on/off customer QR order per table

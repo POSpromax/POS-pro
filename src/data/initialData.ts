@@ -893,7 +893,7 @@ export const INITIAL_ORDERS: Order[] = [
     id: 'ord-038',
     orderNumber: '#038',
     customerName: 'Guest',
-    tableNumber: '01',
+    tableNumber: '1',
     type: 'DINE_IN',
     items: [
       { id: 'itm-1', menuId: 'menu-1', menuName: 'Bakso Jumbo Urat Gimbal', price: 40000, quantity: 1, category: 'BAKSO' },
@@ -919,7 +919,7 @@ export const INITIAL_ORDERS: Order[] = [
     id: 'ord-037',
     orderNumber: '#037',
     customerName: 'Guest',
-    tableNumber: '02',
+    tableNumber: '2',
     type: 'DINE_IN',
     items: [
       { id: 'itm-4', menuId: 'menu-4', menuName: 'Bakso Komplit + TTLN & T.RANGU', price: 35000, quantity: 1, category: 'BAKSO' },
@@ -944,7 +944,7 @@ export const INITIAL_ORDERS: Order[] = [
     id: 'ord-036',
     orderNumber: '#036',
     customerName: 'Guest',
-    tableNumber: '03',
+    tableNumber: '3',
     type: 'DINE_IN',
     items: [
       { id: 'itm-6', menuId: 'menu-5', menuName: 'Bakso Polos', price: 15000, quantity: 6, category: 'BAKSO' },
@@ -971,7 +971,7 @@ export const INITIAL_ORDERS: Order[] = [
     id: 'ord-035',
     orderNumber: '#035',
     customerName: 'Guest',
-    tableNumber: '04',
+    tableNumber: '4',
     type: 'DINE_IN',
     items: [
       { id: 'itm-10', menuId: 'menu-3', menuName: 'Bakso Komplit', price: 25000, quantity: 2, category: 'BAKSO' },
