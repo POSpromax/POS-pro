@@ -255,6 +255,8 @@ export interface RestaurantProfile {
   isSelfOrderEnabled?: boolean;
   maxPinAttempts?: number;
   pinLockoutMinutes?: number;
+  masterPinAdmin?: string;
+  allowedSelfOrderTables?: string;
 
   // Keuangan Config
   taxRatePercent: number;

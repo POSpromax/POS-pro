@@ -28,7 +28,10 @@ import {
   ExternalLink,
   Play,
   Camera,
-  Compass
+  Compass,
+  FileText,
+  LogIn,
+  Key
 } from 'lucide-react';
 import {
   RestaurantProfile,
@@ -38,9 +41,11 @@ import {
   UserAccount,
   UserRole,
   Branch,
-  AccessControlRule
+  AccessControlRule,
+  RestaurantTable
 } from '../../types/pos';
 import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
+import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
 
 interface SettingsViewProps {
   profile: RestaurantProfile;
@@ -58,6 +63,11 @@ interface SettingsViewProps {
   onDeleteStaff?: (id: string) => void;
   accessControl: AccessControlRule[];
   onSaveAccessControl: (rules: AccessControlRule[]) => void;
+  tables?: RestaurantTable[];
+  onToggleTableSelfOrder?: (tableId: string, enabled: boolean) => void;
+  onToggleAllTables?: (enabled: boolean) => void;
+  isSelfOrderSystemEnabled?: boolean;
+  onToggleSystemSelfOrder?: (enabled: boolean) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -75,7 +85,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveStaff,
   onDeleteStaff,
   accessControl,
-  onSaveAccessControl
+  onSaveAccessControl,
+  tables = [],
+  onToggleTableSelfOrder = () => {},
+  onToggleAllTables = () => {},
+  isSelfOrderSystemEnabled = true,
+  onToggleSystemSelfOrder = (_enabled: boolean) => {}
 }) => {
   const [activeTab, setActiveTab] = useState<
     'PROFILE' | 'LANDING' | 'KDS' | 'STAFF' | 'CONDIMENTS' | 'FINANCE' | 'ACCESS' | 'DATABASE'
@@ -84,6 +99,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Form State initialized with profile
   const [formProfile, setFormProfile] = useState<RestaurantProfile>(profile);
   const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
 
   // Staff & PIN Management State
   const [newStaffName, setNewStaffName] = useState('');
@@ -115,7 +131,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newOptionPrices, setNewOptionPrices] = useState<Record<string, number>>({});
   const [showCondimentTips, setShowCondimentTips] = useState<boolean>(false);
 
-  const handleSaveAll = () => {
+  const handleSaveAll = (_e?: any) => {
     onSaveProfile(formProfile);
     setIsSavedAlert(true);
     setTimeout(() => setIsSavedAlert(false), 2500);
@@ -1523,61 +1539,160 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* 7. HAK AKSES */}
+            {/* 7. HAK AKSES (Matching Screenshots 2 & 3) */}
             {activeTab === 'ACCESS' && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold text-[#1A1714]">Hak Akses & Role</h2>
-                  <p className="text-xs text-[#9C9590] font-medium">Matriks ini langsung menentukan menu dan halaman awal setelah PIN petugas dikenali.</p>
+                {/* Section 1: Hak Akses & Role Header & Feature Cards Grid */}
+                <div className="bg-white rounded-[32px] p-6 border border-slate-200/80 shadow-2xs space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md">
+                      <Shield className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight">Hak Akses & Role</h2>
+                      <p className="text-xs font-semibold text-slate-500">Kontrol fitur apa saja yang bisa diakses setiap role.</p>
+                    </div>
+                  </div>
+
+                  {/* Grid of 10 Feature Permission Cards matching Screenshot 2 & 3 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+                    {[
+                      { key: 'canAccessPOS', label: 'AKSES POS', icon: Smartphone },
+                      { key: 'canAccessShift', label: 'AKSES SHIFT', icon: Clock },
+                      { key: 'canAccessAttendance', label: 'AKSES ABSENSI', icon: Users },
+                      { key: 'canAccessKDS', label: 'AKSES KITCHEN', icon: Volume2 },
+                      { key: 'canAccessInventory', label: 'AKSES INVENTORY', icon: Layers },
+                      { key: 'canAccessAnalytics', label: 'AKSES LAPORAN', icon: FileText },
+                      { key: 'canAccessSettings', label: 'AKSES PENGATURAN', icon: Settings },
+                      { key: 'canVoidOrder', label: 'VOID TRANSAKSI', icon: Trash2 },
+                      { key: 'canGiveDiscount', label: 'BERI DISKON', icon: CreditCard },
+                      { key: 'canOpenDrawer', label: 'BUKA LACI', icon: LogIn }
+                    ].map((feature) => (
+                      <div key={feature.key} className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <feature.icon className="w-4 h-4" />
+                          </div>
+                          <span className="text-[11px] font-black text-slate-800 tracking-wide uppercase truncate">
+                            {feature.label}
+                          </span>
+                        </div>
+
+                        {/* 4 Roles Sub-Labels & Toggles: CAS, KIT, STA, ADM */}
+                        <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-slate-200/60">
+                          {(['KASIR', 'KITCHEN', 'MANAGER', 'ADMIN'] as UserRole[]).map((role) => {
+                            const roleAbbr = role === 'KASIR' ? 'CAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'STA' : 'ADM';
+                            const rule = accessControl.find((r) => r.role === role);
+                            const isChecked = rule ? (rule as any)[feature.key] ?? (role === 'ADMIN' || (role === 'KASIR' && feature.key === 'canAccessPOS')) : role === 'ADMIN';
+
+                            return (
+                              <div key={role} className="flex flex-col items-center space-y-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase">{roleAbbr}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = accessControl.map((item) =>
+                                      item.role === role ? { ...item, [feature.key]: !isChecked } : item
+                                    );
+                                    onSaveAccessControl(updated);
+                                  }}
+                                  className={`w-7 h-4 rounded-full transition-colors relative p-0.5 cursor-pointer ${
+                                    isChecked ? 'bg-indigo-600' : 'bg-slate-300'
+                                  }`}
+                                >
+                                  <div className={`w-3 h-3 bg-white rounded-full transition-transform ${isChecked ? 'translate-x-3' : 'translate-x-0'}`} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="border border-[#E8E0D8] rounded-2xl overflow-hidden">
-                  <table className="w-full text-left text-xs font-bold text-slate-800">
-                    <thead className="bg-slate-100 text-[#9C9590] uppercase font-bold text-[10px]">
-                      <tr>
-                        <th className="p-3.5">ROLE / JABATAN</th>
-                        <th className="p-3.5 text-center">POS KASIR</th>
-                        <th className="p-3.5 text-center">KDS DAPUR</th>
-                        <th className="p-3.5 text-center">SHIFT & CASH</th>
-                        <th className="p-3.5 text-center">STOK / RAW</th>
-                        <th className="p-3.5 text-center">LAPORAN</th>
-                        <th className="p-3.5 text-center">SETTINGS</th>
-                        <th className="p-3.5 text-center">VOID</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {accessControl.map((rule) => (
-                        <tr key={rule.role} className="hover:bg-[#FAFAF8]/80">
-                          <td className="p-3.5 font-bold text-[#1A1714]">{rule.role}</td>
-                          {([
-                            'canAccessPOS',
-                            'canAccessKDS',
-                            'canAccessShift',
-                            'canAccessInventory',
-                            'canAccessAnalytics',
-                            'canAccessSettings',
-                            'canVoidOrder'
-                          ] as const).map((permission) => (
-                            <td key={permission} className="p-3.5 text-center">
-                              <input
-                                type="checkbox"
-                                aria-label={`${rule.role} ${permission}`}
-                                checked={rule[permission]}
-                                onChange={(event) => {
-                                  const updated = accessControl.map((item) =>
-                                    item.role === rule.role ? { ...item, [permission]: event.target.checked } : item
-                                  );
-                                  onSaveAccessControl(updated);
-                                }}
-                                className="h-4 w-4 cursor-pointer rounded accent-[#F05A1F]"
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Section 2: MASTER PIN ADMIN Banner matching Screenshot 2 & 3 */}
+                <div className="bg-[#181827] text-white rounded-[32px] p-6 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-500 flex items-center justify-center shrink-0">
+                      <Shield className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black tracking-wide text-white uppercase">MASTER PIN ADMIN</h3>
+                      <p className="text-xs text-slate-400 font-semibold">Digunakan untuk akses darurat & reset.</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#12111C] px-5 py-3 rounded-2xl border border-slate-700/80 flex items-center gap-3 w-full sm:w-auto justify-between">
+                    <input
+                      type="password"
+                      value={formProfile.masterPinAdmin || '123456'}
+                      onChange={(e) => setFormProfile({ ...formProfile, masterPinAdmin: e.target.value })}
+                      className="bg-transparent text-red-400 font-black text-lg tracking-widest outline-none w-28 text-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveAll()}
+                      className="text-xs font-black text-orange-400 hover:text-orange-300 underline cursor-pointer"
+                    >
+                      Simpan
+                    </button>
+                  </div>
                 </div>
+
+                {/* Section 3: Meja untuk Customer Order Card matching Screenshot 2 & 3 */}
+                <div className="bg-white rounded-[32px] p-6 border border-slate-200/80 shadow-2xs space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <Grid className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900">Meja untuk Customer Order</h3>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Hanya nomor meja di daftar ini yang bisa melakukan order dari halaman pelanggan.
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                      <span className="text-xs font-black text-slate-600 uppercase">AKTIFKAN</span>
+                      <input
+                        type="checkbox"
+                        checked={isSelfOrderSystemEnabled ?? (formProfile.isSelfOrderEnabled !== false)}
+                        onChange={(e) => {
+                          if (onToggleSystemSelfOrder) onToggleSystemSelfOrder(e.target.checked);
+                          setFormProfile({ ...formProfile, isSelfOrderEnabled: e.target.checked });
+                        }}
+                        className="w-4.5 h-4.5 rounded accent-blue-600 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <input
+                      type="text"
+                      value={formProfile.allowedSelfOrderTables || '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15'}
+                      onChange={(e) => setFormProfile({ ...formProfile, allowedSelfOrderTables: e.target.value })}
+                      placeholder="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-800 outline-none focus:bg-white focus:border-slate-900 transition-all font-mono tracking-wider"
+                    />
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      Pisahkan dengan koma. Kosongkan jika semua meja boleh menggunakan customer order.
+                    </p>
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsTableModalOpen(true)}
+                      className="text-xs font-black text-amber-700 hover:text-amber-800 underline cursor-pointer"
+                    >
+                      Buka manajemen meja
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -1922,6 +2037,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Manajemen Meja (Customer Order) matching Screenshot 1 */}
+      <CustomerTableManagementModal
+        isOpen={isTableModalOpen}
+        onClose={() => setIsTableModalOpen(false)}
+        tables={tables}
+        onToggleTableSelfOrder={onToggleTableSelfOrder}
+        onToggleAllTables={onToggleAllTables}
+        isSelfOrderSystemEnabled={isSelfOrderSystemEnabled ?? (formProfile.isSelfOrderEnabled !== false)}
+        onToggleSystemSelfOrder={onToggleSystemSelfOrder}
+      />
     </div>
   );
 };

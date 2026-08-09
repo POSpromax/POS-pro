@@ -844,8 +844,8 @@ export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {
   requireGpsActive: true,
   isAttendanceEnabled: true,
   isSelfOrderEnabled: true,
-  maxPinAttempts: 5,
-  pinLockoutMinutes: 5,
+  masterPinAdmin: '123456',
+  allowedSelfOrderTables: '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15',
 
   // Keuangan Config
   taxRatePercent: 10,

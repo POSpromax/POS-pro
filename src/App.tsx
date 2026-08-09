@@ -969,6 +969,15 @@ export default function App() {
               onSaveCondimentGroup={handleSaveCondimentGroup}
               onToggleGroupActive={handleToggleGroupActive}
               onToggleOptionAvailable={handleToggleOptionAvailable}
+              tables={branchTables}
+              onToggleTableSelfOrder={handleToggleTableSelfOrder}
+              onToggleAllTables={handleToggleAllTables}
+              onToggleSystemSelfOrder={(enabled) => {
+                setIsSelfOrderSystemEnabled(enabled);
+                const updated = { ...profile, isSelfOrderEnabled: enabled };
+                DBStorage.saveProfile(updated);
+                setProfile(updated);
+              }}
               onClearTransactions={() => {
                 DBStorage.purgeDummyTrialData();
                 setOrders(DBStorage.getOrders());
