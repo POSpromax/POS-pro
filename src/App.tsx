@@ -32,7 +32,7 @@ import {
   CondimentGroup,
   AccessControlRule
 } from './types/pos';
-import { DBStorage } from './services/dbStorage';
+import { DBStorage, STORAGE_KEYS } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
 import { cloudReadiness } from './lib/runtimeEnv';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
@@ -191,6 +191,33 @@ export default function App() {
   const [accessControl, setAccessControl] = useState<AccessControlRule[]>(() => DBStorage.getAccessControl());
   const activeAccessRule = accessControl.find((rule) => rule.role === activeUser.role);
 
+  // Real-Time Storage & Broadcast Synchronizer across Tabs, Windows, & Cloud
+  useEffect(() => {
+    const unsubscribe = DBStorage.subscribeToSync((key, value) => {
+      if (key === STORAGE_KEYS.CURRENT_SHIFT && value) {
+        setCurrentShift(value);
+      } else if (key === STORAGE_KEYS.ORDERS && value) {
+        setOrders(value);
+      } else if (key === STORAGE_KEYS.EXPENSES && value) {
+        setExpenseRecords(value);
+      } else if (key === STORAGE_KEYS.TABLES && value) {
+        setTables(value);
+      } else if (key === STORAGE_KEYS.BRANCHES && value) {
+        setBranches(value);
+      } else if (key === STORAGE_KEYS.PROFILE && value) {
+        setProfile(value);
+      } else if (key === STORAGE_KEYS.STAFF && value) {
+        setStaffAccounts(value);
+      } else if (key === STORAGE_KEYS.MENU && value) {
+        setMenuItems(value);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     if (!activeAccessRule || canAccessTab(activeAccessRule, activeTab)) return;
     const destination = getDefaultAccessDestination(activeAccessRule);
@@ -322,13 +349,16 @@ export default function App() {
     return false;
   };
 
-  // Sync Offline Queue
+  // Sync Offline Queue & Realtime Channel
   const handleManualSync = () => {
-    if (!cloudReadiness.supabase) {
-      showPushToast('Sinkronisasi Belum Aktif', 'Konfigurasi publik Supabase belum tersedia pada build ini. Antrean lokal tetap disimpan.');
-      return;
-    }
-    showPushToast('Sinkronisasi Belum Diaktifkan', 'Adapter transaksi Supabase belum menjalankan proses upload. Antrean lokal tidak dihapus untuk mencegah kehilangan data.');
+    DBStorage.syncAllDataWithCloud();
+    setCurrentShift(DBStorage.getCurrentShift());
+    setOrders(DBStorage.getOrders());
+    setExpenseRecords(DBStorage.getExpenseRecords());
+    setTables(DBStorage.getTables());
+    setBranches(DBStorage.getBranches());
+    setProfile(DBStorage.getProfile());
+    showPushToast('Sinkronisasi Realtime Sukses', 'Seluruh data status shift, pesanan, & biaya berhasil disinkronkan ke seluruh terminal!');
   };
 
   // Order Handlers

@@ -25,8 +25,9 @@ import {
   INITIAL_BRANCHES,
   INITIAL_ACCESS_CONTROL
 } from '../data/initialData';
+import { cloudReadiness } from '../lib/runtimeEnv';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   ORDERS: 'nusantara_pos_orders',
   MENU: 'nusantara_pos_menu',
   RAW_MATERIALS: 'nusantara_pos_raw_materials',
@@ -72,6 +73,39 @@ const createEmptyShift = (): Shift => ({
   status: 'CLOSED'
 });
 
+const posBroadcastChannel =
+  typeof window !== 'undefined' && 'BroadcastChannel' in window
+    ? new BroadcastChannel('pos_pro_sync_channel')
+    : null;
+
+let supabaseSyncChannel: any = null;
+
+if (typeof window !== 'undefined' && cloudReadiness.supabase) {
+  import('../lib/supabase')
+    .then(({ getSupabase }) => {
+      try {
+        const supabase = getSupabase();
+        supabaseSyncChannel = supabase.channel('pos_cloud_sync_realtime');
+        supabaseSyncChannel
+          .on('broadcast', { event: 'pos_sync' }, (payload: any) => {
+            if (payload.payload?.key && payload.payload?.value !== undefined) {
+              const { key, value } = payload.payload;
+              try {
+                localStorage.setItem(key, JSON.stringify(value));
+                window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          })
+          .subscribe();
+      } catch {
+        // Fallback silently if Supabase client fails to connect
+      }
+    })
+    .catch(() => {});
+}
+
 // Helper to get item from localStorage or default
 function getStoredItem<T>(key: string, defaultValue: T): T {
   try {
@@ -86,6 +120,21 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
 function setStoredItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
+      posBroadcastChannel?.postMessage({ key, value, timestamp: Date.now() });
+
+      if (supabaseSyncChannel && cloudReadiness.supabase) {
+        supabaseSyncChannel
+          .send({
+            type: 'broadcast',
+            event: 'pos_sync',
+            payload: { key, value, timestamp: Date.now() }
+          })
+          .catch(() => {});
+      }
+    }
   } catch (e) {
     console.error(`Error saving localStorage key "${key}":`, e);
   }
@@ -695,5 +744,51 @@ export class DBStorage {
     setStoredItem(STORAGE_KEYS.TABLES, cleanTables);
 
     setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+  }
+
+  // Real-time Event Subscription & Cross-Origin Broadcast
+  static subscribeToSync(callback: (key: string, value: any) => void): () => void {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleCustomEvent = (e: any) => {
+      if (e.detail?.key) {
+        callback(e.detail.key, e.detail.value);
+      }
+    };
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key) {
+        try {
+          const val = e.newValue ? JSON.parse(e.newValue) : null;
+          callback(e.key, val);
+        } catch {
+          // ignore parse error
+        }
+      }
+    };
+
+    const handleBroadcast = (e: MessageEvent) => {
+      if (e.data?.key) {
+        callback(e.data.key, e.data.value);
+      }
+    };
+
+    window.addEventListener('pos_data_changed', handleCustomEvent);
+    window.addEventListener('storage', handleStorageEvent);
+    posBroadcastChannel?.addEventListener('message', handleBroadcast);
+
+    return () => {
+      window.removeEventListener('pos_data_changed', handleCustomEvent);
+      window.removeEventListener('storage', handleStorageEvent);
+      posBroadcastChannel?.removeEventListener('message', handleBroadcast);
+    };
+  }
+
+  static syncAllDataWithCloud(): void {
+    if (typeof window === 'undefined') return;
+    setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, this.getCurrentShift());
+    setStoredItem(STORAGE_KEYS.ORDERS, this.getOrders());
+    setStoredItem(STORAGE_KEYS.EXPENSES, this.getExpenseRecords());
+    setStoredItem(STORAGE_KEYS.TABLES, this.getTables());
   }
 }

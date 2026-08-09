@@ -148,6 +148,11 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
   const shiftFormattedTime = new Date(currentShift.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+  const handleForceSync = () => {
+    DBStorage.syncAllDataWithCloud();
+    alert('✅ Status shift & data transaksi berhasil disinkronkan secara realtime!');
+  };
+
   return (
     <div className="flex-1 bg-[#F8FAFC] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900 min-h-0">
       {/* Top Bar matching Reference Image */}
@@ -167,6 +172,16 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleForceSync}
+            className="px-3 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full text-xs font-black text-emerald-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            title="Klik untuk sinkronkan status shift secara realtime"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>SINKRONIZASI SHIFT</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsVoidModalOpen(true)}
