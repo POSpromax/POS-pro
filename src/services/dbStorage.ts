@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
   RAW_MATERIALS: 'nusantara_pos_raw_materials',
   TABLES: 'nusantara_pos_tables',
   CURRENT_SHIFT: 'nusantara_pos_current_shift',
+  SHIFT_HISTORY: 'nusantara_pos_shift_history',
   EXPENSES: 'nusantara_pos_expenses',
   ATTENDANCE: 'nusantara_pos_attendance',
   PRINTER: 'nusantara_pos_printer',
@@ -577,7 +578,16 @@ export class DBStorage {
     shift.endTime = new Date().toISOString();
     shift.notes = closingNotes;
     setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, shift);
+
+    const history = getStoredItem<Shift[]>(STORAGE_KEYS.SHIFT_HISTORY, []);
+    const updatedHistory = [shift, ...history.filter((s) => s.id !== shift.id)];
+    setStoredItem(STORAGE_KEYS.SHIFT_HISTORY, updatedHistory);
+
     return shift;
+  }
+
+  static getShiftHistory(): Shift[] {
+    return getStoredItem<Shift[]>(STORAGE_KEYS.SHIFT_HISTORY, []);
   }
 
   static openNewShift(

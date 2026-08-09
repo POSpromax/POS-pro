@@ -12,9 +12,14 @@ import {
   CheckCircle2,
   Store,
   Coins,
-  Ban
+  Ban,
+  Tag,
+  Calendar,
+  ChevronRight,
+  FileText
 } from 'lucide-react';
 import { Shift, ExpenseIncomeRecord, Order, UserAccount } from '../../types/pos';
+import { DBStorage } from '../../services/dbStorage';
 
 interface ShiftMonitorViewProps {
   currentShift: Shift;
@@ -41,6 +46,9 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const [isCloseModalOpen, setIsCloseModalOpen] = useState<boolean>(false);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState<boolean>(false);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState<boolean>(false);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState<boolean>(false);
+  const [isShiftHistoryModalOpen, setIsShiftHistoryModalOpen] = useState<boolean>(false);
+  const [selectedHistoryShift, setSelectedHistoryShift] = useState<Shift | null>(null);
   const [closeNotes, setCloseNotes] = useState<string>('');
   const [actualCashInput, setActualCashInput] = useState<number | ''>('');
   const [handoverStaffName, setHandoverStaffName] = useState<string>('');
@@ -70,8 +78,6 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const [openShiftStaffName, setOpenShiftStaffName] = useState<string>(currentShift.staffName || activeUser?.name || 'Kasir 01');
   const [openShiftRole, setOpenShiftRole] = useState<string>('KASIR');
   const [openShiftCashInput, setOpenShiftCashInput] = useState<number>(500000);
-
-  const cashInDrawer = currentShift.initialCash + currentShift.cashSales + currentShift.totalIncome - currentShift.totalExpense;
 
   if (currentShift.status !== 'OPEN') {
     return (
@@ -120,12 +126,24 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     );
   }
 
-  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED');
+  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID');
   const voidOrders = orders.filter((o) => o.status === 'CANCELLED');
-  const grossOmset = currentShift.grossOmset || activeOrders.reduce((sum, o) => sum + o.total, 0);
-  const tunaiSales = currentShift.cashSales || activeOrders.filter((o) => o.paymentMethod === 'CASH').reduce((sum, o) => sum + o.total, 0);
-  const nonTunaiSales = activeOrders.filter((o) => o.paymentMethod !== 'CASH').reduce((sum, o) => sum + o.total, 0);
+  const discountedOrders = orders.filter((o) => o.discount && o.discount > 0);
+
+  const grossOmset = currentShift.grossOmset || activeOrders.reduce((sum, o) => sum + (o.subtotal || o.total), 0);
+  const tunaiSales = currentShift.cashSales || activeOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((sum, o) => sum + o.total, 0);
+  const qrisSales = activeOrders.filter((o) => o.paymentMethod === 'QRIS').reduce((sum, o) => sum + o.total, 0);
+  const debitSales = activeOrders.filter((o) => o.paymentMethod === 'DEBIT').reduce((sum, o) => sum + o.total, 0);
+  const nonTunaiSales = qrisSales + debitSales;
+
+  const totalDiscount = activeOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+  const totalTax = activeOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
+  const netOmset = activeOrders.reduce((sum, o) => sum + o.total, 0);
+
   const pengeluaranTotal = currentShift.totalExpense;
+  const pemasukanTotal = currentShift.totalIncome;
+
+  const cashInDrawer = currentShift.initialCash + tunaiSales + pemasukanTotal - pengeluaranTotal;
   const avgTransactionValue = activeOrders.length > 0 ? Math.round(grossOmset / activeOrders.length) : 0;
 
   const shiftFormattedTime = new Date(currentShift.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -148,20 +166,38 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setIsVoidModalOpen(true)}
-            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-black text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-black text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Ban className="w-3.5 h-3.5 text-rose-500" />
-            <span>VOID HISTORY</span>
+            <span>RIWAYAT VOID ({voidOrders.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDiscountModalOpen(true)}
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-black text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+          >
+            <Tag className="w-3.5 h-3.5 text-amber-500" />
+            <span>RIWAYAT DISKON ({discountedOrders.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsShiftHistoryModalOpen(true)}
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-black text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+          >
+            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+            <span>RIWAYAT SHIFT PERHARI</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsCloseModalOpen(true)}
-            className="px-4 py-2 bg-white border border-rose-200 hover:bg-rose-50 rounded-full text-xs font-black text-rose-600 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full text-xs font-black shadow-md shadow-rose-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Power className="w-3.5 h-3.5" />
             <span>TUTUP SHIFT</span>
@@ -363,25 +399,30 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           {/* Card 2: RIWAYAT BIAYA / PEMASUKAN */}
           <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs space-y-3">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">RIWAYAT BIAYA / PEMASUKAN</h3>
-            {expenseRecords.length === 0 ? (
-              <div className="py-10 text-center text-xs font-bold text-slate-400">
-                Tidak ada data biaya
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {/* Entry Modal Awal */}
+              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="font-black text-xs text-indigo-900 uppercase">MODAL AWAL (PETTY CASH)</p>
+                  <p className="text-[10px] text-indigo-500 font-bold">{shiftFormattedTime} • {currentShift.staffName}</p>
+                </div>
+                <span className="font-black text-xs text-indigo-700 font-mono">
+                  +Rp {currentShift.initialCash.toLocaleString('id-ID')}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {expenseRecords.map((rec) => (
-                  <div key={rec.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="font-black text-xs text-slate-900 uppercase">{rec.description}</p>
-                      <p className="text-[10px] text-slate-400 font-bold">{new Date(rec.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • {rec.recordedBy}</p>
-                    </div>
-                    <span className={`font-black text-xs font-mono ${rec.type === 'EXPENSE' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {rec.type === 'EXPENSE' ? '-' : '+'}Rp {rec.amount.toLocaleString('id-ID')}
-                    </span>
+
+              {expenseRecords.map((rec) => (
+                <div key={rec.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-black text-xs text-slate-900 uppercase">{rec.description}</p>
+                    <p className="text-[10px] text-slate-400 font-bold">{new Date(rec.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • {rec.recordedBy}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className={`font-black text-xs font-mono ${rec.type === 'EXPENSE' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {rec.type === 'EXPENSE' ? '-' : '+'}Rp {rec.amount.toLocaleString('id-ID')}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Card 3: RATA-RATA TRANSAKSI (Daily Realtime Performance) */}
@@ -400,73 +441,163 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
         </div>
       </div>
 
-      {/* Close Shift Modal */}
+      {/* TUTUP SHIFT & FINALISASI SHIFT MODAL matching Screenshot */}
       {isCloseModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 font-sans text-slate-900 border border-[#EAE3DB]">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Konfirmasi Tutup Shift Kasir</h2>
-            <div className="bg-slate-50 p-4 rounded-2xl space-y-2 text-xs font-bold text-slate-700 border border-slate-200">
-              <div className="flex justify-between"><span>Awal Modal Laci:</span><span className="font-mono">Rp {currentShift.initialCash.toLocaleString('id-ID')}</span></div>
-              <div className="flex justify-between"><span>Penjualan Tunai:</span><span className="font-mono">Rp {currentShift.cashSales.toLocaleString('id-ID')}</span></div>
-              <div className="flex justify-between border-t border-slate-200 pt-1.5 font-black text-sm">
-                <span>Target Uang Fisik Laci:</span>
-                <span className="text-orange-600 font-mono font-black">Rp {cashInDrawer.toLocaleString('id-ID')}</span>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl rounded-[32px] overflow-hidden shadow-2xl border border-slate-200 flex flex-col md:flex-row max-h-[92vh]">
+            
+            {/* LEFT SIDE: Finalisasi Shift Form (Screen Match) */}
+            <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Finalisasi Shift</h2>
+                <p className="text-xs font-semibold text-slate-500 mt-1">
+                  Pastikan uang fisik di laci sesuai dengan perhitungan sistem.
+                </p>
+              </div>
+
+              {/* HITUNG UANG FISIK Card */}
+              <div className="bg-[#FAFAF8] rounded-3xl p-6 border border-slate-200 space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  HITUNG UANG FISIK
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={actualCashInput}
+                    onChange={(e) => setActualCashInput(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full bg-white border-2 border-orange-500 rounded-2xl px-5 py-4 text-3xl font-black text-slate-900 outline-none focus:ring-4 focus:ring-orange-500/20 font-mono tracking-tight"
+                  />
+                </div>
+
+                {/* Selisih Indicator */}
+                {(() => {
+                  const actualVal = actualCashInput !== '' ? Number(actualCashInput) : 0;
+                  const diff = actualVal - cashInDrawer;
+                  if (actualCashInput === '') {
+                    return (
+                      <p className="text-xs font-bold text-rose-600 flex items-center gap-1.5 pt-1">
+                        <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
+                        <span>🔴 Selisih: -Rp {cashInDrawer.toLocaleString('id-ID')}</span>
+                      </p>
+                    );
+                  }
+                  if (diff === 0) {
+                    return (
+                      <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 pt-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
+                        <span>✓ Kas Sesuai (Selisih Rp 0)</span>
+                      </p>
+                    );
+                  }
+                  if (diff > 0) {
+                    return (
+                      <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 pt-1">
+                        <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
+                        <span>+ Surplus Kas: Rp {diff.toLocaleString('id-ID')}</span>
+                      </p>
+                    );
+                  }
+                  return (
+                    <p className="text-xs font-bold text-rose-600 flex items-center gap-1.5 pt-1">
+                      <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
+                      <span>🔴 Selisih: -Rp {Math.abs(diff).toLocaleString('id-ID')}</span>
+                    </p>
+                  );
+                })()}
+              </div>
+
+              {/* Catatan Field */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">
+                  Catatan Selisih / Closing:
+                </label>
+                <textarea
+                  value={closeNotes}
+                  onChange={(e) => setCloseNotes(e.target.value)}
+                  placeholder="Keterangan tambahan selisih kas..."
+                  className="w-full bg-[#FAFAF8] border border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-slate-900"
+                  rows={2}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCloseModalOpen(false)}
+                  className="flex-1 py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl cursor-pointer transition-all uppercase tracking-wider"
+                >
+                  BATAL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const actualVal = actualCashInput !== '' ? Number(actualCashInput) : 0;
+                    const diff = actualVal - cashInDrawer;
+                    const selisihNote = ` [Uang Fisik: Rp ${actualVal.toLocaleString('id-ID')}, Selisih: Rp ${diff.toLocaleString('id-ID')}]`;
+                    onCloseShift((closeNotes + selisihNote).trim());
+                    setIsCloseModalOpen(false);
+                    alert('Shift Berhasil Ditutup & Struk Z-Report Dicetak!');
+                  }}
+                  className="flex-1 py-4 bg-[#181B2A] hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-lg cursor-pointer transition-all uppercase tracking-wider"
+                >
+                  TUTUP SHIFT & CETAK LAPORAN
+                </button>
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Kas Aktual Fisik Laci (Rp):</label>
-              <input
-                type="number"
-                placeholder={`Contoh: ${cashInDrawer}`}
-                value={actualCashInput}
-                onChange={(e) => setActualCashInput(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
-              />
-              {actualCashInput !== '' && (
-                <div className={`mt-1.5 text-xs font-black p-2.5 rounded-xl border ${
-                  Number(actualCashInput) - cashInDrawer === 0
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : Number(actualCashInput) - cashInDrawer > 0
-                    ? 'bg-blue-50 text-blue-800 border-blue-200'
-                    : 'bg-rose-50 text-rose-800 border-rose-200'
-                }`}>
-                  {Number(actualCashInput) - cashInDrawer === 0
-                    ? '✓ Kas sesuai (Selisih Rp 0)'
-                    : Number(actualCashInput) - cashInDrawer > 0
-                    ? `+ Surplus Kas: Rp ${(Number(actualCashInput) - cashInDrawer).toLocaleString('id-ID')}`
-                    : `- Selisih Kas (Minus): Rp ${Math.abs(Number(actualCashInput) - cashInDrawer).toLocaleString('id-ID')}`}
+            {/* RIGHT SIDE: Thermal Receipt Preview (Z-REPORT Match) */}
+            <div className="w-full md:w-84 bg-[#F4F5F7] p-6 border-t md:border-t-0 md:border-l border-slate-200 overflow-y-auto space-y-4 text-slate-800 font-mono text-xs">
+              {/* Receipt Paper Container */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="text-center border-b border-dashed border-slate-300 pb-3 space-y-1">
+                  <h3 className="text-base font-black tracking-widest text-slate-900 uppercase">Z-REPORT</h3>
+                  <p className="text-[10px] text-slate-500 font-bold">Bakso Ujo OmniPOS</p>
                 </div>
-              )}
+
+                <div className="space-y-1 text-[11px] font-bold text-slate-600 border-b border-dashed border-slate-300 pb-3">
+                  <div className="flex justify-between"><span>Tanggal:</span><span>{new Date().toLocaleDateString('id-ID')}</span></div>
+                  <div className="flex justify-between"><span>Start:</span><span>{shiftFormattedTime}</span></div>
+                  <div className="flex justify-between"><span>End:</span><span>Now</span></div>
+                  <div className="flex justify-between"><span>Cashier:</span><span className="uppercase">{currentShift.staffName || 'SUPER ADMIN'}</span></div>
+                  <div className="flex justify-between"><span>ID:</span><span>{currentShift.id}</span></div>
+                </div>
+
+                <div className="space-y-1 text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-300 pb-3">
+                  <div className="flex justify-between"><span>Modal Awal</span><span>Rp {currentShift.initialCash.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between"><span>Pemasukan (Petty Cash)</span><span>Rp {pemasukanTotal.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between"><span>Pengeluaran</span><span>Rp {pengeluaranTotal.toLocaleString('id-ID')}</span></div>
+                </div>
+
+                <div className="space-y-1.5 text-[11px] border-b border-dashed border-slate-300 pb-3">
+                  <div className="flex justify-between font-black text-slate-900"><span>PENJUALAN KOTOR</span><span>Rp {grossOmset.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600 pl-2"><span>Cash</span><span>Rp {tunaiSales.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600 pl-2"><span>QRIS</span><span>Rp {qrisSales.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600 pl-2"><span>DEBIT</span><span>Rp {debitSales.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-rose-600 font-bold pl-2"><span>Diskon</span><span>- Rp {totalDiscount.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600 pl-2"><span>Pajak</span><span>Rp {totalTax.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between font-black text-slate-900 pt-1 border-t border-slate-200"><span>PENJUALAN BERSIH</span><span>Rp {netOmset.toLocaleString('id-ID')}</span></div>
+                </div>
+
+                {/* CASH SUMMARY Box matching Screenshot */}
+                <div className="bg-[#F8FAFC] border border-slate-200 p-3.5 rounded-xl space-y-1.5 text-[10px] font-mono">
+                  <p className="text-[9px] font-black text-center text-slate-400 uppercase tracking-widest mb-1.5">CASH SUMMARY</p>
+                  <div className="flex justify-between text-slate-600"><span>Modal Awal</span><span>Rp {currentShift.initialCash.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Pemasukan</span><span>Rp {pemasukanTotal.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Pengeluaran</span><span>- Rp {pengeluaranTotal.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200"><span>Expected</span><span>Rp {cashInDrawer.toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between font-bold text-slate-800"><span>Actual</span><span>Rp {(actualCashInput !== '' ? Number(actualCashInput) : 0).toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between font-black text-xs pt-1 border-t border-slate-200">
+                    <span>Selisih</span>
+                    <span className={(actualCashInput !== '' ? Number(actualCashInput) : 0) - cashInDrawer < 0 ? 'text-rose-600 font-black' : 'text-emerald-600 font-black'}>
+                      Rp {((actualCashInput !== '' ? Number(actualCashInput) : 0) - cashInDrawer).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Catatan Closing / Selisih:</label>
-              <textarea
-                value={closeNotes}
-                onChange={(e) => setCloseNotes(e.target.value)}
-                placeholder="Catatan selisih kas / petty cash..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
-                rows={2}
-              />
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setIsCloseModalOpen(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-2xl cursor-pointer">
-                Batal
-              </button>
-              <button
-                onClick={() => {
-                  const selisihNote = actualCashInput !== '' ? ` [Kas Fisik: Rp ${Number(actualCashInput).toLocaleString('id-ID')}, Selisih: Rp ${(Number(actualCashInput) - cashInDrawer).toLocaleString('id-ID')}]` : '';
-                  onCloseShift(closeNotes + selisihNote);
-                  setIsCloseModalOpen(false);
-                  alert('Shift Berhasil Ditutup!');
-                }}
-                className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-2xl shadow-md cursor-pointer transition-all"
-              >
-                Tutup Shift Sekarang
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -543,7 +674,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-rose-600 font-black text-sm">
                 <Ban className="w-5 h-5 text-rose-600" />
-                <span>RIWAYAT VOID TRANSAKSI SHIFT</span>
+                <span>RIWAYAT VOID TRANSAKSI SHIFT ({voidOrders.length})</span>
               </div>
               <button
                 type="button"
@@ -562,11 +693,11 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                 </div>
               ) : (
                 voidOrders.map((ord) => (
-                  <div key={ord.id} className="p-3 bg-rose-50/60 border border-rose-100 rounded-2xl flex items-center justify-between">
+                  <div key={ord.id} className="p-3.5 bg-rose-50/60 border border-rose-100 rounded-2xl flex items-center justify-between">
                     <div>
                       <p className="font-black text-xs text-rose-900">{ord.customerName || 'Pelanggan'} #{ord.orderNumber}</p>
-                      <p className="text-[10px] text-rose-600 font-mono font-bold">
-                        Waktu: {new Date(ord.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • Mode: {ord.type}
+                      <p className="text-[10px] text-rose-600 font-mono font-bold mt-0.5">
+                        Waktu: {new Date(ord.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • Meja: {ord.tableNumber || '-'}
                       </p>
                     </div>
                     <span className="font-black text-xs text-rose-700 font-mono">
@@ -581,6 +712,131 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsVoidModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discount History Modal */}
+      {isDiscountModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-4 font-sans text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-amber-600 font-black text-sm">
+                <Tag className="w-5 h-5 text-amber-600" />
+                <span>RIWAYAT DISKON TRANSAKSI SHIFT ({discountedOrders.length})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(false)}
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {discountedOrders.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <Tag className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-xs font-bold text-slate-400">Belum ada transaksi dengan pemberian diskon pada shift ini.</p>
+                </div>
+              ) : (
+                discountedOrders.map((ord) => (
+                  <div key={ord.id} className="p-3.5 bg-amber-50/60 border border-amber-100 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="font-black text-xs text-amber-900">{ord.customerName || 'Pelanggan'} #{ord.orderNumber}</p>
+                      <p className="text-[10px] text-amber-700 font-mono font-bold mt-0.5">
+                        Waktu: {new Date(ord.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • Kasir: {ord.cashierName}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-xs text-rose-600 font-mono block">
+                        - Rp {ord.discount.toLocaleString('id-ID')}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono font-bold">
+                        Net: Rp {ord.total.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shift History Perhari Archive Modal */}
+      {isShiftHistoryModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-3xl p-6 md:p-8 shadow-2xl space-y-4 font-sans text-slate-900 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-indigo-600 font-black text-sm">
+                <Calendar className="w-5 h-5 text-indigo-600" />
+                <span>ARSIP RIWAYAT SHIFT PERHARI</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShiftHistoryModalOpen(false)}
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {DBStorage.getShiftHistory().length === 0 ? (
+                <div className="py-16 text-center space-y-2">
+                  <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-xs font-bold text-slate-400">Belum ada arsip riwayat shift sebelumnya yang ditutup.</p>
+                </div>
+              ) : (
+                DBStorage.getShiftHistory().map((shf) => (
+                  <div key={shf.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 hover:bg-slate-100/80 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="bg-indigo-100 text-indigo-800 text-[9px] font-black px-2 py-0.5 rounded uppercase font-mono mr-2">
+                          CLOSED
+                        </span>
+                        <strong className="text-xs font-black text-slate-900">{shf.staffName} ({shf.staffRole})</strong>
+                        <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                          {new Date(shf.startTime).toLocaleString('id-ID')} – {shf.endTime ? new Date(shf.endTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Selesai'}
+                        </p>
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-xs font-black text-slate-900 block">Rp {(shf.grossOmset || 0).toLocaleString('id-ID')}</span>
+                        <span className="text-[10px] text-slate-400 font-bold">Gross Sales</span>
+                      </div>
+                    </div>
+
+                    {shf.notes && (
+                      <p className="text-[11px] font-medium text-slate-600 bg-[#FAFAF8] p-2 rounded-xl border border-slate-200/80 font-mono">
+                        💬 {shf.notes}
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsShiftHistoryModalOpen(false)}
                 className="px-5 py-2.5 bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer"
               >
                 Tutup
