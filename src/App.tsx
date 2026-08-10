@@ -963,6 +963,10 @@ export default function App() {
               orders={branchOrders}
               menuItems={menuItems}
               currentShift={currentShift}
+              allShifts={DBStorage.getShiftHistory()}
+              attendanceRecords={attendanceRecords}
+              expenseRecords={expenseRecords}
+              profile={profile}
             />
           )}
 
