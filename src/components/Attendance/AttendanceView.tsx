@@ -1,9 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock, Video, RefreshCw, Upload, AlertCircle } from 'lucide-react';
+import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock, Video, ShieldCheck } from 'lucide-react';
 import { AttendanceRecord, Branch, RestaurantProfile, UserAccount } from '../../types/pos';
 import { cloudReadiness } from '../../lib/runtimeEnv';
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { DBStorage } from '../../services/dbStorage';
+import { AttendanceHrPanel } from './AttendanceHrPanel';
 
 interface AttendanceViewProps {
   attendanceRecords: AttendanceRecord[];
@@ -28,8 +29,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   terminalMode = false,
   onShowToast,
 }) => {
-  const eligibleStaff = staffAccounts.filter(
-    (staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
+  const eligibleStaff = useMemo(
+    () => staffAccounts.filter(
+      (staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
+    ),
+    [staffAccounts, currentBranch.id],
   );
 
   const [step, setStep] = useState<AttendanceStep>(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
@@ -54,6 +58,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const permissionRequestKeyRef = useRef('');
 
   const stopCameraStream = useCallback(() => {
     if (mediaStreamRef.current) {
@@ -191,6 +196,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     });
   };
 
+  useEffect(() => {
+    if (step !== 'SELFIE_GPS' || profile.isAttendanceEnabled === false) return;
+    const requestKey = `${currentBranch.id}:${selectedStaff.id}`;
+    if (permissionRequestKeyRef.current === requestKey) return;
+    permissionRequestKeyRef.current = requestKey;
+    setGpsMessage(profile.requireGpsActive ? 'Meminta izin lokasi...' : 'GPS tidak diwajibkan');
+    if (profile.requireGpsActive) void verifyGps();
+    if (profile.requireSelfiePhoto) void startCameraStream();
+  // Permission requests intentionally run once after a verified identity changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, currentBranch.id, selectedStaff.id, profile.isAttendanceEnabled, profile.requireGpsActive, profile.requireSelfiePhoto]);
+
   const verifyPin = useCallback((pin: string) => {
     setIsVerifying(true);
     const result = DBStorage.authenticateByPin(currentBranch.id, pin);
@@ -220,16 +237,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     });
     setPinError('');
   }, [isVerifying, verifyPin]);
-
-  const handleSelfieFileChange = (file?: File) => {
-    if (!file) return;
-    setSelfieFile(file);
-    setUploadMessage('');
-    stopCameraStream();
-    const reader = new FileReader();
-    reader.onload = () => setSelfiePreview(String(reader.result || ''));
-    reader.readAsDataURL(file);
-  };
 
   const handleClockAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,6 +311,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     }
     setSelfiePreview('');
     setSelfieFile(null);
+    permissionRequestKeyRef.current = '';
     setUploadMessage('');
     setIsSubmitting(false);
     stopCameraStream();
@@ -468,12 +476,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     </button>
                   )}
 
-                  <label className="flex cursor-pointer items-center gap-1 rounded-full bg-white hover:bg-slate-100 border border-slate-300 px-3 py-2 text-[10px] font-bold text-slate-700 transition-all">
-                    <Upload className="h-3 w-3 text-slate-500" />
-                    File Lokal
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSelfieFileChange(e.target.files?.[0])} />
-                  </label>
                 </div>
+
+                <p className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400">
+                  <ShieldCheck className="h-3.5 w-3.5 text-orange-500" />
+                  Bukti presensi hanya dapat diambil langsung dari kamera perangkat.
+                </p>
 
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <MapPin className="w-3.5 h-3.5 text-orange-500" />
@@ -508,12 +516,23 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         </div>
 
         <div className="rounded-3xl border border-[#EAE3DB] bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 text-base font-black text-[#1A1714]">Riwayat Presensi Hari Ini</h2>
+          <h2 className="mb-4 text-base font-black text-[#1A1714]">
+            {['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && !terminalMode
+              ? 'Presensi Staff Hari Ini'
+              : 'Presensi Saya Hari Ini'}
+          </h2>
           <div className="max-h-[500px] space-y-2 overflow-y-auto pr-1">
-            {attendanceRecords.length === 0 ? (
+            {(() => {
+              const today = new Date().toDateString();
+              const canViewBranch = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && !terminalMode;
+              const visibleRecords = attendanceRecords.filter((record) =>
+                new Date(record.timestamp).toDateString() === today
+                && (canViewBranch || record.staffId === activeUser.id),
+              );
+              return visibleRecords.length === 0 ? (
               <p className="py-12 text-center text-xs font-bold text-slate-400">Belum ada aktivitas presensi hari ini</p>
             ) : (
-              attendanceRecords
+              visibleRecords
                 .slice()
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map((att) => (
@@ -536,10 +555,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     </div>
                   </div>
                 ))
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>
+      <AttendanceHrPanel
+        activeUser={activeUser}
+        staffAccounts={staffAccounts}
+        currentBranch={currentBranch}
+        attendanceRecords={attendanceRecords}
+        terminalMode={terminalMode}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 };

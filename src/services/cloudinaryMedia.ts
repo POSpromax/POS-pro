@@ -1,7 +1,7 @@
 import {getSupabase} from '../lib/supabase';
 import {runtimeEnv} from '../lib/runtimeEnv';
 
-export type MediaFolder = 'branding' | 'menus' | 'avatars' | 'attendance';
+export type MediaFolder = 'branding' | 'menus' | 'avatars' | 'attendance' | 'leave';
 
 export interface UploadedMedia {
   publicId: string;

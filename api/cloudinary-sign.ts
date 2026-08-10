@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const ALLOWED_FOLDERS = new Set(['branding', 'menus', 'avatars', 'attendance']);
+const ALLOWED_FOLDERS = new Set(['branding', 'menus', 'avatars', 'attendance', 'leave']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MANAGEMENT_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN']);
 

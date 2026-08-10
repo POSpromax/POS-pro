@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from './src/server/supabaseAdmin';
 import { handlePinLogin } from './src/server/pinLogin';
 import { handleStaffRequest } from './src/server/staffManagement';
 import { handleAttendanceRequest } from './src/server/attendanceManagement';
+import { handleHrRequest } from './src/server/hrManagement';
 
 async function startServer() {
   const app = express();
@@ -51,15 +52,27 @@ async function startServer() {
     }
   });
 
-  app.post('/api/attendance', async (req, res) => {
+  app.all('/api/attendance', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
       const authorization = req.header('Authorization') || '';
       const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-      const result = await handleAttendanceRequest(req.method, req.body || {}, accessToken, admin);
+      const result = await handleAttendanceRequest(req.method, req.method === 'GET' ? req.query : (req.body || {}), accessToken, admin);
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server absensi belum dikonfigurasi' });
+    }
+  });
+
+  app.all('/api/hr', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleHrRequest(req.method, req.method === 'GET' ? req.query : (req.body || {}), accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server HR belum dikonfigurasi' });
     }
   });
 

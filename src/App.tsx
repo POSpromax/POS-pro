@@ -44,7 +44,7 @@ import {
   listCloudStaff,
   updateCloudStaff,
 } from './services/staffService';
-import { saveCloudAttendance } from './services/attendanceService';
+import { listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -279,6 +279,21 @@ export default function App() {
       cancelled = true;
     };
   }, [isTerminalUnlocked, activeUser.id, activeUser.role]);
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
+    let cancelled = false;
+    void listCloudAttendance(currentBranch.id)
+      .then((records) => {
+        if (!cancelled) setAttendanceRecords(records);
+      })
+      .catch((error) => {
+        if (!cancelled) showPushToast('Riwayat Presensi Belum Tersinkron', error instanceof Error ? error.message : 'Riwayat cloud gagal dibaca.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTerminalUnlocked, currentBranch.id, activeUser.id, activeUser.role]);
 
   const refreshCloudStaff = async () => {
     const staff = await listCloudStaff();
