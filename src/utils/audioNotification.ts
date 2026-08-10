@@ -39,3 +39,41 @@ export const playNewOrderSound = () => {
     console.warn('Audio notification sound could not be played:', err);
   }
 };
+
+/**
+ * Urgent 2-tone warning alarm sound for overdue kitchen orders (> 15 mins).
+ */
+export const playWarningAlarmSound = () => {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const notes = [
+      { freq: 880, time: 0, duration: 0.12 },     // A5
+      { freq: 880, time: 0.18, duration: 0.18 }    // A5 beep
+    ];
+
+    notes.forEach((note) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
+
+      gain.gain.setValueAtTime(0, ctx.currentTime + note.time);
+      gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + note.time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + note.time + note.duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime + note.time);
+      osc.stop(ctx.currentTime + note.time + note.duration);
+    });
+  } catch (err) {
+    console.warn('Warning alarm sound error:', err);
+  }
+};
