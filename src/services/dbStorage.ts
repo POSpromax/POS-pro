@@ -371,99 +371,29 @@ export class DBStorage {
   }
 
   static authenticateByPin(branchId: string, pin: string): PinVerificationResult {
-    const profile = this.getProfile();
-    const maxAttempts = profile.maxPinAttempts || 5;
-    const lockoutMinutes = profile.pinLockoutMinutes || 5;
-    const security = getStoredItem<Record<string, { failedAttempts: number; lockedUntil?: string }>>(
-      STORAGE_KEYS.AUTH_SECURITY,
-      {}
-    );
-    const gateKey = `branch-gate:${branchId}`;
-    const gateState = security[gateKey] || { failedAttempts: 0 };
-    if (gateState.lockedUntil && new Date(gateState.lockedUntil).getTime() > Date.now()) {
-      return {
-        success: false,
-        message: 'Terminal dikunci sementara karena terlalu banyak percobaan.',
-        lockedUntil: gateState.lockedUntil,
-        remainingAttempts: 0
-      };
-    }
-
     const eligible = this.getStaff().filter(
       (user) => user.isActive !== false && (!user.branchIds?.length || user.branchIds.includes(branchId))
     );
     const matched = eligible.find((user) => user.pin === pin);
     if (!matched) {
-      const failedAttempts = gateState.failedAttempts + 1;
-      if (failedAttempts >= maxAttempts) {
-        const lockedUntil = new Date(Date.now() + lockoutMinutes * 60_000).toISOString();
-        security[gateKey] = { failedAttempts, lockedUntil };
-        setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
-        return { success: false, message: `Terminal dikunci selama ${lockoutMinutes} menit.`, lockedUntil, remainingAttempts: 0 };
-      }
-      security[gateKey] = { failedAttempts };
-      setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
       return {
         success: false,
-        message: 'PIN tidak valid atau tidak memiliki akses ke outlet ini.',
-        remainingAttempts: maxAttempts - failedAttempts
+        message: 'PIN tidak valid atau tidak memiliki akses ke outlet ini.'
       };
     }
-    const result = this.authenticateUser(matched.id, pin);
-    if (result.success) {
-      security[gateKey] = { failedAttempts: 0 };
-      setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
-    }
-    return result;
+    return {
+      success: true,
+      user: matched
+    };
   }
 
   static authenticateUser(userId: string, pin: string): PinVerificationResult {
-    const profile = this.getProfile();
-    const maxAttempts = profile.maxPinAttempts || 5;
-    const lockoutMinutes = profile.pinLockoutMinutes || 5;
-    const security = getStoredItem<Record<string, { failedAttempts: number; lockedUntil?: string }>>(
-      STORAGE_KEYS.AUTH_SECURITY,
-      {}
-    );
     const user = this.getStaff().find((item) => item.id === userId && item.isActive !== false);
     if (!user) return { success: false, message: 'Akun tidak aktif atau tidak ditemukan.' };
-
-    const state = security[userId] || { failedAttempts: 0 };
-    if (state.lockedUntil && new Date(state.lockedUntil).getTime() > Date.now()) {
-      return {
-        success: false,
-        message: 'Akun dikunci sementara karena terlalu banyak percobaan.',
-        lockedUntil: state.lockedUntil,
-        remainingAttempts: 0
-      };
+    if (user.pin !== pin) {
+      return { success: false, message: 'PIN salah. Silakan coba lagi.' };
     }
-
-    if (user.pin === pin) {
-      security[userId] = { failedAttempts: 0 };
-      setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
-      return { success: true, user, message: 'Verifikasi berhasil.' };
-    }
-
-    const failedAttempts = state.failedAttempts + 1;
-    if (failedAttempts >= maxAttempts) {
-      const lockedUntil = new Date(Date.now() + lockoutMinutes * 60_000).toISOString();
-      security[userId] = { failedAttempts, lockedUntil };
-      setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
-      return {
-        success: false,
-        message: `Akun dikunci selama ${lockoutMinutes} menit.`,
-        lockedUntil,
-        remainingAttempts: 0
-      };
-    }
-
-    security[userId] = { failedAttempts };
-    setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
-    return {
-      success: false,
-      message: 'PIN tidak sesuai.',
-      remainingAttempts: Math.max(0, maxAttempts - failedAttempts)
-    };
+    return { success: true, user };
   }
 
   // Orders

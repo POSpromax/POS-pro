@@ -104,9 +104,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         return;
       }
 
-      const lockMsg = localResult.lockedUntil || result.lockedUntil ? ' Terminal dikunci sementara.' : '';
-      const attemptsMsg = localResult.remainingAttempts !== undefined ? ` Sisa percobaan: ${localResult.remainingAttempts}.` : '';
-      setErrorMessage(localResult.message || result.error || `PIN tidak valid.${lockMsg}${attemptsMsg}`);
+      setErrorMessage(localResult.message || result.error || 'PIN tidak valid. Silakan periksa kembali 6-digit PIN Anda.');
     } catch {
       const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
       if (localResult.success && localResult.user) {
@@ -120,8 +118,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         );
         return;
       }
-      const lockMsg = localResult.lockedUntil ? ' Terminal dikunci sementara.' : '';
-      setErrorMessage(localResult.message || `PIN tidak cocok / Koneksi server terganggu.${lockMsg}`);
+      setErrorMessage('PIN tidak valid. Silakan periksa kembali 6-digit PIN Anda.');
     } finally {
       setIsVerifying(false);
       setPinInput('');
@@ -333,23 +330,12 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 Memverifikasi PIN...
               </p>
             ) : errorMessage ? (
-              <div className="flex flex-col items-center gap-1 rounded-xl border border-[#F4C7B4] bg-[#FFF3ED] px-3 py-2 text-center text-[10px] font-bold text-[#C84412]">
-                <p className="flex items-center justify-center gap-1.5">
-                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {errorMessage}
-                </p>
-                {errorMessage.includes('dikunci') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      DBStorage.clearTerminalLockout(selectedBranchId);
-                      setErrorMessage('');
-                    }}
-                    className="text-[9px] font-black text-[#F05A1F] hover:underline cursor-pointer transition-all mt-0.5"
-                  >
-                    🔓 Reset / Buka Kunci Terminal Sekarang
-                  </button>
-                )}
-              </div>
+              <p
+                role="alert"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-[#F4C7B4] bg-[#FFF3ED] px-3 py-2 text-center text-[10px] font-bold text-[#C84412]"
+              >
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {errorMessage}
+              </p>
             ) : (
               <p className="text-center text-[10px] font-semibold text-[#AAA39D]">
                 Masukkan 6 digit PIN untuk masuk.
