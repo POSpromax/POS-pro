@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Building2, Delete, KeyRound, Lock, ShieldAlert, ShieldCheck, UserCheck, Clock } from 'lucide-react';
 import { Branch } from '../../types/pos';
 import { INITIAL_BRANCHES } from '../../data/initialData';
@@ -41,39 +41,60 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const [pinInput, setPinInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const pinBufferRef = useRef('');
+  const attemptSequenceRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   if (!isOpen) return null;
 
   const activeBranch = branches.find((b) => b.id === selectedBranchId) || currentBranch;
   const useCloud = cloudReadiness.supabase;
 
-  const switchTab = (tab: LoginMode) => {
-    setActiveTab(tab);
+  const resetEntry = useCallback((cancelPending = false) => {
+    if (cancelPending) {
+      attemptSequenceRef.current += 1;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      setIsVerifying(false);
+    }
+    pinBufferRef.current = '';
     setPinInput('');
+  }, []);
+
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
+  const switchTab = (tab: LoginMode) => {
+    resetEntry(true);
+    setActiveTab(tab);
     setErrorMessage('');
   };
 
   const handleBranchChange = (branchId: string) => {
+    resetEntry(true);
     setSelectedBranchId(branchId);
     const branch = branches.find((b) => b.id === branchId);
     if (branch) onSelectBranch?.(branch);
-    setPinInput('');
     setErrorMessage('');
   };
 
-  const finishSuccess = (user: PinLoginUser, branch: Branch) => {
+  const finishSuccess = (user: PinLoginUser, branch: Branch, mode: LoginMode) => {
     onSelectBranch?.(branch);
-    onSuccessLogin(user, branch, activeTab);
-    setPinInput('');
+    onSuccessLogin(user, branch, mode);
+    resetEntry();
     setErrorMessage('');
     setIsVerifying(false);
     if (canClose) onClose();
   };
 
-  const verifyCloud = useCallback(async (pin: string) => {
+  const verifyCloud = useCallback(async (pin: string, branch: Branch, mode: LoginMode) => {
+    const attemptId = ++attemptSequenceRef.current;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsVerifying(true);
     try {
-      const result: CloudLoginResult = await cloudPinLogin(selectedBranchId, pin);
+      const result: CloudLoginResult = await cloudPinLogin(branch.id, pin, controller.signal);
+      if (controller.signal.aborted || attemptId !== attemptSequenceRef.current) return;
       if (result.success && result.user) {
         finishSuccess(
           {
@@ -84,24 +105,28 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             branchId: result.user.branchId,
             permissions: result.user.permissions,
           },
-          activeBranch
+          branch,
+          mode,
         );
         return;
       }
 
       const attempts = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
       setErrorMessage(`${result.error || 'PIN tidak valid.'}${attempts}`);
-    } catch {
+    } catch (error) {
+      if (controller.signal.aborted || attemptId !== attemptSequenceRef.current) return;
       setErrorMessage('Server autentikasi tidak dapat dihubungi. Login lokal dinonaktifkan untuk keamanan.');
     } finally {
+      if (attemptId !== attemptSequenceRef.current) return;
+      abortControllerRef.current = null;
       setIsVerifying(false);
-      setPinInput('');
+      resetEntry();
     }
-  }, [selectedBranchId, activeBranch, activeTab]);
+  }, [resetEntry]);
 
-  const verifyLocal = useCallback((pin: string) => {
+  const verifyLocal = useCallback((pin: string, branch: Branch, mode: LoginMode) => {
     setIsVerifying(true);
-    const result = DBStorage.authenticateByPin(selectedBranchId, pin);
+    const result = DBStorage.authenticateByPin(branch.id, pin);
     if (result.success && result.user) {
       finishSuccess(
         {
@@ -109,28 +134,32 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
           name: result.user.name,
           role: result.user.role,
         },
-        activeBranch,
+        branch,
+        mode,
       );
       return;
     }
     const attempts = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
     setErrorMessage(`${result.message}${attempts}`);
-    setPinInput('');
+    resetEntry();
     setIsVerifying(false);
-  }, [selectedBranchId, activeBranch, activeTab]);
+  }, [resetEntry]);
 
   const submitPin = useCallback((pin: string) => {
     if (pin.length !== 6 || isVerifying) return;
+    const submittedBranch = activeBranch;
+    const submittedMode = activeTab;
     if (useCloud) {
-      verifyCloud(pin);
+      void verifyCloud(pin, submittedBranch, submittedMode);
     } else {
-      verifyLocal(pin);
+      verifyLocal(pin, submittedBranch, submittedMode);
     }
-  }, [useCloud, verifyCloud, verifyLocal, isVerifying]);
+  }, [useCloud, verifyCloud, verifyLocal, isVerifying, activeBranch, activeTab]);
 
   const handleKeyPress = (digit: string) => {
-    if (isVerifying || pinInput.length >= 6) return;
-    const nextPin = (pinInput + digit).slice(0, 6);
+    if (isVerifying || pinBufferRef.current.length >= 6) return;
+    const nextPin = (pinBufferRef.current + digit).slice(0, 6);
+    pinBufferRef.current = nextPin;
     setPinInput(nextPin);
     setErrorMessage('');
     if (nextPin.length === 6) submitPin(nextPin);
@@ -262,6 +291,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
           <input
             type="tel"
             inputMode="numeric"
+            autoFocus
             autoComplete="new-password"
             autoCorrect="off"
             autoCapitalize="off"
@@ -275,7 +305,10 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 handleKeyPress(e.key);
               } else if (e.key === 'Backspace') {
                 e.preventDefault();
-                if (!isVerifying) setPinInput((v) => v.slice(0, -1));
+                if (!isVerifying) {
+                  pinBufferRef.current = pinBufferRef.current.slice(0, -1);
+                  setPinInput(pinBufferRef.current);
+                }
               }
             }}
             onChange={() => {/* controlled via onKeyDown only */}}
@@ -332,7 +365,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             ))}
             <button
               type="button"
-              onClick={() => { setPinInput(''); setErrorMessage(''); }}
+              onClick={() => { resetEntry(); setErrorMessage(''); }}
               disabled={isVerifying}
               className="h-12 rounded-2xl bg-[#F2F0EE] text-[9px] font-black text-[#77706A] disabled:opacity-50"
             >
@@ -349,7 +382,11 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             <button
               type="button"
               aria-label="Hapus digit"
-              onClick={() => { setPinInput((v) => v.slice(0, -1)); setErrorMessage(''); }}
+              onClick={() => {
+                pinBufferRef.current = pinBufferRef.current.slice(0, -1);
+                setPinInput(pinBufferRef.current);
+                setErrorMessage('');
+              }}
               disabled={isVerifying}
               className="flex h-12 items-center justify-center rounded-2xl bg-[#1A1917] text-white transition hover:bg-black disabled:opacity-50"
             >

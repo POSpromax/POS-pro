@@ -15,13 +15,15 @@ export interface CloudLoginResult {
   remainingAttempts?: number;
 }
 
-export async function cloudPinLogin(branchId: string, pin: string): Promise<CloudLoginResult> {
+export async function cloudPinLogin(branchId: string, pin: string, signal?: AbortSignal): Promise<CloudLoginResult> {
   const deviceFingerprintHash = await getDeviceFingerprintHash();
+  if (signal?.aborted) throw new DOMException('Login dibatalkan', 'AbortError');
 
   const res = await fetch('/api/auth/pin-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ branchId, pin, deviceFingerprintHash }),
+    signal,
   });
 
   const data = await res.json();
@@ -34,6 +36,8 @@ export async function cloudPinLogin(branchId: string, pin: string): Promise<Clou
       remainingAttempts: data.remainingAttempts,
     };
   }
+
+  if (signal?.aborted) throw new DOMException('Login dibatalkan', 'AbortError');
 
   const { getSupabase } = await import('../lib/supabase');
   const supabase = getSupabase();
@@ -52,5 +56,5 @@ export async function cloudPinLogin(branchId: string, pin: string): Promise<Clou
 export async function cloudSignOut(): Promise<void> {
   const { getSupabase } = await import('../lib/supabase');
   const supabase = getSupabase();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: 'global' });
 }

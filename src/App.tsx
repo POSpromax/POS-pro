@@ -188,7 +188,7 @@ export default function App() {
     setActiveTab('pos');
   };
 
-  const lockTerminal = async () => {
+  const logoutTerminal = async () => {
     clearTerminalSessionState();
     if (cloudReadiness.supabase) {
       try {
@@ -737,13 +737,13 @@ export default function App() {
     const baseRule = accessControl.find((item) => item.role === userAccount.role);
     const rule = baseRule ? { ...baseRule, ...(userAccount.permissions || {}) } : undefined;
     if (!rule) {
-      lockTerminal();
+      void logoutTerminal();
       showPushToast('Akses Belum Diatur', `Role ${userAccount.role} belum memiliki matriks akses.`);
       return;
     }
     const destination = getDefaultAccessDestination(rule);
     if (!destination.tab) {
-      lockTerminal();
+      void logoutTerminal();
       showPushToast('Akses Ditolak', `Role ${userAccount.role} belum diberi akses ke modul apa pun.`);
       return;
     }
@@ -777,8 +777,8 @@ export default function App() {
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D94B15]">Terminal absensi</p>
             <p className="text-sm font-black">{currentBranch.name}</p>
           </div>
-          <button type="button" onClick={lockTerminal} className="rounded-xl border border-[#E2E2E2] bg-white px-4 py-2 text-xs font-bold hover:bg-[#F5F5F5]">
-            Selesai & kunci terminal
+          <button type="button" onClick={() => void logoutTerminal()} className="rounded-xl border border-[#E2E2E2] bg-white px-4 py-2 text-xs font-bold hover:bg-[#F5F5F5]">
+            Selesai & logout
           </button>
         </div>
         <AttendanceView
@@ -792,7 +792,7 @@ export default function App() {
               setAttendanceRecords(DBStorage.getAttendanceRecords());
             }
             window.setTimeout(() => {
-              void lockTerminal();
+              void logoutTerminal();
             }, 400);
           }}
           activeUser={activeUser}
@@ -826,7 +826,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={handleTabChange}
         activeUser={activeUser}
-        onLockPin={lockTerminal}
+        onLogout={() => void logoutTerminal()}
         pendingSyncCount={pendingSyncCount}
         accessRule={activeAccessRule}
       />

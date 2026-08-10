@@ -7,7 +7,7 @@ import {
   Boxes,
   TrendingUp,
   Settings,
-  Lock,
+  LogOut,
   Grid2X2,
   Building2,
   Crown,
@@ -25,7 +25,7 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   activeUser: UserAccount;
-  onLockPin: () => void;
+  onLogout: () => void;
   pendingSyncCount: number;
   accessRule?: AccessControlRule;
 }
@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   activeUser,
-  onLockPin,
+  onLogout,
   pendingSyncCount,
   accessRule
 }) => {
@@ -200,14 +200,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <button
-          id="btn-lock-system"
-          onClick={onLockPin}
+          id="btn-logout-system"
+          onClick={onLogout}
           className="w-11 h-8 text-[#8E8882] hover:text-[#D94B15] hover:bg-[#FFF4EE] rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer"
-          title="Kunci terminal dan akhiri sesi petugas"
-          aria-label="Kunci terminal dan akhiri sesi petugas"
+          title="Logout dan akhiri sesi petugas"
+          aria-label="Logout dan akhiri sesi petugas"
         >
-          <Lock className="w-3.5 h-3.5" />
-          <span className="text-[6px] font-black uppercase tracking-wide">Kunci</span>
+          <LogOut className="w-3.5 h-3.5" />
+          <span className="text-[6px] font-black uppercase tracking-wide">Logout</span>
         </button>
       </div>
     </aside>

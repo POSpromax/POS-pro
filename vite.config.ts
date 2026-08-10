@@ -10,7 +10,7 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         injectRegister: 'auto',
         manifest: {
           name: 'OmniPOS Multi Cabang',
@@ -35,8 +35,8 @@ export default defineConfig(() => {
         workbox: {
           navigateFallback: '/index.html',
           cleanupOutdatedCaches: true,
-          clientsClaim: false,
-          skipWaiting: false,
+          clientsClaim: true,
+          skipWaiting: true,
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/res\.cloudinary\.com\//i,
