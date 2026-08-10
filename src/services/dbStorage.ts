@@ -584,7 +584,11 @@ export class DBStorage {
 
   // Tables
   static getTables(): RestaurantTable[] {
-    return getStoredItem<RestaurantTable[]>(STORAGE_KEYS.TABLES, INITIAL_TABLES);
+    const list = getStoredItem<RestaurantTable[]>(STORAGE_KEYS.TABLES, INITIAL_TABLES);
+    return list.map((tbl) => ({
+      ...tbl,
+      number: (tbl.number || '').toString().trim().replace(/^0+(?=\d)/, '') || tbl.number
+    }));
   }
 
   static setTables(tables: RestaurantTable[]): void {

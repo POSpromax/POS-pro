@@ -493,6 +493,23 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
+                      <button
+                        onClick={() => {
+                          if (confirmingDeleteId === raw.id) {
+                            onDeleteRawMaterial(raw.id);
+                            setConfirmingDeleteId(null);
+                          } else {
+                            setConfirmingDeleteId(raw.id);
+                            setTimeout(() => setConfirmingDeleteId(null), 3000);
+                          }
+                        }}
+                        className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                          confirmingDeleteId === raw.id ? 'bg-rose-600 text-white' : 'text-rose-500 hover:bg-rose-50'
+                        }`}
+                        title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus bahan' : 'Hapus Bahan'}
+                      >
+                        {confirmingDeleteId === raw.id ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-1">

@@ -324,7 +324,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             }`}
           >
             <Grid2X2 className="w-4 h-4 text-amber-500" />
-            <span>2. Tata Letak Ruangan & Meja</span>
+            <span>2. Pengaturan Meja Resto</span>
           </button>
 
           <button
@@ -342,19 +342,6 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
           <button
             type="button"
-            onClick={() => setActiveSubBlueprint('KITCHEN_PRINTER')}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
-              activeSubBlueprint === 'KITCHEN_PRINTER'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
-            }`}
-          >
-            <Printer className="w-4 h-4 text-emerald-500" />
-            <span>4. Routing Printer Multi-Dapur</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveSubBlueprint('ACCESS_MATRIX')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'ACCESS_MATRIX'
@@ -363,7 +350,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-rose-500" />
-            <span>5. Matriks Otorisasi PIN Staff</span>
+            <span>4. Matriks Otorisasi PIN Staff</span>
           </button>
 
           <button
@@ -486,81 +473,45 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
         </div>
       )}
 
-      {/* ================= MODULE 2: SPATIAL ROOM & TABLE LAYOUT BLUEPRINT ================= */}
+      {/* ================= MODULE 2: TABLE LAYOUT BLUEPRINT ================= */}
       {activeSubBlueprint === 'LAYOUT' && (
         <div className="space-y-6">
           <div className="bg-white border border-[#E8E0D8] rounded-2xl p-6 shadow-xs">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[#1A1714] flex items-center gap-2">
-                  <Grid2X2 className="w-5 h-5 text-amber-500" /> Denah & Tata Letak Meja Resto
+                  <Grid2X2 className="w-5 h-5 text-amber-500" /> Daftar & Status Meja Resto
                 </h2>
                 <p className="text-xs text-[#9C9590] font-medium mt-0.5">
-                  Atur denah zona ruangan (Indoor, Outdoor, VIP, Bar) dan kapasitas meja customer secara visual.
+                  Tampilan nomor meja pelanggan (1 - 15) dan status terisi/bebas secara real-time.
                 </p>
               </div>
 
-              {/* Add Zone Controls */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Nama Zona Baru (misal: Garden)"
-                  value={newZoneName}
-                  onChange={(e) => setNewZoneName(e.target.value)}
-                  className="bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2 outline-none focus:border-indigo-500 w-56 font-medium"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddZone}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Tambah Zona</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('tables')}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Buka Kelola QR Meja Full</span>
+              </button>
             </div>
 
-            {/* Zone Selector Chips */}
-            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
-              <span className="text-xs font-bold text-[#9C9590] uppercase tracking-wider mr-2">Pilih Zona:</span>
-              {zones.map((zn) => (
-                <button
-                  key={zn}
-                  type="button"
-                  onClick={() => setSelectedZone(zn)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                    selectedZone === zn
-                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
-                      : 'bg-[#FAFAF8] text-slate-600 border-[#E8E0D8] hover:text-[#1A1714]'
-                  }`}
-                >
-                  {zn}
-                </button>
-              ))}
-            </div>
-
-            {/* Visual Floor Grid Canvas */}
+            {/* Visual Table Cards Matrix */}
             <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-6 relative overflow-hidden">
               <div className="flex items-center justify-between mb-4 border-b border-[#E8E0D8]/80 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs font-bold text-[#1A1714] uppercase tracking-wider">
-                    Denah Aktif: {selectedZone} ({tables.length} Total Meja)
+                    Total {tables.length} Meja Terdaftar
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('tables')}
-                  className="bg-white hover:bg-slate-100 text-indigo-700 border border-[#E8E0D8] text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Buka Kelola QR Meja Full</span>
-                </button>
               </div>
 
               {/* Tables Blueprint Matrix Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {tables.map((table) => {
+                  const cleanNumber = (table.number || '').replace(/^0+/, '') || table.number;
                   const isOccupied = table.status === 'OCCUPIED';
 
                   return (
@@ -585,7 +536,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-[#E8E0D8] flex flex-col items-center justify-center font-bold text-[#1A1714]">
                         <span className="text-[9px] text-[#B8B0A8] uppercase">MEJA</span>
-                        <span className="text-lg leading-none text-indigo-600">{table.number}</span>
+                        <span className="text-lg leading-none text-indigo-600">{cleanNumber}</span>
                       </div>
 
                       <div className="w-full pt-2 border-t border-[#F0E8E0] flex items-center justify-between text-[10px] font-bold">
