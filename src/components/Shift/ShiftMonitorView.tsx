@@ -29,6 +29,7 @@ interface ShiftMonitorViewProps {
   onAddExpenseIncome: (record: ExpenseIncomeRecord) => void;
   onCloseShift: (notes: string) => void;
   onOpenNewShift: (staffName: string, role: any, initialCash: number) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
@@ -38,8 +39,10 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   activeUser,
   onAddExpenseIncome,
   onCloseShift,
-  onOpenNewShift
+  onOpenNewShift,
+  onShowToast
 }) => {
+  const toast = (title: string, msg: string) => onShowToast?.(title, msg);
   const [recordType, setRecordType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [description, setDescription] = useState<string>('');
   const [amount, setAmount] = useState<number | ''>('');
@@ -56,7 +59,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const handleSaveRecord = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim() || !amount || Number(amount) <= 0) {
-      alert('Silakan lengkapi deskripsi dan nominal!');
+      toast('Input Tidak Lengkap', 'Silakan lengkapi deskripsi dan nominal.');
       return;
     }
 
@@ -75,8 +78,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     setAmount('');
   };
 
-  const [openShiftStaffName, setOpenShiftStaffName] = useState<string>(currentShift.staffName || activeUser?.name || 'Kasir 01');
-  const [openShiftRole, setOpenShiftRole] = useState<string>('KASIR');
+  const [openShiftStaffName, setOpenShiftStaffName] = useState<string>(activeUser?.name || currentShift.staffName || 'Kasir 01');
+  const [openShiftRole, setOpenShiftRole] = useState<string>(activeUser?.role || 'KASIR');
   const [openShiftCashInput, setOpenShiftCashInput] = useState<number>(500000);
 
   if (currentShift.status !== 'OPEN') {
@@ -150,7 +153,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
   const handleForceSync = () => {
     DBStorage.syncAllDataWithCloud();
-    alert('✅ Status shift & data transaksi berhasil disinkronkan secara realtime!');
+    toast('Sinkronisasi Berhasil', 'Status shift & data transaksi berhasil disinkronkan.');
   };
 
   return (
@@ -553,7 +556,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                     const selisihNote = ` [Uang Fisik: Rp ${actualVal.toLocaleString('id-ID')}, Selisih: Rp ${diff.toLocaleString('id-ID')}]`;
                     onCloseShift((closeNotes + selisihNote).trim());
                     setIsCloseModalOpen(false);
-                    alert('Shift Berhasil Ditutup & Struk Z-Report Dicetak!');
+                    toast('Shift Ditutup', 'Z-Report berhasil dicetak.');
                   }}
                   className="flex-1 py-4 bg-[#181B2A] hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-lg cursor-pointer transition-all uppercase tracking-wider"
                 >
@@ -665,13 +668,13 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               <button
                 onClick={() => {
                   if (!handoverStaffName.trim()) {
-                    alert('Mohon isi nama kasir penerima handover!');
+                    toast('Input Tidak Lengkap', 'Mohon isi nama kasir penerima handover.');
                     return;
                   }
                   const handoverNotes = `[HANDOVER] Serah terima shift ke ${handoverStaffName}. Uang fisik: Rp ${Number(actualCashInput || cashInDrawer).toLocaleString('id-ID')}`;
                   onCloseShift(handoverNotes);
                   setIsHandoverModalOpen(false);
-                  alert(`Serah terima shift ke ${handoverStaffName} berhasil diproses!`);
+                  toast('Handover Berhasil', `Serah terima shift ke ${handoverStaffName} diproses.`);
                 }}
                 className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-md cursor-pointer transition-all"
               >

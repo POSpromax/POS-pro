@@ -19,7 +19,8 @@ import {
   ChevronUp,
   FileText,
   Camera,
-  Upload
+  Upload,
+  Check
 } from 'lucide-react';
 import { RawMaterial, MenuItem, Branch, CategoryType, RecipeIngredient } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
@@ -34,6 +35,7 @@ interface InventoryHppViewProps {
   onSaveMenuItem: (menu: MenuItem) => void;
   onDeleteMenuItem: (id: string) => void;
   onResetCatalogDefaults: () => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
@@ -45,8 +47,40 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   onDeleteRawMaterial,
   onSaveMenuItem,
   onDeleteMenuItem,
-  onResetCatalogDefaults
+  onResetCatalogDefaults,
+  onShowToast
 }) => {
+  const toast = (title: string, message: string) => {
+    if (onShowToast) onShowToast(title, message);
+  };
+  const handleExportCSV = () => {
+    let csv = 'data:text/csv;charset=utf-8,';
+    if (subTab === 'MENU' || subTab === 'LAPORAN') {
+      csv += 'Nama Menu,Kategori,Harga,HPP,Margin,Stok,Status\n';
+      menuItems.forEach((m) => {
+        const margin = m.price - (m.hppCost || 0);
+        csv += `"${m.name}",${m.category},${m.price},${m.hppCost || 0},${margin},${m.stockCount || 0},${m.isAvailable ? 'Aktif' : 'Nonaktif'}\n`;
+      });
+    } else {
+      csv += 'Nama Bahan,Unit,Stok,Min Stok,Harga/Unit,Cabang\n';
+      rawMaterials.forEach((r) => {
+        csv += `"${r.name}",${r.unit},${r.stockQuantity},${r.minStockThreshold},${r.costPerUnit},"${r.branchName || ''}"\n`;
+      });
+    }
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csv));
+    link.setAttribute('download', `Inventori_${subTab}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('Export CSV', 'File CSV berhasil diunduh.');
+  };
+
+  const handlePrintReport = () => {
+    window.print();
+    toast('Cetak', 'Jendela cetak dibuka.');
+  };
+
   const [subTab, setSubTab] = useState<'BAHAN' | 'DAPUR' | 'MENU' | 'LAPORAN'>('BAHAN');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState<string>('');
@@ -70,6 +104,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [selectedRecipeMaterialId, setSelectedRecipeMaterialId] = useState<string>('');
   const [selectedRecipeQty, setSelectedRecipeQty] = useState<number>(1);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const handleUploadMenuPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -145,7 +180,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const handleSaveMenuForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMenu?.name?.trim()) {
-      alert('Nama produk menu wajib diisi!');
+      toast('Validasi', 'Nama produk menu wajib diisi!');
       return;
     }
     const finalMenu: MenuItem = {
@@ -168,7 +203,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
   const handleAddIngredientToRecipe = () => {
     if (!selectedRecipeMaterialId) {
-      alert('Pilih bahan baku terlebih dahulu!');
+      toast('Validasi', 'Pilih bahan baku terlebih dahulu!');
       return;
     }
     const mat = rawMaterials.find((r) => r.id === selectedRecipeMaterialId);
@@ -220,7 +255,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const handleSaveRawForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRaw?.name?.trim()) {
-      alert('Nama bahan baku wajib diisi!');
+      toast('Validasi', 'Nama bahan baku wajib diisi!');
       return;
     }
     const targetBranch = branches.find((b) => b.id === editingRaw.branchId) || currentBranch;
@@ -323,7 +358,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
 
           <button
-            onClick={() => alert('Mengeksport data laporan stok ke format CSV / Excel...')}
+            onClick={handleExportCSV}
             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
           >
             <Download className="w-4 h-4" /> EXPORT
@@ -571,14 +606,20 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                             </button>
                             <button
                               onClick={() => {
-                                if (confirm(`Hapus produk menu ${item.name}?`)) {
+                                if (confirmingDeleteId === item.id) {
                                   onDeleteMenuItem(item.id);
+                                  setConfirmingDeleteId(null);
+                                } else {
+                                  setConfirmingDeleteId(item.id);
+                                  setTimeout(() => setConfirmingDeleteId(null), 3000);
                                 }
                               }}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
-                              title="Hapus Menu"
+                              className={`p-1.5 rounded-lg cursor-pointer ${
+                                confirmingDeleteId === item.id ? 'bg-rose-600 text-white' : 'text-rose-500 hover:bg-rose-50'
+                              }`}
+                              title={confirmingDeleteId === item.id ? 'Klik lagi untuk hapus' : 'Hapus Menu'}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {confirmingDeleteId === item.id ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
@@ -598,7 +639,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <h2 className="font-black text-[#1A1714] text-base">Laporan Ringkasan Stok & HPP Resto</h2>
             <button
-              onClick={() => alert('Mencetak Laporan Stok Resto...')}
+              onClick={handlePrintReport}
               className="px-4 py-2 bg-indigo-600 text-white rounded-full text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-4 h-4" /> Cetak Laporan Full

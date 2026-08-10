@@ -21,10 +21,51 @@ export class BluetoothPrinterService {
       });
 
       this.device = device;
+      this.gattServer = await device.gatt?.connect();
+      if (this.gattServer) {
+        const services = await this.gattServer.getPrimaryServices();
+        for (const service of services) {
+          const chars = await service.getCharacteristics();
+          for (const char of chars) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              this.printCharacteristic = char;
+              break;
+            }
+          }
+          if (this.printCharacteristic) break;
+        }
+      }
       return { success: true, deviceName: device.name || 'BT Printer 58mm' };
     } catch (err: any) {
       console.warn('Bluetooth connection cancelled or failed:', err);
       return { success: false, error: err.message || 'Koneksi bluetooth dibatalkan' };
+    }
+  }
+
+  static get isConnected(): boolean {
+    return !!this.printCharacteristic && !!this.gattServer?.connected;
+  }
+
+  static async printReceipt(order: Order, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
+    if (!this.isConnected) {
+      return { success: false, error: 'Printer belum terhubung. Hubungkan via Bluetooth terlebih dahulu.' };
+    }
+
+    try {
+      const bytes = this.generateReceiptBytes(order, profile, config);
+      const chunkSize = 512;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.slice(i, i + chunkSize);
+        if (this.printCharacteristic.properties.writeWithoutResponse) {
+          await this.printCharacteristic.writeValueWithoutResponse(chunk);
+        } else {
+          await this.printCharacteristic.writeValue(chunk);
+        }
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Bluetooth print failed:', err);
+      return { success: false, error: err.message || 'Gagal mencetak struk' };
     }
   }
 

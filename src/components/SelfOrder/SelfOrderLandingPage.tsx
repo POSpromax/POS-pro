@@ -51,6 +51,7 @@ interface SelfOrderLandingPageProps {
   onSubmitCustomerOrder: (order: Order) => void;
   initialTableNumber?: string;
   currentBranch: Branch;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
@@ -62,14 +63,15 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   orders = [],
   onSubmitCustomerOrder,
   initialTableNumber = '11',
-  currentBranch
+  currentBranch,
+  onShowToast
 }) => {
   // Navigation State Flow
   const [activeStep, setActiveStep] = useState<SelfOrderStep>('LANDING');
 
   // Customer Data State
   const [selectedTable, setSelectedTable] = useState<string>(initialTableNumber);
-  const [customerName, setCustomerName] = useState<string>('oki');
+  const [customerName, setCustomerName] = useState<string>('');
   const [tableErrorMsg, setTableErrorMsg] = useState<string>('');
 
   // Menu Search & Filter State
@@ -80,6 +82,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   // Submitted Order Tracking State
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
+  const [localToast, setLocalToast] = useState<string | null>(null);
+
+  const toast = (title: string, message: string) => {
+    if (onShowToast) { onShowToast(title, message); return; }
+    setLocalToast(message);
+    setTimeout(() => setLocalToast(null), 3000);
+  };
 
   // Find active live order from global state
   const liveSubmittedOrder = orders.find((o) => o.id === submittedOrderId) || null;
@@ -118,7 +127,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   const handleStartOrder = () => {
     if (!isSelfOrderSystemEnabled) {
-      alert('Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
+      toast('Sistem Nonaktif', 'Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
       return;
     }
     setActiveStep('TABLE_INPUT');
@@ -234,15 +243,15 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   const handleSubmitOrder = () => {
     if (!isSelfOrderSystemEnabled) {
-      alert('Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
+      toast('Sistem Nonaktif', 'Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
       return;
     }
     if (!customerName.trim()) {
-      alert('Silakan masukkan nama pemesan.');
+      toast('Data Belum Lengkap', 'Silakan masukkan nama pemesan.');
       return;
     }
     if (cartItems.length === 0) {
-      alert('Keranjang belanja masih kosong!');
+      toast('Keranjang Kosong', 'Keranjang belanja masih kosong!');
       return;
     }
 
@@ -282,7 +291,11 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex flex-col items-center font-sans text-slate-800 antialiased select-none w-full">
-      
+      {localToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-lg animate-pulse">
+          {localToast}
+        </div>
+      )}
       {/* Clean Responsive Web App Wrapper */}
       <div className="w-full max-w-lg min-h-screen bg-[#F4F5F7] flex flex-col relative shadow-sm">
         
@@ -423,7 +436,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     navigator.share({ title: profile.name, url: window.location.href }).catch(() => {});
                   } else {
                     navigator.clipboard.writeText(window.location.href);
-                    alert('Link e-order berhasil disalin!');
+                    toast('Link Disalin', 'Link e-order berhasil disalin!');
                   }
                 }}
                 className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
@@ -472,7 +485,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="e.g. oki"
+                  placeholder="Nama pemesan"
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400"
                 />
               </div>
@@ -487,7 +500,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   type="text"
                   value={selectedTable}
                   onChange={(e) => setSelectedTable(e.target.value)}
-                  placeholder="e.g. 11"
+                  placeholder="Nomor meja"
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400"
                 />
               </div>
@@ -826,7 +839,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    alert('Struk digital pesanan Anda berhasil disimpan!');
+                    toast('Struk Tersimpan', 'Struk digital pesanan Anda berhasil disimpan!');
                   }}
                   className="py-3.5 bg-[#FF6B35] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >

@@ -88,11 +88,39 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         );
         return;
       }
+
+      // Local fallback if cloud DB user not registered
+      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
+      if (localResult.success && localResult.user) {
+        finishSuccess(
+          {
+            id: localResult.user.id,
+            name: localResult.user.name,
+            role: localResult.user.role,
+          },
+          activeBranch
+        );
+        return;
+      }
+
       const lockMsg = result.lockedUntil ? 'Terminal dikunci sementara.' : '';
       const attemptsMsg = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
       setErrorMessage(result.error || `PIN tidak valid.${lockMsg}${attemptsMsg}`);
     } catch {
-      setErrorMessage('Koneksi ke server gagal. Periksa jaringan.');
+      // Local fallback on network error or serverless function exception
+      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
+      if (localResult.success && localResult.user) {
+        finishSuccess(
+          {
+            id: localResult.user.id,
+            name: localResult.user.name,
+            role: localResult.user.role,
+          },
+          activeBranch
+        );
+        return;
+      }
+      setErrorMessage('PIN tidak cocok / Koneksi server terganggu.');
     }
     setPinInput('');
     setIsVerifying(false);
@@ -119,28 +147,20 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   }, [selectedBranchId, activeBranch, activeTab]);
 
   const submitPin = useCallback((pin: string) => {
-    if (pin.length !== 6) return;
+    if (pin.length !== 6 || isVerifying) return;
     if (useCloud) {
       verifyCloud(pin);
     } else {
       verifyLocal(pin);
     }
-  }, [useCloud, verifyCloud, verifyLocal]);
+  }, [useCloud, verifyCloud, verifyLocal, isVerifying]);
 
   const handleKeyPress = (digit: string) => {
     if (isVerifying || pinInput.length >= 6) return;
-    const nextPin = pinInput + digit;
+    const nextPin = (pinInput + digit).slice(0, 6);
     setPinInput(nextPin);
     setErrorMessage('');
     if (nextPin.length === 6) submitPin(nextPin);
-  };
-
-  const handleInputChange = (value: string) => {
-    const cleaned = value.replace(/\D/g, '').slice(0, 6);
-    if (isVerifying) return;
-    setPinInput(cleaned);
-    setErrorMessage('');
-    if (cleaned.length === 6) submitPin(cleaned);
   };
 
   const tabConfig = {
@@ -265,15 +285,27 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             <p className="mt-1 text-[11px] font-medium text-[#918A84]">{cfg.hint}</p>
           </div>
 
-          {/* Hidden input for keyboard/autofill */}
+          {/* Hidden input for physical keyboard / numpad */}
           <input
-            autoFocus
-            type="password"
+            type="tel"
             inputMode="numeric"
-            autoComplete="off"
+            autoComplete="new-password"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             aria-label="PIN petugas"
             value={pinInput}
-            onChange={(e) => handleInputChange(e.target.value)}
+            readOnly={isVerifying}
+            onKeyDown={(e) => {
+              if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                handleKeyPress(e.key);
+              } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                if (!isVerifying) setPinInput((v) => v.slice(0, -1));
+              }
+            }}
+            onChange={() => {/* controlled via onKeyDown only */}}
             className="sr-only"
           />
 

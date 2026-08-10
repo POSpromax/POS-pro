@@ -15,7 +15,8 @@ export const INITIAL_STAFF: UserAccount[] = [
   { id: 'usr-1', name: 'Gugun (Owner)', pin: '123456', role: 'OWNER', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', branchIds: ['00000000-0000-4000-a000-000000000010', '00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
   { id: 'usr-2', name: 'Citra (Kasir)', pin: '111111', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] },
   { id: 'usr-3', name: 'Budi (Admin)', pin: '222222', role: 'ADMIN', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '333333', role: 'KITCHEN', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] }
+  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '333333', role: 'KITCHEN', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-5', name: 'Rina (Kasir PA)', pin: '444444', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', branchIds: ['00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] }
 ];
 
 export const INITIAL_BRANCHES: Branch[] = [
@@ -59,7 +60,13 @@ export const INITIAL_RAW_MATERIALS: RawMaterial[] = [
   { id: 'raw-d22', name: 'SAUS TOMAT', unit: 'pack', stockQuantity: 66, minStockThreshold: 10, costPerUnit: 15000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
   { id: 'raw-d23', name: 'Swallow', unit: 'pcs', stockQuantity: 12, minStockThreshold: 10, costPerUnit: 5000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
   { id: 'raw-d24', name: 'Teh Bendera', unit: 'pack', stockQuantity: 39, minStockThreshold: 10, costPerUnit: 8000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
-  { id: 'raw-d25', name: 'Tepung Beras', unit: 'pcs', stockQuantity: 30, minStockThreshold: 10, costPerUnit: 12000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' }
+  { id: 'raw-d25', name: 'Tepung Beras', unit: 'pcs', stockQuantity: 30, minStockThreshold: 10, costPerUnit: 12000, branchId: '00000000-0000-4000-a000-000000000010', branchName: 'Pasirmulya Bogor' },
+  { id: 'raw-pa-1', name: 'Bakso Daging', unit: 'pcs', stockQuantity: 500, minStockThreshold: 100, costPerUnit: 1500, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' },
+  { id: 'raw-pa-2', name: 'Bakso Isi Daging Sedang', unit: 'pcs', stockQuantity: 300, minStockThreshold: 50, costPerUnit: 2500, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' },
+  { id: 'raw-pa-3', name: 'Bakso Polos Kecil', unit: 'pcs', stockQuantity: 400, minStockThreshold: 100, costPerUnit: 1000, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' },
+  { id: 'raw-pa-4', name: 'Bakso Urat', unit: 'pcs', stockQuantity: 200, minStockThreshold: 50, costPerUnit: 2200, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' },
+  { id: 'raw-pa-5', name: 'Mie Ayam', unit: 'pcs', stockQuantity: 150, minStockThreshold: 30, costPerUnit: 4000, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' },
+  { id: 'raw-pa-6', name: 'Teh Bendera', unit: 'pack', stockQuantity: 20, minStockThreshold: 5, costPerUnit: 8000, branchId: '00000000-0000-4000-a000-000000000020', branchName: 'Pasar Anyar' }
 ];
 
 export const INITIAL_MENU_ITEMS: MenuItem[] = [
@@ -799,7 +806,13 @@ export const INITIAL_TABLES: RestaurantTable[] = [
   { id: 'tbl-9', number: '9', capacity: 8, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
   { id: 'tbl-10', number: '10', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
   { id: 'tbl-11', number: '11', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
-  { id: 'tbl-12', number: '12', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' }
+  { id: 'tbl-12', number: '12', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000010' },
+  { id: 'tbl-b2-1', number: '1', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' },
+  { id: 'tbl-b2-2', number: '2', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' },
+  { id: 'tbl-b2-3', number: '3', capacity: 2, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' },
+  { id: 'tbl-b2-4', number: '4', capacity: 6, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' },
+  { id: 'tbl-b2-5', number: '5', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' },
+  { id: 'tbl-b2-6', number: '6', capacity: 4, status: 'FREE', isSelfOrderEnabled: true, branchId: '00000000-0000-4000-a000-000000000020' }
 ];
 
 export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {
@@ -869,128 +882,23 @@ export const INITIAL_ACCESS_CONTROL: AccessControlRule[] = [
 ];
 
 export const INITIAL_CURRENT_SHIFT: Shift = {
-  id: 'shf-101',
-  staffId: 'usr-2',
-  staffName: 'CITRA',
+  id: '',
+  staffId: '',
+  staffName: '',
   staffRole: 'KASIR',
-  startTime: '2026-08-05T08:00:00.000Z',
-  initialCash: 500000,
-  grossOmset: 2892000,
-  cashSales: 1573000,
-  nonCashSales: 1319000,
-  totalExpense: 153000,
+  startTime: '',
+  initialCash: 0,
+  grossOmset: 0,
+  cashSales: 0,
+  nonCashSales: 0,
+  totalExpense: 0,
   totalIncome: 0,
-  status: 'OPEN',
-  notes: 'Shift Pagi Kasir Utama',
+  status: 'CLOSED',
+  notes: '',
   branchId: '00000000-0000-4000-a000-000000000010',
   branchName: 'Bakso Ujo - Pasirmulya Bogor',
   scheduledStart: '08:00',
   scheduledEnd: '16:00'
 };
 
-export const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ord-038',
-    orderNumber: '#038',
-    customerName: 'Guest',
-    tableNumber: '1',
-    type: 'DINE_IN',
-    items: [
-      { id: 'itm-1', menuId: 'menu-1', menuName: 'Bakso Jumbo Urat Gimbal', price: 40000, quantity: 1, category: 'BAKSO' },
-      { id: 'itm-2', menuId: 'menu-12', menuName: 'Teh Manis ICE/HOT', price: 5000, quantity: 2, category: 'MINUMAN' },
-      { id: 'itm-3', menuId: 'menu-13', menuName: 'Es Teler Durian', price: 20000, quantity: 1, category: 'MINUMAN' }
-    ],
-    subtotal: 63000,
-    tax: 0,
-    discount: 0,
-    total: 63000,
-    paymentMethod: 'QRIS',
-    paymentStatus: 'PAID',
-    cashPaid: 63000,
-    change: 0,
-    status: 'NEW',
-    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    shiftId: 'shf-101',
-    branchId: '00000000-0000-4000-a000-000000000010',
-    cashierName: 'CITRA',
-    syncStatus: 'SYNCED'
-  },
-  {
-    id: 'ord-037',
-    orderNumber: '#037',
-    customerName: 'Guest',
-    tableNumber: '2',
-    type: 'DINE_IN',
-    items: [
-      { id: 'itm-4', menuId: 'menu-4', menuName: 'Bakso Komplit + TTLN & T.RANGU', price: 35000, quantity: 1, category: 'BAKSO' },
-      { id: 'itm-5', menuId: 'menu-5', menuName: 'Bakso Polos', price: 15000, quantity: 1, category: 'BAKSO' }
-    ],
-    subtotal: 50000,
-    tax: 0,
-    discount: 0,
-    total: 50000,
-    paymentMethod: 'CASH',
-    paymentStatus: 'PAID',
-    cashPaid: 100000,
-    change: 50000,
-    status: 'COOKING',
-    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    shiftId: 'shf-101',
-    branchId: '00000000-0000-4000-a000-000000000010',
-    cashierName: 'CITRA',
-    syncStatus: 'SYNCED'
-  },
-  {
-    id: 'ord-036',
-    orderNumber: '#036',
-    customerName: 'Guest',
-    tableNumber: '3',
-    type: 'DINE_IN',
-    items: [
-      { id: 'itm-6', menuId: 'menu-5', menuName: 'Bakso Polos', price: 15000, quantity: 6, category: 'BAKSO' },
-      { id: 'itm-7', menuId: 'menu-12', menuName: 'Teh Manis ICE/HOT', price: 5000, quantity: 2, category: 'MINUMAN' },
-      { id: 'itm-8', menuId: 'menu-13', menuName: 'Es Teler Durian', price: 20000, quantity: 1, category: 'MINUMAN' },
-      { id: 'itm-9', menuId: 'menu-8', menuName: 'Mie Ayam', price: 15000, quantity: 1, category: 'MIE AYAM' }
-    ],
-    subtotal: 131000,
-    tax: 0,
-    discount: 0,
-    total: 131000,
-    paymentMethod: 'QRIS',
-    paymentStatus: 'PAID',
-    cashPaid: 131000,
-    change: 0,
-    status: 'COOKING',
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    shiftId: 'shf-101',
-    branchId: '00000000-0000-4000-a000-000000000010',
-    cashierName: 'CITRA',
-    syncStatus: 'SYNCED'
-  },
-  {
-    id: 'ord-035',
-    orderNumber: '#035',
-    customerName: 'Guest',
-    tableNumber: '4',
-    type: 'DINE_IN',
-    items: [
-      { id: 'itm-10', menuId: 'menu-3', menuName: 'Bakso Komplit', price: 25000, quantity: 2, category: 'BAKSO' },
-      { id: 'itm-11', menuId: 'menu-1', menuName: 'Bakso Jumbo Urat Gimbal', price: 40000, quantity: 1, category: 'BAKSO' },
-      { id: 'itm-12', menuId: 'menu-12', menuName: 'Teh Manis ICE/HOT', price: 5000, quantity: 2, category: 'MINUMAN' }
-    ],
-    subtotal: 100000,
-    tax: 0,
-    discount: 0,
-    total: 100000,
-    paymentMethod: 'DEBIT',
-    paymentStatus: 'PAID',
-    cashPaid: 100000,
-    change: 0,
-    status: 'READY',
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    shiftId: 'shf-101',
-    branchId: '00000000-0000-4000-a000-000000000010',
-    cashierName: 'CITRA',
-    syncStatus: 'SYNCED'
-  }
-];
+export const INITIAL_ORDERS: Order[] = [];

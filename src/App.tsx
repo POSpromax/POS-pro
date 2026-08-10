@@ -14,6 +14,7 @@ import { ThermalReceiptModal } from './components/Printer/ThermalReceiptModal';
 import { CustomerTableManagementModal } from './components/SelfOrder/CustomerTableManagementModal';
 import { QuickTableModal } from './components/Tables/QuickTableModal';
 import { playNewOrderSound } from './utils/audioNotification';
+import { BluetoothPrinterService } from './services/bluetoothPrinter';
 
 import {
   MenuItem,
@@ -86,8 +87,13 @@ const getDefaultAccessDestination = (rule: AccessControlRule): { portal: 'KASIR'
 
 export default function App() {
   // 1. Navigation State & System Portals ('KASIR' | 'OWNER')
-  const [systemPortal, setSystemPortal] = useState<'KASIR' | 'OWNER'>('KASIR');
-  const [activeTab, setActiveTab] = useState<string>('pos');
+  const [systemPortal, setSystemPortal] = useState<'KASIR' | 'OWNER'>(() => {
+    const saved = sessionStorage.getItem('omnipos_portal');
+    return saved === 'OWNER' ? 'OWNER' : 'KASIR';
+  });
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return sessionStorage.getItem('omnipos_tab') || 'pos';
+  });
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Explicit Portal Switcher (Kasir Terminal vs Owner Portal)
@@ -136,15 +142,20 @@ export default function App() {
   // 2. System Data State
   const [activeUser, setActiveUser] = useState<UserAccount>(() => DBStorage.getActiveUser());
   const [isTerminalUnlocked, setIsTerminalUnlocked] = useState<boolean>(
-    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked'
+    () =>
+      sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked' ||
+      localStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked'
   );
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(
-    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
+    () =>
+      sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked' &&
+      localStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
   );
   const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
 
   const clearTerminalSessionState = () => {
     sessionStorage.removeItem(TERMINAL_SESSION_KEY);
+    localStorage.removeItem(TERMINAL_SESSION_KEY);
     setIsTerminalUnlocked(false);
     setIsPinModalOpen(true);
     setSystemPortal('KASIR');
@@ -191,6 +202,11 @@ export default function App() {
   const [accessControl, setAccessControl] = useState<AccessControlRule[]>(() => DBStorage.getAccessControl());
   const activeAccessRule = accessControl.find((rule) => rule.role === activeUser.role);
 
+  useEffect(() => {
+    sessionStorage.setItem('omnipos_portal', systemPortal);
+    sessionStorage.setItem('omnipos_tab', activeTab);
+  }, [systemPortal, activeTab]);
+
   // Real-Time Storage & Broadcast Synchronizer across Tabs, Windows, & Cloud
   useEffect(() => {
     const unsubscribe = DBStorage.subscribeToSync((key, value) => {
@@ -235,69 +251,14 @@ export default function App() {
       return;
     }
 
-    let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
+    const hasLocalUnlock =
+      sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked';
 
-    const syncTerminalWithSession = (hasSession: boolean) => {
-      const hasLocalUnlock = sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked';
-      if (hasSession && hasLocalUnlock) {
-        setIsTerminalUnlocked(true);
-        setIsPinModalOpen(false);
-        return;
-      }
-      clearTerminalSessionState();
-    };
-
-    const initializeSessionGuard = async () => {
-      try {
-        const { getSupabase } = await import('./lib/supabase');
-        const supabase = getSupabase();
-        const navigationEntry = typeof performance !== 'undefined'
-          ? performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
-          : undefined;
-        const isReloadNavigation = navigationEntry?.type === 'reload';
-
-        if (isReloadNavigation) {
-          clearTerminalSessionState();
-          await supabase.auth.signOut();
-          if (!isMounted) return;
-          setIsSessionValidated(true);
-          return;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!isMounted) return;
-
-        syncTerminalWithSession(Boolean(session));
-        setIsSessionValidated(true);
-
-        const authListener = supabase.auth.onAuthStateChange((_event, nextSession) => {
-          if (!isMounted) return;
-          syncTerminalWithSession(Boolean(nextSession));
-        });
-        unsubscribe = () => authListener.data.subscription.unsubscribe();
-      } catch {
-        if (!isMounted) return;
-        clearTerminalSessionState();
-        setIsSessionValidated(true);
-      }
-    };
-
-    void initializeSessionGuard();
-
-    return () => {
-      isMounted = false;
-      unsubscribe?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.removeItem(TERMINAL_SESSION_KEY);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    if (hasLocalUnlock) {
+      setIsTerminalUnlocked(true);
+      setIsPinModalOpen(false);
+    }
+    setIsSessionValidated(true);
   }, []);
 
   // System Self Order restriction toggle state & Global Condiment Topping Toggle state
@@ -406,13 +367,25 @@ export default function App() {
     showPushToast('Pembayaran Lunas!', `Order ${saved.orderNumber} telah dibayar (${paymentMethod}). Disampaikan ke Dapur.`);
 
     if (shouldPrint) {
-      alert(`[PRINTER BT] Mencetak Struk ${saved.orderNumber} via Bluetooth Thermal Printer 58mm...`);
+      void printOrder(saved);
     }
   };
 
-  // Pre-Bill Print
+  const printOrder = async (order: Order) => {
+    if (BluetoothPrinterService.isConnected) {
+      const result = await BluetoothPrinterService.printReceipt(order, profile, printerConfig);
+      if (result.success) {
+        showPushToast('Struk Tercetak', `Struk ${order.orderNumber} berhasil dicetak.`);
+      } else {
+        showPushToast('Cetak Gagal', result.error || 'Gagal mencetak struk.');
+      }
+    } else {
+      showPushToast('Cetak Struk', `Struk ${order.orderNumber} — hubungkan printer Bluetooth untuk cetak otomatis.`);
+    }
+  };
+
   const handlePrintPreBill = (order: Order) => {
-    alert(`[PRE-BILL] Mencetak Tagihan Sementara Order ${order.orderNumber} untuk Meja ${order.tableNumber}...`);
+    void printOrder(order);
   };
 
   // Kitchen Status Update
@@ -567,6 +540,7 @@ export default function App() {
               currentBranch={selfOrderBranch}
               onSubmitCustomerOrder={handleSubmitCustomerOrder}
               initialTableNumber={tableFromUrl}
+              onShowToast={showPushToast}
             />
           </Suspense>
         </div>
@@ -599,6 +573,7 @@ export default function App() {
     setIsTerminalUnlocked(true);
     setIsPinModalOpen(false);
     sessionStorage.setItem(TERMINAL_SESSION_KEY, 'unlocked');
+    localStorage.setItem(TERMINAL_SESSION_KEY, 'unlocked');
     setActiveUser(userAccount);
     DBStorage.setActiveUser(userAccount);
     setCurrentBranch(selectedBranch);
@@ -668,6 +643,7 @@ export default function App() {
           profile={profile}
           currentBranch={currentBranch}
           terminalMode
+          onShowToast={showPushToast}
         />
       </div>
     );
@@ -792,7 +768,7 @@ export default function App() {
             <KitchenDisplayView
               orders={branchOrders}
               onUpdateOrderStatus={handleUpdateOrderStatus}
-              onPrintKitchenTicket={(ord) => alert(`[PRINTER TIKET DAPUR] Cetak tiket dapur #${ord.orderNumber}...`)}
+              onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur #${ord.orderNumber} dicetak.`)}
             />
           )}
 
@@ -806,6 +782,7 @@ export default function App() {
               onSelectBranch={setCurrentBranch}
               onAddBranch={handleAddBranch}
               onNavigateTab={handleTabChange}
+              onShowToast={showPushToast}
             />
           )}
 
@@ -831,6 +808,7 @@ export default function App() {
               }}
               menuItems={menuItems}
               onNavigateTab={handleTabChange}
+              onShowToast={showPushToast}
             />
           )}
 
@@ -873,6 +851,7 @@ export default function App() {
                     currentBranch={currentBranch}
                     onSubmitCustomerOrder={handleSubmitCustomerOrder}
                     initialTableNumber="1"
+                    onShowToast={showPushToast}
                   />
                 </div>
               </div>
@@ -885,6 +864,7 @@ export default function App() {
               orders={branchOrders}
               expenseRecords={expenseRecords}
               activeUser={activeUser}
+              onShowToast={showPushToast}
               onAddExpenseIncome={(rec) => {
                 DBStorage.addExpenseOrIncome(rec);
                 setExpenseRecords(DBStorage.getExpenseRecords());
@@ -923,6 +903,7 @@ export default function App() {
               staffAccounts={staffAccounts}
               profile={profile}
               currentBranch={currentBranch}
+              onShowToast={showPushToast}
             />
           )}
 
@@ -958,6 +939,7 @@ export default function App() {
                 setRawMaterials(res.rawMaterials);
                 showPushToast('Katalog Direset', 'Katalog menu & bahan baku berhasil dikembalikan ke standar resto.');
               }}
+              onShowToast={showPushToast}
             />
           )}
 
@@ -1022,6 +1004,7 @@ export default function App() {
                 localStorage.clear();
                 window.location.reload();
               }}
+              onShowToast={showPushToast}
             />
           )}
           </Suspense>
@@ -1081,6 +1064,7 @@ export default function App() {
         onToggleAllSelfOrder={handleToggleAllTables}
         onResetAllTablesToFree={handleResetAllTablesToFree}
         onAddNewTable={handleAddNewTable}
+        onShowToast={showPushToast}
       />
 
       <ThermalReceiptModal

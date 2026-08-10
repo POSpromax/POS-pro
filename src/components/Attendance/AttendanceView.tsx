@@ -13,6 +13,7 @@ interface AttendanceViewProps {
   profile: RestaurantProfile;
   currentBranch: Branch;
   terminalMode?: boolean;
+  onShowToast: (title: string, message: string) => void;
 }
 
 export const AttendanceView: React.FC<AttendanceViewProps> = ({
@@ -23,6 +24,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   profile,
   currentBranch,
   terminalMode = false,
+  onShowToast,
 }) => {
   const eligibleStaff = staffAccounts.filter(
     (staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
@@ -114,7 +116,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     if (isSubmitting) return;
 
     if (profile.isAttendanceEnabled === false) {
-      alert('Fitur absensi sedang dinonaktifkan oleh Owner.');
+      onShowToast('Fitur Nonaktif', 'Fitur absensi sedang dinonaktifkan oleh Owner.');
       return;
     }
 
@@ -124,7 +126,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     if (!terminalMode) {
       const authResult = DBStorage.authenticateUser(selectedStaff.id, pinInput);
       if (!authResult.success) {
-        alert(authResult.message);
+        onShowToast('PIN Salah', authResult.message);
         setPinInput('');
         setIsSubmitting(false);
         return;
@@ -132,14 +134,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     }
 
     if (profile.requireSelfiePhoto && !selfiePreview) {
-      alert('Ambil foto selfie terbaru sebelum menyimpan absensi.');
+      onShowToast('Selfie Diperlukan', 'Ambil foto selfie terbaru sebelum menyimpan absensi.');
       setIsSubmitting(false);
       return;
     }
 
     const gpsValidated = await verifyGps();
     if (profile.requireGpsActive && !gpsValidated) {
-      alert('Absensi ditolak karena lokasi belum terverifikasi.');
+      onShowToast('Lokasi Gagal', 'Absensi ditolak karena lokasi belum terverifikasi.');
       setIsSubmitting(false);
       return;
     }
@@ -159,7 +161,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         const uploaded = await uploadImage(selfieFile, 'attendance', currentBranch.id);
         photoUrl = uploaded.secureUrl;
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Upload selfie gagal.');
+        onShowToast('Upload Gagal', error instanceof Error ? error.message : 'Upload selfie gagal.');
         setIsSubmitting(false);
         return;
       }
@@ -190,7 +192,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setSelfieFile(null);
     setUploadMessage('');
     setIsSubmitting(false);
-    alert(`Presensi ${clockType === 'CLOCK_IN' ? 'MASUK' : 'KELUAR'} berhasil disimpan untuk ${selectedStaff.name}!`);
+    onShowToast('Presensi Tersimpan', `Presensi ${clockType === 'CLOCK_IN' ? 'MASUK' : 'KELUAR'} berhasil disimpan untuk ${selectedStaff.name}!`);
   };
 
   return (

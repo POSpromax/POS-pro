@@ -29,6 +29,7 @@ interface QuickTableModalProps {
   onToggleAllSelfOrder?: (enabled: boolean) => void;
   onResetAllTablesToFree?: () => void;
   onAddNewTable?: (tableNumber: string, capacity: number) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const QuickTableModal: React.FC<QuickTableModalProps> = ({
@@ -42,12 +43,14 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   onSelectTableForOrder,
   onToggleAllSelfOrder,
   onResetAllTablesToFree,
-  onAddNewTable
+  onAddNewTable,
+  onShowToast
 }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'FREE' | 'OCCUPIED'>('ALL');
   const [newTableNum, setNewTableNum] = useState<string>('');
   const [newTableCap, setNewTableCap] = useState<number>(4);
   const [isAddingTable, setIsAddingTable] = useState<boolean>(false);
+  const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -64,7 +67,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
     e.preventDefault();
     if (!newTableNum.trim()) return;
     if (tables.some((t) => t.number.toLowerCase() === newTableNum.trim().toLowerCase())) {
-      alert(`Nomor meja ${newTableNum} sudah ada!`);
+      if (onShowToast) onShowToast('Meja Duplikat', `Nomor meja ${newTableNum} sudah ada!`);
       return;
     }
     if (onAddNewTable) {
@@ -168,14 +171,22 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm('Reset semua status meja menjadi HIJAU (KOSONG)?')) {
+                  if (confirmingReset) {
                     onResetAllTablesToFree();
+                    setConfirmingReset(false);
+                  } else {
+                    setConfirmingReset(true);
+                    setTimeout(() => setConfirmingReset(false), 3000);
                   }
                 }}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border ${
+                  confirmingReset
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                }`}
               >
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Reset Semua Kosong</span>
+                <span>{confirmingReset ? 'Yakin Reset?' : 'Reset Semua Kosong'}</span>
               </button>
             )}
 

@@ -57,6 +57,7 @@ interface BlueprintArchitectureViewProps {
   onUpdatePrinterConfig?: (config: PrinterConfig) => void;
   menuItems: MenuItem[];
   onNavigateTab: (tab: string) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps> = ({
@@ -70,7 +71,8 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   printerConfig,
   onUpdatePrinterConfig,
   menuItems,
-  onNavigateTab
+  onNavigateTab,
+  onShowToast
 }) => {
   const [activeSubBlueprint, setActiveSubBlueprint] = useState<
     'PROFILE' | 'LAYOUT' | 'MENU_TREE' | 'KITCHEN_PRINTER' | 'ACCESS_MATRIX' | 'PAYMENT_GATEWAY' | 'WORKFLOW'
@@ -146,7 +148,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   const handleCreateBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranchName.trim() || !newBranchCode.trim()) {
-      alert('Isi nama dan kode cabang outlet!');
+      if (onShowToast) onShowToast('Validasi', 'Isi nama dan kode cabang outlet!');
       return;
     }
 
@@ -177,7 +179,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   const handleAddZone = () => {
     if (!newZoneName.trim()) return;
     if (zones.includes(newZoneName.trim())) {
-      alert('Nama zona ruangan sudah ada!');
+      if (onShowToast) onShowToast('Zona Duplikat', 'Nama zona ruangan sudah ada!');
       return;
     }
     setZones([...zones, newZoneName.trim()]);

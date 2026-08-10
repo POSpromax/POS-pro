@@ -30,6 +30,7 @@ interface SuperOwnerDashboardViewProps {
   onSelectBranch: (branch: Branch) => void;
   onAddBranch: (newBranch: Branch) => void;
   onNavigateTab: (tab: string) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = ({
@@ -40,7 +41,8 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   currentBranch,
   onSelectBranch,
   onAddBranch,
-  onNavigateTab
+  onNavigateTab,
+  onShowToast
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,7 +109,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   const handleCreateBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranchName.trim()) {
-      alert('Mohon isi nama outlet / cabang!');
+      if (onShowToast) onShowToast('Validasi', 'Mohon isi nama outlet / cabang!');
       return;
     }
 

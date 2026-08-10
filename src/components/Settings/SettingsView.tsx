@@ -46,6 +46,7 @@ import {
 } from '../../types/pos';
 import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
 import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
+import { playNewOrderSound } from '../../utils/audioNotification';
 
 interface SettingsViewProps {
   profile: RestaurantProfile;
@@ -68,6 +69,7 @@ interface SettingsViewProps {
   onToggleAllTables?: (enabled: boolean) => void;
   isSelfOrderSystemEnabled?: boolean;
   onToggleSystemSelfOrder?: (enabled: boolean) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -90,13 +92,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onToggleTableSelfOrder = () => {},
   onToggleAllTables = () => {},
   isSelfOrderSystemEnabled = true,
-  onToggleSystemSelfOrder = (_enabled: boolean) => {}
+  onToggleSystemSelfOrder = (_enabled: boolean) => {},
+  onShowToast
 }) => {
+  const toast = (title: string, message: string) => {
+    if (onShowToast) onShowToast(title, message);
+  };
   const [activeTab, setActiveTab] = useState<
     'PROFILE' | 'LANDING' | 'KDS' | 'STAFF' | 'CONDIMENTS' | 'FINANCE' | 'ACCESS' | 'DATABASE'
   >('PROFILE');
 
-  // Form State initialized with profile
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
+
   const [formProfile, setFormProfile] = useState<RestaurantProfile>(profile);
   const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
@@ -150,25 +158,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }));
           const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
           window.open(mapsUrl, '_blank');
-          alert(`Lokasi GPS berhasil diambil!\nLatitude: ${lat}\nLongitude: ${lng}\nGoogle Maps telah dibuka di tab baru untuk verifikasi titik lokasi.`);
+          toast('GPS Terdeteksi', `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}. Google Maps dibuka untuk verifikasi.`);
         },
         (err) => {
-          alert('Gagal mengambil lokasi GPS: ' + err.message);
+          toast('GPS Gagal', 'Gagal mengambil lokasi GPS: ' + err.message);
         }
       );
     } else {
-      alert('Browser Anda tidak mendukung fitur Geolocation GPS.');
+      toast('GPS Tidak Didukung', 'Browser Anda tidak mendukung fitur Geolocation GPS.');
     }
   };
 
   const handleAddStaff = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffName.trim() || !/^\d{6}$/.test(newStaffPin)) {
-      alert('Isi nama dan PIN unik 6 digit untuk staff.');
+      toast('Data Tidak Lengkap', 'Isi nama dan PIN unik 6 digit untuk staff.');
       return;
     }
     if (staffAccounts.some((staff) => staff.pin === newStaffPin || staff.pin.startsWith(newStaffPin) || newStaffPin.startsWith(staff.pin))) {
-      alert('PIN sama atau terlalu mirip dengan akun lain. Gunakan kombinasi yang benar-benar berbeda.');
+      toast('PIN Konflik', 'PIN sama atau terlalu mirip dengan akun lain. Gunakan kombinasi yang benar-benar berbeda.');
       return;
     }
 
@@ -242,21 +250,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTestSound = (soundName: string) => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-      alert(`Playing test chime for: ${soundName}`);
-    } catch {
-      alert(`Test suara: ${soundName}`);
-    }
+    playNewOrderSound();
+    toast('Test Suara', `Memainkan chime: ${soundName}`);
   };
 
   return (
@@ -1184,14 +1179,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                if (confirm(`Hapus akun staf ${stf.name}?`)) {
+                                if (confirmingDeleteId === stf.id) {
                                   if (onDeleteStaff) onDeleteStaff(stf.id);
+                                  setConfirmingDeleteId(null);
+                                } else {
+                                  setConfirmingDeleteId(stf.id);
+                                  setTimeout(() => setConfirmingDeleteId(null), 3000);
                                 }
                               }}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                              title="Hapus Staff"
+                              className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                                confirmingDeleteId === stf.id ? 'bg-rose-600 text-white' : 'text-rose-500 hover:bg-rose-50'
+                              }`}
+                              title={confirmingDeleteId === stf.id ? 'Klik lagi untuk hapus' : 'Hapus Staff'}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {confirmingDeleteId === stf.id ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
                             </button>
 
                             <button
@@ -1282,7 +1283,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           ]
                         };
                         onSaveCondimentGroup(defaultGroup);
-                        alert('Preset grup kuah standar berhasil ditambahkan!');
+                        toast('Preset Ditambahkan', 'Preset grup kuah standar berhasil ditambahkan!');
                       }}
                       className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
@@ -1463,13 +1464,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (confirm(`Hapus grup topping/isian ${group.name}?`)) {
+                                  if (confirmingDeleteId === group.id) {
                                     onSaveCondimentGroup({ ...group, isActive: false });
+                                    setConfirmingDeleteId(null);
+                                  } else {
+                                    setConfirmingDeleteId(group.id);
+                                    setTimeout(() => setConfirmingDeleteId(null), 3000);
                                   }
                                 }}
-                                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-black text-xs rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                                className={`px-4 py-2 border font-black text-xs rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors ${
+                                  confirmingDeleteId === group.id
+                                    ? 'bg-rose-600 border-rose-700 text-white'
+                                    : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600'
+                                }`}
                               >
-                                <Trash2 className="w-4 h-4" /> Hapus Grup
+                                <Trash2 className="w-4 h-4" /> {confirmingDeleteId === group.id ? 'Yakin Hapus?' : 'Hapus Grup'}
                               </button>
                             </div>
                           </div>
@@ -1784,14 +1793,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm('Yakin ingin menghapus seluruh riwayat transaksi? Data menu tidak akan terhapus.')) {
+                        if (confirmingAction === 'clear-transactions') {
                           if (onClearTransactions) onClearTransactions();
-                          alert('Riwayat transaksi telah dibersihkan.');
+                          toast('Transaksi Dihapus', 'Riwayat transaksi telah dibersihkan.');
+                          setConfirmingAction(null);
+                        } else {
+                          setConfirmingAction('clear-transactions');
+                          setTimeout(() => setConfirmingAction(null), 4000);
                         }
                       }}
-                      className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-xs transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+                      className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer ${
+                        confirmingAction === 'clear-transactions'
+                          ? 'bg-amber-700 shadow-amber-700/20 animate-pulse'
+                          : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+                      }`}
                     >
-                      Bersihkan Transaksi
+                      {confirmingAction === 'clear-transactions' ? '⚠️ Yakin? Klik lagi untuk konfirmasi' : 'Bersihkan Transaksi'}
                     </button>
                   </div>
 
@@ -1809,14 +1826,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm('PERINGATAN! Seluruh data transaksi, menu, dan akun akan di-reset ke bawaan pabrik.')) {
+                        if (confirmingAction === 'factory-reset') {
                           if (onFactoryReset) onFactoryReset();
-                          alert('Aplikasi telah di-reset ke data awal.');
+                          toast('Factory Reset', 'Aplikasi telah di-reset ke data awal.');
+                          setConfirmingAction(null);
+                        } else {
+                          setConfirmingAction('factory-reset');
+                          setTimeout(() => setConfirmingAction(null), 4000);
                         }
                       }}
-                      className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold text-xs transition-all shadow-md shadow-rose-600/20 cursor-pointer"
+                      className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer ${
+                        confirmingAction === 'factory-reset'
+                          ? 'bg-rose-900 shadow-rose-900/20 animate-pulse'
+                          : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                      }`}
                     >
-                      Factory Reset Total
+                      {confirmingAction === 'factory-reset' ? '🔴 Yakin? Klik lagi untuk konfirmasi' : 'Factory Reset Total'}
                     </button>
                   </div>
                 </div>

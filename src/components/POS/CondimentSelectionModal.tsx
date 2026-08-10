@@ -8,6 +8,7 @@ interface CondimentSelectionModalProps {
   menuItem: MenuItem | null;
   condimentGroups: CondimentGroup[];
   onConfirm: (menuItem: MenuItem, selectedCondiments: SelectedCondimentGroup[], notes: string, extraPrice: number) => void;
+  onShowToast?: (title: string, message: string) => void;
 }
 
 export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = ({
@@ -15,7 +16,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   onClose,
   menuItem,
   condimentGroups,
-  onConfirm
+  onConfirm,
+  onShowToast
 }) => {
   if (!isOpen || !menuItem) return null;
 
@@ -94,7 +96,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     // Validate required groups
     for (const group of applicableGroups) {
       if (group.required && (!selections[group.id] || selections[group.id].length === 0)) {
-        alert(`Silakan pilih opsi untuk ${group.name} (*WAJIB)`);
+        if (onShowToast) onShowToast('Pilihan Wajib', `Silakan pilih opsi untuk ${group.name}`);
         return;
       }
     }
