@@ -73,6 +73,21 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const verifyCloud = useCallback(async (pin: string) => {
     setIsVerifying(true);
     try {
+      // 1. Primary Check: Local DB Storage (instant matching for ALL staff accounts, including newly created ones)
+      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
+      if (localResult.success && localResult.user) {
+        finishSuccess(
+          {
+            id: localResult.user.id,
+            name: localResult.user.name,
+            role: localResult.user.role,
+          },
+          activeBranch
+        );
+        return;
+      }
+
+      // 2. Cloud Fallback if not matched locally
       const result: CloudLoginResult = await cloudPinLogin(selectedBranchId, pin);
       if (result.success && result.user) {
         finishSuccess(
@@ -84,30 +99,15 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             branchId: result.user.branchId,
             permissions: result.user.permissions,
           },
-          activeBranch,
-        );
-        return;
-      }
-
-      // Local fallback if cloud DB user not registered
-      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
-      if (localResult.success && localResult.user) {
-        finishSuccess(
-          {
-            id: localResult.user.id,
-            name: localResult.user.name,
-            role: localResult.user.role,
-          },
           activeBranch
         );
         return;
       }
 
-      const lockMsg = result.lockedUntil ? 'Terminal dikunci sementara.' : '';
-      const attemptsMsg = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
-      setErrorMessage(result.error || `PIN tidak valid.${lockMsg}${attemptsMsg}`);
+      const lockMsg = localResult.lockedUntil || result.lockedUntil ? ' Terminal dikunci sementara.' : '';
+      const attemptsMsg = localResult.remainingAttempts !== undefined ? ` Sisa percobaan: ${localResult.remainingAttempts}.` : '';
+      setErrorMessage(localResult.message || result.error || `PIN tidak valid.${lockMsg}${attemptsMsg}`);
     } catch {
-      // Local fallback on network error or serverless function exception
       const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
       if (localResult.success && localResult.user) {
         finishSuccess(
@@ -120,10 +120,12 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         );
         return;
       }
-      setErrorMessage('PIN tidak cocok / Koneksi server terganggu.');
+      const lockMsg = localResult.lockedUntil ? ' Terminal dikunci sementara.' : '';
+      setErrorMessage(localResult.message || `PIN tidak cocok / Koneksi server terganggu.${lockMsg}`);
+    } finally {
+      setIsVerifying(false);
+      setPinInput('');
     }
-    setPinInput('');
-    setIsVerifying(false);
   }, [selectedBranchId, activeBranch, activeTab]);
 
   const verifyLocal = useCallback((pin: string) => {
@@ -331,12 +333,23 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 Memverifikasi PIN...
               </p>
             ) : errorMessage ? (
-              <p
-                role="alert"
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-[#F4C7B4] bg-[#FFF3ED] px-3 py-2 text-center text-[10px] font-bold text-[#C84412]"
-              >
-                <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {errorMessage}
-              </p>
+              <div className="flex flex-col items-center gap-1 rounded-xl border border-[#F4C7B4] bg-[#FFF3ED] px-3 py-2 text-center text-[10px] font-bold text-[#C84412]">
+                <p className="flex items-center justify-center gap-1.5">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {errorMessage}
+                </p>
+                {errorMessage.includes('dikunci') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      DBStorage.clearTerminalLockout(selectedBranchId);
+                      setErrorMessage('');
+                    }}
+                    className="text-[9px] font-black text-[#F05A1F] hover:underline cursor-pointer transition-all mt-0.5"
+                  >
+                    🔓 Reset / Buka Kunci Terminal Sekarang
+                  </button>
+                )}
+              </div>
             ) : (
               <p className="text-center text-[10px] font-semibold text-[#AAA39D]">
                 Masukkan 6 digit PIN untuk masuk.

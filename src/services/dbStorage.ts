@@ -332,12 +332,26 @@ export class DBStorage {
     return getStoredItem<UserAccount[]>(STORAGE_KEYS.STAFF, INITIAL_STAFF);
   }
 
+  static clearTerminalLockout(branchId?: string): void {
+    const security = getStoredItem<Record<string, { failedAttempts: number; lockedUntil?: string }>>(
+      STORAGE_KEYS.AUTH_SECURITY,
+      {}
+    );
+    if (branchId) {
+      delete security[`branch-gate:${branchId}`];
+    } else {
+      Object.keys(security).forEach((k) => delete security[k]);
+    }
+    setStoredItem(STORAGE_KEYS.AUTH_SECURITY, security);
+  }
+
   static saveStaff(user: UserAccount): UserAccount[] {
     const staff = this.getStaff();
     const index = staff.findIndex((item) => item.id === user.id);
     if (index >= 0) staff[index] = user;
     else staff.push(user);
     setStoredItem(STORAGE_KEYS.STAFF, staff);
+    this.clearTerminalLockout();
     return staff;
   }
 

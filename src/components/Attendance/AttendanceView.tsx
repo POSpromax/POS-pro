@@ -524,3 +524,4 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     </div>
   );
 };
+
