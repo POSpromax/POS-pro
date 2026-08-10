@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Clock,
   Printer,
-  Sparkles,
   User,
   Hash,
   ChevronRight,
@@ -42,14 +41,12 @@ const POSMenuItemCard: React.FC<{
   onAddToCart: (item: MenuItem) => void;
   onOpenCondiments?: (item: MenuItem) => void;
   hasCondiments?: boolean;
-  globalCondimentActive?: boolean;
   isPaidOrder?: boolean;
 }> = ({
   item,
   onAddToCart,
   onOpenCondiments,
   hasCondiments = false,
-  globalCondimentActive = true,
   isPaidOrder = false
 }) => {
   const [imgError, setImgError] = useState(false);
@@ -76,7 +73,7 @@ const POSMenuItemCard: React.FC<{
   };
 
   const theme = getCategoryTheme(item.category);
-  const shouldTriggerCondiments = hasCondiments && globalCondimentActive;
+  const shouldTriggerCondiments = hasCondiments;
 
   return (
     <div
@@ -165,8 +162,6 @@ interface CashierViewProps {
   activeUser: UserAccount;
   searchTerm: string;
   condimentGroups?: CondimentGroup[];
-  globalCondimentActive?: boolean;
-  onToggleGlobalCondiment?: () => void;
   onOpenCheckoutModal: (order: Partial<Order>) => void;
   onSaveHoldOrder: (order: Order) => void;
   onPrintPreBill: (order: Order) => void;
@@ -185,8 +180,6 @@ export const CashierView: React.FC<CashierViewProps> = ({
   activeUser,
   searchTerm,
   condimentGroups,
-  globalCondimentActive: propGlobalCondimentActive,
-  onToggleGlobalCondiment,
   onOpenCheckoutModal,
   onSaveHoldOrder,
   onPrintPreBill,
@@ -216,18 +209,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // Condiment Selection Modal State
   const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
   const [isCondimentModalOpen, setIsCondimentModalOpen] = useState<boolean>(false);
-
-  // Global Condiment / Topping ON/OFF Toggle State (Prop with local fallback)
-  const [localGlobalCondimentActive, setLocalGlobalCondimentActive] = useState<boolean>(true);
-  const globalCondimentActive = propGlobalCondimentActive !== undefined ? propGlobalCondimentActive : localGlobalCondimentActive;
-
-  const handleToggleCondimentActive = () => {
-    if (onToggleGlobalCondiment) {
-      onToggleGlobalCondiment();
-    } else {
-      setLocalGlobalCondimentActive((prev) => !prev);
-    }
-  };
+  const [manualItemSource, setManualItemSource] = useState<MenuItem | null>(null);
+  const [manualItemDraft, setManualItemDraft] = useState({ name: '', price: '', notes: '' });
 
   const categories = [
     { id: 'ALL', label: 'SEMUA' },
@@ -311,6 +294,28 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setIsCondimentModalOpen(true);
   };
 
+  const handleOpenManualItem = (item: MenuItem) => {
+    if (isPaidOrder) return;
+    setManualItemSource(item);
+    setManualItemDraft({ name: '', price: '', notes: '' });
+  };
+
+  const handleConfirmManualItem = () => {
+    if (!manualItemSource) return;
+    const price = Math.round(Number(manualItemDraft.price));
+    if (!manualItemDraft.name.trim() || !Number.isFinite(price) || price <= 0) return;
+    setCartItems((current) => [...current, {
+      id: `manual-${crypto.randomUUID()}`,
+      menuId: manualItemSource.id,
+      menuName: manualItemDraft.name.trim(),
+      price,
+      quantity: 1,
+      category: manualItemSource.category,
+      notes: manualItemDraft.notes.trim() || 'Item manual non-stok',
+    }]);
+    setManualItemSource(null);
+  };
+
   const handleUpdateQuantity = (cartItemId: string, delta: number) => {
     if (isPaidOrder) return;
     setCartItems((prevItems) =>
@@ -345,7 +350,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   const buildCurrentOrderDraft = (): Partial<Order> => {
     return {
-      id: currentEditingOrderId || undefined,
+      id: currentEditingOrderId || crypto.randomUUID(),
       orderNumber: currentEditingOrder ? currentEditingOrder.orderNumber : `#${Math.floor(100 + Math.random() * 900)}`,
       customerName: customerName.trim() || 'Guest',
       tableNumber: selectedTable !== '-' ? selectedTable : undefined,
@@ -538,10 +543,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     <POSMenuItemCard
                       key={item.id}
                       item={item}
-                      onAddToCart={handleAddToCart}
-                      onOpenCondiments={handleOpenCondimentModal}
-                      hasCondiments={hasCondiments}
-                      globalCondimentActive={globalCondimentActive}
+                      onAddToCart={item.isManualPrice ? handleOpenManualItem : handleAddToCart}
+                      onOpenCondiments={item.isManualPrice ? undefined : handleOpenCondimentModal}
+                      hasCondiments={!item.isManualPrice && hasCondiments}
                       isPaidOrder={isPaidOrder}
                     />
                   );
@@ -567,26 +571,6 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 </span>
               )}
 
-              <button
-                id="btn-cart-toggle-topping"
-                type="button"
-                onClick={handleToggleCondimentActive}
-                className={`p-1 rounded-lg border flex items-center justify-center transition-all cursor-pointer shrink-0 ml-0.5 ${
-                  globalCondimentActive
-                    ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
-                    : 'bg-[#FAFAF8] text-[#B8B0A8] border-[#E8E0D8] hover:bg-[#F0E8E0]'
-                }`}
-                title={`Topping: ${globalCondimentActive ? 'AKTIF' : 'NON-AKTIF'}`}
-              >
-                <Sparkles className={`w-3 h-3 ${globalCondimentActive ? 'text-amber-500 fill-amber-400' : 'text-[#B8B0A8]'}`} />
-                <span
-                  className={`w-5 h-3 rounded-full flex items-center p-0.5 transition-colors ml-0.5 ${
-                    globalCondimentActive ? 'bg-amber-500 justify-end' : 'bg-[#D5CFC8] justify-start'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-white shadow-xs" />
-                </span>
-              </button>
             </div>
 
             <div className="flex items-center gap-1">
@@ -871,6 +855,23 @@ export const CashierView: React.FC<CashierViewProps> = ({
           ]);
         }}
       />
+
+      {manualItemSource && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#DEDAD5] bg-white shadow-2xl">
+            <div className="flex items-center justify-between bg-[#1A1917] px-5 py-4 text-white">
+              <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-300">Item manual non-stok</p><h3 className="text-lg font-black">Lainnya</h3></div>
+              <button type="button" onClick={() => setManualItemSource(null)} className="rounded-full bg-white/10 p-2 hover:bg-white/20"><Trash2 className="h-4 w-4" /></button>
+            </div>
+            <div className="space-y-4 p-5">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Nama item / penjualan<input autoFocus value={manualItemDraft.name} onChange={(event) => setManualItemDraft({ ...manualItemDraft, name: event.target.value })} placeholder="Contoh: Alpukat tambahan" className="mt-1.5 w-full rounded-2xl border border-[#DEDAD5] bg-[#F7F7F6] p-3 text-sm font-bold text-slate-900 outline-none focus:border-orange-400 focus:bg-white" /></label>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Harga jual<input type="number" min="1" inputMode="numeric" value={manualItemDraft.price} onChange={(event) => setManualItemDraft({ ...manualItemDraft, price: event.target.value })} placeholder="Rp 0" className="mt-1.5 w-full rounded-2xl border border-[#DEDAD5] bg-[#F7F7F6] p-3 text-sm font-black text-slate-900 outline-none focus:border-orange-400 focus:bg-white" /></label>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Keterangan <span className="normal-case text-slate-400">(opsional)</span><textarea value={manualItemDraft.notes} onChange={(event) => setManualItemDraft({ ...manualItemDraft, notes: event.target.value })} placeholder="Catatan untuk struk / dapur" className="mt-1.5 min-h-20 w-full rounded-2xl border border-[#DEDAD5] bg-[#F7F7F6] p-3 text-xs font-semibold text-slate-900 outline-none focus:border-orange-400 focus:bg-white" /></label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#EEEAE6] bg-[#FAFAF9] p-4"><button type="button" onClick={() => setManualItemSource(null)} className="rounded-xl border border-[#DEDAD5] bg-white px-4 py-2.5 text-xs font-black text-slate-600">BATAL</button><button type="button" disabled={!manualItemDraft.name.trim() || Number(manualItemDraft.price) <= 0} onClick={handleConfirmManualItem} className="rounded-xl bg-[#EA580C] px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">TAMBAH KE ORDER</button></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

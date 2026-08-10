@@ -12,14 +12,15 @@ interface Props {
   attendanceRecords: AttendanceRecord[];
   terminalMode: boolean;
   onShowToast: (title: string, message: string) => void;
+  initialTab?: 'HISTORY' | 'LEAVE' | 'PAYROLL';
 }
 
 const MANAGEMENT = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'];
 const money = (value: number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
 
-export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, attendanceRecords, terminalMode, onShowToast }: Props) {
+export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, attendanceRecords, terminalMode, onShowToast, initialTab = 'HISTORY' }: Props) {
   const canManage = MANAGEMENT.includes(activeUser.role) && !terminalMode;
-  const [tab, setTab] = useState<'HISTORY' | 'LEAVE' | 'PAYROLL'>('HISTORY');
+  const [tab, setTab] = useState<'HISTORY' | 'LEAVE' | 'PAYROLL'>(initialTab);
   const [data, setData] = useState<HrData>({ canManage, leaveRequests: [], payrollProfiles: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

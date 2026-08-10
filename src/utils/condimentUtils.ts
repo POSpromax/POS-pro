@@ -4,7 +4,7 @@ export const isGroupApplicable = (group: CondimentGroup, menuItem: MenuItem): bo
   if (!group.isActive) return false;
 
   if (group.targetProductIds && group.targetProductIds.length > 0) {
-    if (group.targetProductIds.includes(menuItem.id)) return true;
+    return group.targetProductIds.includes(menuItem.id);
   }
 
   if (group.targetProductNames && group.targetProductNames.length > 0) {
@@ -12,14 +12,15 @@ export const isGroupApplicable = (group: CondimentGroup, menuItem: MenuItem): bo
     const matchesName = group.targetProductNames.some((name) =>
       itemName.includes(name.toLowerCase())
     );
-    if (matchesName) return true;
-    return false;
+    return matchesName;
   }
 
   if (group.targetCategories && group.targetCategories.length > 0) {
     if (group.targetCategories.includes('ALL')) return true;
     return group.targetCategories.includes(menuItem.category);
   }
+
+  if (group.targetCategory) return group.targetCategory === 'ALL' || group.targetCategory === menuItem.category;
 
   return false;
 };

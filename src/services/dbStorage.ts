@@ -120,7 +120,6 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
 // Keys that require cloud real-time broadcast across different devices/origins
 const CRITICAL_CLOUD_SYNC_KEYS = new Set([
   STORAGE_KEYS.CURRENT_SHIFT,
-  STORAGE_KEYS.ORDERS,
   STORAGE_KEYS.EXPENSES,
   STORAGE_KEYS.TABLES,
   STORAGE_KEYS.MENU,
@@ -413,14 +412,14 @@ export class DBStorage {
     const orders = this.getOrders();
     const existingIndex = orders.findIndex((o) => o.id === newOrder.id);
 
-    // Auto deduct inventory recipe upon payment/new order
-    if (newOrder.paymentStatus === 'PAID') {
+    // Deduct once only when an order crosses from unpaid to paid.
+    if (newOrder.paymentStatus === 'PAID' && orders[existingIndex]?.paymentStatus !== 'PAID') {
       this.deductInventoryForOrder(newOrder);
     }
 
     // Keep table occupancy aligned with the latest operational order state.
     if (newOrder.tableNumber && newOrder.tableNumber !== '-') {
-      const isFinished = newOrder.paymentStatus === 'PAID' || newOrder.status === 'COMPLETED' || newOrder.status === 'CANCELLED';
+      const isFinished = newOrder.status === 'COMPLETED' || newOrder.status === 'CANCELLED';
       const nextTableStatus: RestaurantTable['status'] = isFinished ? 'FREE' : 'OCCUPIED';
       this.updateTableStatus(
         newOrder.tableNumber,

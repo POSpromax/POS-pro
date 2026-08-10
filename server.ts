@@ -7,6 +7,8 @@ import { handlePinLogin } from './src/server/pinLogin';
 import { handleStaffRequest } from './src/server/staffManagement';
 import { handleAttendanceRequest } from './src/server/attendanceManagement';
 import { handleHrRequest } from './src/server/hrManagement';
+import { handleOrderRequest } from './src/server/orderManagement';
+import { getPublicCatalog } from './src/server/publicCatalog';
 
 async function startServer() {
   const app = express();
@@ -73,6 +75,28 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server HR belum dikonfigurasi' });
+    }
+  });
+
+  app.all('/api/orders', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const payload = req.method === 'GET' ? req.query : (req.body || {});
+      const result = await handleOrderRequest(req.method, payload, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server pesanan belum dikonfigurasi' });
+    }
+  });
+
+  app.get('/api/public-catalog', async (req, res) => {
+    try {
+      const result = await getPublicCatalog(String(req.query.branchId || ''), getSupabaseAdmin());
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Katalog self-order belum tersedia' });
     }
   });
 

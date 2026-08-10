@@ -19,8 +19,23 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
     supabase.from('raw_materials').select('*').eq('branch_id', branchId).order('name'),
   ]);
   if (menuError || rawError) throw new Error(menuError?.message || rawError?.message || 'Master data cloud gagal dibaca');
+  const menuIds = (menuRows || []).map((row) => row.id);
+  const { data: ingredientRows, error: ingredientError } = menuIds.length
+    ? await supabase.from('menu_item_ingredients').select('*').in('menu_item_id', menuIds)
+    : { data: [], error: null };
+  if (ingredientError) throw new Error(ingredientError.message);
+  const rawNames = new Map((rawRows || []).map((row) => [row.id, row.name]));
   return {
-    menuItems: (menuRows || []).map((row) => ({ id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients: [], isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined })),
+    menuItems: (menuRows || []).map((row) => {
+      const isManualPrice = /^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim());
+      const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => ({
+        rawMaterialId: ingredient.raw_material_id,
+        rawMaterialName: rawNames.get(ingredient.raw_material_id) || 'Bahan baku',
+        amountNeeded: Number(ingredient.amount_needed),
+        unit: ingredient.unit,
+      }));
+      return { id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients, isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined, isAutoStock: ingredients.length > 0, isManualPrice, trackStock: !isManualPrice };
+    }),
     rawMaterials: (rawRows || []).map((row) => ({ id: row.id, name: row.name, unit: row.unit, stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold), costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '' })),
   };
 }
@@ -29,9 +44,23 @@ export async function saveCloudMenuItem(item: MenuItem, branchId: string): Promi
   const tenantId = await currentTenantId();
   const payload = { tenant_id: tenantId, branch_id: branchId, name: item.name, category: item.category, price: item.price, image_url: item.image || null, description: item.description || null, hpp_cost: item.hppCost || 0, is_available: item.isAvailable !== false, stock_count: item.stockCount ?? null };
   const supabase = getSupabase();
-  const operation = UUID_PATTERN.test(item.id) ? supabase.from('menu_items').update(payload).eq('id', item.id).eq('branch_id', branchId) : supabase.from('menu_items').insert(payload);
-  const { error } = await operation;
+  const operation = UUID_PATTERN.test(item.id)
+    ? supabase.from('menu_items').update(payload).eq('id', item.id).eq('branch_id', branchId).select('id').single()
+    : supabase.from('menu_items').insert(payload).select('id').single();
+  const { data, error } = await operation;
   if (error) throw new Error(error.message);
+  const menuItemId = data.id;
+  const { error: clearError } = await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', menuItemId);
+  if (clearError) throw new Error(clearError.message);
+  if (item.ingredients.length) {
+    const { error: ingredientError } = await supabase.from('menu_item_ingredients').insert(item.ingredients.map((ingredient) => ({
+      menu_item_id: menuItemId,
+      raw_material_id: ingredient.rawMaterialId,
+      amount_needed: ingredient.amountNeeded,
+      unit: ingredient.unit,
+    })));
+    if (ingredientError) throw new Error(ingredientError.message);
+  }
 }
 
 export async function deleteCloudMenuItem(id: string, branchId: string): Promise<void> {

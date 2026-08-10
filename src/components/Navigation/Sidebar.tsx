@@ -15,7 +15,8 @@ import {
   UserCheck,
   Smartphone,
   ArrowRight,
-  Compass
+  Compass,
+  WalletCards
 } from 'lucide-react';
 import { AccessControlRule, UserAccount } from '../../types/pos';
 
@@ -54,6 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'inventory', label: 'Stok, Bahan & HPP', icon: Boxes },
     { id: 'tables', label: 'Meja & QR Code', icon: Grid2X2 },
     { id: 'attendance', label: 'Absensi Staff', icon: UserCheck },
+    { id: 'payroll', label: 'Payroll Staff', icon: WalletCards },
     { id: 'selforder', label: 'Landing Self-Order', icon: Smartphone },
     { id: 'settings', label: 'Konfigurasi Owner', icon: Settings }
   ];
@@ -65,6 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (id === 'shift') return accessRule.canAccessShift;
     if (id === 'inventory') return accessRule.canAccessInventory;
     if (id === 'analytics' || id === 'superowner') return accessRule.canAccessAnalytics;
+    if (id === 'payroll') return accessRule.canAccessSettings;
     return accessRule.canAccessSettings;
   };
 

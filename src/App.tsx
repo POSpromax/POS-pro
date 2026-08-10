@@ -8,7 +8,6 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { HeaderBar } from './components/Navigation/HeaderBar';
 import { PinAuthModal } from './components/Auth/PinAuthModal';
-import { CashierView } from './components/POS/CashierView';
 import { PaymentModal } from './components/POS/PaymentModal';
 import { ThermalReceiptModal } from './components/Printer/ThermalReceiptModal';
 import { CustomerTableManagementModal } from './components/SelfOrder/CustomerTableManagementModal';
@@ -46,8 +45,13 @@ import {
 } from './services/staffService';
 import { listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
+import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
+import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus } from './services/orderService';
+import { getPublicCatalogContext } from './services/publicCatalogService';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
+const CashierView = lazy(() => import('./components/POS/CashierView').then((m) => ({ default: m.CashierView })));
+const AttendanceHrPanel = lazy(() => import('./components/Attendance/AttendanceHrPanel').then((m) => ({ default: m.AttendanceHrPanel })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
 const TableManagementView = lazy(() => import('./components/Tables/TableManagementView').then((m) => ({ default: m.TableManagementView })));
 const SelfOrderLandingPage = lazy(() => import('./components/SelfOrder/SelfOrderLandingPage').then((m) => ({ default: m.SelfOrderLandingPage })));
@@ -62,6 +66,7 @@ const BlueprintArchitectureView = lazy(() => import('./components/Owner/Blueprin
 const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
 const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
 const TERMINAL_MODE_KEY = 'omnipos_terminal_mode';
+const condimentCloudSaveTimers = new Map<string, number>();
 
 if (typeof window !== 'undefined') {
   DBStorage.initDefaults();
@@ -112,6 +117,14 @@ const getDefaultAccessDestination = (rule: AccessControlRule): { portal: 'KASIR'
 };
 
 export default function App() {
+  const isSelfOrderUrlParam = typeof window !== 'undefined' && (
+    window.location.search.includes('selforder') ||
+    window.location.search.includes('table=') ||
+    window.location.pathname.startsWith('/order') ||
+    window.location.pathname.startsWith('/self-order') ||
+    window.location.hash.includes('self-order') ||
+    window.location.hash.includes('order')
+  );
   // 1. Navigation State & System Portals ('KASIR' | 'OWNER')
   const [systemPortal, setSystemPortal] = useState<'KASIR' | 'OWNER'>(() => {
     const saved = sessionStorage.getItem('omnipos_portal');
@@ -209,6 +222,22 @@ export default function App() {
     const sessionBranchId = typeof window !== 'undefined' ? sessionStorage.getItem(TERMINAL_BRANCH_KEY) : null;
     return list.find((branch) => branch.id === (requestedBranchId || sessionBranchId)) || list[0] || INITIAL_BRANCHES[0];
   });
+
+  useEffect(() => {
+    if (!isSelfOrderUrlParam || !cloudReadiness.supabase || !currentBranch.id) return;
+    let active = true;
+    void getPublicCatalogContext(currentBranch.id)
+      .then((context) => {
+        if (!active) return;
+        setCurrentBranch((branch) => ({ ...branch, ...context.branch }));
+        setMenuItems(context.menuItems);
+        setTables(context.tables);
+        setCondimentGroups(context.condimentGroups);
+        if (context.profile) setProfile((current) => ({ ...current, ...context.profile }));
+      })
+      .catch((error) => showPushToast('Self-order Belum Siap', error instanceof Error ? error.message : 'Katalog cabang tidak dapat dimuat.'));
+    return () => { active = false; };
+  }, [isSelfOrderUrlParam, currentBranch.id]);
 
   const handleAddBranch = (newBranch: Branch) => {
     const updated = DBStorage.saveBranch(newBranch);
@@ -314,6 +343,37 @@ export default function App() {
       .catch((error) => {
         if (!cancelled) showPushToast('Katalog Belum Tersinkron', error instanceof Error ? error.message : 'Master data cloud gagal dibaca.');
       });
+    return () => { cancelled = true; };
+  }, [isTerminalUnlocked, currentBranch.id]);
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
+    let active = true;
+    const refresh = () => {
+      void listCloudOrders(currentBranch.id)
+        .then((cloudOrders) => {
+          if (!active) return;
+          setOrders(cloudOrders);
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+        })
+        .catch((error) => showPushToast('Sinkronisasi Order Tertunda', error instanceof Error ? error.message : 'Order cloud belum dapat dimuat.'));
+    };
+    refresh();
+    const unsubscribe = subscribeCloudOrders(currentBranch.id, refresh);
+    return () => { active = false; unsubscribe(); };
+  }, [isTerminalUnlocked, currentBranch.id]);
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
+    let cancelled = false;
+    void listCloudCondiments(currentBranch.id).then((groups) => {
+      if (!cancelled && groups.length) {
+        setCondimentGroups(groups);
+        DBStorage.setCondimentGroups(groups);
+      }
+    }).catch((error) => {
+      if (!cancelled) showPushToast('Condiment Belum Tersinkron', error instanceof Error ? error.message : 'Konfigurasi condiment cloud gagal dibaca.');
+    });
     return () => { cancelled = true; };
   }, [isTerminalUnlocked, currentBranch.id]);
 
@@ -446,9 +506,8 @@ export default function App() {
     void validateCloudSession();
   }, []);
 
-  // System Self Order restriction toggle state & Global Condiment Topping Toggle state
+  // System Self Order restriction toggle state
   const [isSelfOrderSystemEnabled, setIsSelfOrderSystemEnabled] = useState<boolean>(() => DBStorage.getProfile().isSelfOrderEnabled !== false);
-  const [globalCondimentActive, setGlobalCondimentActive] = useState<boolean>(true);
 
   // 4. Online/Offline & Sync Queue State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -496,7 +555,25 @@ export default function App() {
   };
 
   // Sync Offline Queue & Realtime Channel
-  const handleManualSync = () => {
+  const handleManualSync = async () => {
+    const queue = DBStorage.getOfflineQueue();
+    const failed: typeof queue = [];
+    if (cloudReadiness.supabase && isOnline) {
+      for (const entry of queue) {
+        if (entry.type !== 'SAVE_ORDER') {
+          failed.push(entry);
+          continue;
+        }
+        try {
+          const saved = await submitCloudOrder(entry.payload as Order);
+          DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== entry.payload.id && order.id !== saved.id)]);
+        } catch {
+          failed.push(entry);
+        }
+      }
+      DBStorage.clearOfflineQueue();
+      failed.forEach((entry) => DBStorage.addToOfflineQueue(entry));
+    }
     DBStorage.syncAllDataWithCloud();
     setCurrentShift(DBStorage.getCurrentShift());
     setOrders(DBStorage.getOrders());
@@ -504,13 +581,25 @@ export default function App() {
     setTables(DBStorage.getTables());
     setBranches(DBStorage.getBranches());
     setProfile(DBStorage.getProfile());
-    showPushToast('Sinkronisasi Realtime Sukses', 'Seluruh data status shift, pesanan, & biaya berhasil disinkronkan ke seluruh terminal!');
+    setPendingSyncCount(failed.length);
+    showPushToast(
+      failed.length ? 'Sebagian Data Masih Tertunda' : 'Sinkronisasi Realtime Sukses',
+      failed.length ? `${failed.length} perubahan masih menunggu koneksi stabil.` : 'Pesanan telah tersimpan dan terminal cabang menerima pembaruan realtime.'
+    );
   };
 
   // Order Handlers
-  const handleSaveHoldOrder = (draftOrder: Order) => {
+  const handleSaveHoldOrder = async (draftOrder: Order) => {
     if (!ensureOpenShift('menyimpan transaksi')) return;
-    const saved = DBStorage.saveOrder(draftOrder, isOnline);
+    let saved = DBStorage.saveOrder(draftOrder, isOnline);
+    if (cloudReadiness.supabase && isOnline) {
+      try {
+        saved = await submitCloudOrder(draftOrder);
+        DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== draftOrder.id && order.id !== saved.id)]);
+      } catch (error) {
+        showPushToast('Order Masuk Antrean Offline', error instanceof Error ? error.message : 'Akan disinkronkan saat koneksi pulih.');
+      }
+    }
     setOrders(DBStorage.getOrders());
     setRawMaterials(DBStorage.getRawMaterials());
     setTables(DBStorage.getTables());
@@ -526,7 +615,7 @@ export default function App() {
     setIsPaymentModalOpen(true);
   };
 
-  const handleProcessPayment = (paymentMethod: PaymentMethod, cashPaid: number, shouldPrint: boolean) => {
+  const handleProcessPayment = async (paymentMethod: PaymentMethod, cashPaid: number, shouldPrint: boolean) => {
     if (!activeCheckoutOrder) return;
     if (!ensureOpenShift('memproses pembayaran')) return;
 
@@ -539,7 +628,15 @@ export default function App() {
       status: 'NEW'
     };
 
-    const saved = DBStorage.saveOrder(fullOrder, isOnline);
+    let saved = DBStorage.saveOrder(fullOrder, isOnline);
+    if (cloudReadiness.supabase && isOnline) {
+      try {
+        saved = await submitCloudOrder(fullOrder);
+        DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
+      } catch (error) {
+        showPushToast('Pembayaran Tersimpan Lokal', error instanceof Error ? error.message : 'Order akan disinkronkan saat koneksi pulih.');
+      }
+    }
     setOrders(DBStorage.getOrders());
     setRawMaterials(DBStorage.getRawMaterials());
     setTables(DBStorage.getTables());
@@ -577,6 +674,10 @@ export default function App() {
   const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
     DBStorage.updateOrderStatus(orderId, newStatus);
     setOrders(DBStorage.getOrders());
+    if (cloudReadiness.supabase && isOnline) {
+      void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
+        .catch((error) => showPushToast('Update Dapur Tertunda', error instanceof Error ? error.message : 'Status tersimpan lokal.'));
+    }
     showPushToast('Update Status Dapur', `Status order ${orderId} diperbarui menjadi ${newStatus}.`);
   };
 
@@ -587,6 +688,14 @@ export default function App() {
     setOrders(DBStorage.getOrders());
     setTables(DBStorage.getTables());
     setRawMaterials(DBStorage.getRawMaterials());
+    if (cloudReadiness.supabase && isOnline) {
+      void submitCloudOrder(newOrder)
+        .then((saved) => {
+          DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== newOrder.id && order.id !== saved.id)]);
+          setOrders(DBStorage.getOrders());
+        })
+        .catch((error) => showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.'));
+    }
     
     // Play cashier audio notification chime for new order arrival!
     playNewOrderSound();
@@ -598,16 +707,27 @@ export default function App() {
   const handleSaveCondimentGroup = (group: CondimentGroup) => {
     DBStorage.saveCondimentGroup(group);
     setCondimentGroups(DBStorage.getCondimentGroups());
+    if (!cloudReadiness.supabase) return;
+    const previous = condimentCloudSaveTimers.get(group.id);
+    if (previous) window.clearTimeout(previous);
+    const timer = window.setTimeout(() => {
+      void saveCloudCondimentGroup(group, currentBranch.id)
+        .then(() => listCloudCondiments(currentBranch.id))
+        .then((groups) => { setCondimentGroups(groups); DBStorage.setCondimentGroups(groups); })
+        .catch((error) => showPushToast('Condiment Gagal Disimpan', error instanceof Error ? error.message : 'Konfigurasi condiment gagal.'));
+      condimentCloudSaveTimers.delete(group.id);
+    }, 450);
+    condimentCloudSaveTimers.set(group.id, timer);
   };
 
   const handleToggleGroupActive = (groupId: string, isActive: boolean) => {
-    DBStorage.toggleCondimentGroupActive(groupId, isActive);
-    setCondimentGroups(DBStorage.getCondimentGroups());
+    const group = condimentGroups.find((item) => item.id === groupId);
+    if (group) handleSaveCondimentGroup({ ...group, isActive });
   };
 
   const handleToggleOptionAvailable = (groupId: string, optionId: string, isAvailable: boolean) => {
-    DBStorage.toggleCondimentOptionAvailable(groupId, optionId, isAvailable);
-    setCondimentGroups(DBStorage.getCondimentGroups());
+    const group = condimentGroups.find((item) => item.id === groupId);
+    if (group) handleSaveCondimentGroup({ ...group, options: group.options.map((option) => option.id === optionId ? { ...option, isAvailable } : option) });
   };
 
   // Bulk Table Control for Customer Order Modal
@@ -670,14 +790,6 @@ export default function App() {
   };
 
   // URL Search Parameter & Path check for isolated Standalone Self-Order Web Link
-  const isSelfOrderUrlParam = typeof window !== 'undefined' && (
-    window.location.search.includes('selforder') ||
-    window.location.search.includes('table=') ||
-    window.location.pathname.startsWith('/order') ||
-    window.location.pathname.startsWith('/self-order') ||
-    window.location.hash.includes('self-order') ||
-    window.location.hash.includes('order')
-  );
   const isAttendanceTerminal = isAttendanceMode || (typeof window !== 'undefined' && (
     window.location.pathname === '/attendance' ||
     new URLSearchParams(window.location.search).get('mode') === 'attendance'
@@ -899,8 +1011,6 @@ export default function App() {
             activeUser={activeUser}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
-            globalCondimentActive={globalCondimentActive}
-            onToggleGlobalCondiment={() => setGlobalCondimentActive((prev) => !prev)}
           />
         )}
 
@@ -933,8 +1043,6 @@ export default function App() {
                   activeUser={activeUser}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
-                  globalCondimentActive={globalCondimentActive}
-                  onToggleGlobalCondiment={() => setGlobalCondimentActive((prev) => !prev)}
                 />
               }
               menuItems={menuItems}
@@ -945,8 +1053,6 @@ export default function App() {
               currentShift={currentShift}
               searchTerm={searchTerm}
               condimentGroups={condimentGroups}
-              globalCondimentActive={globalCondimentActive}
-              onToggleGlobalCondiment={() => setGlobalCondimentActive((prev) => !prev)}
               onOpenCheckoutModal={handleOpenCheckoutModal}
               onSaveHoldOrder={handleSaveHoldOrder}
               onPrintPreBill={handlePrintPreBill}
@@ -1104,6 +1210,19 @@ export default function App() {
               currentBranch={currentBranch}
               onShowToast={showPushToast}
             />
+          )}
+
+          {activeTab === 'payroll' && (
+            <div className="flex-1 overflow-y-auto bg-[#F6F6F5] p-4 md:p-6">
+              <div className="mx-auto max-w-7xl">
+                <div className="mb-5 rounded-3xl border border-[#E4E2DF] bg-white p-5 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#EA580C]">Owner Finance</p>
+                  <h1 className="mt-1 text-2xl font-black text-[#1A1714]">Payroll & Penggajian Staff</h1>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Atur gaji pokok, tunjangan, lembur, dan potongan keterlambatan per outlet.</p>
+                </div>
+                <AttendanceHrPanel activeUser={activeUser} staffAccounts={staffAccounts} currentBranch={currentBranch} attendanceRecords={branchAttendanceRecords} terminalMode={false} initialTab="PAYROLL" onShowToast={showPushToast} />
+              </div>
+            </div>
           )}
 
           {activeTab === 'inventory' && (

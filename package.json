@@ -10,7 +10,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "setup:owner": "tsx scripts/setup-owner.ts"
+    "setup:owner": "tsx scripts/setup-owner.ts",
+    "seed:operations": "tsx scripts/seed-operational-config.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

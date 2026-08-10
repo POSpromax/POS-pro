@@ -118,6 +118,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   ];
 
   const filteredMenu = menuItems.filter((m) => {
+    if (m.isManualPrice) return false;
     const matchesCategory = selectedCategory === 'ALL' || m.category === selectedCategory;
     const matchesSearch =
       !searchQuery ||
@@ -254,7 +255,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       return;
     }
 
-    const orderId = 'ord-cust-' + Date.now().toString().slice(-4);
+    const orderId = crypto.randomUUID();
     const newOrder: Order = {
       id: orderId,
       orderNumber: '#' + Math.floor(100 + Math.random() * 900),

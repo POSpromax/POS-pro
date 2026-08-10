@@ -1331,7 +1331,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   type="text"
                                   value={group.name}
                                   onChange={(e) => onSaveCondimentGroup({ ...group, name: e.target.value })}
-                                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-indigo-600 focus:bg-white"
+                                  className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
                                 />
                               </div>
 
@@ -1341,14 +1341,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[#191817] text-white shadow-2xs' : 'text-slate-500'}`}
                                   >
                                     Pilih 1 (Wajib)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[#191817] text-white shadow-2xs' : 'text-slate-500'}`}
                                   >
                                     Pilih Banyak (Opsi)
                                   </button>
@@ -1364,7 +1364,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, isRequired: true })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${group.isRequired !== false ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[#FF5A1F] text-white shadow-md shadow-orange-500/20' : 'text-slate-500'}`}
                                   >
                                     Wajib Pilih (Harus Ada)
                                   </button>
@@ -1381,9 +1381,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">BERLAKU UNTUK</label>
                                 <select
-                                  value={group.targetCategory || 'ALL'}
-                                  onChange={(e) => onSaveCondimentGroup({ ...group, targetCategory: e.target.value as any })}
-                                  className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none"
+                                  value={group.targetCategories?.[0] || group.targetCategory || 'ALL'}
+                                  onChange={(e) => onSaveCondimentGroup({ ...group, targetCategory: undefined, targetCategories: [e.target.value] })}
+                                  className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-[#FF5A1F]"
                                 >
                                   <option value="ALL">Semua Kategori (ALL)</option>
                                   <option value="BAKSO">Bakso</option>
@@ -1391,6 +1391,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <option value="MINUMAN">Minuman</option>
                                 </select>
                               </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">ITEM KHUSUS (OPSIONAL)</label>
+                              <input
+                                type="text"
+                                value={(group.targetProductNames || []).join(', ')}
+                                onChange={(e) => onSaveCondimentGroup({
+                                  ...group,
+                                  targetProductNames: e.target.value.split(',').map((name) => name.trim()).filter(Boolean),
+                                })}
+                                placeholder="Contoh: Bakso Komplit, Bakso Urat (pisahkan dengan koma)"
+                                className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                              />
+                              <p className="mt-1.5 text-[10px] font-semibold text-slate-400">Jika diisi, grup hanya tampil pada item tersebut. Kosongkan untuk memakai kategori di atas.</p>
                             </div>
 
                             {/* Options List Tags */}
@@ -1403,19 +1418,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   placeholder="Ketik nama pilihan (misal: Bakso Halus)..."
                                   value={newOptionNames[group.id] || ''}
                                   onChange={(e) => setNewOptionNames({ ...newOptionNames, [group.id]: e.target.value })}
-                                  className="flex-1 bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white"
+                                  className="flex-1 bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[#FF5A1F] focus:bg-white"
                                 />
                                 <input
                                   type="number"
                                   placeholder="Harga (+Rp)"
                                   value={newOptionPrices[group.id] || ''}
                                   onChange={(e) => setNewOptionPrices({ ...newOptionPrices, [group.id]: Number(e.target.value) })}
-                                  className="w-28 bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white"
+                                  className="w-28 bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-[#FF5A1F] focus:bg-white"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => handleAddOptionToGroup(group)}
-                                  className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black flex items-center justify-center cursor-pointer shadow-xs"
+                                  className="w-10 h-10 bg-[#191817] hover:bg-black text-white rounded-2xl font-black flex items-center justify-center cursor-pointer shadow-xs"
                                 >
                                   <Plus className="w-5 h-5" />
                                 </button>

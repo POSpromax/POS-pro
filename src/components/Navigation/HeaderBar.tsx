@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Printer, Search, MapPin, UserCheck, Sparkles, Crown, Store, ArrowRight, Grid2X2, Utensils } from 'lucide-react';
+import { Printer, Search, Store, Grid2X2 } from 'lucide-react';
 import { Branch, PrinterConfig, UserAccount, RestaurantTable, Order } from '../../types/pos';
 
 interface HeaderBarProps {
@@ -21,8 +21,6 @@ interface HeaderBarProps {
   activeUser: UserAccount;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  globalCondimentActive?: boolean;
-  onToggleGlobalCondiment?: () => void;
   activeTab?: string;
 }
 
@@ -45,8 +43,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeUser,
   searchTerm,
   setSearchTerm,
-  globalCondimentActive = true,
-  onToggleGlobalCondiment,
   activeTab = 'pos'
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');

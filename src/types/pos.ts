@@ -47,6 +47,8 @@ export interface MenuItem {
   isAvailable: boolean;
   stockCount?: number; // Calculated or manual
   isAutoStock?: boolean; // Gunakan Resep (Auto-Stock)
+  trackStock?: boolean; // false untuk item jasa/manual yang tidak memotong stok
+  isManualPrice?: boolean; // POS meminta nama, harga, dan keterangan saat item dipilih
 }
 
 export interface RawMaterial {
