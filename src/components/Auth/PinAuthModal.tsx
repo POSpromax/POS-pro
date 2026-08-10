@@ -73,21 +73,6 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const verifyCloud = useCallback(async (pin: string) => {
     setIsVerifying(true);
     try {
-      // 1. Primary Check: Local DB Storage (instant matching for ALL staff accounts, including newly created ones)
-      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
-      if (localResult.success && localResult.user) {
-        finishSuccess(
-          {
-            id: localResult.user.id,
-            name: localResult.user.name,
-            role: localResult.user.role,
-          },
-          activeBranch
-        );
-        return;
-      }
-
-      // 2. Cloud Fallback if not matched locally
       const result: CloudLoginResult = await cloudPinLogin(selectedBranchId, pin);
       if (result.success && result.user) {
         finishSuccess(
@@ -104,21 +89,10 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         return;
       }
 
-      setErrorMessage(localResult.message || result.error || 'PIN tidak valid. Silakan periksa kembali 6-digit PIN Anda.');
+      const attempts = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
+      setErrorMessage(`${result.error || 'PIN tidak valid.'}${attempts}`);
     } catch {
-      const localResult = DBStorage.authenticateByPin(selectedBranchId, pin);
-      if (localResult.success && localResult.user) {
-        finishSuccess(
-          {
-            id: localResult.user.id,
-            name: localResult.user.name,
-            role: localResult.user.role,
-          },
-          activeBranch
-        );
-        return;
-      }
-      setErrorMessage('PIN tidak valid. Silakan periksa kembali 6-digit PIN Anda.');
+      setErrorMessage('Server autentikasi tidak dapat dihubungi. Login lokal dinonaktifkan untuk keamanan.');
     } finally {
       setIsVerifying(false);
       setPinInput('');

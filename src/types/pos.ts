@@ -15,6 +15,7 @@ export interface UserAccount {
   shiftStart?: string;
   shiftEnd?: string;
   workDays?: number[];
+  permissions?: Partial<AccessControlRule>;
 }
 
 export interface PinVerificationResult {
@@ -194,6 +195,12 @@ export interface AttendanceRecord {
   type: 'CLOCK_IN' | 'CLOCK_OUT';
   timestamp: string;
   photoUrl?: string;
+  photoPublicId?: string;
+  requestId?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracyMeters?: number;
+  distanceMeters?: number;
   location: string;
   status: 'ON_TIME' | 'LATE';
   branchId?: string;
@@ -259,7 +266,6 @@ export interface RestaurantProfile {
   weeklyOffNotice?: string;
   maxPinAttempts?: number;
   pinLockoutMinutes?: number;
-  masterPinAdmin?: string;
   allowedSelfOrderTables?: string;
 
   // Keuangan Config
@@ -281,4 +287,7 @@ export interface AccessControlRule {
   canAccessAnalytics: boolean;
   canAccessSettings: boolean;
   canVoidOrder: boolean;
+  canAccessAttendance?: boolean;
+  canGiveDiscount?: boolean;
+  canOpenDrawer?: boolean;
 }

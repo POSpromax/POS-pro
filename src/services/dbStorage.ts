@@ -123,7 +123,6 @@ const CRITICAL_CLOUD_SYNC_KEYS = new Set([
   STORAGE_KEYS.ORDERS,
   STORAGE_KEYS.EXPENSES,
   STORAGE_KEYS.TABLES,
-  STORAGE_KEYS.STAFF,
   STORAGE_KEYS.MENU,
   STORAGE_KEYS.RAW_MATERIALS
 ]);
@@ -383,7 +382,8 @@ export class DBStorage {
     }
     return {
       success: true,
-      user: matched
+      user: matched,
+      message: 'Verifikasi berhasil.'
     };
   }
 
@@ -393,7 +393,7 @@ export class DBStorage {
     if (user.pin !== pin) {
       return { success: false, message: 'PIN salah. Silakan coba lagi.' };
     }
-    return { success: true, user };
+    return { success: true, user, message: 'Verifikasi berhasil.' };
   }
 
   // Orders

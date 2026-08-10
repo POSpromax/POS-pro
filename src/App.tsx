@@ -38,6 +38,13 @@ import { INITIAL_BRANCHES } from './data/initialData';
 import { cloudReadiness } from './lib/runtimeEnv';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
 import { cloudSignOut } from './services/authService';
+import {
+  createCloudStaff,
+  deactivateCloudStaff,
+  listCloudStaff,
+  updateCloudStaff,
+} from './services/staffService';
+import { saveCloudAttendance } from './services/attendanceService';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -52,6 +59,8 @@ const SuperOwnerDashboardView = lazy(() => import('./components/Analytics/SuperO
 const BlueprintArchitectureView = lazy(() => import('./components/Owner/BlueprintArchitectureView').then((m) => ({ default: m.BlueprintArchitectureView })));
 
 const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
+const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
+const TERMINAL_MODE_KEY = 'omnipos_terminal_mode';
 
 if (typeof window !== 'undefined') {
   DBStorage.initDefaults();
@@ -86,7 +95,8 @@ const canAccessTab = (rule: AccessControlRule | undefined, tab: string): boolean
   if (tab === 'shift') return rule.canAccessShift;
   if (tab === 'inventory') return rule.canAccessInventory;
   if (tab === 'analytics' || tab === 'superowner') return rule.canAccessAnalytics;
-  if (['settings', 'blueprint', 'tables', 'attendance', 'selforder'].includes(tab)) return rule.canAccessSettings;
+  if (tab === 'attendance') return rule.canAccessAttendance ?? rule.canAccessSettings;
+  if (['settings', 'blueprint', 'tables', 'selforder'].includes(tab)) return rule.canAccessSettings;
   return false;
 };
 
@@ -113,7 +123,8 @@ export default function App() {
 
   // Explicit Portal Switcher (Kasir Terminal vs Owner Portal)
   const handleSwitchPortal = (targetPortal: 'KASIR' | 'OWNER') => {
-    const rule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
+    const baseRule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
+    const rule = baseRule ? { ...baseRule, ...(activeUser.permissions || {}) } : undefined;
     if (targetPortal === 'OWNER') {
       if (!rule || (!rule.canAccessAnalytics && !rule.canAccessSettings)) {
         showPushToast('Akses Ditolak', 'PIN aktif tidak memiliki izin menuju Portal Owner.');
@@ -134,7 +145,8 @@ export default function App() {
   const handleTabChange = (targetTab: string) => {
     const cashierTabs = ['pos', 'kds', 'shift', 'inventory'];
     const ownerTabs = ['superowner', 'blueprint', 'analytics', 'inventory', 'tables', 'attendance', 'selforder', 'settings'];
-    const rule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
+    const baseRule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
+    const rule = baseRule ? { ...baseRule, ...(activeUser.permissions || {}) } : undefined;
 
     if (!canAccessTab(rule, targetTab)) {
       showPushToast('Akses Ditolak', `Role ${activeUser.role} tidak memiliki izin untuk modul ini.`);
@@ -157,21 +169,18 @@ export default function App() {
   // 2. System Data State
   const [activeUser, setActiveUser] = useState<UserAccount>(() => DBStorage.getActiveUser());
   const [isTerminalUnlocked, setIsTerminalUnlocked] = useState<boolean>(
-    () =>
-      sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked' ||
-      localStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked'
+    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked'
   );
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(
-    () =>
-      sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked' &&
-      localStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
+    () => sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
   );
   const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
   const [isAttendanceMode, setIsAttendanceMode] = useState<boolean>(false);
 
   const clearTerminalSessionState = () => {
     sessionStorage.removeItem(TERMINAL_SESSION_KEY);
-    localStorage.removeItem(TERMINAL_SESSION_KEY);
+    sessionStorage.removeItem(TERMINAL_BRANCH_KEY);
+    sessionStorage.removeItem(TERMINAL_MODE_KEY);
     setIsTerminalUnlocked(false);
     setIsPinModalOpen(true);
     setIsAttendanceMode(false);
@@ -196,7 +205,8 @@ export default function App() {
     const requestedBranchId = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('branch')
       : null;
-    return list.find((branch) => branch.id === requestedBranchId) || list[0] || INITIAL_BRANCHES[0];
+    const sessionBranchId = typeof window !== 'undefined' ? sessionStorage.getItem(TERMINAL_BRANCH_KEY) : null;
+    return list.find((branch) => branch.id === (requestedBranchId || sessionBranchId)) || list[0] || INITIAL_BRANCHES[0];
   });
 
   const handleAddBranch = (newBranch: Branch) => {
@@ -217,7 +227,10 @@ export default function App() {
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(() => DBStorage.getPrinterConfig());
   const [staffAccounts, setStaffAccounts] = useState<UserAccount[]>(() => DBStorage.getStaff());
   const [accessControl, setAccessControl] = useState<AccessControlRule[]>(() => DBStorage.getAccessControl());
-  const activeAccessRule = accessControl.find((rule) => rule.role === activeUser.role);
+  const roleAccessRule = accessControl.find((rule) => rule.role === activeUser.role);
+  const activeAccessRule = roleAccessRule
+    ? { ...roleAccessRule, ...(activeUser.permissions || {}) }
+    : undefined;
 
   useEffect(() => {
     sessionStorage.setItem('omnipos_portal', systemPortal);
@@ -252,6 +265,90 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
+    if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
+    let cancelled = false;
+    void listCloudStaff()
+      .then((staff) => {
+        if (!cancelled) setStaffAccounts(staff);
+      })
+      .catch((error) => {
+        if (!cancelled) showPushToast('Data Staff Belum Tersinkron', error instanceof Error ? error.message : 'Daftar staff cloud gagal dibaca.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTerminalUnlocked, activeUser.id, activeUser.role]);
+
+  const refreshCloudStaff = async () => {
+    const staff = await listCloudStaff();
+    setStaffAccounts(staff);
+  };
+
+  const permissionsForRole = (role: UserAccount['role']) => {
+    const rule = accessControl.find((item) => item.role === role);
+    if (!rule) return undefined;
+    const { role: _role, ...permissions } = rule;
+    return permissions;
+  };
+
+  const saveStaff = async (staff: UserAccount) => {
+    if (!cloudReadiness.supabase) {
+      setStaffAccounts(DBStorage.saveStaff(staff));
+      showPushToast('Staff Disimpan', `Detail akun staf ${staff.name} berhasil diperbarui.`);
+      return;
+    }
+    try {
+      const enriched = {
+        ...staff,
+        permissions: staff.permissions || permissionsForRole(staff.role),
+      };
+      if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(staff.id)) await updateCloudStaff(enriched);
+      else await createCloudStaff(enriched);
+      await refreshCloudStaff();
+      showPushToast('Staff Disimpan', `Akun, role, outlet, jadwal, dan PIN ${staff.name} telah tersimpan aman.`);
+    } catch (error) {
+      showPushToast('Staff Gagal Disimpan', error instanceof Error ? error.message : 'Operasi staff gagal.');
+      throw error;
+    }
+  };
+
+  const removeStaff = async (id: string) => {
+    if (!cloudReadiness.supabase) {
+      setStaffAccounts(DBStorage.deleteStaff(id));
+      showPushToast('Staff Dihapus', 'Akun staf berhasil dihapus.');
+      return;
+    }
+    try {
+      await deactivateCloudStaff(id);
+      await refreshCloudStaff();
+      showPushToast('Staff Dinonaktifkan', 'Sesi dan akses outlet staff telah dinonaktifkan.');
+    } catch (error) {
+      showPushToast('Staff Gagal Dinonaktifkan', error instanceof Error ? error.message : 'Operasi staff gagal.');
+      throw error;
+    }
+  };
+
+  const saveAccessRules = async (rules: AccessControlRule[]) => {
+    DBStorage.saveAccessControl(rules);
+    setAccessControl(rules);
+    if (!cloudReadiness.supabase) return;
+    try {
+      await Promise.all(staffAccounts.map((staff) => {
+        const rule = rules.find((item) => item.role === staff.role);
+        if (!rule) return Promise.resolve();
+        const { role: _role, ...permissions } = rule;
+        return updateCloudStaff({ ...staff, permissions });
+      }));
+      await refreshCloudStaff();
+      showPushToast('Hak Akses Tersimpan', 'Matriks role telah diterapkan ke membership seluruh staff yang dapat Anda kelola.');
+    } catch (error) {
+      showPushToast('Sinkronisasi Hak Akses Gagal', error instanceof Error ? error.message : 'Matriks akses cloud gagal diperbarui.');
+      throw error;
+    }
+  };
+
+  useEffect(() => {
     if (!activeAccessRule || canAccessTab(activeAccessRule, activeTab)) return;
     const destination = getDefaultAccessDestination(activeAccessRule);
     if (!destination.tab) {
@@ -260,7 +357,7 @@ export default function App() {
     }
     setSystemPortal(destination.portal);
     setActiveTab(destination.tab);
-  }, [accessControl, activeUser.role]);
+  }, [accessControl, activeUser.role, activeUser.permissions, activeTab]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase) {
@@ -268,14 +365,48 @@ export default function App() {
       return;
     }
 
-    const hasLocalUnlock =
-      sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked';
-
-    if (hasLocalUnlock) {
-      setIsTerminalUnlocked(true);
-      setIsPinModalOpen(false);
-    }
-    setIsSessionValidated(true);
+    const validateCloudSession = async () => {
+      const hasLocalUnlock = sessionStorage.getItem(TERMINAL_SESSION_KEY) === 'unlocked';
+      const branchId = sessionStorage.getItem(TERMINAL_BRANCH_KEY);
+      if (!hasLocalUnlock || !branchId) {
+        clearTerminalSessionState();
+        setIsSessionValidated(true);
+        return;
+      }
+      try {
+        const { getSupabase } = await import('./lib/supabase');
+        const supabase = getSupabase();
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData.user;
+        if (!user) throw new Error('No session');
+        const [{ data: profile }, { data: membership }] = await Promise.all([
+          supabase.from('user_profiles').select('display_name,is_active').eq('user_id', user.id).maybeSingle(),
+          supabase.from('branch_members').select('role,permissions,is_active').eq('user_id', user.id).eq('branch_id', branchId).maybeSingle(),
+        ]);
+        if (!profile?.is_active || !membership?.is_active) throw new Error('Inactive session');
+        const branch = branches.find((item) => item.id === branchId);
+        if (!branch) throw new Error('Unknown branch');
+        const restoredUser: UserAccount = {
+          id: user.id,
+          name: profile.display_name || 'Staff',
+          pin: '',
+          role: membership.role as UserAccount['role'],
+          branchIds: [branchId],
+          permissions: membership.permissions || {},
+          isActive: true,
+        };
+        setActiveUser(restoredUser);
+        setCurrentBranch(branch);
+        setIsAttendanceMode(sessionStorage.getItem(TERMINAL_MODE_KEY) === 'ATTENDANCE');
+        setIsTerminalUnlocked(true);
+        setIsPinModalOpen(false);
+      } catch {
+        clearTerminalSessionState();
+      } finally {
+        setIsSessionValidated(true);
+      }
+    };
+    void validateCloudSession();
   }, []);
 
   // System Self Order restriction toggle state & Global Condiment Topping Toggle state
@@ -584,13 +715,15 @@ export default function App() {
       pin: '',
       role: (user.role as UserAccount['role']) || 'KASIR',
       branchIds: [selectedBranch.id],
+      permissions: user.permissions || {},
       isActive: true,
     };
 
     setIsTerminalUnlocked(true);
     setIsPinModalOpen(false);
     sessionStorage.setItem(TERMINAL_SESSION_KEY, 'unlocked');
-    localStorage.setItem(TERMINAL_SESSION_KEY, 'unlocked');
+    sessionStorage.setItem(TERMINAL_BRANCH_KEY, selectedBranch.id);
+    sessionStorage.setItem(TERMINAL_MODE_KEY, mode);
     setActiveUser(userAccount);
     DBStorage.setActiveUser(userAccount);
     setCurrentBranch(selectedBranch);
@@ -601,7 +734,8 @@ export default function App() {
       return;
     }
 
-    const rule = accessControl.find((item) => item.role === userAccount.role);
+    const baseRule = accessControl.find((item) => item.role === userAccount.role);
+    const rule = baseRule ? { ...baseRule, ...(userAccount.permissions || {}) } : undefined;
     if (!rule) {
       lockTerminal();
       showPushToast('Akses Belum Diatur', `Role ${userAccount.role} belum memiliki matriks akses.`);
@@ -649,9 +783,14 @@ export default function App() {
         </div>
         <AttendanceView
           attendanceRecords={branchAttendanceRecords}
-          onSaveAttendance={(record) => {
-            DBStorage.saveAttendance(record);
-            setAttendanceRecords(DBStorage.getAttendanceRecords());
+          onSaveAttendance={async (record) => {
+            if (cloudReadiness.supabase) {
+              const saved = await saveCloudAttendance(record);
+              setAttendanceRecords((current) => [...current, saved]);
+            } else {
+              DBStorage.saveAttendance(record);
+              setAttendanceRecords(DBStorage.getAttendanceRecords());
+            }
             window.setTimeout(() => {
               void lockTerminal();
             }, 400);
@@ -913,9 +1052,14 @@ export default function App() {
           {activeTab === 'attendance' && (
             <AttendanceView
               attendanceRecords={branchAttendanceRecords}
-              onSaveAttendance={(rec) => {
-                DBStorage.saveAttendance(rec);
-                setAttendanceRecords(DBStorage.getAttendanceRecords());
+              onSaveAttendance={async (rec) => {
+                if (cloudReadiness.supabase) {
+                  const saved = await saveCloudAttendance(rec);
+                  setAttendanceRecords((current) => [...current, saved]);
+                } else {
+                  DBStorage.saveAttendance(rec);
+                  setAttendanceRecords(DBStorage.getAttendanceRecords());
+                }
               }}
               activeUser={activeUser}
               staffAccounts={staffAccounts}
@@ -984,21 +1128,10 @@ export default function App() {
               staffAccounts={staffAccounts}
               branches={branches}
               currentBranch={currentBranch}
-              onSaveStaff={(staff) => {
-                const updated = DBStorage.saveStaff(staff);
-                setStaffAccounts(updated);
-                showPushToast('Staff Disimpan', `Detail akun staf ${staff.name} berhasil diperbarui.`);
-              }}
-              onDeleteStaff={(id) => {
-                const updated = DBStorage.deleteStaff(id);
-                setStaffAccounts(updated);
-                showPushToast('Staff Dihapus', 'Akun staf berhasil dihapus.');
-              }}
+              onSaveStaff={saveStaff}
+              onDeleteStaff={removeStaff}
               accessControl={accessControl}
-              onSaveAccessControl={(rules) => {
-                DBStorage.saveAccessControl(rules);
-                setAccessControl(rules);
-              }}
+              onSaveAccessControl={saveAccessRules}
               condimentGroups={condimentGroups}
               onSaveCondimentGroup={handleSaveCondimentGroup}
               onToggleGroupActive={handleToggleGroupActive}

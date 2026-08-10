@@ -60,10 +60,10 @@ interface SettingsViewProps {
   staffAccounts: UserAccount[];
   branches: Branch[];
   currentBranch: Branch;
-  onSaveStaff: (staff: UserAccount) => void;
-  onDeleteStaff?: (id: string) => void;
+  onSaveStaff: (staff: UserAccount) => void | Promise<void>;
+  onDeleteStaff?: (id: string) => void | Promise<void>;
   accessControl: AccessControlRule[];
-  onSaveAccessControl: (rules: AccessControlRule[]) => void;
+  onSaveAccessControl: (rules: AccessControlRule[]) => void | Promise<void>;
   tables?: RestaurantTable[];
   onToggleTableSelfOrder?: (tableId: string, enabled: boolean) => void;
   onToggleAllTables?: (enabled: boolean) => void;
@@ -107,9 +107,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingOptionValue, setEditingOptionValue] = useState('');
 
-  const [formProfile, setFormProfile] = useState<RestaurantProfile>(
-    () => ({ ...profile, masterPinAdmin: profile.masterPinAdmin || '123456' })
-  );
+  const [formProfile, setFormProfile] = useState<RestaurantProfile>(() => ({ ...profile }));
   const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
 
@@ -123,10 +121,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Edit Staff Modal State
   const [editingStaff, setEditingStaff] = useState<UserAccount | null>(null);
+  const [accessDraft, setAccessDraft] = useState<AccessControlRule[]>(accessControl);
+  const [isSavingAccess, setIsSavingAccess] = useState(false);
 
   useEffect(() => {
     setNewStaffBranchId(currentBranch.id);
   }, [currentBranch.id]);
+
+  useEffect(() => {
+    setAccessDraft(accessControl);
+  }, [accessControl]);
 
   // Condiments Expanded Accordion State
   const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>(['cg-1', 'cg-2']);
@@ -173,13 +177,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffName.trim() || !/^\d{6}$/.test(newStaffPin)) {
       toast('Data Tidak Lengkap', 'Isi nama dan PIN unik 6 digit untuk staff.');
       return;
     }
-    if (staffAccounts.some((staff) => staff.pin === newStaffPin || staff.pin.startsWith(newStaffPin) || newStaffPin.startsWith(staff.pin))) {
+    if (staffAccounts.some((staff) => staff.pin && (staff.pin === newStaffPin || staff.pin.startsWith(newStaffPin) || newStaffPin.startsWith(staff.pin)))) {
       toast('PIN Konflik', 'PIN sama atau terlalu mirip dengan akun lain. Gunakan kombinasi yang benar-benar berbeda.');
       return;
     }
@@ -197,9 +201,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       workDays: [1, 2, 3, 4, 5, 6]
     };
 
-    onSaveStaff(created);
-    setNewStaffName('');
-    setNewStaffPin('');
+    try {
+      await onSaveStaff(created);
+      setNewStaffName('');
+      setNewStaffPin('');
+    } catch {
+      // Parent callback displays the server error and keeps this form intact.
+    }
   };
 
   const toggleAccordion = (groupId: string) => {
@@ -1079,22 +1087,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <span>DAFTAR STAFF & PIN</span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const currentStaff = DBStorage.getStaff();
-                        if (currentStaff.length > 0) {
-                          const updated = DBStorage.saveStaff(currentStaff[0]);
-                          onSaveStaff(currentStaff[0]);
-                          toast('Sinkronisasi Staf', `Daftar ${updated.length} staf berhasil disiarkan ke seluruh perangkat cloud.`);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#1A1714] text-white hover:bg-black text-[10px] font-black flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Siarkan daftar staf terbaru ke seluruh tab, localhost, dan Vercel"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5 text-orange-400" />
-                      <span>Paksa Sinkron Staf ({staffAccounts.length})</span>
-                    </button>
+                    <span className="rounded-full border border-[#E2E2E2] bg-white px-3 py-1.5 text-[10px] font-black text-[#5A5A5A]">
+                      {staffAccounts.length} akun terdaftar
+                    </span>
                   </div>
 
                   {/* Form Tambah Staff */}
@@ -1150,7 +1145,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <input
                         type="password"
                         maxLength={6}
-                        placeholder="123456"
+                        placeholder="Masukkan 6 digit"
                         value={newStaffPin}
                         onChange={(e) => setNewStaffPin(e.target.value)}
                         className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-semibold text-[#1A1714] tracking-widest"
@@ -1201,7 +1196,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               type="button"
                               onClick={() => {
                                 if (confirmingDeleteId === stf.id) {
-                                  if (onDeleteStaff) onDeleteStaff(stf.id);
+                                  if (onDeleteStaff) void Promise.resolve(onDeleteStaff(stf.id)).catch(() => undefined);
                                   setConfirmingDeleteId(null);
                                 } else {
                                   setConfirmingDeleteId(stf.id);
@@ -1218,7 +1213,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                             <button
                               type="button"
-                              onClick={() => onSaveStaff({ ...stf, isActive: stf.isActive === false })}
+                              onClick={() => void Promise.resolve(onSaveStaff({ ...stf, isActive: stf.isActive === false })).catch(() => undefined)}
                               className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase cursor-pointer ${stf.isActive === false ? 'border-slate-300 text-slate-500 bg-slate-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50'}`}
                             >
                               {stf.isActive === false ? 'Nonaktif' : 'Aktif'}
@@ -1226,41 +1221,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <label className="space-y-1">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Mulai Shift</span>
-                            <input type="time" value={stf.shiftStart || ''} onChange={(e) => onSaveStaff({ ...stf, shiftStart: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2.5 py-1.5 text-xs font-bold" />
-                          </label>
-                          <label className="space-y-1">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Selesai Shift</span>
-                            <input type="time" value={stf.shiftEnd || ''} onChange={(e) => onSaveStaff({ ...stf, shiftEnd: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2.5 py-1.5 text-xs font-bold" />
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 items-end pt-1">
-                          <label className="space-y-1 min-w-0">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Outlet Penugasan</span>
-                            <select
-                              value={stf.branchIds?.length === branches.length ? '' : stf.branchIds?.[0] || ''}
-                              onChange={(e) => onSaveStaff({ ...stf, branchIds: e.target.value ? [e.target.value] : branches.map((branch) => branch.id) })}
-                              className="w-full rounded-xl border border-slate-200 bg-[#FAFAFA] px-2 py-1.5 text-[10px] font-bold"
-                            >
-                              <option value="">Semua Outlet</option>
-                              {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
-                            </select>
-                          </label>
-
-                          <label className="space-y-1 min-w-0">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">PIN (6-Angka Edit)</span>
-                            <input
-                              type="password"
-                              maxLength={6}
-                              value={stf.pin || '123456'}
-                              onChange={(e) => onSaveStaff({ ...stf, pin: e.target.value })}
-                              className="w-full rounded-xl border border-indigo-200 bg-indigo-50/50 px-2.5 py-1.5 text-xs font-mono font-bold text-indigo-900 tracking-widest outline-none focus:border-indigo-600 focus:bg-white"
-                              title="Ubah PIN 6-Angka Langsung"
-                            />
-                          </label>
+                        <div className="grid grid-cols-2 gap-2 pt-1 text-[10px] font-bold text-slate-500">
+                          <div className="rounded-xl bg-[#F7F7F6] px-3 py-2">Shift: {stf.shiftStart || '-'}–{stf.shiftEnd || '-'}</div>
+                          <div className="rounded-xl bg-[#F7F7F6] px-3 py-2">PIN: ••••••</div>
                         </div>
                       </div>
                     ))}
@@ -1712,6 +1675,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <h2 className="text-xl font-black text-slate-900 tracking-tight">Hak Akses & Role</h2>
                       <p className="text-xs font-semibold text-slate-500">Kontrol fitur apa saja yang bisa diakses setiap role.</p>
                     </div>
+                    <button
+                      type="button"
+                      disabled={isSavingAccess}
+                      onClick={async () => {
+                        setIsSavingAccess(true);
+                        try {
+                          await onSaveAccessControl(accessDraft);
+                        } catch {
+                          // Parent callback displays the server error; keep the draft for retry.
+                        } finally {
+                          setIsSavingAccess(false);
+                        }
+                      }}
+                      className="ml-auto rounded-xl bg-[#1A1714] px-4 py-2 text-[10px] font-black uppercase tracking-wide text-white disabled:opacity-50"
+                    >
+                      {isSavingAccess ? 'Menyimpan…' : 'Simpan Hak Akses'}
+                    </button>
                   </div>
 
                   {/* Grid of 10 Feature Permission Cards matching Screenshot 2 & 3 */}
@@ -1742,7 +1722,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-slate-200/60">
                           {(['KASIR', 'KITCHEN', 'MANAGER', 'ADMIN'] as UserRole[]).map((role) => {
                             const roleAbbr = role === 'KASIR' ? 'CAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'STA' : 'ADM';
-                            const rule = accessControl.find((r) => r.role === role);
+                            const rule = accessDraft.find((r) => r.role === role);
                             const isChecked = rule ? (rule as any)[feature.key] ?? (role === 'ADMIN' || (role === 'KASIR' && feature.key === 'canAccessPOS')) : role === 'ADMIN';
 
                             return (
@@ -1751,10 +1731,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const updated = accessControl.map((item) =>
+                                    const updated = accessDraft.map((item) =>
                                       item.role === role ? { ...item, [feature.key]: !isChecked } : item
                                     );
-                                    onSaveAccessControl(updated);
+                                    setAccessDraft(updated);
                                   }}
                                   className={`w-7 h-4 rounded-full transition-colors relative p-0.5 cursor-pointer ${
                                     isChecked ? 'bg-indigo-600' : 'bg-slate-300'
@@ -1768,37 +1748,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* Section 2: MASTER PIN ADMIN Banner matching Screenshot 2 & 3 */}
-                <div className="bg-[#181827] text-white rounded-[32px] p-6 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-500 flex items-center justify-center shrink-0">
-                      <Shield className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black tracking-wide text-white uppercase">MASTER PIN ADMIN</h3>
-                      <p className="text-xs text-slate-400 font-semibold">Digunakan untuk akses darurat & reset.</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#12111C] px-5 py-3 rounded-2xl border border-slate-700/80 flex items-center gap-3 w-full sm:w-auto justify-between">
-                    <input
-                      type="password"
-                      value={formProfile.masterPinAdmin ?? ''}
-                      placeholder="123456"
-                      maxLength={6}
-                      onChange={(e) => setFormProfile({ ...formProfile, masterPinAdmin: e.target.value })}
-                      className="bg-transparent text-red-400 font-black text-lg tracking-widest outline-none w-28 text-center"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleSaveAll()}
-                      className="text-xs font-black text-orange-400 hover:text-orange-300 underline cursor-pointer"
-                    >
-                      Simpan
-                    </button>
                   </div>
                 </div>
 
@@ -2022,11 +1971,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {editingStaff && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (editingStaff) {
-                onSaveStaff(editingStaff);
-                setEditingStaff(null);
+                if (editingStaff.pin && !/^\d{6}$/.test(editingStaff.pin)) {
+                  toast('PIN Tidak Valid', 'PIN baru harus tepat 6 digit, atau kosongkan jika tidak diubah.');
+                  return;
+                }
+                try {
+                  await onSaveStaff(editingStaff);
+                  setEditingStaff(null);
+                } catch {
+                  // Parent callback displays the error; keep the modal open for correction.
+                }
               }
             }}
             className="bg-white border border-slate-200 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 font-sans text-slate-900"
@@ -2072,10 +2029,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">PIN 6-ANGKA</label>
                   <input
-                    type="text"
+                    type="password"
                     maxLength={6}
-                    required
-                    value={editingStaff.pin || '123456'}
+                    inputMode="numeric"
+                    value={editingStaff.pin || ''}
+                    placeholder="Kosong = tidak diubah"
                     onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value })}
                     className="w-full bg-[#F6EFE7] border border-[#EAE3DB] rounded-2xl p-2.5 text-xs font-mono font-black tracking-widest outline-none focus:border-indigo-600 focus:bg-white text-indigo-900"
                   />

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+ï»¿import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock, Video, RefreshCw, Upload, AlertCircle } from 'lucide-react';
 import { AttendanceRecord, Branch, RestaurantProfile, UserAccount } from '../../types/pos';
 import { cloudReadiness } from '../../lib/runtimeEnv';
@@ -7,7 +7,7 @@ import { DBStorage } from '../../services/dbStorage';
 
 interface AttendanceViewProps {
   attendanceRecords: AttendanceRecord[];
-  onSaveAttendance: (record: AttendanceRecord) => void;
+  onSaveAttendance: (record: AttendanceRecord) => void | Promise<void>;
   activeUser: UserAccount;
   staffAccounts: UserAccount[];
   profile: RestaurantProfile;
@@ -32,14 +32,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     (staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
   );
 
-  const [step, setStep] = useState<AttendanceStep>(terminalMode ? 'SELFIE_GPS' : 'PIN');
+  const [step, setStep] = useState<AttendanceStep>(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<UserAccount>(
     terminalMode
-      ? (eligibleStaff.find((s) => s.id === activeUser.id) || eligibleStaff[0] || activeUser)
-      : eligibleStaff[0] || activeUser,
+      ? (eligibleStaff.find((s) => s.id === activeUser.id) || activeUser)
+      : cloudReadiness.supabase ? activeUser : eligibleStaff[0] || activeUser,
   );
 
   const [selfiePreview, setSelfiePreview] = useState('');
@@ -47,6 +47,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [gpsMessage, setGpsMessage] = useState('GPS belum diverifikasi');
   const [uploadMessage, setUploadMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gpsPosition, setGpsPosition] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
 
   // Live WebCam Streaming States & Refs
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -120,7 +121,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   }, [stopCameraStream]);
 
   useEffect(() => {
-    setStep(terminalMode ? 'SELFIE_GPS' : 'PIN');
+    setStep(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
     setPinInput('');
     setPinError('');
     setSelfiePreview('');
@@ -129,8 +130,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setUploadMessage('');
     stopCameraStream();
 
-    if (terminalMode) {
-      setSelectedStaff(eligibleStaff.find((s) => s.id === activeUser.id) || eligibleStaff[0] || activeUser);
+    if (terminalMode || cloudReadiness.supabase) {
+      setSelectedStaff(eligibleStaff.find((s) => s.id === activeUser.id) || activeUser);
     }
   }, [currentBranch.id, activeUser.id, terminalMode, eligibleStaff, stopCameraStream]);
 
@@ -173,6 +174,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
           const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const allowed = distance <= outletRadius;
+          setGpsPosition({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          });
           setGpsMessage(allowed ? `GPS valid - ${Math.round(distance)} m dari outlet` : `Di luar radius - ${Math.round(distance)} m`);
           resolve(allowed);
         },
@@ -253,11 +259,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     const minutesLate = clockType === 'CLOCK_IN' ? Math.max(0, Math.floor((now.getTime() - scheduledDate.getTime()) / 60_000)) : 0;
     const tolerance = profile.latenessToleranceMinutes || 0;
     let photoUrl = selfiePreview || selectedStaff.avatar || '';
+    let photoPublicId = '';
     if (selfieFile && cloudReadiness.cloudinary) {
       try {
         setUploadMessage('Mengunggah bukti selfie ke cloud...');
         const uploaded = await uploadImage(selfieFile, 'attendance', currentBranch.id);
         photoUrl = uploaded.secureUrl;
+        photoPublicId = uploaded.publicId;
       } catch (error) {
         onShowToast('Upload Gagal', error instanceof Error ? error.message : 'Upload selfie gagal.');
         setIsSubmitting(false);
@@ -265,7 +273,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       }
     }
     const record: AttendanceRecord = {
-      id: `att-${Date.now().toString().slice(-4)}`,
+      id: crypto.randomUUID(),
+      requestId: crypto.randomUUID(),
       staffId: selectedStaff.id,
       staffName: selectedStaff.name,
       role: selectedStaff.role,
@@ -273,6 +282,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       timestamp: new Date().toISOString(),
       location: currentBranch.name,
       photoUrl,
+      photoPublicId,
       status: minutesLate > tolerance ? 'LATE' : 'ON_TIME',
       branchId: currentBranch.id,
       branchName: currentBranch.name,
@@ -281,8 +291,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       verificationMethod: profile.requireSelfiePhoto ? 'PIN_GPS_SELFIE' : profile.requireGpsActive ? 'PIN_GPS' : 'PIN',
       gpsValidated,
       selfieValidated: !!selfiePreview,
+      latitude: gpsPosition?.latitude,
+      longitude: gpsPosition?.longitude,
+      accuracyMeters: gpsPosition?.accuracy,
     };
-    onSaveAttendance(record);
+    try {
+      await onSaveAttendance(record);
+    } catch (error) {
+      onShowToast('Absensi Gagal', error instanceof Error ? error.message : 'Absensi tidak dapat disimpan.');
+      setIsSubmitting(false);
+      return;
+    }
     setSelfiePreview('');
     setSelfieFile(null);
     setUploadMessage('');
@@ -290,8 +309,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     stopCameraStream();
     setStep('SUCCESS');
     setTimeout(() => {
-      setStep(terminalMode ? 'SELFIE_GPS' : 'PIN');
-      if (!terminalMode) setSelectedStaff(eligibleStaff[0] || activeUser);
+      setStep(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
+      if (!terminalMode && !cloudReadiness.supabase) setSelectedStaff(eligibleStaff[0] || activeUser);
     }, 3000);
     onShowToast('Presensi Tersimpan', `${clockType === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'} berhasil untuk ${selectedStaff.name}!`);
   };
@@ -305,7 +324,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             Presensi Karyawan
           </h1>
           <p className="mt-1 text-xs font-bold text-slate-500">
-            {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
+            {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit â€” sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -322,7 +341,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <div>
                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
                 <h2 className="text-base font-black text-slate-900">Masukkan PIN Anda</h2>
-                <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan — otomatis teridentifikasi</p>
+                <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan â€” otomatis teridentifikasi</p>
               </div>
 
               <div className="flex items-center justify-center gap-3 py-2">

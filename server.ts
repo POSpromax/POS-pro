@@ -4,6 +4,8 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { getSupabaseAdmin } from './src/server/supabaseAdmin';
 import { handlePinLogin } from './src/server/pinLogin';
+import { handleStaffRequest } from './src/server/staffManagement';
+import { handleAttendanceRequest } from './src/server/attendanceManagement';
 
 async function startServer() {
   const app = express();
@@ -34,6 +36,30 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server autentikasi belum dikonfigurasi' });
+    }
+  });
+
+  app.all('/api/staff', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleStaffRequest(req.method, req.body || {}, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server staff belum dikonfigurasi' });
+    }
+  });
+
+  app.post('/api/attendance', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleAttendanceRequest(req.method, req.body || {}, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server absensi belum dikonfigurasi' });
     }
   });
 
