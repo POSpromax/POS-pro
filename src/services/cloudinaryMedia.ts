@@ -1,5 +1,4 @@
 import {getSupabase} from '../lib/supabase';
-import {runtimeEnv} from '../lib/runtimeEnv';
 
 export type MediaFolder = 'branding' | 'menus' | 'avatars' | 'attendance' | 'leave';
 
@@ -28,8 +27,6 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export async function uploadImage(file: File, folder: MediaFolder, branchId: string): Promise<UploadedMedia> {
   if (!file.type.startsWith('image/')) throw new Error('File harus berupa gambar.');
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Ukuran gambar maksimal 5 MB.');
-  if (!runtimeEnv.cloudinaryCloudName) throw new Error('Cloudinary belum dikonfigurasi.');
-
   const supabase = getSupabase();
   const {data: {session}} = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Sesi telah berakhir. Silakan masuk kembali.');

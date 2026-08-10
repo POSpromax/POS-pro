@@ -701,7 +701,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <tr key={att.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-3">
                         <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200">
-                          <img src={att.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} alt={att.staffName} className="w-full h-full object-cover" />
+                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-[9px] font-black text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                         </div>
                       </td>
                       <td className="py-3 px-3 font-black text-slate-900">{att.staffName}</td>

@@ -12,11 +12,11 @@ import {
 } from '../types/pos';
 
 export const INITIAL_STAFF: UserAccount[] = [
-  { id: 'usr-1', name: 'Gugun (Owner)', pin: '123456', role: 'OWNER', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', branchIds: ['00000000-0000-4000-a000-000000000010', '00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-2', name: 'Citra (Kasir)', pin: '111111', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-3', name: 'Budi (Admin)', pin: '222222', role: 'ADMIN', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '333333', role: 'KITCHEN', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] },
-  { id: 'usr-5', name: 'Rina (Kasir PA)', pin: '444444', role: 'KASIR', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100', branchIds: ['00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] }
+  { id: 'usr-1', name: 'Gugun (Owner)', pin: '123456', role: 'OWNER', branchIds: ['00000000-0000-4000-a000-000000000010', '00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-2', name: 'Citra (Kasir)', pin: '111111', role: 'KASIR', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-3', name: 'Budi (Admin)', pin: '222222', role: 'ADMIN', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '08:00', shiftEnd: '17:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-4', name: 'Chef Joko (Dapur)', pin: '333333', role: 'KITCHEN', branchIds: ['00000000-0000-4000-a000-000000000010'], isActive: true, shiftStart: '07:00', shiftEnd: '15:00', workDays: [1, 2, 3, 4, 5, 6] },
+  { id: 'usr-5', name: 'Rina (Kasir PA)', pin: '444444', role: 'KASIR', branchIds: ['00000000-0000-4000-a000-000000000020'], isActive: true, shiftStart: '08:00', shiftEnd: '16:00', workDays: [1, 2, 3, 4, 5, 6] }
 ];
 
 export const INITIAL_BRANCHES: Branch[] = [

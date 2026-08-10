@@ -45,6 +45,7 @@ import {
   updateCloudStaff,
 } from './services/staffService';
 import { listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
+import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
@@ -294,6 +295,27 @@ export default function App() {
       cancelled = true;
     };
   }, [isTerminalUnlocked, currentBranch.id, activeUser.id, activeUser.role]);
+
+  const refreshCloudCatalog = async () => {
+    const catalog = await listCloudCatalog(currentBranch.id);
+    setMenuItems(catalog.menuItems);
+    setRawMaterials(catalog.rawMaterials.map((material) => ({ ...material, branchName: currentBranch.name })));
+  };
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
+    let cancelled = false;
+    void listCloudCatalog(currentBranch.id)
+      .then((catalog) => {
+        if (cancelled) return;
+        setMenuItems(catalog.menuItems);
+        setRawMaterials(catalog.rawMaterials.map((material) => ({ ...material, branchName: currentBranch.name })));
+      })
+      .catch((error) => {
+        if (!cancelled) showPushToast('Katalog Belum Tersinkron', error instanceof Error ? error.message : 'Master data cloud gagal dibaca.');
+      });
+    return () => { cancelled = true; };
+  }, [isTerminalUnlocked, currentBranch.id]);
 
   const refreshCloudStaff = async () => {
     const staff = await listCloudStaff();
@@ -1091,30 +1113,50 @@ export default function App() {
               branches={branches}
               currentBranch={currentBranch}
               onUpdateRawMaterial={(mat) => {
-                DBStorage.updateRawMaterial(mat);
-                setRawMaterials(DBStorage.getRawMaterials());
-                showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} berhasil diperbarui.`);
+                if (cloudReadiness.supabase) {
+                  void saveCloudRawMaterial(mat, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} tersimpan ke cloud.`)).catch((error) => showPushToast('Stok Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan stok gagal.'));
+                } else {
+                  DBStorage.updateRawMaterial(mat);
+                  setRawMaterials(DBStorage.getRawMaterials());
+                  showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} berhasil diperbarui.`);
+                }
               }}
               onDeleteRawMaterial={(id) => {
-                DBStorage.deleteRawMaterial(id);
-                setRawMaterials(DBStorage.getRawMaterials());
-                showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari sistem.');
+                if (cloudReadiness.supabase) {
+                  void deleteCloudRawMaterial(id, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari cloud.')).catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Bahan baku gagal dihapus.'));
+                } else {
+                  DBStorage.deleteRawMaterial(id);
+                  setRawMaterials(DBStorage.getRawMaterials());
+                  showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari sistem.');
+                }
               }}
               onSaveMenuItem={(menu) => {
-                DBStorage.saveMenuItem(menu);
-                setMenuItems(DBStorage.getMenuItems());
-                showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} berhasil disimpan ke katalog.`);
+                if (cloudReadiness.supabase) {
+                  void saveCloudMenuItem(menu, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} tersimpan ke cloud.`)).catch((error) => showPushToast('Menu Gagal Disimpan', error instanceof Error ? error.message : 'Produk gagal disimpan.'));
+                } else {
+                  DBStorage.saveMenuItem(menu);
+                  setMenuItems(DBStorage.getMenuItems());
+                  showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} berhasil disimpan ke katalog.`);
+                }
               }}
               onDeleteMenuItem={(id) => {
-                DBStorage.deleteMenuItem(id);
-                setMenuItems(DBStorage.getMenuItems());
-                showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari katalog.');
+                if (cloudReadiness.supabase) {
+                  void deleteCloudMenuItem(id, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari cloud.')).catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Produk gagal dihapus.'));
+                } else {
+                  DBStorage.deleteMenuItem(id);
+                  setMenuItems(DBStorage.getMenuItems());
+                  showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari katalog.');
+                }
               }}
               onResetCatalogDefaults={() => {
-                const res = DBStorage.resetCatalogDefaults();
-                setMenuItems(res.menuItems);
-                setRawMaterials(res.rawMaterials);
-                showPushToast('Katalog Direset', 'Katalog menu & bahan baku berhasil dikembalikan ke standar resto.');
+                if (cloudReadiness.supabase) {
+                  void refreshCloudCatalog().then(() => showPushToast('Katalog Disinkronkan', 'Master data dimuat ulang dari cloud.')).catch((error) => showPushToast('Sinkronisasi Gagal', error instanceof Error ? error.message : 'Katalog cloud gagal dimuat.'));
+                } else {
+                  const res = DBStorage.resetCatalogDefaults();
+                  setMenuItems(res.menuItems);
+                  setRawMaterials(res.rawMaterials);
+                  showPushToast('Katalog Direset', 'Katalog menu & bahan baku berhasil dikembalikan ke standar resto.');
+                }
               }}
               onShowToast={showPushToast}
             />

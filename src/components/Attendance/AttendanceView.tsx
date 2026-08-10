@@ -52,6 +52,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [uploadMessage, setUploadMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gpsPosition, setGpsPosition] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  const [isGpsValid, setIsGpsValid] = useState(!profile.requireGpsActive);
 
   // Live WebCam Streaming States & Refs
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -144,6 +145,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setSelfiePreview('');
     setSelfieFile(null);
     setGpsMessage('GPS belum diverifikasi');
+    setIsGpsValid(!profile.requireGpsActive);
     setUploadMessage('');
     stopCameraStream();
 
@@ -171,12 +173,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   };
 
   const verifyGps = async (): Promise<boolean> => {
-    if (!profile.requireGpsActive) return true;
+    if (!profile.requireGpsActive) {
+      setIsGpsValid(true);
+      return true;
+    }
     const outletLatitude = currentBranch.gpsLatitude ?? (currentBranch.isMainBranch ? profile.gpsLatitude : undefined);
     const outletLongitude = currentBranch.gpsLongitude ?? (currentBranch.isMainBranch ? profile.gpsLongitude : undefined);
     const outletRadius = currentBranch.gpsRadiusMeters ?? (currentBranch.isMainBranch ? profile.gpsRadiusMeters : undefined) ?? 50;
     if (!navigator.geolocation || outletLatitude === undefined || outletLongitude === undefined) {
       setGpsMessage('Konfigurasi GPS outlet belum lengkap');
+      setIsGpsValid(false);
       return false;
     }
     return new Promise((resolve) => {
@@ -197,10 +203,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             accuracy: position.coords.accuracy,
           });
           setGpsMessage(allowed ? `GPS valid - ${Math.round(distance)} m dari outlet` : `Di luar radius - ${Math.round(distance)} m`);
+          setIsGpsValid(allowed);
           resolve(allowed);
         },
         () => {
           setGpsMessage('Izin GPS diperlukan untuk absensi');
+          setIsGpsValid(false);
           resolve(false);
         },
         { enableHighAccuracy: true, timeout: 10_000 },
@@ -279,7 +287,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     const tolerance = profile.latenessToleranceMinutes || 0;
     let photoUrl = selfiePreview || selectedStaff.avatar || '';
     let photoPublicId = '';
-    if (selfieFile && cloudReadiness.cloudinary) {
+    if (selfieFile) {
       try {
         setUploadMessage('Mengunggah bukti selfie ke cloud...');
         const uploaded = await uploadImage(selfieFile, 'attendance', currentBranch.id);
@@ -409,7 +417,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             <div className="rounded-3xl border border-[#EAE3DB] bg-white p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3.5">
                 <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-orange-400 shrink-0">
-                  <img src={selfiePreview || selectedStaff.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} alt={selectedStaff.name} className="h-full w-full object-cover" />
+                  {selfiePreview || selectedStaff.avatar ? (
+                    <img src={selfiePreview || selectedStaff.avatar} alt={selectedStaff.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-xs font-black text-white">{selectedStaff.name.slice(0, 2).toUpperCase()}</div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-slate-900 truncate">{selectedStaff.name}</p>
@@ -510,10 +522,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 {uploadMessage && <p className="text-[9px] font-extrabold text-orange-600">{uploadMessage}</p>}
               </div>
 
-              <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting}
+              <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
                 className="w-full rounded-full bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 py-3.5 text-xs font-black text-white transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
                 {isSubmitting ? 'MENYIMPAN PRESENSI...' : clockType === 'CLOCK_IN' ? 'CLOCK IN SEKARANG' : 'CLOCK OUT SEKARANG'}
               </button>
+              {!isSubmitting && ((profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)) && (
+                <p className="text-center text-[10px] font-bold text-slate-500">
+                  {profile.requireSelfiePhoto && !selfieFile ? 'Ambil selfie langsung terlebih dahulu. ' : ''}
+                  {profile.requireGpsActive && !isGpsValid ? 'Pastikan GPS valid di area outlet.' : ''}
+                </p>
+              )}
             </div>
           )}
 
@@ -554,7 +572,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <div key={att.id} className="flex items-center justify-between rounded-2xl border border-[#EAE3DB] bg-[#F8F2EC] p-3.5 shadow-2xs">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 overflow-hidden rounded-full border border-[#EAE3DB] shrink-0">
-                        <img src={att.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'} alt={att.staffName} className="h-full w-full object-cover" />
+                        {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-[10px] font-black text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[#1A1714]">{att.staffName} <span className="text-[10px] font-black text-[#EA580C]">({att.role})</span></p>

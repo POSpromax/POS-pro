@@ -193,7 +193,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       name: newStaffName.trim(),
       pin: newStaffPin.trim(),
       role: newStaffRole,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
       branchIds: [newStaffBranchId],
       isActive: true,
       shiftStart: newStaffShift,
@@ -1166,11 +1165,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <div key={stf.id} className="bg-white border border-[#E8E0D8] rounded-2xl p-3.5 shadow-xs space-y-3 relative">
                         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
                           <div className="flex items-center gap-3 min-w-0">
-                            <img
-                              src={stf.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
-                              alt={stf.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-slate-200"
-                            />
+                            {stf.avatar ? (
+                              <img src={stf.avatar} alt={stf.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-200 bg-orange-50 text-xs font-black text-orange-700">
+                                {stf.name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-xs font-black text-[#1A1714] truncate">{stf.name}</p>
