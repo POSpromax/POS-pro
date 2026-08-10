@@ -3,6 +3,7 @@ import { verifyQrToken } from '../utils/qrToken';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
+const PAYMENT_METHODS = new Set(['CASH', 'QRIS', 'DEBIT', 'TRANSFER']);
 
 export interface OrderRequestResult { status: number; data: unknown }
 const fail = (status: number, error: string): OrderRequestResult => ({ status, data: { error } });
@@ -211,62 +212,85 @@ export async function handleOrderRequest(
   const tax = Math.max(0, Math.floor(Number(input.tax) || 0));
   const total = Math.max(0, subtotal - discount + tax);
   const orderNumber = `${source === 'SELF_ORDER' ? 'SO' : 'POS'}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
-  const row = {
+  const clientRequestId = UUID_PATTERN.test(String(input.id || '')) ? String(input.id) : crypto.randomUUID();
+
+  // Order tersimpan dikirim ulang memakai orders.id; retry offline hanya punya
+  // client_request_id. Cari keduanya supaya tidak lahir order kembar.
+  let existingOrderId = '';
+  if (UUID_PATTERN.test(String(input.id || ''))) {
+    const [{ data: byId }, { data: byRequest }] = await Promise.all([
+      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
+      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('client_request_id', input.id).maybeSingle(),
+    ]);
+    existingOrderId = byId?.id || byRequest?.id || '';
+  }
+
+  // Self-order tidak boleh menimpa pesanan yang sudah masuk; kembalikan apa adanya.
+  if (!actor && existingOrderId) {
+    const orders = await readOrders(branchId, admin, existingOrderId);
+    return { status: 200, data: orders[0] };
+  }
+
+  const paymentStatus = input.paymentStatus === 'PAID' ? 'PAID' : 'UNPAID';
+  const paymentMethod = PAYMENT_METHODS.has(String(input.paymentMethod)) ? String(input.paymentMethod) : null;
+  const rawCashPaid = Math.floor(Number(input.cashPaid));
+  const cashPaid = Number.isFinite(rawCashPaid) && rawCashPaid > 0 ? rawCashPaid : null;
+  // Kembalian dihitung ulang di server; angka dari browser tidak dipercaya.
+  const change = cashPaid !== null && cashPaid >= total ? cashPaid - total : null;
+
+  const orderPayload = {
+    order_id: existingOrderId || null,
     tenant_id: branch.tenant_id,
     branch_id: branchId,
     table_id: table?.id || null,
     cashier_user_id: actor?.id || null,
-    client_request_id: UUID_PATTERN.test(String(input.id || '')) ? input.id : crypto.randomUUID(),
+    client_request_id: clientRequestId,
     order_number: orderNumber,
     source,
     order_type: input.type === 'TAKE_AWAY' ? 'TAKE_AWAY' : 'DINE_IN',
     status: ORDER_STATUSES.has(input.status) ? input.status : 'NEW',
-    payment_status: input.paymentStatus === 'PAID' ? 'PAID' : 'UNPAID',
+    payment_status: paymentStatus,
     customer_name: String(input.customerName || 'Guest').trim().slice(0, 100),
     subtotal_amount: subtotal,
     discount_amount: discount,
     tax_amount: tax,
     total_amount: total,
-    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || '', paymentMethod: input.paymentMethod || null, cashPaid: input.cashPaid || null, change: input.change || null }),
+    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || '', paymentMethod, cashPaid, change }),
+    payment_method: paymentMethod,
+    paid_amount: cashPaid,
+    change_amount: change,
+    shift_id: input.shiftId ? String(input.shiftId).slice(0, 100) : null,
+    cashier_name: actor?.name || 'Self Order',
   };
-  let existingId = actor && UUID_PATTERN.test(String(input.id || ''))
-    ? String(input.id)
-    : '';
-  if (UUID_PATTERN.test(String(input.id || ''))) {
-    const { data: idempotentOrder } = await admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('client_request_id', input.id).maybeSingle();
-    if (idempotentOrder?.id) {
-      if (!actor) {
-        const orders = await readOrders(branchId, admin, idempotentOrder.id);
-        return { status: 200, data: orders[0] };
+
+  const paymentPayload = paymentStatus === 'PAID' && total > 0
+    ? {
+        idempotency_key: clientRequestId,
+        method: paymentMethod || 'CASH',
+        amount: total,
+        paid_amount: cashPaid,
+        processed_by: actor?.id || null,
       }
-      existingId = idempotentOrder.id;
-    }
-  }
-  let savedRow: any = null;
-  let error: any = null;
-  if (existingId) {
-    const { client_request_id: _clientRequestId, ...updates } = row;
-    const result = await admin.from('orders').update(updates).eq('id', existingId).eq('branch_id', branchId).select('*, restaurant_tables(number)').maybeSingle();
-    savedRow = result.data;
-    error = result.error;
-    if (savedRow) await admin.from('order_items').delete().eq('order_id', savedRow.id);
-  }
-  if (!savedRow && !error) {
-    const result = await admin.from('orders').insert(row).select('*, restaurant_tables(number)').single();
-    savedRow = result.data;
-    error = result.error;
-  }
-  if (error || !savedRow) return fail(500, 'Pesanan gagal disimpan');
-  const { data: savedItems, error: itemError } = await admin.from('order_items').insert(normalizedItems.map(({ category: _category, ...item }) => ({ ...item, order_id: savedRow.id }))).select('*');
-  if (itemError) {
-    await admin.from('orders').delete().eq('id', savedRow.id);
-    return fail(500, 'Detail pesanan gagal disimpan');
-  }
-  if (table) await admin.from('restaurant_tables').update({ status: 'OCCUPIED' }).eq('id', table.id);
-  if (row.payment_status === 'PAID') {
-    // Idempotent database function; a retry cannot deduct recipe stock twice.
-    await admin.rpc('deduct_order_inventory', { p_order_id: savedRow.id });
-  }
-  const hydratedItems = (savedItems || []).map((item, index) => ({ ...item, category: normalizedItems[index]?.category || 'MAKANAN' }));
-  return { status: 201, data: mapOrder({ ...savedRow, cashier_name: actor?.name, shift_id: input.shiftId, payment_method: input.paymentMethod, paid_amount: input.cashPaid, change_amount: input.change }, hydratedItems) };
+    : null;
+
+  // Satu transaksi: order, item, payment, status meja, dan potong stok.
+  const { data: checkout, error: checkoutError } = await admin.rpc('checkout_order', {
+    p_order: orderPayload,
+    p_items: normalizedItems.map(({ category: _category, ...item }) => item),
+    p_payment: paymentPayload,
+  });
+  const savedOrderId = (checkout as any)?.order_id;
+  if (checkoutError || !savedOrderId) return fail(500, 'Pesanan gagal disimpan');
+
+  const [{ data: savedRow }, { data: savedItems }] = await Promise.all([
+    admin.from('orders').select('*, restaurant_tables(number)').eq('id', savedOrderId).single(),
+    admin.from('order_items').select('*').eq('order_id', savedOrderId).order('created_at'),
+  ]);
+  if (!savedRow) return fail(500, 'Pesanan gagal dibaca setelah disimpan');
+
+  const hydratedItems = (savedItems || []).map((item) => ({
+    ...item,
+    category: (menuMap.get(item.menu_item_id) as any)?.category || 'MAKANAN',
+  }));
+  return { status: (checkout as any)?.created ? 201 : 200, data: mapOrder(savedRow, hydratedItems) };
 }
