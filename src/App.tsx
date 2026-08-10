@@ -682,7 +682,7 @@ export default function App() {
   };
 
   // Customer Self-Order Submission from Meja QR Code
-  const handleSubmitCustomerOrder = (newOrder: Order) => {
+  const handleSubmitCustomerOrder = (newOrder: Order & { qrToken?: string }) => {
     DBStorage.saveOrder(newOrder, isOnline);
     DBStorage.updateTableStatus(newOrder.tableNumber, 'OCCUPIED', newOrder.id, newOrder.branchId);
     setOrders(DBStorage.getOrders());
@@ -807,6 +807,7 @@ export default function App() {
     const selfOrderParams = new URLSearchParams(window.location.search);
     const tableFromUrl = selfOrderParams.get('table') || '1';
     const requestedBranchId = selfOrderParams.get('branch');
+    const qrTokenFromUrl = selfOrderParams.get('token') || '';
     const selfOrderBranch = branches.find((branch) => branch.id === requestedBranchId) || currentBranch;
     const selfOrderTables = tables.filter((table) => !table.branchId || table.branchId === selfOrderBranch.id);
     const selfOrderOrders = orders.filter((order) => !order.branchId || order.branchId === selfOrderBranch.id);
@@ -838,6 +839,7 @@ export default function App() {
               onSubmitCustomerOrder={handleSubmitCustomerOrder}
               initialTableNumber={tableFromUrl}
               onShowToast={showPushToast}
+              qrToken={qrTokenFromUrl}
             />
           </Suspense>
         </div>
@@ -1115,6 +1117,7 @@ export default function App() {
           {activeTab === 'tables' && (
             <TableManagementView
               tables={branchTables}
+              branchId={currentBranch.id}
               onToggleSelfOrder={handleToggleTableSelfOrder}
               onClearTableStatus={handleClearTableStatus}
               onOpenCustomerSelfOrderModal={(tblNum) => {

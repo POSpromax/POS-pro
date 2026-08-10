@@ -9,6 +9,7 @@ import { handleAttendanceRequest } from './src/server/attendanceManagement';
 import { handleHrRequest } from './src/server/hrManagement';
 import { handleOrderRequest } from './src/server/orderManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
+import { generateQrToken, buildSelfOrderUrl } from './src/utils/qrToken';
 
 async function startServer() {
   const app = express();
@@ -97,6 +98,28 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Katalog self-order belum tersedia' });
+    }
+  });
+
+  app.post('/api/self-order-token', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      if (!accessToken) { res.status(401).json({ error: 'Tidak terautentikasi' }); return; }
+      const { data: { user } } = await admin.auth.getUser(accessToken);
+      if (!user) { res.status(401).json({ error: 'Sesi tidak valid' }); return; }
+      const { branchId, tableNumber, baseUrl } = req.body || {};
+      if (!branchId || !tableNumber) { res.status(400).json({ error: 'branchId dan tableNumber wajib diisi' }); return; }
+      const { data: table } = await admin.from('restaurant_tables').select('id,self_order_enabled').eq('branch_id', String(branchId)).eq('number', String(tableNumber)).maybeSingle();
+      if (!table) { res.status(404).json({ error: `Meja ${tableNumber} tidak ditemukan` }); return; }
+      if (!table.self_order_enabled) { res.status(403).json({ error: `Meja ${tableNumber} belum diaktifkan untuk self-order` }); return; }
+      const secret = process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      const token = await generateQrToken(String(branchId), String(tableNumber), secret);
+      const url = buildSelfOrderUrl(String(baseUrl || `http://localhost:${PORT}`), String(branchId), String(tableNumber), token);
+      res.json({ token, url, expiresInHours: 12 });
+    } catch {
+      res.status(503).json({ error: 'Server token belum dikonfigurasi' });
     }
   });
 

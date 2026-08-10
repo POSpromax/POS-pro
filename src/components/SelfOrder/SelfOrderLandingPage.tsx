@@ -49,10 +49,11 @@ interface SelfOrderLandingPageProps {
   condimentGroups: CondimentGroup[];
   isSelfOrderSystemEnabled?: boolean;
   orders?: Order[];
-  onSubmitCustomerOrder: (order: Order) => void;
+  onSubmitCustomerOrder: (order: Order & { qrToken?: string }) => void;
   initialTableNumber?: string;
   currentBranch: Branch;
   onShowToast?: (title: string, message: string) => void;
+  qrToken?: string;
 }
 
 export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
@@ -65,7 +66,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   onSubmitCustomerOrder,
   initialTableNumber = '11',
   currentBranch,
-  onShowToast
+  onShowToast,
+  qrToken
 }) => {
   // Navigation State Flow
   const [activeStep, setActiveStep] = useState<SelfOrderStep>('LANDING');
@@ -275,8 +277,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       branchId: currentBranch.id,
       cashierName: `Self Order • ${currentBranch.code || currentBranch.name}`,
       source: 'SELF_ORDER',
-      parentOrderId: selectedTableObj?.activeOrderId
-    };
+      parentOrderId: selectedTableObj?.activeOrderId,
+      qrToken: qrToken || undefined
+    } as Order & { qrToken?: string };
 
     onSubmitCustomerOrder(newOrder);
     setSubmittedOrderId(orderId);
@@ -499,10 +502,16 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <input
                   type="text"
                   value={selectedTable}
-                  onChange={(e) => setSelectedTable(e.target.value)}
+                  onChange={(e) => { if (!qrToken) setSelectedTable(e.target.value); }}
+                  readOnly={Boolean(qrToken)}
                   placeholder="Nomor meja"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400"
+                  className={`w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400 ${qrToken ? 'opacity-70 cursor-not-allowed' : ''}`}
                 />
+                {qrToken && (
+                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> Meja terverifikasi dari QR
+                  </p>
+                )}
               </div>
 
               {/* Action Button */}

@@ -199,11 +199,14 @@ export class DBStorage {
     }));
     setStoredItem(STORAGE_KEYS.STAFF, migratedStaff);
 
-    const migratedTables = this.getTables().map((table) => ({
+    const existingTables = this.getTables();
+    const migratedTables = existingTables.map((table) => ({
       ...table,
       branchId: table.branchId || '00000000-0000-4000-a000-000000000010'
     }));
-    setStoredItem(STORAGE_KEYS.TABLES, migratedTables);
+    const existingIds = new Set(migratedTables.map((t) => t.id));
+    const newTables = INITIAL_TABLES.filter((t) => !existingIds.has(t.id));
+    setStoredItem(STORAGE_KEYS.TABLES, [...migratedTables, ...newTables]);
 
     // One-time cleanup for prototype records that must never appear as live sales.
     const dataVersion = Number(localStorage.getItem(STORAGE_KEYS.DATA_VERSION) || 0);

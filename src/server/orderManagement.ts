@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { verifyQrToken } from '../utils/qrToken';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
@@ -118,6 +119,17 @@ export async function handleOrderRequest(
     table = data;
   }
   if (source === 'SELF_ORDER' && (!table || !table.self_order_enabled)) return fail(403, 'Self-order tidak tersedia pada meja ini');
+
+  if (source === 'SELF_ORDER') {
+    const qrToken = String(input.qrToken || payload.qrToken || '');
+    if (qrToken) {
+      const secret = typeof process !== 'undefined' ? (process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '') : '';
+      const tokenResult = await verifyQrToken(qrToken, secret);
+      if (tokenResult.valid === false) return fail(403, tokenResult.error);
+      if (tokenResult.payload.branchId !== branchId || tokenResult.payload.tableNumber !== String(input.tableNumber))
+        return fail(403, 'Token tidak sesuai dengan meja ini');
+    }
+  }
 
   if (source === 'SELF_ORDER') {
     const since = new Date(Date.now() - 60_000).toISOString();
