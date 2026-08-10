@@ -380,7 +380,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
   };
 
   const activeOrdersList = orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
-  const historyOrdersList = orders.filter((o) => o.status === 'COMPLETED' || o.status === 'CANCELLED');
+  // Antrean kasir hanya melayani shift berjalan; riwayat lintas hari ada di Laporan.
+  const historyOrdersList = orders.filter(
+    (o) => (o.status === 'COMPLETED' || o.status === 'CANCELLED') && o.shiftId === currentShift.id
+  );
 
   return (
     <div className="flex-1 min-h-0 flex flex-col md:flex-row h-full overflow-hidden bg-transparent select-none font-sans text-[#1A1714]">
@@ -425,15 +428,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     : 'text-[#9C9590] hover:text-[#1A1714]'
                 }`}
               >
-                History
+                Shift Ini ({historyOrdersList.length})
               </button>
             </div>
 
             {/* Order Cards Scroll List */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
               {(queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).length === 0 ? (
-                <div className="py-12 text-center text-[#B8B0A8] text-xs font-medium">
-                  Tidak ada order antrean
+                <div className="py-12 px-3 text-center text-[#B8B0A8] text-xs font-medium leading-relaxed">
+                  {queueTab === 'ACTIVE'
+                    ? 'Tidak ada order antrean'
+                    : 'Belum ada order selesai di shift ini. Riwayat per tanggal, minggu, atau bulan ada di menu Laporan.'}
                 </div>
               ) : (
                 (queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).map((order) => {

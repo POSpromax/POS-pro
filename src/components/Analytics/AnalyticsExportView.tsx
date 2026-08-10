@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile } from '../../types/pos';
 import { DBStorage } from '../../services/dbStorage';
+import { ReportPeriod, REPORT_PERIODS, formatPeriodRange, getPeriodRange, isWithinPeriod } from '../../utils/reportPeriod';
 
 interface AnalyticsExportViewProps {
   orders: Order[];
@@ -56,13 +57,22 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
-  const shifts = useMemo(() => propShifts || DBStorage.getShiftHistory(), [propShifts]);
-  const attendances = useMemo(() => propAttendance || DBStorage.getAttendanceRecords(), [propAttendance]);
-  const expenses = useMemo(() => propExpenses || DBStorage.getExpenseRecords(), [propExpenses]);
+  const [period, setPeriod] = useState<ReportPeriod>('TODAY');
+
+  const allShifts = useMemo(() => propShifts || DBStorage.getShiftHistory(), [propShifts]);
+  const allAttendances = useMemo(() => propAttendance || DBStorage.getAttendanceRecords(), [propAttendance]);
+  const allExpenses = useMemo(() => propExpenses || DBStorage.getExpenseRecords(), [propExpenses]);
   const profile = useMemo(() => propProfile || DBStorage.getProfile(), [propProfile]);
 
-  const paidOrders = useMemo(() => orders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'), [orders]);
-  const voidOrders = useMemo(() => orders.filter((o) => o.status === 'CANCELLED'), [orders]);
+  // Semua metrik di bawah membaca data yang sudah dipotong rentang waktu terpilih.
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
+  const scopedOrders = useMemo(() => orders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [orders, periodRange]);
+  const shifts = useMemo(() => allShifts.filter((s) => isWithinPeriod(s.startTime, periodRange)), [allShifts, periodRange]);
+  const attendances = useMemo(() => allAttendances.filter((a) => isWithinPeriod(a.timestamp, periodRange)), [allAttendances, periodRange]);
+  const expenses = useMemo(() => allExpenses.filter((e) => isWithinPeriod(e.timestamp, periodRange)), [allExpenses, periodRange]);
+
+  const paidOrders = useMemo(() => scopedOrders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'), [scopedOrders]);
+  const voidOrders = useMemo(() => scopedOrders.filter((o) => o.status === 'CANCELLED'), [scopedOrders]);
 
   const grossOmset = useMemo(() => paidOrders.reduce((acc, o) => acc + o.total, 0), [paidOrders]);
   const totalSubtotal = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.subtotal || o.total), 0), [paidOrders]);
@@ -135,7 +145,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Pajak,Total,Status\n';
 
-    orders.forEach((o) => {
+    scopedOrders.forEach((o) => {
       const row = `"${o.orderNumber}","${new Date(o.createdAt).toLocaleString('id-ID')}","${o.customerName}","${o.tableNumber}","${o.type}","${o.paymentMethod || 'CASH'}",${o.subtotal || 0},${o.discount || 0},${o.tax || 0},${o.total},"${o.status}"`;
       csvContent += row + '\n';
     });
@@ -143,7 +153,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Laporan_Penjualan_NusantaraPOS_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `Laporan_Penjualan_${period}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -157,7 +167,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     const encoded = encodeURI(csv);
     const link = document.createElement('a');
     link.setAttribute('href', encoded);
-    link.setAttribute('download', `Riwayat_Shift_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `Riwayat_Shift_${period}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -196,6 +206,39 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           >
             <Printer className="w-4 h-4" /> Cetak Laporan PDF
           </button>
+        </div>
+      </div>
+
+      {/* Rentang waktu — memotong seluruh metrik, tabel, dan export di halaman ini */}
+      <div className="flex flex-col gap-2 -mt-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <Calendar className="w-3.5 h-3.5" /> Periode
+          </span>
+
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 border border-slate-200/80 p-1 rounded-full">
+            {REPORT_PERIODS.map(({ key, label, hint }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPeriod(key)}
+                title={hint}
+                aria-pressed={period === key}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-colors cursor-pointer ${
+                  period === key
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <span className="text-[11px] font-bold text-slate-500">
+            {formatPeriodRange(period, periodRange)}
+            <span className="text-slate-400"> · {scopedOrders.length} order</span>
+          </span>
         </div>
       </div>
 
