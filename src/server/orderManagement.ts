@@ -155,11 +155,12 @@ export async function handleOrderRequest(
       const group: any = groupMap.get(String(selection.groupName || '').trim().toLocaleLowerCase('id-ID'));
       if (!group) return fail(400, `Grup condiment ${selection.groupName || ''} tidak valid`);
       const scope = scopes[group.id] || {};
-      const applicable = scope.targetProductIds?.length
-        ? scope.targetProductIds.includes(menu.id)
-        : scope.targetProductNames?.length
-          ? scope.targetProductNames.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID')))
-          : (group.target_categories || []).includes('ALL') || (group.target_categories || []).includes(menu.category);
+      const applicable = Boolean(
+        scope.targetProductIds?.includes(menu.id) ||
+        scope.targetProductNames?.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID'))) ||
+        (group.target_categories || []).includes('ALL') ||
+        (group.target_categories || []).includes(menu.category)
+      );
       if (!applicable) return fail(400, `${group.name} tidak berlaku untuk menu ini`);
       const names = Array.isArray(selection.options) ? selection.options : [];
       if (names.length > Number(group.max_select || 1)) return fail(400, `Pilihan ${group.name} melebihi batas`);
@@ -175,11 +176,9 @@ export async function handleOrderRequest(
       const targetNames = scope.targetProductNames || [];
       const targetIds = scope.targetProductIds || [];
       const categoryTargets = group.target_categories || [];
-      const applicable = targetIds.length
-        ? targetIds.includes(menu.id)
-        : targetNames.length
-          ? targetNames.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID')))
-          : categoryTargets.includes('ALL') || categoryTargets.includes(menu.category);
+      const applicable = targetIds.includes(menu.id) ||
+        targetNames.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID'))) ||
+        categoryTargets.includes('ALL') || categoryTargets.includes(menu.category);
       if (applicable && group.required && !selectedGroupIds.has(group.id)) return fail(400, `${group.name} wajib dipilih`);
     }
     const unitPrice = isManual && actor ? Math.max(0, Math.floor(Number(item.price) || 0)) : Number(menu.price || 0) + extras;

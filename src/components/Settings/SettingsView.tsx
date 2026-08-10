@@ -42,7 +42,8 @@ import {
   UserRole,
   Branch,
   AccessControlRule,
-  RestaurantTable
+  RestaurantTable,
+  MenuItem
 } from '../../types/pos';
 import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
 import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
@@ -52,6 +53,7 @@ interface SettingsViewProps {
   profile: RestaurantProfile;
   onSaveProfile: (profile: RestaurantProfile) => void;
   condimentGroups: CondimentGroup[];
+  menuItems: MenuItem[];
   onSaveCondimentGroup: (group: CondimentGroup) => void;
   onToggleGroupActive: (groupId: string, isActive: boolean) => void;
   onToggleOptionAvailable: (groupId: string, optionId: string, isAvailable: boolean) => void;
@@ -76,6 +78,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   profile,
   onSaveProfile,
   condimentGroups,
+  menuItems,
   onSaveCondimentGroup,
   onToggleGroupActive,
   onToggleOptionAvailable,
@@ -1291,6 +1294,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="space-y-4">
                   {condimentGroups.map((group) => {
                     const isExpanded = expandedGroupIds.includes(group.id);
+                    const selectedCategories = group.targetCategories || (group.targetCategory ? [group.targetCategory] : []);
+                    const selectedProductIds = group.targetProductIds || [];
+                    const selectedProductNames = group.targetProductNames || [];
+                    const targetCount = selectedCategories.length + selectedProductIds.length + selectedProductNames.length;
                     return (
                       <div key={group.id} className="border border-[#E8E0D8] rounded-3xl overflow-hidden bg-white shadow-xs">
                         {/* Group Header */}
@@ -1314,7 +1321,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <div className="flex items-center gap-3">
                             <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                               <span>🏷️</span>
-                              <span>1 Target</span>
+                              <span>{targetCount} Target</span>
                             </span>
                             {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                           </div>
@@ -1379,33 +1386,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               </div>
 
                               <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">BERLAKU UNTUK</label>
-                                <select
-                                  value={group.targetCategories?.[0] || group.targetCategory || 'ALL'}
-                                  onChange={(e) => onSaveCondimentGroup({ ...group, targetCategory: undefined, targetCategories: [e.target.value] })}
-                                  className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-[#FF5A1F]"
-                                >
-                                  <option value="ALL">Semua Kategori (ALL)</option>
-                                  <option value="BAKSO">Bakso</option>
-                                  <option value="MIE AYAM">Mie Ayam</option>
-                                  <option value="MINUMAN">Minuman</option>
-                                </select>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">TARGET KATEGORI (BISA LEBIH DARI 1)</label>
+                                <div className="flex min-h-11 flex-wrap gap-1.5 rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-1.5">
+                                  {(['ALL', 'BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'MINUMAN', 'BUNDLING'] as CategoryType[]).map((category) => {
+                                    const selected = selectedCategories.includes(category);
+                                    return (
+                                      <button
+                                        key={category}
+                                        type="button"
+                                        onClick={() => {
+                                          const next = category === 'ALL'
+                                            ? (selected ? [] : ['ALL'] as CategoryType[])
+                                            : selected
+                                              ? selectedCategories.filter((item) => item !== category)
+                                              : [...selectedCategories.filter((item) => item !== 'ALL'), category];
+                                          onSaveCondimentGroup({ ...group, targetCategory: undefined, targetCategories: next });
+                                        }}
+                                        className={`rounded-xl px-2.5 py-1.5 text-[10px] font-black transition-colors ${selected ? 'bg-[#191817] text-white' : 'bg-white text-slate-500 hover:text-[#EA580C]'}`}
+                                      >
+                                        {category === 'ALL' ? 'SEMUA' : category}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">ITEM KHUSUS (OPSIONAL)</label>
-                              <input
-                                type="text"
-                                value={(group.targetProductNames || []).join(', ')}
-                                onChange={(e) => onSaveCondimentGroup({
-                                  ...group,
-                                  targetProductNames: e.target.value.split(',').map((name) => name.trim()).filter(Boolean),
-                                })}
-                                placeholder="Contoh: Bakso Komplit, Bakso Urat (pisahkan dengan koma)"
-                                className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
-                              />
-                              <p className="mt-1.5 text-[10px] font-semibold text-slate-400">Jika diisi, grup hanya tampil pada item tersebut. Kosongkan untuk memakai kategori di atas.</p>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">TARGET MENU ITEM (BISA LEBIH DARI 1)</label>
+                              <select
+                                value=""
+                                onChange={(event) => {
+                                  const productId = event.target.value;
+                                  if (!productId || selectedProductIds.includes(productId)) return;
+                                  onSaveCondimentGroup({ ...group, targetProductIds: [...selectedProductIds, productId] });
+                                }}
+                                className="w-full rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                              >
+                                <option value="">+ Pilih menu item...</option>
+                                {menuItems.filter((item) => item.isAvailable && !item.isManualPrice && !selectedProductIds.includes(item.id)).map((item) => (
+                                  <option key={item.id} value={item.id}>{item.name} — {item.category}</option>
+                                ))}
+                              </select>
+                              {(selectedProductIds.length > 0 || selectedProductNames.length > 0) && (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {selectedProductIds.map((productId) => {
+                                    const item = menuItems.find((menu) => menu.id === productId);
+                                    return (
+                                      <button key={productId} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductIds: selectedProductIds.filter((id) => id !== productId) })} className="flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-black text-[#C2410C]">
+                                        {item?.name || 'Menu tidak ditemukan'} <X className="h-3 w-3" />
+                                      </button>
+                                    );
+                                  })}
+                                  {selectedProductNames.map((productName) => (
+                                    <button key={`legacy-${productName}`} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductNames: selectedProductNames.filter((name) => name !== productName) })} className="flex items-center gap-1 rounded-full border border-[#DEDAD5] bg-white px-2.5 py-1 text-[10px] font-black text-slate-600">
+                                      {productName} <X className="h-3 w-3" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <p className="mt-1.5 text-[10px] font-semibold text-slate-400">Kategori dan menu item digabungkan. Grup muncul jika salah satu target cocok.</p>
                             </div>
 
                             {/* Options List Tags */}

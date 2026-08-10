@@ -1309,6 +1309,7 @@ export default function App() {
               accessControl={accessControl}
               onSaveAccessControl={saveAccessRules}
               condimentGroups={condimentGroups}
+              menuItems={menuItems}
               onSaveCondimentGroup={handleSaveCondimentGroup}
               onToggleGroupActive={handleToggleGroupActive}
               onToggleOptionAvailable={handleToggleOptionAvailable}

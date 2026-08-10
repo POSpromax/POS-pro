@@ -3,24 +3,20 @@ import { CondimentGroup, MenuItem } from '../types/pos';
 export const isGroupApplicable = (group: CondimentGroup, menuItem: MenuItem): boolean => {
   if (!group.isActive) return false;
 
-  if (group.targetProductIds && group.targetProductIds.length > 0) {
-    return group.targetProductIds.includes(menuItem.id);
-  }
+  const hasProductIds = Boolean(group.targetProductIds?.length);
+  const hasProductNames = Boolean(group.targetProductNames?.length);
+  const categories = group.targetCategories || (group.targetCategory ? [group.targetCategory] : []);
+  const hasCategories = categories.length > 0;
+  if (!hasProductIds && !hasProductNames && !hasCategories) return false;
 
-  if (group.targetProductNames && group.targetProductNames.length > 0) {
+  const matchesId = group.targetProductIds?.includes(menuItem.id) || false;
+  let matchesName = false;
+  if (hasProductNames) {
     const itemName = menuItem.name.toLowerCase();
-    const matchesName = group.targetProductNames.some((name) =>
+    matchesName = group.targetProductNames!.some((name) =>
       itemName.includes(name.toLowerCase())
     );
-    return matchesName;
   }
-
-  if (group.targetCategories && group.targetCategories.length > 0) {
-    if (group.targetCategories.includes('ALL')) return true;
-    return group.targetCategories.includes(menuItem.category);
-  }
-
-  if (group.targetCategory) return group.targetCategory === 'ALL' || group.targetCategory === menuItem.category;
-
-  return false;
+  const matchesCategory = categories.includes('ALL') || categories.includes(menuItem.category);
+  return matchesId || matchesName || matchesCategory;
 };
