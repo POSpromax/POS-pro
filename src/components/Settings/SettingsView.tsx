@@ -1078,6 +1078,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <Users className="w-4 h-4 text-indigo-600" />
                       <span>DAFTAR STAFF & PIN</span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentStaff = DBStorage.getStaff();
+                        if (currentStaff.length > 0) {
+                          const updated = DBStorage.saveStaff(currentStaff[0]);
+                          onSaveStaff(currentStaff[0]);
+                          toast('Sinkronisasi Staf', `Daftar ${updated.length} staf berhasil disiarkan ke seluruh perangkat cloud.`);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#1A1714] text-white hover:bg-black text-[10px] font-black flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Siarkan daftar staf terbaru ke seluruh tab, localhost, dan Vercel"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-orange-400" />
+                      <span>Paksa Sinkron Staf ({staffAccounts.length})</span>
+                    </button>
                   </div>
 
                   {/* Form Tambah Staff */}
