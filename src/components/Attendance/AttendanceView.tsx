@@ -55,6 +55,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
   // Live WebCam Streaming States & Refs
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -66,6 +67,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       mediaStreamRef.current = null;
     }
     setIsCameraActive(false);
+    setIsCameraReady(false);
   }, []);
 
   const startCameraStream = useCallback(async () => {
@@ -77,9 +79,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         audio: false,
       });
       mediaStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
       setIsCameraActive(true);
     } catch (err) {
       console.warn('Gagal membuka kamera langsung:', err);
@@ -88,8 +87,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     }
   }, [stopCameraStream]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = mediaStreamRef.current;
+    if (!isCameraActive || !video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => {
+      setCameraError('Preview kamera belum dapat diputar. Tekan coba ulang kamera.');
+    });
+  }, [isCameraActive]);
+
   const captureLiveSnapshot = useCallback(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !isCameraReady || videoRef.current.videoWidth === 0) {
+      setCameraError('Kamera belum siap. Tunggu sampai preview terlihat lalu coba lagi.');
+      return;
+    }
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 640;
@@ -117,7 +129,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     );
 
     stopCameraStream();
-  }, [stopCameraStream]);
+  }, [isCameraReady, stopCameraStream]);
 
   useEffect(() => {
     return () => {
@@ -437,6 +449,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       autoPlay
                       playsInline
                       muted
+                      onCanPlay={() => setIsCameraReady(true)}
+                      onLoadedMetadata={() => setIsCameraReady(true)}
                       className="h-full w-full object-cover scale-x-[-1]"
                     />
                   </div>
@@ -460,10 +474,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     <button
                       type="button"
                       onClick={captureLiveSnapshot}
-                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 cursor-pointer"
+                      disabled={!isCameraReady}
+                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                     >
                       <Camera className="h-4 w-4" />
-                      Potret Live Selfie
+                      {isCameraReady ? 'Potret Live Selfie' : 'Menyiapkan Kamera...'}
                     </button>
                   ) : (
                     <button
