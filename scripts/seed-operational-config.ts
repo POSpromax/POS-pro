@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { INITIAL_CONDIMENT_GROUPS } from '../src/data/initialData';
+import { INITIAL_CONDIMENT_GROUPS, INITIAL_TABLES } from '../src/data/initialData';
 
 const TENANT_ID = '00000000-0000-4000-a000-000000000001';
 
@@ -20,7 +20,7 @@ async function main() {
   const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: branches, error: branchError } = await admin.from('branches').select('id,name').eq('tenant_id', TENANT_ID).eq('is_active', true);
   if (branchError) throw branchError;
-  const summary: Array<{ branchId: string; branch: string; manualItem: boolean; condimentGroups: number }> = [];
+  const summary: Array<{ branchId: string; branch: string; manualItem: boolean; condimentGroups: number; tables: number }> = [];
 
   for (const branch of branches || []) {
     const manualId = deterministicUuid(`system-menu:${branch.id}:lainnya`);
@@ -55,8 +55,22 @@ async function main() {
       const { error: configError } = await admin.from('tenant_config').update({ kds_config: { ...kds, condimentScopes: { ...((kds.condimentScopes || {}) as object), ...scopeConfig } } }).eq('tenant_id', TENANT_ID);
       if (configError) throw configError;
     }
+    const { data: existingTables, error: tableReadError } = await admin.from('restaurant_tables').select('number').eq('branch_id', branch.id);
+    if (tableReadError) throw tableReadError;
+    const existingNumbers = new Set((existingTables || []).map((table) => table.number));
+    const missingTables = INITIAL_TABLES
+      .filter((table) => table.branchId === branch.id && !existingNumbers.has(table.number))
+      .map((table) => ({
+        id: deterministicUuid(`restaurant-table:${branch.id}:${table.number}`), branch_id: branch.id, number: table.number,
+        capacity: table.capacity, status: 'FREE', self_order_enabled: table.isSelfOrderEnabled,
+      }));
+    if (missingTables.length) {
+      const { error: tableInsertError } = await admin.from('restaurant_tables').insert(missingTables);
+      if (tableInsertError) throw tableInsertError;
+    }
     const { count: groupCount } = await admin.from('condiment_groups').select('id', { count: 'exact', head: true }).eq('branch_id', branch.id);
-    summary.push({ branchId: branch.id, branch: branch.name, manualItem: true, condimentGroups: groupCount || 0 });
+    const { count: tableCount } = await admin.from('restaurant_tables').select('id', { count: 'exact', head: true }).eq('branch_id', branch.id);
+    summary.push({ branchId: branch.id, branch: branch.name, manualItem: true, condimentGroups: groupCount || 0, tables: tableCount || 0 });
   }
   console.log(JSON.stringify(summary));
 }
