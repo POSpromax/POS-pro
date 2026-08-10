@@ -102,6 +102,8 @@ export interface CondimentGroup {
   maxSelect?: number;
   targetCategory?: CategoryType;
   targetCategories?: CategoryType[];
+  targetProductIds?: string[];
+  targetProductNames?: string[];
   options: CondimentOption[];
   isActive: boolean; // Toggle Aktif / Non-Aktif
 }

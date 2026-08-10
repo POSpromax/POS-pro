@@ -757,7 +757,8 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
     required: false,
     minSelect: 0,
     maxSelect: 1,
-    targetCategories: ['MINUMAN', 'BUNDLING'],
+    targetProductNames: ['Teh Manis', 'Teh'],
+    targetCategories: ['BUNDLING'],
     isActive: true,
     options: [
       { id: 'opt-301', name: 'ES TEH MANIS', price: 0, isAvailable: true },
@@ -771,7 +772,7 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
     required: false,
     minSelect: 0,
     maxSelect: 1,
-    targetCategories: ['MINUMAN'],
+    targetProductNames: ['Air Mineral'],
     isActive: true,
     options: [
       { id: 'opt-401', name: 'DINGIN', price: 0, isAvailable: true },
@@ -785,7 +786,7 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
     required: false,
     minSelect: 0,
     maxSelect: 5,
-    targetCategories: ['ALL'],
+    targetCategories: ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN'],
     isActive: true,
     options: [
       { id: 'opt-501', name: 'KERUPUK KALEK', price: 2000, isAvailable: true },

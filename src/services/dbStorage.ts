@@ -258,9 +258,29 @@ export class DBStorage {
     return branches;
   }
 
-  // Condiments / Toppings / Isian
   static getCondimentGroups(): CondimentGroup[] {
-    return getStoredItem<CondimentGroup[]>(STORAGE_KEYS.CONDIMENTS, INITIAL_CONDIMENT_GROUPS);
+    const groups = getStoredItem<CondimentGroup[]>(STORAGE_KEYS.CONDIMENTS, INITIAL_CONDIMENT_GROUPS);
+    let updated = false;
+    groups.forEach((g) => {
+      if (g.id === 'cg-3' && (!g.targetProductNames || g.targetCategories?.includes('MINUMAN'))) {
+        g.targetProductNames = ['Teh Manis', 'Teh'];
+        g.targetCategories = ['BUNDLING'];
+        updated = true;
+      }
+      if (g.id === 'cg-4' && !g.targetProductNames) {
+        g.targetProductNames = ['Air Mineral'];
+        g.targetCategories = undefined;
+        updated = true;
+      }
+      if (g.id === 'cg-5' && g.targetCategories?.includes('ALL')) {
+        g.targetCategories = ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN'];
+        updated = true;
+      }
+    });
+    if (updated) {
+      setStoredItem(STORAGE_KEYS.CONDIMENTS, groups);
+    }
+    return groups;
   }
 
   static saveCondimentGroup(group: CondimentGroup): void {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isGroupApplicable } from '../../utils/condimentUtils';
 import {
   ShoppingBag,
   Plus,
@@ -168,9 +169,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   };
 
   const handleItemClick = (item: MenuItem) => {
-    const hasCondiments = condimentGroups.some(
-      (g) => g.isActive && (g.targetCategories.includes('ALL') || g.targetCategories.includes(item.category))
-    );
+    const hasCondiments = condimentGroups.some((g) => isGroupApplicable(g, item));
 
     if (hasCondiments) {
       setActiveItemForCondiment(item);

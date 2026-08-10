@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Utensils, Check } from 'lucide-react';
 import { MenuItem, CondimentGroup, SelectedCondimentGroup } from '../../types/pos';
+import { isGroupApplicable } from '../../utils/condimentUtils';
 
 interface CondimentSelectionModalProps {
   isOpen: boolean;
@@ -21,10 +22,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
 }) => {
   if (!isOpen || !menuItem) return null;
 
-  // Filter active condiment groups for this menuItem category or 'ALL'
-  const applicableGroups = condimentGroups.filter(
-    (g) => g.isActive && (g.targetCategories.includes('ALL') || g.targetCategories.includes(menuItem.category))
-  );
+  // Filter active condiment groups for this menuItem
+  const applicableGroups = condimentGroups.filter((g) => isGroupApplicable(g, menuItem));
 
   // State for selections: { [groupId]: string[] (selected option names) }
   const [selections, setSelections] = useState<Record<string, string[]>>({});

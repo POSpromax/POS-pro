@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isGroupApplicable } from '../../utils/condimentUtils';
 import {
   Plus,
   Minus,
@@ -529,7 +530,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
               ) : (
                 filteredMenu.map((item) => {
                   const hasCondiments = (condimentGroups || []).some(
-                    (g) => g.isActive && (g.targetCategories.includes('ALL') || g.targetCategories.includes(item.category))
+                    (g) => isGroupApplicable(g, item)
                   );
 
                   return (

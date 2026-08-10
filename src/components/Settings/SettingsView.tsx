@@ -104,8 +104,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
+  const [editingOptionValue, setEditingOptionValue] = useState('');
 
-  const [formProfile, setFormProfile] = useState<RestaurantProfile>(profile);
+  const [formProfile, setFormProfile] = useState<RestaurantProfile>(
+    () => ({ ...profile, masterPinAdmin: profile.masterPinAdmin || '123456' })
+  );
   const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
 
@@ -1440,20 +1444,85 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 {group.options.map((opt) => (
                                   <span
                                     key={opt.id}
-                                    className="bg-slate-100 border border-slate-200 rounded-full px-3 py-1 text-xs font-black text-slate-800 flex items-center gap-2"
+                                    className={`border rounded-full text-xs font-black flex items-center gap-1.5 transition-all ${
+                                      editingOptionId === opt.id
+                                        ? 'bg-white border-indigo-400 px-2 py-0.5 shadow-sm'
+                                        : 'bg-slate-100 border-slate-200 px-3 py-1 text-slate-800'
+                                    }`}
                                   >
-                                    <span>{opt.name.toUpperCase()}</span>
-                                    {opt.price > 0 && <span className="text-indigo-600 font-mono">+Rp{opt.price.toLocaleString('id-ID')}</span>}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const updatedOpts = group.options.filter((o) => o.id !== opt.id);
-                                        onSaveCondimentGroup({ ...group, options: updatedOpts });
-                                      }}
-                                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
+                                    {editingOptionId === opt.id ? (
+                                      <>
+                                        <input
+                                          autoFocus
+                                          type="text"
+                                          value={editingOptionValue}
+                                          onChange={(e) => setEditingOptionValue(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && editingOptionValue.trim()) {
+                                              const updatedOpts = group.options.map((o) =>
+                                                o.id === opt.id ? { ...o, name: editingOptionValue.trim() } : o
+                                              );
+                                              onSaveCondimentGroup({ ...group, options: updatedOpts });
+                                              setEditingOptionId(null);
+                                            } else if (e.key === 'Escape') {
+                                              setEditingOptionId(null);
+                                            }
+                                          }}
+                                          className="w-28 text-xs font-black text-slate-900 outline-none bg-transparent border-b border-indigo-400"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (editingOptionValue.trim()) {
+                                              const updatedOpts = group.options.map((o) =>
+                                                o.id === opt.id ? { ...o, name: editingOptionValue.trim() } : o
+                                              );
+                                              onSaveCondimentGroup({ ...group, options: updatedOpts });
+                                            }
+                                            setEditingOptionId(null);
+                                          }}
+                                          className="text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                                          title="Simpan nama"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingOptionId(null)}
+                                          className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                          title="Batal"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingOptionId(opt.id);
+                                            setEditingOptionValue(opt.name);
+                                          }}
+                                          className="flex items-center gap-1 hover:text-indigo-700 cursor-pointer transition-colors"
+                                          title="Klik untuk edit nama"
+                                        >
+                                          <span>{opt.name.toUpperCase()}</span>
+                                          <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100" />
+                                        </button>
+                                        {opt.price > 0 && <span className="text-indigo-600 font-mono">+Rp{opt.price.toLocaleString('id-ID')}</span>}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedOpts = group.options.filter((o) => o.id !== opt.id);
+                                            onSaveCondimentGroup({ ...group, options: updatedOpts });
+                                          }}
+                                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                          title="Hapus opsi"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
                                   </span>
                                 ))}
                               </div>
@@ -1700,7 +1769,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <div className="bg-[#12111C] px-5 py-3 rounded-2xl border border-slate-700/80 flex items-center gap-3 w-full sm:w-auto justify-between">
                     <input
                       type="password"
-                      value={formProfile.masterPinAdmin || '123456'}
+                      value={formProfile.masterPinAdmin ?? ''}
+                      placeholder="123456"
+                      maxLength={6}
                       onChange={(e) => setFormProfile({ ...formProfile, masterPinAdmin: e.target.value })}
                       className="bg-transparent text-red-400 font-black text-lg tracking-widest outline-none w-28 text-center"
                     />

@@ -55,6 +55,21 @@ const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
 
 if (typeof window !== 'undefined') {
   DBStorage.initDefaults();
+
+  // One-time migration: normalize table numbers (strip old leading zeros: '01' → '1', '02' → '2')
+  try {
+    const storedTables = DBStorage.getTables();
+    const needsMigration = storedTables.some((t) => /^0\d/.test(t.number));
+    if (needsMigration) {
+      const normalized = storedTables.map((t) => ({
+        ...t,
+        number: t.number.replace(/^0+(\d)/, '$1'),
+      }));
+      DBStorage.setTables(normalized);
+    }
+  } catch (_) {
+    // ignore migration errors
+  }
 }
 
 const RouteFallback = () => (

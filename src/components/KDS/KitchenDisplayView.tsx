@@ -91,7 +91,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
           <p className="text-xs text-slate-600">Pesanan baru dari Kasir / Customer Self-Order akan muncul di sini secara real-time</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 flex-1 align-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5 flex-1 items-start">
           {kitchenOrders.map((order) => {
             const elapsed = getElapsedMinutes(order.createdAt);
             const isLate = elapsed > 20;
@@ -104,7 +104,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
             return (
               <div
                 key={order.id}
-                className={`bg-slate-900/90 border rounded-2xl p-4 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${
+                className={`bg-slate-900/90 border rounded-2xl p-3.5 flex flex-col justify-between shadow-xl relative overflow-hidden transition-all duration-300 ${
                   isNew
                     ? 'border-[#EA580C] ring-2 ring-orange-500/20 shadow-orange-950/30'
                     : isCooking
@@ -123,25 +123,25 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
 
                 <div>
                   {/* Card Header */}
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3 pt-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl font-black text-white font-mono tracking-tight">{order.orderNumber}</span>
-                      <span className="bg-slate-800 text-slate-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-slate-700">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-2.5 pt-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg font-black text-white font-mono tracking-tight">{order.orderNumber}</span>
+                      <span className="bg-slate-800 text-slate-300 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-slate-700">
                         {order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => onPrintKitchenTicket(order)}
                         className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
                         title="Cetak Tiket Dapur"
                       >
-                        <Printer className="w-4 h-4" />
+                        <Printer className="w-3.5 h-3.5" />
                       </button>
                       <div
-                        className={`flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-full ${
+                        className={`flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full ${
                           isLate
                             ? 'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse'
                             : 'bg-slate-800/90 text-slate-300'
@@ -154,17 +154,17 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                   </div>
 
                   {/* Customer & Table Info */}
-                  <div className="text-xs text-slate-400 font-bold mb-3 flex items-center justify-between">
-                    <span className="truncate max-w-[120px]">{order.customerName}</span>
-                    <span className="text-white font-black bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700/60">
+                  <div className="text-[11px] text-slate-400 font-bold mb-2.5 flex items-center justify-between">
+                    <span className="truncate max-w-[110px]">{order.customerName}</span>
+                    <span className="text-white font-black bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700/60 text-[10px]">
                       MEJA {order.tableNumber}
                     </span>
                   </div>
 
                   {/* Animated Status Badge Header */}
-                  <div className="mb-3">
+                  <div className="mb-2.5">
                     <div
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border transition-all ${
                         isNew
                           ? 'bg-orange-950/80 text-orange-300 border-orange-700/60'
                           : isCooking
@@ -193,8 +193,8 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Order Items List */}
-                  <div className="space-y-2 mb-4 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
+                  {/* Order Items List - No internal card scrollbar */}
+                  <div className="space-y-1.5 mb-3">
                     {order.items
                       .flatMap((item) => {
                         if (filterType === 'FOOD' && item.category === 'MINUMAN') return [];
