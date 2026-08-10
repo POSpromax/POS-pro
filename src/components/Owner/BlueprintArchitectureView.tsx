@@ -3,7 +3,6 @@ import {
   Compass,
   Grid2X2,
   UtensilsCrossed,
-  Printer,
   ShieldCheck,
   CreditCard,
   Plus,
@@ -15,7 +14,6 @@ import {
   QrCode,
   Store,
   Layers,
-  Flame,
   UserCheck,
   Building2,
   Percent,
@@ -27,7 +25,6 @@ import {
   RefreshCw,
   Sliders,
   DollarSign,
-  Tv,
   Users,
   Settings,
   FileText,
@@ -75,7 +72,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   onShowToast
 }) => {
   const [activeSubBlueprint, setActiveSubBlueprint] = useState<
-    'PROFILE' | 'LAYOUT' | 'MENU_TREE' | 'KITCHEN_PRINTER' | 'ACCESS_MATRIX' | 'PAYMENT_GATEWAY' | 'WORKFLOW'
+    'PROFILE' | 'LAYOUT' | 'MENU_TREE' | 'ACCESS_MATRIX' | 'PAYMENT_GATEWAY' | 'WORKFLOW'
   >('PROFILE');
 
   // Modal New Branch State
@@ -92,18 +89,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   const [receiptHeader, setReceiptHeader] = useState<string>(profile.receiptHeader || 'Selamat Datang di Resto Kami!');
   const [receiptFooter, setReceiptFooter] = useState<string>(profile.receiptFooter || 'Terima kasih atas kunjungan Anda');
 
-  // Local State for Room Zones in Spatial Layout Blueprint
-  const [zones, setZones] = useState<string[]>(['Indoor Utama (AC)', 'Outdoor Teras', 'VIP Room', 'Bar Station']);
-  const [selectedZone, setSelectedZone] = useState<string>('Indoor Utama (AC)');
-  const [newZoneName, setNewZoneName] = useState<string>('');
   const [isSavedNotice, setIsSavedNotice] = useState<boolean>(false);
-
-  // Printer Routing State Blueprint per branch
-  const [kitchenPrinterIp, setKitchenPrinterIp] = useState<string>('192.168.1.200');
-  const [barPrinterIp, setBarPrinterIp] = useState<string>('192.168.1.201');
-  const [cashierPrinterIp, setCashierPrinterIp] = useState<string>('192.168.1.100');
-  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('80mm');
-  const [autoCutKitchen, setAutoCutKitchen] = useState<boolean>(true);
 
   // Price Markup Blueprint State
   const [onlinePriceMarkup, setOnlinePriceMarkup] = useState<number>(20); // 20% for GoFood/GrabFood
@@ -133,13 +119,6 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       taxPercentage: pb1TaxRate,
       serviceChargePercentage: serviceChargeRate
     });
-
-    if (onUpdatePrinterConfig) {
-      onUpdatePrinterConfig({
-        ...printerConfig,
-        paperSize: paperWidth
-      });
-    }
 
     setIsSavedNotice(true);
     setTimeout(() => setIsSavedNotice(false), 3000);
@@ -176,16 +155,6 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
     setNewBranchPhone('');
   };
 
-  const handleAddZone = () => {
-    if (!newZoneName.trim()) return;
-    if (zones.includes(newZoneName.trim())) {
-      if (onShowToast) onShowToast('Zona Duplikat', 'Nama zona ruangan sudah ada!');
-      return;
-    }
-    setZones([...zones, newZoneName.trim()]);
-    setSelectedZone(newZoneName.trim());
-    setNewZoneName('');
-  };
 
   const togglePermission = (index: number, roleKey: 'owner' | 'manager' | 'kasir' | 'kitchen') => {
     const updated = [...rolePermissions];
@@ -676,140 +645,6 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       )}
 
       {/* ================= MODULE 4: MULTI-STATION KITCHEN PRINTER ROUTING BLUEPRINT ================= */}
-      {activeSubBlueprint === 'KITCHEN_PRINTER' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-[#E8E0D8] rounded-2xl p-6 shadow-xs">
-            <div className="pb-4 mb-5 border-b border-[#F0E8E0]">
-              <h2 className="text-lg font-bold text-[#1A1714] flex items-center gap-2">
-                <Printer className="w-5 h-5 text-emerald-600" /> Routing Thermal Printer Multi-Dapur
-              </h2>
-              <p className="text-xs text-[#9C9590] font-medium mt-0.5">
-                Konfigurasi pengiriman tiket pesanan secara otomatis ke Printer Dapur Makanan, Printer Bar Minuman, dan Printer Kasir Thermal.
-              </p>
-            </div>
-
-            {/* Architecture Flow Chart Diagram */}
-            <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-6 mb-6">
-              <span className="text-[10px] font-bold text-[#9C9590] uppercase tracking-widest block mb-4">
-                Routing Tiket Struk POS & Dapur:
-              </span>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                {/* Station 1: Kitchen Food Printer */}
-                <div className="bg-white border border-emerald-300 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-2">
-                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-amber-500" /> Printer Station 1: Dapur Makanan
-                    </span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded">
-                      THERMAL
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">IP Address Thermal</label>
-                    <input
-                      type="text"
-                      value={kitchenPrinterIp}
-                      onChange={(e) => setKitchenPrinterIp(e.target.value)}
-                      className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3 py-2 font-mono"
-                    />
-                  </div>
-                  <p className="text-[10px] text-[#9C9590] italic">Target item: BAKSO, MIE AYAM, MAKANAN</p>
-                </div>
-
-                {/* Station 2: Bar Beverage Printer */}
-                <div className="bg-white border border-blue-300 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-2">
-                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                      <Tv className="w-4 h-4 text-blue-500" /> Printer Station 2: Bar Minuman
-                    </span>
-                    <span className="text-[10px] bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded">
-                      THERMAL
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">IP Address Thermal</label>
-                    <input
-                      type="text"
-                      value={barPrinterIp}
-                      onChange={(e) => setBarPrinterIp(e.target.value)}
-                      className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3 py-2 font-mono"
-                    />
-                  </div>
-                  <p className="text-[10px] text-[#9C9590] italic">Target item: MINUMAN, ES, KOPI</p>
-                </div>
-
-                {/* Station 3: Cashier Receipt Printer */}
-                <div className="bg-white border border-indigo-300 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-2">
-                    <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                      <Printer className="w-4 h-4 text-indigo-500" /> Printer Station 3: Kasir Struk
-                    </span>
-                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded">
-                      DRAWER AUTO
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">IP / USB Thermal</label>
-                    <input
-                      type="text"
-                      value={cashierPrinterIp}
-                      onChange={(e) => setCashierPrinterIp(e.target.value)}
-                      className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3 py-2 font-mono"
-                    />
-                  </div>
-                  <p className="text-[10px] text-[#9C9590] italic">Mencetak Struk Nota & Membuka Laci Kasir</p>
-                </div>
-              </div>
-
-              {/* Hardware Formatting Controls */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[#E8E0D8]">
-                <div>
-                  <label className="block text-xs font-bold text-[#6B6560] mb-2">Ukuran Kertas Thermal Printer</label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaperWidth('80mm')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                        paperWidth === '80mm'
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-[#6B6560] border-[#E8E0D8]'
-                      }`}
-                    >
-                      80mm (Standar Resto & Dapur)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaperWidth('58mm')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                        paperWidth === '58mm'
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-[#6B6560] border-[#E8E0D8]'
-                      }`}
-                    >
-                      58mm (Kertas Portable Mini)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="chk-auto-cut"
-                    checked={autoCutKitchen}
-                    onChange={(e) => setAutoCutKitchen(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
-                  />
-                  <label htmlFor="chk-auto-cut" className="text-xs text-slate-800 font-semibold cursor-pointer">
-                    Aktifkan Fitur Auto-Cutter Tiket Dapur Otomatis
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ================= MODULE 5: STAFF ROLE & PIN AUTHORITY MATRIX BLUEPRINT ================= */}
       {activeSubBlueprint === 'ACCESS_MATRIX' && (
         <div className="space-y-6">

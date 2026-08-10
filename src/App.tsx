@@ -167,12 +167,14 @@ export default function App() {
       localStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
   );
   const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
+  const [isAttendanceMode, setIsAttendanceMode] = useState<boolean>(false);
 
   const clearTerminalSessionState = () => {
     sessionStorage.removeItem(TERMINAL_SESSION_KEY);
     localStorage.removeItem(TERMINAL_SESSION_KEY);
     setIsTerminalUnlocked(false);
     setIsPinModalOpen(true);
+    setIsAttendanceMode(false);
     setSystemPortal('KASIR');
     setActiveTab('pos');
   };
@@ -508,10 +510,10 @@ export default function App() {
     window.location.hash.includes('self-order') ||
     window.location.hash.includes('order')
   );
-  const isAttendanceTerminal = typeof window !== 'undefined' && (
+  const isAttendanceTerminal = isAttendanceMode || (typeof window !== 'undefined' && (
     window.location.pathname === '/attendance' ||
     new URLSearchParams(window.location.search).get('mode') === 'attendance'
-  );
+  ));
 
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
   const branchTables = tables.filter((table) => !table.branchId || table.branchId === currentBranch.id);
@@ -594,6 +596,7 @@ export default function App() {
     setCurrentBranch(selectedBranch);
 
     if (mode === 'ATTENDANCE') {
+      setIsAttendanceMode(true);
       showPushToast('Identitas Terverifikasi', `${userAccount.name} dapat melanjutkan presensi.`);
       return;
     }

@@ -483,9 +483,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
                             e.stopPropagation();
                             onPrintPreBill(order);
                           }}
-                          className="w-full mt-1 py-1 text-[8px] font-semibold text-[#C94A1A] bg-[#FFF9F6] hover:bg-[#FFF1EA] rounded-md border border-[#F0D4C8] flex items-center justify-center gap-1 transition-all"
+                          className="mt-1 p-1 text-[#C94A1A] bg-[#FFF9F6] hover:bg-[#FFF1EA] rounded-md border border-[#F0D4C8] transition-all self-end"
+                          title="Cetak Struk"
                         >
-                          <Printer className="w-2.5 h-2.5" /> CETAK STRUK
+                          <Printer className="w-3 h-3" />
                         </button>
                       </div>
                     </div>

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock, Video, RefreshCw, Upload, AlertCircle } from 'lucide-react';
 import { AttendanceRecord, Branch, RestaurantProfile, UserAccount } from '../../types/pos';
 import { cloudReadiness } from '../../lib/runtimeEnv';
 import { uploadImage } from '../../services/cloudinaryMedia';
@@ -48,6 +48,77 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [uploadMessage, setUploadMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Live WebCam Streaming States & Refs
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  const stopCameraStream = useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsCameraActive(false);
+  }, []);
+
+  const startCameraStream = useCallback(async () => {
+    setCameraError('');
+    try {
+      stopCameraStream();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false,
+      });
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setIsCameraActive(true);
+    } catch (err) {
+      console.warn('Gagal membuka kamera langsung:', err);
+      setCameraError('Kamera tidak diizinkan atau tidak ditemukan pada perangkat ini.');
+      setIsCameraActive(false);
+    }
+  }, [stopCameraStream]);
+
+  const captureLiveSnapshot = useCallback(() => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Mirror image for natural selfie feel
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setSelfiePreview(dataUrl);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const file = new File([blob], `selfie-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setSelfieFile(file);
+        }
+      },
+      'image/jpeg',
+      0.85
+    );
+
+    stopCameraStream();
+  }, [stopCameraStream]);
+
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+    };
+  }, [stopCameraStream]);
+
   useEffect(() => {
     setStep(terminalMode ? 'SELFIE_GPS' : 'PIN');
     setPinInput('');
@@ -56,10 +127,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setSelfieFile(null);
     setGpsMessage('GPS belum diverifikasi');
     setUploadMessage('');
+    stopCameraStream();
+
     if (terminalMode) {
       setSelectedStaff(eligibleStaff.find((s) => s.id === activeUser.id) || eligibleStaff[0] || activeUser);
     }
-  }, [currentBranch.id, activeUser.id, terminalMode]);
+  }, [currentBranch.id, activeUser.id, terminalMode, eligibleStaff, stopCameraStream]);
 
   const todayRecords = useMemo(() => {
     const today = new Date().toDateString();
@@ -146,6 +219,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     if (!file) return;
     setSelfieFile(file);
     setUploadMessage('');
+    stopCameraStream();
     const reader = new FileReader();
     reader.onload = () => setSelfiePreview(String(reader.result || ''));
     reader.readAsDataURL(file);
@@ -213,6 +287,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setSelfieFile(null);
     setUploadMessage('');
     setIsSubmitting(false);
+    stopCameraStream();
     setStep('SUCCESS');
     setTimeout(() => {
       setStep(terminalMode ? 'SELFIE_GPS' : 'PIN');
@@ -230,7 +305,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             Presensi Karyawan
           </h1>
           <p className="mt-1 text-xs font-bold text-slate-500">
-            {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit â€” sistem otomatis mengenali identitas Anda.'}
+            {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -247,7 +322,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <div>
                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
                 <h2 className="text-base font-black text-slate-900">Masukkan PIN Anda</h2>
-                <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan â€” otomatis teridentifikasi</p>
+                <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan — otomatis teridentifikasi</p>
               </div>
 
               <div className="flex items-center justify-center gap-3 py-2">
@@ -303,7 +378,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <p className="text-[10px] font-bold text-slate-400">Jadwal {getScheduledStart()}--{selectedStaff.shiftEnd || '-'}</p>
                 </div>
                 {!terminalMode && (
-                  <button type="button" onClick={() => { setStep('PIN'); setPinInput(''); setPinError(''); }}
+                  <button type="button" onClick={() => { stopCameraStream(); setStep('PIN'); setPinInput(''); setPinError(''); }}
                     className="ml-auto text-[10px] font-bold text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer">Ganti</button>
                 )}
               </div>
@@ -326,21 +401,60 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 ) : null;
               })()}
 
+              {/* LIVE WEBCAM CAMERA CONTAINER */}
               <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center gap-3">
-                {selfiePreview ? (
-                  <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-orange-400 shadow-md">
-                    <img src={selfiePreview} alt="selfie" className="h-full w-full object-cover" />
+                {isCameraActive ? (
+                  <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-orange-500 shadow-lg bg-black">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="h-full w-full object-cover scale-x-[-1]"
+                    />
+                  </div>
+                ) : selfiePreview ? (
+                  <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-orange-400 shadow-md">
+                    <img src={selfiePreview} alt="selfie preview" className="h-full w-full object-cover" />
                   </div>
                 ) : (
-                  <div className="h-24 w-24 rounded-full border-4 border-dashed border-slate-300 flex items-center justify-center bg-white">
-                    <Camera className="w-8 h-8 text-slate-400" />
+                  <div className="h-32 w-32 rounded-full border-4 border-dashed border-slate-300 flex items-center justify-center bg-white shadow-inner">
+                    <Camera className="w-10 h-10 text-slate-400" />
                   </div>
                 )}
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-full bg-slate-900 hover:bg-slate-700 px-4 py-2 text-[11px] font-black text-white shadow-sm transition-all">
-                  <Camera className="h-3.5 w-3.5 text-orange-400" />
-                  {selfiePreview ? 'Foto Ulang Selfie' : 'Ambil Selfie'}
-                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => handleSelfieFileChange(e.target.files?.[0])} />
-                </label>
+
+                {cameraError && (
+                  <p className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">{cameraError}</p>
+                )}
+
+                {/* Camera Buttons Control */}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {isCameraActive ? (
+                    <button
+                      type="button"
+                      onClick={captureLiveSnapshot}
+                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Potret Live Selfie
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startCameraStream}
+                      className="flex items-center gap-1.5 rounded-full bg-slate-900 hover:bg-slate-700 px-4 py-2 text-[11px] font-black text-white shadow-sm transition-all cursor-pointer"
+                    >
+                      <Video className="h-3.5 w-3.5 text-orange-400" />
+                      {selfiePreview ? 'Ambil Selfie Ulang (Kamera Live)' : 'Buka Kamera Live'}
+                    </button>
+                  )}
+
+                  <label className="flex cursor-pointer items-center gap-1 rounded-full bg-white hover:bg-slate-100 border border-slate-300 px-3 py-2 text-[10px] font-bold text-slate-700 transition-all">
+                    <Upload className="h-3 w-3 text-slate-500" />
+                    File Lokal
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSelfieFileChange(e.target.files?.[0])} />
+                  </label>
+                </div>
 
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <MapPin className="w-3.5 h-3.5 text-orange-500" />
@@ -352,9 +466,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   </button>
                 )}
                 {uploadMessage && <p className="text-[9px] font-extrabold text-orange-600">{uploadMessage}</p>}
-                <p className="text-[9px] font-bold text-slate-400">
-                  {cloudReadiness.cloudinary ? 'Cloud aktif - Bukti selfie diunggah aman.' : 'Selfie tersimpan lokal.'}
-                </p>
               </div>
 
               <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting}
@@ -403,7 +514,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                         {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                       </span>
                       <p className="mt-1 text-xs font-mono font-black text-slate-800">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>
-                      {att.status === 'LATE' && <p className="text-[9px] font-black text-rose-600">Terlambat {att.minutesLate || 0} menit</p>}
                     </div>
                   </div>
                 ))
