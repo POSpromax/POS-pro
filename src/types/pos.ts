@@ -51,6 +51,8 @@ export interface MenuItem {
   isManualPrice?: boolean; // POS meminta nama, harga, dan keterangan saat item dipilih
 }
 
+export type MaterialGroup = 'MENU' | 'DAPUR' | 'KEMASAN';
+
 export interface RawMaterial {
   id: string;
   name: string;
@@ -60,6 +62,9 @@ export interface RawMaterial {
   costPerUnit: number; // In IDR
   branchId: string;
   branchName: string;
+  group?: MaterialGroup;
+  // KEMASAN only: dipotong otomatis sejumlah ini per item pesanan take-away.
+  takeAwayUsagePerItem?: number;
 }
 
 export interface Branch {
@@ -109,6 +114,8 @@ export interface CondimentGroup {
   targetProductNames?: string[];
   options: CondimentOption[];
   isActive: boolean; // Toggle Aktif / Non-Aktif
+  // Label ringkas di KDS saat semua opsi dipilih, mis. "CAMPUR". Kosong = tampilkan daftar penuh.
+  allSelectedLabel?: string;
 }
 
 export interface SelectedCondimentGroup {

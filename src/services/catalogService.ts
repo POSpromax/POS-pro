@@ -36,7 +36,7 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
       }));
       return { id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients, isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined, isAutoStock: ingredients.length > 0, isManualPrice, trackStock: !isManualPrice };
     }),
-    rawMaterials: (rawRows || []).map((row) => ({ id: row.id, name: row.name, unit: row.unit, stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold), costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '' })),
+    rawMaterials: (rawRows || []).map((row) => ({ id: row.id, name: row.name, unit: row.unit, stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold), costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '', group: row.material_group || undefined, takeAwayUsagePerItem: Number(row.take_away_usage_per_item || 0) || undefined })),
   };
 }
 
@@ -70,7 +70,7 @@ export async function deleteCloudMenuItem(id: string, branchId: string): Promise
 
 export async function saveCloudRawMaterial(material: RawMaterial, branchId: string): Promise<void> {
   const tenantId = await currentTenantId();
-  const payload = { tenant_id: tenantId, branch_id: branchId, name: material.name, unit: material.unit, stock_quantity: material.stockQuantity, min_stock_threshold: material.minStockThreshold, cost_per_unit: material.costPerUnit };
+  const payload = { tenant_id: tenantId, branch_id: branchId, name: material.name, unit: material.unit, stock_quantity: material.stockQuantity, min_stock_threshold: material.minStockThreshold, cost_per_unit: material.costPerUnit, material_group: material.group || 'DAPUR', take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0 };
   const supabase = getSupabase();
   const operation = UUID_PATTERN.test(material.id) ? supabase.from('raw_materials').update(payload).eq('id', material.id).eq('branch_id', branchId) : supabase.from('raw_materials').insert(payload);
   const { error } = await operation;

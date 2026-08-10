@@ -176,29 +176,28 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                       )}
                     </div>
 
-                    {/* All / Reset buttons for multi-select groups matching Screenshots 3 & 4 */}
-                    {(group.maxSelect > 1 || group.options.length > 1) && (
-                      <div className="flex items-center gap-2">
+                    {group.maxSelect > 1 && (
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleSelectAllGroup(group)}
-                          className="text-[10px] font-extrabold text-slate-500 hover:text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full cursor-pointer transition-all"
+                          className="text-[10px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
                         >
-                          All
+                          Pilih Semua
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResetGroup(group)}
-                          className="text-[10px] font-extrabold text-slate-500 hover:text-slate-900 bg-slate-100 px-2.5 py-1 rounded-full cursor-pointer transition-all"
+                          className="text-[10px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
                         >
-                          Reset
+                          Bersihkan
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Options List Grid matching Screenshots 3 & 4 */}
-                  <div className={group.maxSelect === 1 ? "space-y-2" : "grid grid-cols-2 gap-2"}>
+                  {/* Options laid out side-by-side so tall groups stay compact */}
+                  <div className="grid grid-cols-2 gap-2">
                     {group.options.map((option) => {
                       const isSelected = selectedList.includes(option.name);
                       const isAvailable = option.isAvailable;

@@ -1413,6 +1413,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
 
                             <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">LABEL RINGKAS DI DAPUR</label>
+                              <input
+                                type="text"
+                                placeholder="Contoh: CAMPUR (kosongkan untuk tampilkan daftar penuh)"
+                                value={group.allSelectedLabel || ''}
+                                onChange={(event) => onSaveCondimentGroup({ ...group, allSelectedLabel: event.target.value.toUpperCase() })}
+                                className="w-full rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-2.5 text-xs font-black text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                              />
+                              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                                Saat kasir memilih semua opsi grup ini, tiket dapur hanya menampilkan label tersebut.
+                              </p>
+                            </div>
+
+                            <div>
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">TARGET MENU ITEM (BISA LEBIH DARI 1)</label>
                               <select
                                 value=""

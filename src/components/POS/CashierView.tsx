@@ -92,7 +92,7 @@ const POSMenuItemCard: React.FC<{
       }`}
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
     >
-      <div className="relative w-full h-28 sm:h-32 rounded-xl bg-[#F1EFEC] overflow-hidden mb-2 flex items-center justify-center shrink-0">
+      <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#F1EFEC] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
         {item.image && !imgError ? (
           <img
             src={item.image}
@@ -118,12 +118,12 @@ const POSMenuItemCard: React.FC<{
       </div>
 
       <div className="flex-1 flex flex-col justify-between gap-1.5">
-        <h3 className="font-semibold text-xs text-[#181715] line-clamp-2 leading-snug group-hover:text-black transition-colors">
+        <h3 className="font-black text-sm text-[#181715] line-clamp-2 leading-tight tracking-tight group-hover:text-black transition-colors">
           {item.name}
         </h3>
 
         <div className="flex items-center justify-between pt-1.5 border-t border-[#F0E8E0] shrink-0">
-          <span className="font-bold text-xs sm:text-sm text-[#181715] tracking-tight">
+          <span className="font-bold text-xs sm:text-sm text-[#181715] tracking-tight tabular-nums">
             Rp {item.price.toLocaleString('id-ID')}
           </span>
 

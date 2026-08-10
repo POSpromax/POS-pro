@@ -1069,6 +1069,7 @@ export default function App() {
           {activeTab === 'kds' && (
             <KitchenDisplayView
               orders={branchOrders}
+              condimentGroups={condimentGroups}
               onUpdateOrderStatus={handleUpdateOrderStatus}
               onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur #${ord.orderNumber} dicetak.`)}
             />

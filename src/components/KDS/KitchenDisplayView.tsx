@@ -15,11 +15,13 @@ import {
   Check,
   Bell
 } from 'lucide-react';
-import { Order, OrderStatus } from '../../types/pos';
+import { CondimentGroup, Order, OrderStatus } from '../../types/pos';
 import { playNewOrderSound, playWarningAlarmSound } from '../../utils/audioNotification';
+import { summarizeCondimentOptions } from '../../utils/condimentUtils';
 
 interface KitchenDisplayViewProps {
   orders: Order[];
+  condimentGroups: CondimentGroup[];
   onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus) => void;
   onPrintKitchenTicket: (order: Order) => void;
 }
@@ -28,6 +30,7 @@ type ViewMode = 'ACTIVE' | 'HISTORY';
 
 export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   orders,
+  condimentGroups,
   onUpdateOrderStatus,
   onPrintKitchenTicket
 }) => {
@@ -361,13 +364,21 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                               {/* Condiments / Toppings if selected */}
                               {portionItem.selectedCondiments && portionItem.selectedCondiments.length > 0 && (
                                 <div className="pl-7 space-y-0.5 pt-0.5 border-t border-slate-800/60 mt-1">
-                                  {portionItem.selectedCondiments.map((cg, idx) => (
-                                    <div key={idx} className="text-[11px] text-amber-300 font-semibold flex items-center gap-1">
-                                      <span className="text-slate-500">•</span>
-                                      <span className="text-slate-400">{cg.groupName}:</span>
-                                      <span className="font-bold text-amber-200">{cg.options.join(', ')}</span>
-                                    </div>
-                                  ))}
+                                  {portionItem.selectedCondiments.map((cg, idx) => {
+                                    const summary = summarizeCondimentOptions(cg, condimentGroups);
+                                    const isCollapsed = summary !== cg.options.join(', ');
+
+                                    return (
+                                      <div key={idx} className="text-[11px] text-amber-300 font-semibold flex items-center gap-1">
+                                        <span className="text-slate-400">{cg.groupName}:</span>
+                                        <span className={isCollapsed
+                                          ? 'font-black text-slate-900 bg-amber-300 px-1.5 rounded uppercase tracking-wide'
+                                          : 'font-bold text-amber-200'}>
+                                          {summary}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
 

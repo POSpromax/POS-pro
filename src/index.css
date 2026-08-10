@@ -121,6 +121,15 @@ body {
   animation: fadeIn 0.2s ease-out;
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.2s ease-out;
+}
+
 /* Neutralize legacy warm utility colors so white and grayscale stay dominant. */
 .bg-\[\#F5EFE8\],
 .bg-\[\#F3F1EE\],

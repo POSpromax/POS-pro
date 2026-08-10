@@ -26,6 +26,7 @@ import {
   INITIAL_ACCESS_CONTROL
 } from '../data/initialData';
 import { cloudReadiness } from '../lib/runtimeEnv';
+import { resolveMaterialGroup } from '../utils/materialGroup';
 
 export const STORAGE_KEYS = {
   ORDERS: 'nusantara_pos_orders',
@@ -208,6 +209,14 @@ export class DBStorage {
     const newTables = INITIAL_TABLES.filter((t) => !existingIds.has(t.id));
     setStoredItem(STORAGE_KEYS.TABLES, [...migratedTables, ...newTables]);
 
+    const existingMaterials = this.getRawMaterials().map((material) => ({
+      ...material,
+      group: material.group || resolveMaterialGroup(material)
+    }));
+    const existingMaterialIds = new Set(existingMaterials.map((m) => m.id));
+    const newMaterials = INITIAL_RAW_MATERIALS.filter((m) => !existingMaterialIds.has(m.id));
+    setStoredItem(STORAGE_KEYS.RAW_MATERIALS, [...existingMaterials, ...newMaterials]);
+
     // One-time cleanup for prototype records that must never appear as live sales.
     const dataVersion = Number(localStorage.getItem(STORAGE_KEYS.DATA_VERSION) || 0);
     if (dataVersion < CURRENT_DATA_VERSION) {
@@ -278,6 +287,10 @@ export class DBStorage {
       }
       if (g.id === 'cg-5' && g.targetCategories?.includes('ALL')) {
         g.targetCategories = ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN'];
+        updated = true;
+      }
+      if (g.id === 'cg-2' && g.allSelectedLabel === undefined) {
+        g.allSelectedLabel = 'CAMPUR';
         updated = true;
       }
     });
@@ -482,6 +495,16 @@ export class DBStorage {
         });
       }
     });
+
+    if (order.type === 'TAKE_AWAY') {
+      const totalItemQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
+      rawMaterials
+        .filter((raw) => raw.branchId === order.branchId && resolveMaterialGroup(raw) === 'KEMASAN')
+        .forEach((raw) => {
+          const usage = (raw.takeAwayUsagePerItem ?? 1) * totalItemQty;
+          raw.stockQuantity = Math.max(0, raw.stockQuantity - usage);
+        });
+    }
 
     setStoredItem(STORAGE_KEYS.RAW_MATERIALS, rawMaterials);
   }

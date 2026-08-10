@@ -20,10 +20,29 @@ import {
   FileText,
   Camera,
   Upload,
-  Check
+  Check,
+  ChefHat,
+  ShoppingBag,
+  LayoutGrid,
+  List
 } from 'lucide-react';
-import { RawMaterial, MenuItem, Branch, CategoryType, RecipeIngredient } from '../../types/pos';
+import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
+import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materialGroup';
+
+type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN';
+
+const SUB_TAB_TO_GROUP: Partial<Record<SubTab, MaterialGroup>> = {
+  BAHAN: 'MENU',
+  DAPUR: 'DAPUR',
+  KEMASAN: 'KEMASAN'
+};
+
+const GROUP_TAB_LABEL: Record<MaterialGroup, string> = {
+  MENU: 'Bahan Menu',
+  DAPUR: 'Stok Dapur',
+  KEMASAN: 'Kemasan Bawa Pulang'
+};
 
 interface InventoryHppViewProps {
   rawMaterials: RawMaterial[];
@@ -63,7 +82,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       });
     } else {
       csv += 'Nama Bahan,Unit,Stok,Min Stok,Harga/Unit,Cabang\n';
-      rawMaterials.forEach((r) => {
+      filteredRawList.forEach((r) => {
         csv += `"${r.name}",${r.unit},${r.stockQuantity},${r.minStockThreshold},${r.costPerUnit},"${r.branchName || ''}"\n`;
       });
     }
@@ -81,7 +100,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     toast('Cetak', 'Jendela cetak dibuka.');
   };
 
-  const [subTab, setSubTab] = useState<'BAHAN' | 'DAPUR' | 'MENU' | 'LAPORAN'>('BAHAN');
+  const [subTab, setSubTab] = useState<SubTab>('BAHAN');
+  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [categoriesList, setCategoriesList] = useState<CategoryType[]>([
@@ -124,16 +144,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     }
   };
 
-  // Separate materials into BAHAN (prepared porsi items) and DAPUR (raw kitchen ingredients)
-  const bahanItems = rawMaterials.filter((m) =>
-    m.id.startsWith('raw-b') || m.unit === 'pcs' || m.unit === 'porsi' || m.name.toLowerCase().includes('bakso') || m.name.toLowerCase().includes('mie')
-  );
-
-  const dapurItems = rawMaterials.filter((m) =>
-    !bahanItems.some((b) => b.id === m.id)
-  );
-
-  const activeRawList = subTab === 'BAHAN' ? (bahanItems.length ? bahanItems : rawMaterials) : dapurItems;
+  const activeGroup = SUB_TAB_TO_GROUP[subTab];
+  const activeRawList = activeGroup ? filterMaterialsByGroup(rawMaterials, activeGroup) : [];
   const filteredRawList = activeRawList.filter((m) =>
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -151,6 +163,55 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     const updatedQty = Math.max(0, material.stockQuantity + delta);
     onUpdateRawMaterial({ ...material, stockQuantity: updatedQty });
   };
+
+  const renderRawActions = (raw: RawMaterial) => (
+    <div className="flex items-center gap-0.5 md:gap-1">
+      <button
+        onClick={() => handleOpenRawModal(raw)}
+        className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+        title="Ubah item"
+      >
+        <Edit2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+      </button>
+      <button
+        onClick={() => {
+          if (confirmingDeleteId === raw.id) {
+            onDeleteRawMaterial(raw.id);
+            setConfirmingDeleteId(null);
+            toast('Dihapus', `${raw.name} berhasil dihapus.`);
+          } else {
+            setConfirmingDeleteId(raw.id);
+            setTimeout(() => setConfirmingDeleteId(null), 3000);
+          }
+        }}
+        className={`p-1 rounded-lg cursor-pointer transition-colors ${
+          confirmingDeleteId === raw.id ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-rose-50'
+        }`}
+        title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus item'}
+      >
+        {confirmingDeleteId === raw.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />}
+      </button>
+    </div>
+  );
+
+  const renderRawStepper = (raw: RawMaterial) => (
+    <div className="flex items-center gap-0.5 md:gap-1">
+      <button
+        onClick={() => handleAdjustStock(raw, -1)}
+        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+        title="Kurangi stok"
+      >
+        <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
+      </button>
+      <button
+        onClick={() => handleAdjustStock(raw, 1)}
+        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 flex items-center justify-center cursor-pointer transition-colors"
+        title="Tambah stok"
+      >
+        <Plus className="w-2.5 h-2.5 md:w-3 md:h-3" />
+      </button>
+    </div>
+  );
 
   const handleOpenEditMenuModal = (menu?: MenuItem) => {
     if (menu) {
@@ -246,7 +307,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         minStockThreshold: 5,
         costPerUnit: 10000,
         branchId: currentBranch?.id || branches[0]?.id || '00000000-0000-4000-a000-000000000010',
-        branchName: currentBranch?.name || branches[0]?.name || 'Pasirmulya Bogor'
+        branchName: currentBranch?.name || branches[0]?.name || 'Pasirmulya Bogor',
+        group: activeGroup || 'DAPUR',
+        takeAwayUsagePerItem: activeGroup === 'KEMASAN' ? 1 : undefined
       });
     }
     setIsRawModalOpen(true);
@@ -267,7 +330,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       minStockThreshold: Number(editingRaw.minStockThreshold) || 0,
       costPerUnit: Number(editingRaw.costPerUnit) || 0,
       branchId: editingRaw.branchId || targetBranch?.id || '00000000-0000-4000-a000-000000000010',
-      branchName: targetBranch?.name || 'Pasirmulya Bogor'
+      branchName: targetBranch?.name || 'Pasirmulya Bogor',
+      group: editingRaw.group || 'DAPUR',
+      takeAwayUsagePerItem: editingRaw.group === 'KEMASAN' ? Number(editingRaw.takeAwayUsagePerItem) || 1 : undefined
     };
     onUpdateRawMaterial(finalMaterial);
     setIsRawModalOpen(false);
@@ -300,9 +365,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         <div className="overflow-x-auto scrollbar-none -mx-3 px-3 md:mx-0 md:px-0">
           <div className="bg-slate-100 border border-slate-200/80 p-1 rounded-full flex items-center gap-0.5 md:gap-1 shadow-2xs w-max">
             {([
-              { key: 'BAHAN' as const, icon: Package, label: 'BAHAN' },
-              { key: 'DAPUR' as const, icon: Utensils, label: 'DAPUR' },
-              { key: 'MENU' as const, icon: Utensils, label: 'MENU' },
+              { key: 'MENU' as const, icon: Utensils, label: 'DAFTAR MENU' },
+              { key: 'BAHAN' as const, icon: Package, label: 'BAHAN MENU' },
+              { key: 'DAPUR' as const, icon: ChefHat, label: 'STOK DAPUR' },
+              { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'KEMASAN' },
               { key: 'LAPORAN' as const, icon: FileText, label: 'LAPORAN' },
             ]).map(({ key, icon: Icon, label }) => (
               <button
@@ -334,6 +400,28 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {activeGroup && (
+              <div className="bg-slate-100 border border-slate-200/80 p-0.5 rounded-full flex items-center gap-0.5 shrink-0">
+                {([
+                  { key: 'GRID' as const, icon: LayoutGrid, label: 'Tampilan kotak' },
+                  { key: 'LIST' as const, icon: List, label: 'Tampilan daftar' }
+                ]).map(({ key, icon: Icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setViewMode(key)}
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={viewMode === key}
+                    className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                      viewMode === key ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button
               onClick={handleExportCSV}
               className="px-3 md:px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
@@ -353,7 +441,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 onClick={() => handleOpenRawModal()}
                 className="px-3 md:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
               >
-                <Plus className="w-3.5 h-3.5" /> TAMBAH BAHAN
+                <Plus className="w-3.5 h-3.5" /> TAMBAH {subTab === 'KEMASAN' ? 'KEMASAN' : subTab === 'DAPUR' ? 'STOK DAPUR' : 'BAHAN'}
               </button>
             )}
 
@@ -382,7 +470,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">ASET</p>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">TOTAL BAHAN</p>
             <p className="text-xl md:text-3xl font-black text-slate-900 mt-0.5 md:mt-1">{totalAssetsCount}</p>
           </div>
           <div className="w-9 h-9 md:w-12 md:h-12 bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-700">
@@ -392,7 +480,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">RESTOCK</p>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">PERLU BELANJA</p>
             <p className="text-xl md:text-3xl font-black text-orange-600 mt-0.5 md:mt-1">{restockNeedCount}</p>
           </div>
           <div className="w-9 h-9 md:w-12 md:h-12 bg-orange-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xs shadow-orange-500/20">
@@ -411,15 +499,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         </div>
       </div>
 
-      {/* BAHAN & DAPUR Grid — 2 cols mobile, scales up on larger screens */}
-      {(subTab === 'BAHAN' || subTab === 'DAPUR') && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3.5">
-          {filteredRawList.length === 0 ? (
-            <div className="col-span-full bg-white rounded-2xl p-8 md:p-10 text-center text-slate-400 font-bold border border-slate-200">
-              Tidak ada item ditemukan. Klik "TAMBAH BAHAN" atau "Reset Data Standar".
-            </div>
-          ) : (
-            filteredRawList.map((raw) => {
+      {/* Stock list — grid or list mode */}
+      {activeGroup && (
+        filteredRawList.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 md:p-10 text-center text-slate-400 font-bold border border-slate-200">
+            Belum ada item pada {GROUP_TAB_LABEL[activeGroup]}. Klik tombol tambah di atas untuk membuat item baru.
+          </div>
+        ) : viewMode === 'GRID' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3.5">
+            {filteredRawList.map((raw) => {
               const isLow = raw.stockQuantity <= raw.minStockThreshold;
 
               return (
@@ -427,7 +515,6 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   key={raw.id}
                   className="bg-white rounded-xl md:rounded-2xl p-2.5 md:p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between relative hover:shadow-md transition-shadow"
                 >
-                  {/* Header */}
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-black text-[11px] md:text-xs text-[#1A1714] truncate">{raw.name}</h3>
@@ -437,69 +524,61 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     </div>
 
                     {isLow && (
-                      <span className="bg-rose-500 text-white text-[8px] md:text-[9px] font-black px-1 md:px-1.5 py-0.5 rounded-md shadow-xs animate-pulse flex items-center gap-0.5">
-                        LOW
+                      <span className="bg-rose-500 text-white text-[8px] md:text-[9px] font-black px-1 md:px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
+                        MENIPIS
                       </span>
                     )}
                   </div>
 
-                  {/* Stock quantity */}
                   <div className="my-1.5 md:my-2 text-right">
                     <span className="text-lg md:text-xl font-black text-[#1A1714] tracking-tight">
                       {raw.stockQuantity.toLocaleString('id-ID')}
                     </span>
                   </div>
 
-                  {/* Card Bottom Controls */}
                   <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 md:pt-2">
-                    <div className="flex items-center gap-0.5 md:gap-1">
-                      <button
-                        onClick={() => handleOpenRawModal(raw)}
-                        className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-lg cursor-pointer"
-                        title="Edit Bahan"
-                      >
-                        <Edit2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirmingDeleteId === raw.id) {
-                            onDeleteRawMaterial(raw.id);
-                            setConfirmingDeleteId(null);
-                            toast('Dihapus', `${raw.name} berhasil dihapus.`);
-                          } else {
-                            setConfirmingDeleteId(raw.id);
-                            setTimeout(() => setConfirmingDeleteId(null), 3000);
-                          }
-                        }}
-                        className={`p-1 rounded-lg cursor-pointer transition-colors ${
-                          confirmingDeleteId === raw.id ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-rose-50'
-                        }`}
-                        title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus Bahan'}
-                      >
-                        {confirmingDeleteId === raw.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-0.5 md:gap-1">
-                      <button
-                        onClick={() => handleAdjustStock(raw, -1)}
-                        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleAdjustStock(raw, 1)}
-                        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <Plus className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                      </button>
-                    </div>
+                    {renderRawActions(raw)}
+                    {renderRawStepper(raw)}
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100 overflow-hidden">
+            {filteredRawList.map((raw) => {
+              const isLow = raw.stockQuantity <= raw.minStockThreshold;
+
+              return (
+                <div key={raw.id} className="p-2.5 md:p-3.5 flex items-center gap-2 md:gap-4 hover:bg-slate-50/80 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-[11px] md:text-xs text-[#1A1714] truncate">{raw.name}</span>
+                      {isLow && (
+                        <span className="bg-rose-500 text-white text-[8px] md:text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                          MENIPIS
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase">
+                      {raw.unit} <span className="text-slate-300">Min: {raw.minStockThreshold}</span>
+                      <span className="text-slate-300"> · Rp {raw.costPerUnit.toLocaleString('id-ID')}</span>
+                    </p>
+                  </div>
+
+                  <span className="text-base md:text-lg font-black text-[#1A1714] tracking-tight tabular-nums shrink-0">
+                    {raw.stockQuantity.toLocaleString('id-ID')}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+                    {renderRawStepper(raw)}
+                    {renderRawActions(raw)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
 
       {/* MENU List View */}
@@ -779,10 +858,18 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     onChange={(e) => setSelectedRecipeMaterialId(e.target.value)}
                     className="flex-1 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-slate-900 focus:bg-white text-slate-900"
                   >
-                    <option value="">Pilih Bahan Baku...</option>
-                    {rawMaterials.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name} ({r.unit})</option>
-                    ))}
+                    <option value="">Pilih Bahan...</option>
+                    {(['MENU', 'DAPUR', 'KEMASAN'] as MaterialGroup[]).map((group) => {
+                      const groupItems = rawMaterials.filter((r) => resolveMaterialGroup(r) === group);
+                      if (groupItems.length === 0) return null;
+                      return (
+                        <optgroup key={group} label={GROUP_TAB_LABEL[group]}>
+                          {groupItems.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name} ({r.unit})</option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
                   </select>
 
                   <input
@@ -866,6 +953,30 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
             <div className="space-y-3">
               <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">KELOMPOK STOK</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { key: 'MENU' as const, label: 'Bahan Menu' },
+                    { key: 'DAPUR' as const, label: 'Stok Dapur' },
+                    { key: 'KEMASAN' as const, label: 'Kemasan' }
+                  ]).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setEditingRaw({ ...editingRaw, group: key, takeAwayUsagePerItem: key === 'KEMASAN' ? (editingRaw.takeAwayUsagePerItem || 1) : undefined })}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-colors cursor-pointer ${
+                        (editingRaw.group || 'DAPUR') === key
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">NAMA BAHAN BAKU</label>
                 <input
                   type="text"
@@ -930,6 +1041,23 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   />
                 </div>
               </div>
+
+              {editingRaw.group === 'KEMASAN' && (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">PEMAKAIAN PER ITEM BAWA PULANG</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={editingRaw.takeAwayUsagePerItem ?? 1}
+                    onChange={(e) => setEditingRaw({ ...editingRaw, takeAwayUsagePerItem: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                  />
+                  <p className="text-[9px] font-bold text-slate-400 mt-1">
+                    Stok berkurang otomatis sebanyak angka ini untuk setiap item pesanan bawa pulang.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="pt-2">
