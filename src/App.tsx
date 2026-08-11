@@ -48,7 +48,7 @@ import { listCloudAttendance, saveCloudAttendance } from './services/attendanceS
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus } from './services/orderService';
-import { getCloudActiveShift, openCloudShift, closeCloudShift, subscribeCloudShift } from './services/shiftService';
+import { getCloudActiveShift, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { formatOrderLabel } from './utils/orderNumber';
 
@@ -417,6 +417,9 @@ export default function App() {
       } catch (error) {
         if (cancelled || sequence !== requestSequence || syncErrorShown) return;
         syncErrorShown = true;
+        if (error instanceof ShiftServiceError && error.status === 401) {
+          clearTerminalSessionState();
+        }
         showPushToast(
           'Status Shift Belum Tersinkron',
           error instanceof Error ? error.message : 'Data shift pusat belum dapat dibaca.',

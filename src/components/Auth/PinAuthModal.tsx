@@ -111,47 +111,10 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         return;
       }
 
-      // If cloud login returns a server 500 error (or unhandled server error), try local PIN fallback
-      if (result.error === 'Verifikasi tidak dapat diproses' || result.error === 'Server autentikasi belum dikonfigurasi') {
-        const localCheck = DBStorage.authenticateByPin(branch.id, pin);
-        if (localCheck.success && localCheck.user) {
-          finishSuccess(
-            {
-              id: localCheck.user.id,
-              name: localCheck.user.name,
-              role: localCheck.user.role,
-              tenantId: '00000000-0000-4000-a000-000000000001',
-              branchId: branch.id,
-              permissions: (localCheck.user.permissions as unknown as Record<string, boolean>) || {},
-            },
-            branch,
-            mode,
-          );
-          return;
-        }
-      }
-
       const attempts = result.remainingAttempts !== undefined ? ` Sisa percobaan: ${result.remainingAttempts}.` : '';
       setErrorMessage(`${result.error || 'PIN tidak valid.'}${attempts}`);
     } catch (error) {
       if (controller.signal.aborted || attemptId !== attemptSequenceRef.current) return;
-      // Network/Server connection fallback
-      const localCheck = DBStorage.authenticateByPin(branch.id, pin);
-      if (localCheck.success && localCheck.user) {
-        finishSuccess(
-          {
-            id: localCheck.user.id,
-            name: localCheck.user.name,
-            role: localCheck.user.role,
-            tenantId: '00000000-0000-4000-a000-000000000001',
-            branchId: branch.id,
-            permissions: (localCheck.user.permissions as unknown as Record<string, boolean>) || {},
-          },
-          branch,
-          mode,
-        );
-        return;
-      }
       setErrorMessage('Server autentikasi tidak dapat dihubungi.');
     } finally {
       if (attemptId !== attemptSequenceRef.current) return;

@@ -1,6 +1,13 @@
 import type { Shift } from '../types/pos';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
+export class ShiftServiceError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ShiftServiceError';
+  }
+}
+
 async function token(): Promise<string> {
   if (!isSupabaseConfigured()) return '';
   try {
@@ -24,7 +31,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || 'Layanan shift tidak dapat dihubungi');
+    throw new ShiftServiceError(data.error || 'Layanan shift tidak dapat dihubungi', response.status);
   }
   return data as T;
 }
