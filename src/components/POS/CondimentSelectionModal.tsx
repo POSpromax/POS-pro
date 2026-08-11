@@ -124,7 +124,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fadeIn">
-      <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[92vh] font-sans text-slate-900">
+      <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-xl border border-slate-100 flex flex-col max-h-[92vh] font-sans text-slate-900">
         
         {/* Top Banner Image with Dark Gradient Overlay matching Screenshots 3 & 4 */}
         <div className="relative h-48 sm:h-52 w-full bg-[var(--surface-secondary)] overflow-hidden shrink-0">
@@ -143,7 +143,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 left-4 w-9 h-9 bg-white text-slate-900 rounded-full flex items-center justify-center shadow-lg font-bold hover:bg-slate-100 transition-all cursor-pointer z-10"
+            className="absolute top-4 left-4 w-9 h-9 bg-white text-slate-900 rounded-full flex items-center justify-center shadow-md font-bold hover:bg-slate-100 transition-all cursor-pointer z-10"
           >
             <X className="w-5 h-5 stroke-[2.5]" />
           </button>
@@ -153,7 +153,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
             <h2 className="text-lg sm:text-xl font-bold text-white leading-tight drop-shadow-md min-w-0 flex-1">
               {menuItem.name}
             </h2>
-            <div className="bg-[var(--primary)] text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-lg shrink-0 font-mono">
+            <div className="bg-[var(--primary)] text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-md shrink-0 font-mono">
               Rp {finalUnitPrice.toLocaleString('id-ID')}
             </div>
           </div>
@@ -171,7 +171,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
               const isRequired = group.required;
 
               return (
-                <div key={group.id} className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                <div key={group.id} className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
                   {/* Group Header matching Screenshots 3 & 4 */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                         {group.name}
                       </h3>
                       {isRequired && (
-                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
                           *WAJIB
                         </span>
                       )}
@@ -222,7 +222,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                             !isAvailable
                               ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                               : isSelected
-                              ? 'bg-amber-50/70 border-amber-300 text-amber-950 shadow-2xs'
+                              ? 'bg-amber-50/70 border-amber-300 text-amber-950 shadow-sm'
                               : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
                           }`}
                         >
@@ -270,7 +270,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-4 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] active:scale-95 text-white font-bold text-sm rounded-2xl shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-4 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] active:scale-95 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+ Tambahkan Pesanan</span>
           </button>

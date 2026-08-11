@@ -161,7 +161,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   return (
     <div className="ui-surface flex-1 overflow-y-auto px-3 py-4 text-[var(--text-primary)] md:px-6 md:py-5 font-sans select-none">
       {/* Hero Section */}
-      <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-2xs">
+      <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -186,7 +186,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
             <button
               type="button"
               onClick={() => onNavigateTab('blueprint')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white transition shadow-xs cursor-pointer active:scale-95"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white transition shadow-sm cursor-pointer active:scale-95"
             >
               <Compass className="h-3 w-3 md:h-3.5 md:w-3.5 text-[var(--primary-text)]" />
               <span className="hidden sm:inline">Studio</span> Workflow
@@ -212,12 +212,12 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
         {/* View Mode Toggle */}
         <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="bg-slate-100 border border-slate-200/80 p-1 rounded-full flex items-center gap-0.5 shadow-2xs">
+          <div className="bg-slate-100 border border-slate-200/80 p-1 rounded-full flex items-center gap-0.5 shadow-sm">
             <button
               onClick={() => setViewMode('COMBINED')}
               className={`px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 viewMode === 'COMBINED'
-                  ? 'bg-[var(--primary)] text-white shadow-xs'
+                  ? 'bg-[var(--primary)] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -227,7 +227,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               onClick={() => { setViewMode('PER_OUTLET'); if (!selectedOutletId) setSelectedOutletId(currentBranch.id); }}
               className={`px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 viewMode === 'PER_OUTLET'
-                  ? 'bg-[var(--primary)] text-white shadow-xs'
+                  ? 'bg-[var(--primary)] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -266,13 +266,13 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   : 'border-slate-200 bg-slate-50';
             const iconClass =
               card.tone === 'accent'
-                ? 'bg-[var(--primary-solid)] text-white shadow-xs'
+                ? 'bg-[var(--primary-solid)] text-white shadow-sm'
                 : card.tone === 'warning'
                   ? 'bg-amber-500 text-white'
                   : 'bg-[var(--primary)] text-white';
 
             return (
-              <div key={card.title} className={`rounded-xl md:rounded-2xl border p-3 md:p-4 shadow-2xs ${toneClass}`}>
+              <div key={card.title} className={`rounded-xl md:rounded-2xl border p-3 md:p-4 shadow-sm ${toneClass}`}>
                 <div className="mb-2 md:mb-3 flex items-center justify-between">
                   <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">{card.title}</span>
                   <div className={`flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-lg md:rounded-xl ${iconClass}`}>
@@ -289,7 +289,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
       {/* Per-Outlet Comparison Table (PER_OUTLET mode) */}
       {viewMode === 'PER_OUTLET' && (
-        <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-2xs">
+        <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
           <h2 className="text-sm md:text-base font-bold text-[var(--text-primary)] mb-3">Perbandingan Outlet</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -353,7 +353,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
       {/* Action Cards + Filter Section */}
       <section className="mb-5 md:mb-6 grid gap-4 xl:grid-cols-[1fr_1.3fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-2xs">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
           <div className="mb-3 md:mb-4 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kontrol Utama</p>
@@ -372,9 +372,9 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   key={card.title}
                   type="button"
                   onClick={card.onClick}
-                  className="group flex w-full items-start gap-2.5 md:gap-3 rounded-xl md:rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 text-left transition hover:border-[var(--primary)] hover:bg-white shadow-2xs cursor-pointer"
+                  className="group flex w-full items-start gap-2.5 md:gap-3 rounded-xl md:rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 text-left transition hover:border-[var(--primary)] hover:bg-white shadow-sm cursor-pointer"
                 >
-                  <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-lg md:rounded-xl bg-[var(--primary)] text-white shadow-xs">
+                  <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-lg md:rounded-xl bg-[var(--primary)] text-white shadow-sm">
                     <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -388,7 +388,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-4 md:p-5 shadow-2xs">
+        <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-4 md:p-5 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Filter & Status Cabang</p>
@@ -412,12 +412,12 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           </div>
 
           <div className="mt-3 md:mt-4 grid gap-3 grid-cols-2">
-            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-2xs">
+            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
               <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Outlet</p>
               <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{branches.length}</p>
               <p className="mt-0.5 text-[10px] md:text-[11px] font-bold text-slate-500">Cabang terdaftar.</p>
             </div>
-            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-2xs">
+            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
               <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Hasil Filter</p>
               <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{filteredBranches.length}</p>
               <p className="mt-0.5 text-[10px] md:text-[11px] font-bold text-slate-500">Outlet sesuai pencarian.</p>
@@ -439,7 +439,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           return (
             <div
               key={branch.id}
-              className={`flex flex-col justify-between rounded-xl md:rounded-2xl border p-4 md:p-5 transition shadow-2xs ${
+              className={`flex flex-col justify-between rounded-xl md:rounded-2xl border p-4 md:p-5 transition shadow-sm ${
                 isSelected
                   ? 'border-[var(--primary)] bg-[var(--primary-soft)] ring-2 ring-[var(--primary)]/10'
                   : 'border-[var(--panel-border)] bg-white hover:border-[var(--primary)]'
@@ -470,7 +470,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                       {branch.code || 'OUTLET'}
                     </p>
                   </div>
-                  <div className="flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs">
+                  <div className="flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm">
                     <Store className="h-4 w-4 md:h-5 md:w-5" />
                   </div>
                 </div>
@@ -562,7 +562,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
       {filteredBranches.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#D8D2CC] bg-white p-8 md:p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-3xl bg-[#FFF4EE] text-[var(--primary-hover)]">
+          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-2xl bg-[#FFF4EE] text-[var(--primary-hover)]">
             <Search className="h-5 w-5" />
           </div>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-bold text-[var(--text-primary)]">Outlet tidak ditemukan</h3>

@@ -284,7 +284,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {isSavedAlert && (
-            <div className="bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg animate-fadeIn">
+            <div className="bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-md animate-fadeIn">
               <CheckCircle2 className="w-4 h-4" />
               <span>Perubahan Berhasil Disimpan!</span>
             </div>
@@ -302,11 +302,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('PROFILE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'PROFILE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Store className="w-4 h-4" />
                   </div>
                   <div>
@@ -319,11 +319,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('LANDING')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'LANDING'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
@@ -342,11 +342,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('KDS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'KDS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Volume2 className="w-4 h-4" />
                   </div>
                   <div>
@@ -359,11 +359,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('STAFF')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'STAFF'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
@@ -376,11 +376,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('CONDIMENTS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'CONDIMENTS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Grid className="w-4 h-4" />
                   </div>
                   <div>
@@ -399,11 +399,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('FINANCE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'FINANCE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
@@ -416,11 +416,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('ACCESS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'ACCESS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
@@ -433,11 +433,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={() => setActiveTab('DATABASE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'DATABASE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-2xs font-bold'
+                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
                     <Database className="w-4 h-4" />
                   </div>
                   <div>
@@ -460,7 +460,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Right Main Form Content Panel */}
-          <div className="lg:col-span-3 bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-2xs min-h-[600px]">
+          <div className="lg:col-span-3 bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm min-h-[600px]">
             {/* 1. PROFIL & BRAND (Matching Image 1) */}
             {activeTab === 'PROFILE' && (
               <div className="space-y-6">
@@ -476,7 +476,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <img
                       src={formProfile.logoUrl}
                       alt="Logo"
-                      className="w-36 h-36 object-contain rounded-2xl border bg-white p-2 shadow-xs mb-3"
+                      className="w-36 h-36 object-contain rounded-2xl border bg-white p-2 shadow-sm mb-3"
                     />
                     <input
                       type="text"
@@ -596,7 +596,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* Banner Promo Utama Card */}
-                <div className="bg-[var(--primary)] rounded-2xl p-6 text-white shadow-lg space-y-4">
+                <div className="bg-[var(--primary)] rounded-2xl p-6 text-white shadow-md space-y-4">
                   <p className="text-[11px] font-bold text-[var(--primary-text)] uppercase tracking-widest flex items-center gap-1.5">
                     <Volume2 className="w-3.5 h-3.5" /> BANNER PROMO UTAMA
                   </p>
@@ -1014,7 +1014,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={handleGetCurrentLocation}
-                      className="text-xs font-bold text-[var(--primary-hover)] hover:text-[var(--primary-text)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                      className="text-xs font-bold text-[var(--primary-hover)] hover:text-[var(--primary-text)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                     >
                       <MapPin className="w-4 h-4 text-[var(--primary-hover)]" />
                       <span>📍 Ambil Lokasi & Buka Google Maps</span>
@@ -1024,7 +1024,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       href={`https://www.google.com/maps?q=${formProfile.gpsLatitude || -6.609013171412514},${formProfile.gpsLongitude || 106.78293233420759}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 border border-slate-200 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+                      className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 border border-slate-200 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                     >
                       <ExternalLink className="w-4 h-4 text-slate-500" />
                       <span>🗺️ Lihat Titik di Google Maps</span>
@@ -1072,7 +1072,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           }`}
                         >
                           <span>{d.label}</span>
-                          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${isOff ? 'bg-rose-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-lg ${isOff ? 'bg-rose-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
                             {isOff ? 'LIBUR' : 'KERJA'}
                           </span>
                         </button>
@@ -1156,7 +1156,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <button
                       type="submit"
-                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Plus className="w-4 h-4" /> Tambah Staff
                     </button>
@@ -1165,7 +1165,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Staff List Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                     {staffAccounts.map((stf) => (
-                      <div key={stf.id} className="bg-white border border-[var(--panel-border)] rounded-2xl p-3.5 shadow-xs space-y-3 relative">
+                      <div key={stf.id} className="bg-white border border-[var(--panel-border)] rounded-2xl p-3.5 shadow-sm space-y-3 relative">
                         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
                           <div className="flex items-center gap-3 min-w-0">
                             {stf.avatar ? (
@@ -1299,7 +1299,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     const selectedProductNames = group.targetProductNames || [];
                     const targetCount = selectedCategories.length + selectedProductIds.length + selectedProductNames.length;
                     return (
-                      <div key={group.id} className="border border-[var(--panel-border)] rounded-3xl overflow-hidden bg-white shadow-xs">
+                      <div key={group.id} className="border border-[var(--panel-border)] rounded-2xl overflow-hidden bg-white shadow-sm">
                         {/* Group Header */}
                         <div
                           onClick={() => toggleAccordion(group.id)}
@@ -1310,7 +1310,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{group.name}</h3>
-                                <span className="bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-md uppercase">
+                                <span className="bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-lg uppercase">
                                   MODE {group.mode}
                                 </span>
                                 <span className="text-xs text-slate-400 font-bold">• {group.options.length} Opsi</span>
@@ -1348,14 +1348,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-2xs' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-slate-500'}`}
                                   >
                                     Pilih 1 (Wajib)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-2xs' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-slate-500'}`}
                                   >
                                     Pilih Banyak (Opsi)
                                   </button>
@@ -1378,7 +1378,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, isRequired: false })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
                                   >
                                     Opsional (Boleh Kosong)
                                   </button>
@@ -1484,7 +1484,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleAddOptionToGroup(group)}
-                                  className="w-10 h-10 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] text-white rounded-2xl font-bold flex items-center justify-center cursor-pointer shadow-xs"
+                                  className="w-10 h-10 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] text-white rounded-2xl font-bold flex items-center justify-center cursor-pointer shadow-sm"
                                 >
                                   <Plus className="w-5 h-5" />
                                 </button>
@@ -1775,7 +1775,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {activeTab === 'ACCESS' && (
               <div className="space-y-6">
                 {/* Section 1: Hak Akses & Role Header & Feature Cards Grid */}
-                <div className="bg-white rounded-[32px] p-6 border border-slate-200/80 shadow-2xs space-y-5">
+                <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center shadow-md">
                       <Shield className="w-6 h-6" />
@@ -1861,7 +1861,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* Section 3: Meja untuk Customer Order Card matching Screenshot 2 & 3 */}
-                <div className="bg-white rounded-[32px] p-6 border border-slate-200/80 shadow-2xs space-y-4">
+                <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -2016,7 +2016,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Modal New Condiment Group */}
       {newGroupModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white border border-[var(--panel-border)] w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+          <div className="bg-white border border-[var(--panel-border)] w-full max-w-md rounded-2xl p-6 shadow-xl relative">
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Tambah Grup Topping / Isian</h3>
             <form onSubmit={handleCreateNewGroup} className="space-y-4">
               <div>
@@ -2095,7 +2095,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
               }
             }}
-            className="bg-white border border-slate-200 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 font-sans text-slate-900"
+            className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 font-sans text-slate-900"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase">Edit Detail Staff & PIN</h3>
@@ -2206,7 +2206,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Modal Panduan Konfigurasi Menu & Tips (Matching Screenshot 4) */}
       {showCondimentTips && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-[var(--primary-hover)] font-bold text-sm">
                 <Info className="w-5 h-5 text-[var(--primary-hover)]" />

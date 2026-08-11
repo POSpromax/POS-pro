@@ -340,7 +340,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   return (
     <div className="theme-self-order flex min-h-screen w-full select-none flex-col items-center bg-[#FFF8F2] font-sans text-slate-800 antialiased">
       {localToast && (
-        <div className="animate-fadeIn fixed left-1/2 top-4 z-[9999] -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg">
+        <div className="animate-fadeIn fixed left-1/2 top-4 z-[9999] -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-md">
           {localToast}
         </div>
       )}
@@ -355,7 +355,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             <div className="space-y-4">
               
               {/* Top Restaurant Profile Header Card */}
-              <div className="bg-white rounded-[28px] p-4.5 shadow-sm border border-slate-200/60 flex items-center gap-4">
+              <div className="bg-white rounded-2xl p-4.5 shadow-sm border border-slate-200/60 flex items-center gap-4">
                 <div className="relative shrink-0">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white font-bold text-xl flex items-center justify-center shadow-md overflow-hidden border border-slate-100">
                     {profile.logoUrl ? (
@@ -364,7 +364,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       'BU'
                     )}
                   </div>
-                  <span className="w-4 h-4 bg-emerald-500 border-2 border-white rounded-full absolute -bottom-0.5 -right-0.5 shadow-xs" />
+                  <span className="w-4 h-4 bg-emerald-500 border-2 border-white rounded-full absolute -bottom-0.5 -right-0.5 shadow-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h1 className="font-bold text-base text-slate-900 tracking-tight leading-tight uppercase truncate">
@@ -390,7 +390,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               )}
 
               {/* Featured Promo Card */}
-              <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/70 border border-amber-200/80 rounded-[28px] p-5 space-y-1.5 relative overflow-hidden shadow-2xs">
+              <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/70 border border-amber-200/80 rounded-2xl p-5 space-y-1.5 relative overflow-hidden shadow-sm">
                 <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
                   <Sparkles className="w-3 h-3 text-orange-600" />
                   <span>FEATURED</span>
@@ -407,7 +407,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleStartOrder}
-                className="w-full bg-[#EA580C] hover:bg-orange-600 text-white rounded-[28px] p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
+                className="w-full bg-[#EA580C] hover:bg-orange-600 text-white rounded-2xl p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
               >
                 <div className="text-left space-y-0.5">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-orange-100 block opacity-90">
@@ -424,7 +424,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
               {/* Info Grid (Clock & Phone) */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-[24px] p-4.5 border border-slate-200/80 shadow-2xs text-center flex flex-col items-center justify-center space-y-1">
+                <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-sm text-center flex flex-col items-center justify-center space-y-1">
                   <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
                     <Clock className="w-5 h-5" />
                   </div>
@@ -436,7 +436,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   href={`https://wa.me/${profile.phone?.replace(/[^0-9]/g, '') || '628123456789'}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="bg-white rounded-[24px] p-4.5 border border-slate-200/80 shadow-2xs text-center flex flex-col items-center justify-center space-y-1 hover:border-orange-200 transition-all cursor-pointer"
+                  className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-sm text-center flex flex-col items-center justify-center space-y-1 hover:border-orange-200 transition-all cursor-pointer"
                 >
                   <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
                     <PhoneCall className="w-5 h-5" />
@@ -447,7 +447,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               </div>
 
               {/* Review Google Maps Card */}
-              <div className="bg-white rounded-[28px] p-5 border border-slate-200/80 shadow-2xs text-center space-y-1.5">
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm text-center space-y-1.5">
                 <div className="flex justify-center gap-1 text-orange-500">
                   {'★'.repeat(5).split('').map((_, i) => (
                     <span key={i} className="text-lg">⭐</span>
@@ -467,13 +467,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 href={profile.instagram ? `https://instagram.com/${profile.instagram.replace('@', '')}` : '#'}
                 target="_blank"
                 rel="noreferrer"
-                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
+                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-sm hover:bg-slate-50 hover:text-orange-600 transition-all"
               >
                 <Instagram className="w-5 h-5" />
               </a>
               <button
                 type="button"
-                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
+                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-sm hover:bg-slate-50 hover:text-orange-600 transition-all"
               >
                 <span className="font-bold text-xs">🎵</span>
               </button>
@@ -487,7 +487,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     toast('Link Disalin', 'Link e-order berhasil disalin!');
                   }
                 }}
-                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
+                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-sm hover:bg-slate-50 hover:text-orange-600 transition-all"
               >
                 <Share2 className="w-5 h-5" />
               </button>
@@ -506,7 +506,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             <div className="min-h-full flex flex-col justify-center space-y-6">
             <div className="text-center space-y-2">
               {/* Orange Chef Hat Icon Box */}
-              <div className="w-20 h-20 bg-[#EA580C] text-white rounded-[24px] flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
+              <div className="w-20 h-20 bg-[#EA580C] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
                 <ChefHat className="w-10 h-10 stroke-[2.2]" />
               </div>
 
@@ -519,7 +519,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             </div>
 
             {/* Form Container Box */}
-            <div className="bg-white rounded-[32px] p-6 sm:p-7 shadow-xl border border-slate-100 space-y-5">
+            <div className="bg-white rounded-2xl p-6 sm:p-7 shadow-xl border border-slate-100 space-y-5">
               {tableErrorMsg && (
                 <div className="bg-red-50 text-red-600 text-xs font-bold p-3.5 rounded-2xl border border-red-200">
                   ⚠️ {tableErrorMsg}
@@ -566,7 +566,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleProceedToMenu}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
               >
                 <span>Mulai Pesan</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
@@ -627,7 +627,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             </div>
 
             {/* Category Filter Slider */}
-            <div className="bg-white border-b border-slate-200 p-2 overflow-x-auto scrollbar-none shrink-0 shadow-2xs">
+            <div className="bg-white border-b border-slate-200 p-2 overflow-x-auto scrollbar-none shrink-0 shadow-sm">
               <div className="flex gap-1.5 min-w-max px-2">
                 {categories.map((cat) => (
                   <button
@@ -636,7 +636,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     onClick={() => setSelectedCategory(cat.key)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
                       selectedCategory === cat.key
-                        ? 'bg-orange-500 text-white shadow-xs'
+                        ? 'bg-orange-500 text-white shadow-sm'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
@@ -654,7 +654,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               </h2>
 
               {filteredMenu.length === 0 ? (
-                <div className="bg-white rounded-3xl p-8 text-center text-slate-400 space-y-2 border border-slate-200/80">
+                <div className="bg-white rounded-2xl p-8 text-center text-slate-400 space-y-2 border border-slate-200/80">
                   <span className="text-3xl block">🔍</span>
                   <p className="text-xs font-bold text-slate-700">Menu tidak ditemukan</p>
                   <p className="text-[11px] text-slate-400">Silakan gunakan kata kunci pencarian lain.</p>
@@ -667,7 +667,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       <div
                         key={item.id}
                         onClick={() => handleItemClick(item)}
-                        className="bg-white rounded-3xl p-2.5 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+                        className="bg-white rounded-2xl p-2.5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                       >
                         <div>
                           <div className="relative aspect-4/3 rounded-2xl overflow-hidden mb-2 bg-slate-100 flex items-center justify-center">
@@ -687,7 +687,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                               </div>
                             )}
 
-                            <div className="absolute right-1.5 top-1.5 rounded-full border border-white/70 bg-white/95 px-2 py-0.5 text-[11px] font-bold text-slate-800 shadow-xs backdrop-blur-xs">
+                            <div className="absolute right-1.5 top-1.5 rounded-full border border-white/70 bg-white/95 px-2 py-0.5 text-[11px] font-bold text-slate-800 shadow-sm backdrop-blur-xs">
                               Rp {item.price.toLocaleString('id-ID')}
                             </div>
 
@@ -707,7 +707,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                           type="button"
                           className={`mt-2.5 w-full py-1.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer ${
                             qtyInCart > 0
-                              ? 'bg-orange-600 text-white shadow-xs'
+                              ? 'bg-orange-600 text-white shadow-sm'
                               : 'bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white'
                           }`}
                         >
@@ -730,7 +730,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-orange-600 bg-orange-600 p-3.5 text-white shadow-xl shadow-orange-500/20 hover:bg-orange-700"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
                       {totalCartQty}
                     </div>
                     <div className="text-left">
@@ -741,7 +741,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all">
+                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all">
                     <span>Lihat Keranjang</span>
                     <ChevronRight className="w-4 h-4" />
                   </div>
@@ -797,7 +797,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         {item.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
                           <span
                             key={i}
-                            className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-md uppercase"
+                            className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-lg uppercase"
                           >
                             + {opt.name}
                           </span>
@@ -860,7 +860,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Kirim Pesanan ke Dapur & Kasir</span>
                 <ArrowRight className="w-4 h-4" />
@@ -915,7 +915,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               </div>
 
               {/* Receipt Card (RINCIAN PESANAN) */}
-              <div className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm space-y-3">
+              <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                   <Receipt className="w-4 h-4 text-slate-400" />
                   <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
@@ -931,7 +931,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         {it.selectedCondiments && it.selectedCondiments.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-0.5">
                             {it.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
-                              <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md uppercase">
+                              <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-lg uppercase">
                                 {opt.name}
                               </span>
                             ))}
@@ -965,7 +965,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleResetToLanding}
-                className="w-full py-4 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Home className="w-4 h-4 text-slate-400" />
                 <span>Kembali ke Halaman Utama</span>

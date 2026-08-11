@@ -18,7 +18,7 @@ export const PWAUpdatePrompt: React.FC = () => {
   if (!offlineReady && !needRefresh) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[80] w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-black/10 bg-[var(--primary)] p-3.5 text-white shadow-2xl">
+    <div className="fixed bottom-4 right-4 z-[80] w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-black/10 bg-[var(--primary)] p-3.5 text-white shadow-xl">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-solid)]">
           {needRefresh ? <RefreshCw className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}

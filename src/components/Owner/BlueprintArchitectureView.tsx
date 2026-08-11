@@ -165,7 +165,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   return (
     <div className="ui-surface flex-1 text-[var(--text-primary)] overflow-y-auto p-4 md:p-6 font-sans">
       {/* Executive Studio Header Banner */}
-      <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 mb-6 shadow-xs relative overflow-hidden">
+      <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 mb-6 shadow-sm relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -208,7 +208,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             <button
               type="button"
               onClick={() => setIsAddBranchModalOpen(true)}
-              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer self-start md:self-auto"
+              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer self-start md:self-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Tambah Outlet Cabang Baru</span>
@@ -262,7 +262,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
         {/* Blueprint Toast Notice */}
         {isSavedNotice && (
-          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 shadow-xs">
+          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>Seluruh konfigurasi arsitektur studio outlet {currentBranch.name} berhasil disimpan!</span>
           </div>
@@ -275,7 +275,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('PROFILE')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'PROFILE'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -288,7 +288,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('LAYOUT')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'LAYOUT'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -301,7 +301,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('MENU_TREE')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'MENU_TREE'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -314,7 +314,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('ACCESS_MATRIX')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'ACCESS_MATRIX'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -327,7 +327,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('PAYMENT_GATEWAY')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'PAYMENT_GATEWAY'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -340,7 +340,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('WORKFLOW')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'WORKFLOW'
-                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs'
+                ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[var(--text-secondary)] border-[var(--panel-border)]/80'
             }`}
           >
@@ -353,7 +353,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 1: PROFIL RESTO & STRUK ================= */}
       {activeSubBlueprint === 'PROFILE' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -445,7 +445,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 2: TABLE LAYOUT BLUEPRINT ================= */}
       {activeSubBlueprint === 'LAYOUT' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -459,7 +459,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <button
                 type="button"
                 onClick={() => onNavigateTab('tables')}
-                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
               >
                 <QrCode className="w-4 h-4" />
                 <span>Buka Kelola QR Meja Full</span>
@@ -486,7 +486,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   return (
                     <div
                       key={table.id}
-                      className={`border rounded-2xl p-4 flex flex-col items-center justify-between gap-3 text-center transition-all shadow-2xs ${
+                      className={`border rounded-2xl p-4 flex flex-col items-center justify-between gap-3 text-center transition-all shadow-sm ${
                         isOccupied
                           ? 'bg-rose-50 border-rose-200 text-rose-950'
                           : 'bg-white border-[var(--panel-border)] hover:border-[var(--primary)]'
@@ -532,7 +532,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 3: MENU HIERARCHY & PRICING MATRIX BLUEPRINT ================= */}
       {activeSubBlueprint === 'MENU_TREE' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -546,7 +546,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <button
                 type="button"
                 onClick={() => onNavigateTab('settings')}
-                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Kelola Katalog Menu & Topping</span>
@@ -627,7 +627,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                         <td className="p-3 font-bold text-amber-600">Rp {onlinePrice.toLocaleString('id-ID')}</td>
                         <td className="p-3">
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${
                               item.isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                             }`}
                           >
@@ -648,7 +648,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 5: STAFF ROLE & PIN AUTHORITY MATRIX BLUEPRINT ================= */}
       {activeSubBlueprint === 'ACCESS_MATRIX' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="pb-4 mb-5 border-b border-[#F0E8E0]">
               <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-rose-500" /> Matriks Otoritas & Hak Akses PIN Staff
@@ -722,7 +722,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 6: PAYMENT GATEWAY & TAX BLUEPRINT ================= */}
       {activeSubBlueprint === 'PAYMENT_GATEWAY' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="pb-4 mb-5 border-b border-[#F0E8E0]">
               <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-teal-600" /> Metode Pembayaran & Pajak PB1
@@ -766,7 +766,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 <button
                   type="button"
                   onClick={handleSaveBlueprintSettings}
-                  className="w-full py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs transition-all shadow-xs cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs transition-all shadow-sm cursor-pointer"
                 >
                   Simpan Aturan Pajak & Service
                 </button>
@@ -818,7 +818,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {/* ================= MODULE 7: WORKFLOW & OUTLET READINESS ================= */}
       {activeSubBlueprint === 'WORKFLOW' && (
         <div className="space-y-6">
-          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-xs">
+          <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -859,7 +859,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               { phase: 'P1', title: 'Operasional multi-cabang', items: ['Kalender jadwal staf', 'Multi-shift per outlet', 'GPS & koreksi absensi', 'Offline conflict handling'] },
               { phase: 'P2', title: 'Skala & kontrol', items: ['MFA owner/admin', 'Anomali absensi', 'Forecast kebutuhan shift', 'Backup dan observability'] }
             ].map((group) => (
-              <div key={group.phase} className="bg-white border border-[var(--panel-border)] rounded-2xl p-5 shadow-xs">
+              <div key={group.phase} className="bg-white border border-[var(--panel-border)] rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-[11px] font-bold text-[var(--primary-hover)]">{group.phase}</p>
@@ -961,7 +961,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
                 >
                   Daftarkan Outlet Baru
                 </button>

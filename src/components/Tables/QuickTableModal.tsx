@@ -125,12 +125,12 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-600/30 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in font-sans">
-      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-[var(--panel-border)] bg-white shadow-[0_24px_70px_rgba(26,23,20,0.20)]">
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white shadow-[0_24px_70px_rgba(26,23,20,0.20)]">
         
         {/* MODAL HEADER */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--panel-border)] bg-white p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-lg shadow-orange-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-md shadow-orange-500/30">
               <Grid2X2 className="w-5 h-5" />
             </div>
             <div>
@@ -311,7 +311,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               return (
                 <div
                   key={table.id}
-                  className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-lg ${
+                  className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-md ${
                     isOccupied
                       ? 'bg-[#FFF0F1] border-[#F3CBD0] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
                       : isArmed
@@ -334,7 +334,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
                     {/* Status Pill Indicator */}
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm ${
                         isOccupied
                           ? 'bg-rose-600 text-white'
                           : isArmed
@@ -385,7 +385,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                           type="button"
                           disabled={isBusy}
                           onClick={() => void runSession(table, 'ACTIVATE')}
-                          className="px-2.5 py-1 rounded-md font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-all cursor-pointer"
                           title="Aktifkan QR meja ini agar bisa dipakai memesan"
                         >
                           {isBusy ? '…' : 'AKTIFKAN'}
@@ -396,7 +396,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                             type="button"
                             disabled={isBusy}
                             onClick={() => void runSession(table, 'ROTATE')}
-                            className="px-2 py-1 rounded-md font-bold bg-[var(--surface-secondary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 text-[var(--text-secondary)] transition-all cursor-pointer"
+                            className="px-2 py-1 rounded-lg font-bold bg-[var(--surface-secondary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 text-[var(--text-secondary)] transition-all cursor-pointer"
                             title="Ganti QR dengan yang baru — foto QR lama langsung tidak berlaku"
                           >
                             {isBusy ? '…' : 'GANTI QR'}
@@ -405,7 +405,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                             type="button"
                             disabled={isBusy}
                             onClick={() => void runSession(table, 'DEACTIVATE', isOccupied)}
-                            className="px-2 py-1 rounded-md font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+                            className="px-2 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
                             title="Cabut QR meja ini"
                           >
                             CABUT
@@ -422,7 +422,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         <button
                           type="button"
                           onClick={() => onClearTableStatus(table.number)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           title="Ubah status meja menjadi Kosong (Hijau)"
                         >
                           <Unlock className="w-3 h-3" />
@@ -437,7 +437,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                               onClose();
                             }
                           }}
-                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           title="Buka order meja ini di kasir"
                         >
                           <ShoppingBag className="w-3 h-3" />
@@ -470,7 +470,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                               onClose();
                             }
                           }}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                           title="Pilih meja ini untuk transaksi POS baru"
                         >
                           <Check className="w-3 h-3 stroke-[3]" />

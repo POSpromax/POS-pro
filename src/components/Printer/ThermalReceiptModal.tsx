@@ -43,7 +43,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5 border border-slate-100">
+      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl space-y-5 border border-slate-100">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center">
@@ -74,7 +74,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
           <button
             onClick={handleConnectBluetooth}
             disabled={isConnecting}
-            className="px-3.5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1 transition-all disabled:opacity-50"
+            className="px-3.5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1 transition-all disabled:opacity-50"
           >
             <Bluetooth className="w-3.5 h-3.5" />
             <span>{isConnecting ? 'Mencari...' : 'Hubungkan'}</span>

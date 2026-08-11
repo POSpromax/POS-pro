@@ -88,8 +88,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   if (currentShift.status !== 'OPEN') {
     return (
       <div className="ui-surface flex-1 p-4 md:p-8 overflow-y-auto font-sans select-none flex items-center justify-center text-[var(--text-primary)] min-h-0">
-        <div className="max-w-md w-full bg-white rounded-[32px] p-8 md:p-10 shadow-2xl shadow-orange-500/10 border border-[var(--brand-200)] text-center space-y-6">
-          <div className="w-20 h-20 bg-gradient-to-tr from-[var(--primary-hover)] to-[var(--primary-solid)] rounded-3xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/30">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 md:p-10 shadow-xl shadow-orange-500/10 border border-[var(--brand-200)] text-center space-y-6">
+          <div className="w-20 h-20 bg-gradient-to-tr from-[var(--primary-hover)] to-[var(--primary-solid)] rounded-2xl flex items-center justify-center text-white mx-auto shadow-md shadow-orange-500/30">
             <Store className="w-10 h-10" />
           </div>
 
@@ -118,7 +118,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   const next = Number(e.target.value);
                   setOpenShiftCashInput(Number.isFinite(next) && next > 0 ? next : 0);
                 }}
-                className="w-full bg-[var(--surface-card)] border-2 border-[var(--primary)] focus:border-[var(--primary)] rounded-2xl p-4 text-center font-bold text-2xl text-slate-900 outline-none shadow-2xs"
+                className="w-full bg-[var(--surface-card)] border-2 border-[var(--primary)] focus:border-[var(--primary)] rounded-2xl p-4 text-center font-bold text-2xl text-slate-900 outline-none shadow-sm"
                 placeholder="0"
               />
             </div>
@@ -133,7 +133,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   .finally(() => setIsShiftMutationPending(false));
               }}
               disabled={isShiftMutationPending}
-              className="w-full py-4 bg-gradient-to-r from-[var(--primary-hover)] to-[var(--primary-solid)] hover:opacity-95 disabled:cursor-wait disabled:opacity-60 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-[var(--primary-hover)] to-[var(--primary-solid)] hover:opacity-95 disabled:cursor-wait disabled:opacity-60 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
             >
               {isShiftMutationPending ? 'MENGONFIRMASI SERVER...' : 'MULAI SHIFT'}
             </button>
@@ -202,7 +202,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
             type="button"
             onClick={() => { void handleForceSync(); }}
             disabled={isShiftMutationPending}
-            className="px-3 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full text-xs font-bold text-emerald-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-3 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full text-xs font-bold text-emerald-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
             title="Klik untuk sinkronkan status shift secara realtime"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -212,7 +212,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           <button
             type="button"
             onClick={() => setIsVoidModalOpen(true)}
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Ban className="w-3.5 h-3.5 text-rose-500" />
             <span>RIWAYAT VOID ({voidOrders.length})</span>
@@ -221,7 +221,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           <button
             type="button"
             onClick={() => setIsDiscountModalOpen(true)}
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Tag className="w-3.5 h-3.5 text-amber-500" />
             <span>RIWAYAT DISKON ({discountedOrders.length})</span>
@@ -230,7 +230,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           <button
             type="button"
             onClick={() => setIsShiftHistoryModalOpen(true)}
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Calendar className="w-3.5 h-3.5 text-[var(--primary-hover)]" />
             <span>RIWAYAT SHIFT PERHARI</span>
@@ -254,7 +254,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           {/* Row 1: Two Big Hero Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* TOTAL OMSET (Hero White Card) */}
-            <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-[var(--brand-50)] border border-[var(--brand-200)] rounded-2xl flex items-center justify-center text-[var(--primary-hover)]">
                   <Coins className="w-6 h-6" />
@@ -272,7 +272,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
             </div>
 
             {/* UANG FISIK (LACI) (Hero Dark Navy Card) */}
-            <div className="bg-[var(--primary)] text-white rounded-[28px] p-6 shadow-md flex flex-col justify-between relative overflow-hidden border border-[var(--primary-border)]">
+            <div className="bg-[var(--primary)] text-white rounded-2xl p-6 shadow-md flex flex-col justify-between relative overflow-hidden border border-[var(--primary-border)]">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-[var(--primary-hover)] border border-white/15 rounded-2xl flex items-center justify-center text-slate-300">
                   <Wallet className="w-6 h-6" />
@@ -292,28 +292,28 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
           {/* Row 2: 4 Small Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TRANSAKSI</p>
               <p className="text-xl font-bold text-slate-900 mt-1">
                 {activeOrders.length} <span className="text-xs font-bold text-slate-400">Struk</span>
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TUNAI</p>
               <p className="text-base font-bold text-emerald-600 mt-1 font-mono">
                 Rp {tunaiSales.toLocaleString('id-ID')}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">NON-TUNAI</p>
               <p className="text-base font-bold text-[var(--primary-hover)] mt-1 font-mono">
                 Rp {nonTunaiSales.toLocaleString('id-ID')}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">PENGELUARAN</p>
               <p className="text-base font-bold text-rose-600 mt-1 font-mono">
                 Rp {pengeluaranTotal.toLocaleString('id-ID')}
@@ -322,7 +322,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           </div>
 
           {/* Row 3: RIWAYAT TRANSAKSI Box */}
-          <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]" />
@@ -352,14 +352,14 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                     <div className="col-span-6 space-y-0.5">
                       <p className="font-bold text-xs text-slate-900">{ord.customerName || 'Pelanggan'} #{ord.orderNumber}</p>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-md uppercase font-mono">
+                        <span className="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-lg uppercase font-mono">
                           {ord.paymentMethod || 'CASH'}
                         </span>
-                        <span className="text-[10px] bg-[var(--brand-50)] text-[var(--primary-text)] border border-[var(--brand-200)] font-bold px-2 py-0.5 rounded-md uppercase">
+                        <span className="text-[10px] bg-[var(--brand-50)] text-[var(--primary-text)] border border-[var(--brand-200)] font-bold px-2 py-0.5 rounded-lg uppercase">
                           {ord.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
                         </span>
                         {ord.status === 'CANCELLED' && (
-                          <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-md uppercase">
+                          <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-lg uppercase">
                             VOID
                           </span>
                         )}
@@ -378,7 +378,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
         {/* RIGHT COLUMN (Span 1) */}
         <div className="space-y-6">
           {/* Card 1: CATAT BIAYA / PEMASUKAN */}
-          <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">CATAT BIAYA / PEMASUKAN</h3>
@@ -390,7 +390,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                 onClick={() => setRecordType('EXPENSE')}
                 className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer ${
                   recordType === 'EXPENSE'
-                    ? 'bg-rose-50 border border-rose-200 text-rose-700 shadow-2xs'
+                    ? 'bg-rose-50 border border-rose-200 text-rose-700 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -401,7 +401,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                 onClick={() => setRecordType('INCOME')}
                 className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer ${
                   recordType === 'INCOME'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700 shadow-2xs'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -439,7 +439,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           </div>
 
           {/* Card 2: RIWAYAT BIAYA / PEMASUKAN */}
-          <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs space-y-3">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">RIWAYAT BIAYA / PEMASUKAN</h3>
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {/* Entry Modal Awal */}
@@ -468,7 +468,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
           </div>
 
           {/* Card 3: RATA-RATA TRANSAKSI (Daily Realtime Performance) */}
-          <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-xs space-y-2">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-2">
             <div className="flex justify-between items-center">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RATA-RATA TRANSAKSI</p>
               <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
@@ -486,7 +486,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* TUTUP SHIFT & FINALISASI SHIFT MODAL matching Screenshot */}
       {isCloseModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-[32px] overflow-hidden shadow-2xl border border-slate-200 flex flex-col md:flex-row max-h-[92vh]">
+          <div className="bg-white w-full max-w-4xl rounded-2xl overflow-hidden shadow-xl border border-slate-200 flex flex-col md:flex-row max-h-[92vh]">
             
             {/* LEFT SIDE: Finalisasi Shift Form (Screen Match) */}
             <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto">
@@ -498,7 +498,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               </div>
 
               {/* HITUNG UANG FISIK Card */}
-              <div className="bg-[var(--surface-card)] rounded-3xl p-6 border border-slate-200 space-y-3">
+              <div className="bg-[var(--surface-card)] rounded-2xl p-6 border border-slate-200 space-y-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
                   HITUNG UANG FISIK
                 </label>
@@ -585,7 +585,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                       .finally(() => setIsShiftMutationPending(false));
                   }}
                   disabled={isShiftMutationPending}
-                  className="flex-1 py-4 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:cursor-wait disabled:opacity-60 text-white font-bold text-xs rounded-2xl shadow-lg cursor-pointer transition-all uppercase tracking-wider"
+                  className="flex-1 py-4 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:cursor-wait disabled:opacity-60 text-white font-bold text-xs rounded-2xl shadow-md cursor-pointer transition-all uppercase tracking-wider"
                 >
                   {isShiftMutationPending ? 'MENGONFIRMASI SERVER...' : 'TUTUP SHIFT & CETAK LAPORAN'}
                 </button>
@@ -650,7 +650,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* Handover Shift Modal */}
       {isHandoverModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 font-sans text-slate-900 border border-slate-200">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 font-sans text-slate-900 border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-[var(--primary-text)]" />
@@ -719,7 +719,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* Void History Modal */}
       {isVoidModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-4 font-sans text-slate-900">
+          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-4 font-sans text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-rose-600 font-bold text-sm">
                 <Ban className="w-5 h-5 text-rose-600" />
@@ -773,7 +773,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* Discount History Modal */}
       {isDiscountModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl space-y-4 font-sans text-slate-900">
+          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-4 font-sans text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
                 <Tag className="w-5 h-5 text-amber-600" />
@@ -832,7 +832,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* Shift History Perhari Archive Modal */}
       {isShiftHistoryModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-3xl p-6 md:p-8 shadow-2xl space-y-4 font-sans text-slate-900 max-h-[90vh] flex flex-col">
+          <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl p-6 md:p-8 shadow-xl space-y-4 font-sans text-slate-900 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-[var(--primary-hover)] font-bold text-sm">
                 <Calendar className="w-5 h-5 text-[var(--primary-hover)]" />

@@ -1342,7 +1342,7 @@ export default function App() {
 
           {activeTab === 'selforder' && (
             <div className="ui-surface flex-1 overflow-y-auto p-5">
-              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-[18px] border border-[var(--panel-border)] bg-[var(--surface-card)] px-5 py-4 shadow-sm">
+              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] px-5 py-4 shadow-sm">
                 <div>
                   <h2 className="text-base font-bold text-[var(--text-primary)]">Pratinjau Landing Self-Order</h2>
                   <p className="mt-0.5 text-[11px] font-medium text-[#8E8882]">Pratinjau admin tetap berada di portal Owner. Halaman pelanggan dibuka terpisah.</p>
@@ -1355,7 +1355,7 @@ export default function App() {
                   Buka Halaman Publik
                 </button>
               </div>
-              <div className="theme-self-order mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-[28px] border-[8px] border-[var(--panel-border-strong)] bg-white shadow-xl">
+              <div className="theme-self-order mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-2xl border-[8px] border-[var(--panel-border-strong)] bg-white shadow-xl">
                 <div className="h-full overflow-y-auto">
                   <SelfOrderLandingPage
                     tables={branchTables}
@@ -1487,7 +1487,7 @@ export default function App() {
           {activeTab === 'payroll' && (
             <div className="ui-surface flex-1 overflow-y-auto p-4 md:p-6">
               <div className="mx-auto max-w-7xl">
-                <div className="mb-5 rounded-[20px] border border-[var(--panel-border)] bg-[var(--surface-card)] p-5 shadow-sm">
+                <div className="mb-5 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-5 shadow-sm">
                   <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--primary-hover)]">Owner Finance</p>
                   <h1 className="mt-1 text-2xl font-bold text-[var(--text-primary)]">Payroll & Penggajian Staff</h1>
                   <p className="mt-1 text-xs font-semibold text-slate-500">Atur gaji pokok, tunjangan, lembur, dan potongan keterlambatan per outlet.</p>

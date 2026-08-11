@@ -44,7 +44,7 @@ export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
   return (
     <div className="theme-self-order animate-fadeIn fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-600/30 p-0 backdrop-blur-sm md:p-4">
       {/* Modal Shell */}
-      <div className="relative flex max-h-screen w-full max-w-[460px] flex-col overflow-hidden bg-white shadow-2xl md:max-h-[920px] md:rounded-[32px]">
+      <div className="relative flex max-h-screen w-full max-w-[460px] flex-col overflow-hidden bg-white shadow-xl md:max-h-[920px] md:rounded-2xl">
         
         {/* Top Floating Modal Bar for Cashier Control */}
         <div className="z-50 flex shrink-0 items-center justify-between border-b border-orange-100 bg-white px-4 py-3 text-slate-800">

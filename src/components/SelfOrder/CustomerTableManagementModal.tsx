@@ -28,7 +28,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
 
   return (
     <div className="theme-self-order fixed inset-0 z-50 flex items-center justify-center bg-slate-600/30 p-4 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md sm:max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-black/5 flex flex-col animate-in fade-in zoom-in-95 duration-200 font-sans">
+      <div className="bg-white w-full max-w-md sm:max-w-lg rounded-2xl overflow-hidden shadow-xl border border-black/5 flex flex-col animate-in fade-in zoom-in-95 duration-200 font-sans">
         
         {/* Header matching Image 2 */}
         <div className="p-6 pb-4 bg-white flex items-start justify-between shrink-0">
@@ -54,7 +54,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
         <div className="px-6 pb-6 space-y-4 overflow-y-auto max-h-[80vh]">
           
           {/* Card 1: Master Restriction Toggle matching Image 2 */}
-          <div className="bg-[#F5F5F5] rounded-2xl p-4 flex items-center justify-between border border-black/5 shadow-2xs">
+          <div className="bg-[#F5F5F5] rounded-2xl p-4 flex items-center justify-between border border-black/5 shadow-sm">
             <span className="font-extrabold text-xs text-slate-800">
               Pembatasan meja customer order
             </span>
@@ -74,7 +74,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 />
               </button>
               <span
-                className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider ${
+                className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-lg tracking-wider ${
                   isSelfOrderSystemEnabled ? 'bg-[#FFF4EE] text-[#C94716]' : 'bg-slate-200 text-slate-600'
                 }`}
               >
@@ -84,7 +84,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
           </div>
 
           {/* Card 2: Table Control & Badge Pills Grid matching Image 2 */}
-          <div className="bg-[#F9FAFB] rounded-3xl p-5 border border-slate-200/80 space-y-4">
+          <div className="bg-[#F9FAFB] rounded-2xl p-5 border border-slate-200/80 space-y-4">
             
             {/* Control & Active Counter Header */}
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -96,7 +96,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 <button
                   type="button"
                   onClick={() => onToggleAllTables(true)}
-                  className="cursor-pointer rounded-full bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition-all hover:bg-orange-700"
+                  className="cursor-pointer rounded-full bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-orange-700"
                 >
                   Aktifkan semua
                 </button>
@@ -122,7 +122,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                     onClick={() => onToggleTableSelfOrder(tbl.id, !isEnabled)}
                     className={`py-2 px-1 rounded-2xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 select-none ${
                       isEnabled
-                        ? 'bg-[#FFF4EE] text-[#C94716] border-[#F1C7B5] hover:border-[#EA580C] shadow-2xs'
+                        ? 'bg-[#FFF4EE] text-[#C94716] border-[#F1C7B5] hover:border-[#EA580C] shadow-sm'
                         : 'bg-white text-slate-400 border-slate-200 opacity-60 hover:opacity-100'
                     }`}
                   >

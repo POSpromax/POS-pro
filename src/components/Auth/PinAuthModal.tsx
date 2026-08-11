@@ -189,7 +189,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_#FFFFFF_0%,_#F2F2F1_48%,_#E8E8E6_100%)] p-4 font-sans select-none animate-fadeIn">
-      <div className="grid w-full max-w-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-2xl md:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid w-full max-w-[760px] overflow-hidden rounded-2xl border border-white/10 bg-white shadow-xl md:grid-cols-[0.9fr_1.1fr]">
         {/* Left Panel */}
         <section className="flex flex-col justify-between bg-[var(--primary)] p-7 text-white">
           <div>
@@ -205,7 +205,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                     onClick={() => switchTab(tab)}
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                       isActive
-                        ? 'bg-[var(--primary)] text-white shadow-lg shadow-orange-500/30'
+                        ? 'bg-[var(--primary)] text-white shadow-md shadow-orange-500/30'
                         : 'text-white/45 hover:text-white/70'
                     }`}
                   >
@@ -218,7 +218,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
             {/* Header */}
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] shadow-lg shadow-orange-500/30">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] shadow-md shadow-orange-500/30">
                 <TabIcon className="h-5 w-5" />
               </div>
               <div>

@@ -184,7 +184,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               const isReady = order.status === 'READY';
 
               return (
-                <article key={order.id} className="relative overflow-hidden rounded-[14px] border border-[#DDE1E6] bg-[var(--surface-card)] shadow-sm">
+                <article key={order.id} className="relative overflow-hidden rounded-xl border border-[#DDE1E6] bg-[var(--surface-card)] shadow-sm">
                   <div className={`absolute inset-x-0 top-0 h-1 ${tone.accent}`} />
                   <div className="p-3 pb-2">
                     <div className="flex items-start justify-between gap-2 border-b border-[var(--panel-border-light)] pb-2">
@@ -236,7 +236,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                   </div>
 
                   <div className="border-t border-[var(--panel-border)] bg-[var(--surface-main)] p-2">
-                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, isNew ? 'COOKING' : 'COMPLETED')} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[10px] px-3 text-[11px] font-bold text-white transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[#22A559] hover:bg-[#187A42]'}`}>
+                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, isNew ? 'COOKING' : 'COMPLETED')} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-white transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[#22A559] hover:bg-[#187A42]'}`}>
                       {isNew ? <><Flame className="h-3.5 w-3.5" /> Mulai masak</> : <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai & sajikan</>}
                     </button>
                   </div>

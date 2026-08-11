@@ -39,7 +39,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4 font-sans select-none text-slate-900">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden border border-[var(--panel-border)] flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden border border-[var(--panel-border)] flex flex-col max-h-[90vh]">
         {/* Top Header Banner */}
         <div className="bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] p-6 text-white text-center relative shrink-0 border-b-2 border-[var(--primary)]">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-2">
@@ -149,7 +149,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         onClick={() => setCashPaid(nom.value)}
                         className={`py-2.5 rounded-full border font-bold text-xs transition-all cursor-pointer ${
                           cashPaid === nom.value
-                            ? 'bg-[var(--primary-solid)] text-white border-[var(--primary)] shadow-xs'
+                            ? 'bg-[var(--primary-solid)] text-white border-[var(--primary)] shadow-sm'
                             : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
@@ -171,7 +171,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {paymentMethod === 'QRIS' && (
               <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center space-y-2">
-                <div className="w-32 h-32 bg-white p-2 border border-slate-200 rounded-2xl mx-auto flex items-center justify-center shadow-xs">
+                <div className="w-32 h-32 bg-white p-2 border border-slate-200 rounded-2xl mx-auto flex items-center justify-center shadow-sm">
                   <QrCode className="w-24 h-24 text-slate-800" />
                 </div>
                 <p className="font-bold text-xs text-slate-800">Tampilkan QRIS ke Pelanggan</p>
@@ -188,7 +188,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
 
           {/* Right Column: Live Receipt Preview */}
-          <div className="bg-white p-4 rounded-2xl border border-[var(--panel-border)] shadow-2xs flex flex-col justify-between font-mono text-[11px] leading-relaxed">
+          <div className="bg-white p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm flex flex-col justify-between font-mono text-[11px] leading-relaxed">
             <div className="space-y-2">
               <div className="text-center pb-2 border-b border-dashed border-slate-300">
                 <p className="font-bold text-sm text-[var(--text-primary)]">{profile.name}</p>

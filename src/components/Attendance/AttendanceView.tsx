@@ -365,7 +365,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="flex flex-col gap-4">
 
           {step === 'PIN' && (
-            <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
+            <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
                 <h2 className="text-base font-bold text-slate-900">Masukkan PIN Anda</h2>
@@ -414,7 +414,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           )}
 
           {step === 'SELFIE_GPS' && (
-            <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
+            <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-3 rounded-2xl border border-[var(--brand-200)] bg-[var(--brand-50)] p-3.5">
                 <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-[var(--primary)] shrink-0">
                   {selfiePreview || selectedStaff.avatar ? (
@@ -455,7 +455,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               {/* LIVE WEBCAM CAMERA CONTAINER */}
               <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center gap-3">
                 {isCameraActive ? (
-                  <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-[var(--primary-border)] shadow-lg bg-[var(--surface-secondary)]">
+                  <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-[var(--primary-border)] shadow-md bg-[var(--surface-secondary)]">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -536,7 +536,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           )}
 
           {step === 'SUCCESS' && (
-            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 shadow-sm flex flex-col items-center text-center gap-4">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 shadow-sm flex flex-col items-center text-center gap-4">
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
               <div>
                 <p className="text-lg font-bold text-emerald-900">Presensi Berhasil!</p>
@@ -548,7 +548,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           )}
         </div>
 
-        <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm lg:col-span-2">
           <h2 className="mb-4 text-base font-bold text-[var(--text-primary)]">
             {['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && !terminalMode
               ? 'Presensi Staff Hari Ini'
@@ -569,7 +569,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 .slice()
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map((att) => (
-                  <div key={att.id} className="flex items-center justify-between rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3.5 shadow-2xs">
+                  <div key={att.id} className="flex items-center justify-between rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3.5 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 overflow-hidden rounded-full border border-[var(--panel-border)] shrink-0">
                         {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[11px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}

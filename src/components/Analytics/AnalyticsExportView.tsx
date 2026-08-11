@@ -246,7 +246,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Download className="w-4 h-4" /> Export CSV Transaksi
           </button>
@@ -278,7 +278,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 aria-pressed={period === key}
                 className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
                   period === key
-                    ? 'bg-[var(--primary)] text-white shadow-xs'
+                    ? 'bg-[var(--primary)] text-white shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -377,7 +377,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TOTAL OMSET HARI INI</p>
               <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {grossOmset.toLocaleString('id-ID')}</p>
               <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-0.5">
@@ -385,19 +385,19 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">STRUK TRANSAKSI LUNAS</p>
               <p className="text-2xl font-bold text-slate-900">{totalTransactions} <span className="text-xs font-bold text-slate-400">Order</span></p>
               <span className="text-[11px] font-bold text-[var(--primary-hover)] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE TUNAI (CASH)</p>
               <p className="text-2xl font-bold text-emerald-600">Rp {cashTotal.toLocaleString('id-ID')}</p>
               <span className="text-[11px] font-bold text-slate-400 block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE NON-TUNAI (QRIS/DEBIT)</p>
               <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
               <span className="text-[11px] font-bold text-slate-400 block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
@@ -405,7 +405,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-[var(--primary-text)]" />
@@ -447,7 +447,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[var(--primary-text)]" />
@@ -479,7 +479,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
 
             {/* Tren omset per tanggal */}
-            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
@@ -520,7 +520,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
 
             {/* Hari paling laris dalam seminggu */}
-            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
@@ -569,7 +569,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'TOP_ITEMS' && (
-        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
@@ -597,7 +597,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   type="button"
                   onClick={() => setCategoryFilter(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all ${
-                    categoryFilter === cat ? 'bg-[var(--primary-solid)] text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    categoryFilter === cat ? 'bg-[var(--primary-solid)] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {cat === 'ALL' ? 'Semua' : cat}
@@ -661,24 +661,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'VOID' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-rose-200 bg-rose-50/40 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-rose-200 bg-rose-50/40 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">TOTAL NOMINAL VOID</p>
               <p className="text-2xl font-bold text-rose-600">Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
               <p className="text-[11px] font-bold text-slate-400">Total nilai pesanan yang dibatalkan</p>
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-rose-200 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">JUMLAH TRANSAKSI VOID</p>
               <p className="text-2xl font-bold text-slate-900">{voidCount} <span className="text-xs text-slate-400 font-bold">Struk</span></p>
               <p className="text-[11px] font-bold text-slate-400">Frekuensi pembatalan pesanan</p>
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RASIO VOID vs TOTAL OMSET</p>
               <p className="text-2xl font-bold text-amber-600">{grossOmset > 0 ? ((totalVoidNominal / grossOmset) * 100).toFixed(1) : 0}%</p>
               <p className="text-[11px] font-bold text-slate-400">Toleransi VOID ideal &lt; 2%</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <Ban className="w-5 h-5 text-rose-500" />
               Daftar Rincian Pesanan Dibatalkan (Void)
@@ -725,24 +725,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'TAX_DISCOUNT' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-[var(--brand-200)] bg-[var(--brand-50)]/40 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-[var(--brand-200)] bg-[var(--brand-50)]/40 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-[var(--primary-hover)] uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
               <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {totalTax.toLocaleString('id-ID')}</p>
               <p className="text-[11px] font-bold text-slate-400">Pajak restoran yang terkumpul</p>
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-amber-200 bg-amber-50/40 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">TOTAL DISKON DIBERIKAN</p>
               <p className="text-2xl font-bold text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
               <p className="text-[11px] font-bold text-slate-400">Potongan harga promo & voucher</p>
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-1">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SUBTOTAL KOTOR (GROSS)</p>
               <p className="text-2xl font-bold text-slate-900">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
               <p className="text-[11px] font-bold text-slate-400">Subtotal murni sebelum diskon & pajak</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
               Audit Rincian Pajak & Diskon Per Struk
@@ -785,7 +785,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'SHIFT_HISTORY' && (
-        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
@@ -851,7 +851,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'ATTENDANCE_HISTORY' && (
-        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
           <div>
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-emerald-500" />
