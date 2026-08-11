@@ -274,7 +274,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Main Header Bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+            <div className="w-12 h-12 bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
               <Settings className="w-6 h-6" />
             </div>
             <div>
@@ -306,7 +306,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Store className="w-4 h-4" />
                   </div>
                   <div>
@@ -323,7 +323,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
@@ -346,7 +346,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Volume2 className="w-4 h-4" />
                   </div>
                   <div>
@@ -363,7 +363,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
@@ -380,7 +380,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Grid className="w-4 h-4" />
                   </div>
                   <div>
@@ -403,7 +403,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
@@ -420,7 +420,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
@@ -437,7 +437,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs' : 'bg-slate-200 text-slate-700'}`}>
                     <Database className="w-4 h-4" />
                   </div>
                   <div>
@@ -452,7 +452,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               type="button"
               onClick={handleSaveAll}
-              className="w-full py-3.5 bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer mt-4"
+              className="w-full py-3.5 bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer mt-4"
             >
               <Save className="w-4 h-4" />
               <span>SIMPAN PERUBAHAN</span>

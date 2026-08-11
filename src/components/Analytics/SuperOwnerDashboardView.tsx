@@ -202,7 +202,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white shadow-md shadow-orange-500/20 transition cursor-pointer active:scale-95"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white shadow-md shadow-orange-500/20 transition cursor-pointer active:scale-95"
             >
               <Plus className="h-3 w-3 md:h-3.5 md:w-3.5" />
               <span className="hidden sm:inline">Tambah</span> Outlet
@@ -470,7 +470,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                       {branch.code || 'OUTLET'}
                     </p>
                   </div>
-                  <div className="flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-xs">
+                  <div className="flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-xs">
                     <Store className="h-4 w-4 md:h-5 md:w-5" />
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   }}
                   className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold transition cursor-pointer active:scale-95 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] text-white shadow-md shadow-orange-500/20 hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)]'
+                      ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] text-white shadow-md shadow-orange-500/20 hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)]'
                       : 'border border-[var(--panel-border)] bg-[var(--surface-secondary)] text-slate-800 hover:bg-white'
                   }`}
                 >
@@ -653,7 +653,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white text-xs font-semibold transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white text-xs font-semibold transition-all cursor-pointer"
                   style={{ boxShadow: '0 2px 8px rgba(234,88,12,0.25)' }}
                 >
                   Simpan Outlet

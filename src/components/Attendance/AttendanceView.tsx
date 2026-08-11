@@ -523,7 +523,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               </div>
 
               <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
-                className="w-full rounded-full bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] py-3.5 text-xs font-bold text-white transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
+                className="w-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] py-3.5 text-xs font-bold text-white transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
                 {isSubmitting ? 'MENYIMPAN PRESENSI...' : clockType === 'CLOCK_IN' ? 'CLOCK IN SEKARANG' : 'CLOCK OUT SEKARANG'}
               </button>
               {!isSubmitting && ((profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)) && (

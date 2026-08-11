@@ -25,9 +25,10 @@
   /* Teks aksen di atas latar terang: brand-600 hanya 3.6:1, di bawah ambang
      terbaca. brand-700 mencapai 5.2:1 dan tetap terbaca oranye. */
   --primary-text: var(--brand-700);
-  /* Latar tombol berteks putih kecil. brand-600 memberi 3.6:1 — cukup untuk
-     angka besar, kurang untuk label 12px yang dibaca kasir sepanjang shift. */
-  --primary-solid: var(--brand-700);
+  /* Permukaan tombol utama. Sebelumnya brand-700 dan terbaca gelap dibanding
+     referensi; brand-600 lebih cerah dan tetap 3.6:1 untuk label tebal.
+     Teks kecil di atas putih tetap memakai --primary-text, bukan ini. */
+  --primary-solid: var(--brand-600);
 
   --canvas-bg: #f7f7f8;
   --canvas-bg-start: #fafafa;

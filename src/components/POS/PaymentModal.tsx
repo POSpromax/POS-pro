@@ -41,7 +41,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4 font-sans select-none text-slate-900">
       <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden border border-[var(--panel-border)] flex flex-col max-h-[90vh]">
         {/* Top Header Banner */}
-        <div className="bg-gradient-to-tr from-[var(--primary-solid)] to-[var(--primary)] p-6 text-white text-center relative shrink-0 border-b-2 border-[var(--primary)]">
+        <div className="bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] p-6 text-white text-center relative shrink-0 border-b-2 border-[var(--primary)]">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-2">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
@@ -262,7 +262,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             <button
               onClick={() => onProcessPayment(paymentMethod, cashPaid, true)}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] active:scale-95 text-white font-bold text-xs shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-6 py-3 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] active:scale-95 text-white font-bold text-xs shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" /> Bayar & Cetak Struk
             </button>

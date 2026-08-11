@@ -254,7 +254,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handlePrintPDF}
-            className="px-4 py-2.5 bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2.5 bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" /> Cetak Laporan PDF
           </button>
