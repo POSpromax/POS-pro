@@ -1663,6 +1663,8 @@ export default function App() {
         onClose={() => setIsQuickTableModalOpen(false)}
         tables={branchTables}
         orders={branchOrders}
+        branchId={currentBranch.id}
+        onTableUpdated={handleTableSessionUpdated}
         onToggleSelfOrder={handleToggleTableSelfOrder}
         onClearTableStatus={handleClearTableStatus}
         onSetTableOccupied={handleSetTableOccupied}

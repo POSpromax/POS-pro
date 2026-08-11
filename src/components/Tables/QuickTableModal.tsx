@@ -16,12 +16,15 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { RestaurantTable, Order } from '../../types/pos';
+import { updateCloudTableSession } from '../../services/tableService';
 
 interface QuickTableModalProps {
   isOpen: boolean;
   onClose: () => void;
   tables: RestaurantTable[];
   orders: Order[];
+  branchId: string;
+  onTableUpdated: (table: RestaurantTable) => void;
   onToggleSelfOrder: (tableNumber: string, enabled: boolean) => void;
   onClearTableStatus: (tableNumber: string) => void;
   onSetTableOccupied?: (tableNumber: string) => void;
@@ -37,6 +40,8 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   onClose,
   tables,
   orders,
+  branchId,
+  onTableUpdated,
   onToggleSelfOrder,
   onClearTableStatus,
   onSetTableOccupied,
@@ -46,6 +51,39 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   onAddNewTable,
   onShowToast
 }) => {
+  const [busyTable, setBusyTable] = useState<string | null>(null);
+
+  // Aktivasi harus lewat server: tombol yang hanya mengubah localStorage
+  // membuat kasir mengira QR menyala padahal pelanggan tetap ditolak.
+  const runSession = async (
+    table: RestaurantTable,
+    action: 'ACTIVATE' | 'ROTATE' | 'DEACTIVATE',
+    force = false,
+  ) => {
+    setBusyTable(table.id);
+    try {
+      const result = await updateCloudTableSession({
+        action,
+        branchId,
+        tableNumber: table.number.replace(/^0+(?=\d)/, ''),
+        force,
+      });
+      onTableUpdated(result.table);
+      if (onShowToast) {
+        const pesan = action === 'DEACTIVATE'
+          ? `QR Meja ${table.number} dicabut. Foto QR lama tidak berlaku lagi.`
+          : `Meja ${table.number} siap menerima pesanan dari HP pelanggan.`;
+        onShowToast(action === 'DEACTIVATE' ? 'Meja Dinonaktifkan' : 'Meja Diaktifkan', pesan);
+      }
+    } catch (error) {
+      if (onShowToast) {
+        onShowToast('Gagal', error instanceof Error ? error.message : 'Status meja gagal diperbarui.');
+      }
+    } finally {
+      setBusyTable(null);
+    }
+  };
+
   const [filterMode, setFilterMode] = useState<'ALL' | 'FREE' | 'OCCUPIED'>('ALL');
   const [newTableNum, setNewTableNum] = useState<string>('');
   const [newTableCap, setNewTableCap] = useState<number>(4);
@@ -264,6 +302,11 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               const activeOrderOnTable = activeOrders.find((o) => o.tableNumber === table.number);
               const isOccupiedByOrder = !!activeOrderOnTable;
               const isOccupied = table.status === 'OCCUPIED' || isOccupiedByOrder;
+              // Server menolak meja yang belum diaktifkan kasir, jadi status itu
+              // harus terlihat berbeda — bukan ikut hijau seperti meja siap.
+              const isArmed = table.status === 'READY';
+              const isIdle = !isOccupied && !isArmed;
+              const isBusy = busyTable === table.id;
 
               return (
                 <div
@@ -271,7 +314,9 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                   className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-lg ${
                     isOccupied
                       ? 'bg-[#FFF0F1] border-[#F3CBD0] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
-                      : 'bg-[#EAF8F1] border-[#CCEBDC] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
+                      : isArmed
+                        ? 'bg-[#EAF8F1] border-[#CCEBDC] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
+                        : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-primary)] hover:border-[var(--panel-border-strong)]'
                   }`}
                 >
                   {/* Top Header Card */}
@@ -292,11 +337,13 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs ${
                         isOccupied
                           ? 'bg-rose-600 text-white'
-                          : 'bg-emerald-600 text-white'
+                          : isArmed
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-[var(--surface-inverse)] text-white'
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${isOccupied ? 'animate-pulse bg-white' : 'bg-white'}`} />
-                      {isOccupied ? 'MERAH (TERISI)' : 'HIJAU (KOSONG)'}
+                      <span className={`h-1.5 w-1.5 rounded-full bg-white ${isOccupied ? 'animate-pulse' : ''}`} />
+                      {isOccupied ? 'TERISI' : isArmed ? 'SIAP QR' : 'BELUM AKTIF'}
                     </span>
                   </div>
 
@@ -317,29 +364,55 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                       </div>
                     ) : (
                       <div className="text-center py-1">
-                        <p className="text-xs font-bold text-emerald-700">Siap digunakan</p>
-                        <p className="text-[10px] text-[var(--text-tertiary)]">Meja belum ada pemesan</p>
+                        <p className={`text-xs font-bold ${isArmed ? 'text-emerald-700' : 'text-[var(--text-secondary)]'}`}>
+                          {isArmed ? 'Siap digunakan' : 'Belum diaktifkan'}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-tertiary)]">
+                          {isArmed ? 'QR meja aktif, pelanggan bisa memesan' : 'Aktifkan dulu agar QR bisa dipakai'}
+                        </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Self Order Toggle Button */}
-                  <div className="flex items-center justify-between border-t border-white/80 pt-1 text-[11px] font-bold">
-                    <span className="text-[var(--text-tertiary)] flex items-center gap-1">
+                  {/* Aktivasi QR meja — menembus ke server, bukan hanya menandai lokal */}
+                  <div className="flex items-center justify-between border-t border-white/80 pt-1 text-[11px] font-bold gap-2">
+                    <span className="text-[var(--text-tertiary)] flex items-center gap-1 shrink-0">
                       <Smartphone className="w-3 h-3 text-[var(--primary-text)]" /> HP QR:
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onToggleSelfOrder(table.number, !table.isSelfOrderEnabled)}
-                      className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
-                        table.isSelfOrderEnabled
-                          ? 'bg-[var(--primary)] text-white'
-                          : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--primary-soft)]'
-                      }`}
-                      title="Toggle Akses Self-Order dari HP Customer"
-                    >
-                      {table.isSelfOrderEnabled ? 'ON (AKTIF)' : 'OFF'}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {isIdle ? (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void runSession(table, 'ACTIVATE')}
+                          className="px-2.5 py-1 rounded-md font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+                          title="Aktifkan QR meja ini agar bisa dipakai memesan"
+                        >
+                          {isBusy ? '…' : 'AKTIFKAN'}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void runSession(table, 'ROTATE')}
+                            className="px-2 py-1 rounded-md font-bold bg-[var(--surface-secondary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 text-[var(--text-secondary)] transition-all cursor-pointer"
+                            title="Ganti QR dengan yang baru — foto QR lama langsung tidak berlaku"
+                          >
+                            {isBusy ? '…' : 'GANTI QR'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void runSession(table, 'DEACTIVATE', isOccupied)}
+                            className="px-2 py-1 rounded-md font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+                            title="Cabut QR meja ini"
+                          >
+                            CABUT
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Primary Action Buttons */}
