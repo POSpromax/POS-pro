@@ -1,5 +1,6 @@
 import type { MenuItem, RawMaterial } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
+import { adjustStockManual, type StockMovementType } from './stockLedgerService';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -68,13 +69,38 @@ export async function deleteCloudMenuItem(id: string, branchId: string): Promise
   if (error) throw new Error(error.message);
 }
 
-export async function saveCloudRawMaterial(material: RawMaterial, branchId: string): Promise<void> {
+export async function saveCloudRawMaterial(
+  material: RawMaterial,
+  branchId: string,
+  stockMovementType: StockMovementType = 'ADJUSTMENT',
+  stockReason?: string
+): Promise<void> {
   const tenantId = await currentTenantId();
-  const payload = { tenant_id: tenantId, branch_id: branchId, name: material.name, unit: material.unit, stock_quantity: material.stockQuantity, min_stock_threshold: material.minStockThreshold, cost_per_unit: material.costPerUnit, material_group: material.group || 'DAPUR', take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0 };
+  const attributes = {
+    tenant_id: tenantId,
+    branch_id: branchId,
+    name: material.name,
+    unit: material.unit,
+    min_stock_threshold: material.minStockThreshold,
+    cost_per_unit: material.costPerUnit,
+    material_group: material.group || 'DAPUR',
+    take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
+  };
   const supabase = getSupabase();
-  const operation = UUID_PATTERN.test(material.id) ? supabase.from('raw_materials').update(payload).eq('id', material.id).eq('branch_id', branchId) : supabase.from('raw_materials').insert(payload);
-  const { error } = await operation;
+
+  if (!UUID_PATTERN.test(material.id)) {
+    // Bahan baru: stok awal ditulis langsung, belum ada pergerakan untuk dicatat.
+    const { error } = await supabase.from('raw_materials').insert({ ...attributes, stock_quantity: material.stockQuantity });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const { error } = await supabase.from('raw_materials').update(attributes).eq('id', material.id).eq('branch_id', branchId);
   if (error) throw new Error(error.message);
+
+  // Stok sengaja tidak ikut di-update di atas: perubahannya harus lewat ledger
+  // supaya setiap penambahan dan pengurangan punya riwayat yang bisa ditelusuri.
+  await adjustStockManual(material.id, material.stockQuantity, stockMovementType, stockReason);
 }
 
 export async function deleteCloudRawMaterial(id: string, branchId: string): Promise<void> {

@@ -24,11 +24,13 @@ import {
   ChefHat,
   ShoppingBag,
   LayoutGrid,
-  List
+  List,
+  History
 } from 'lucide-react';
 import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materialGroup';
+import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
 
 type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN';
 
@@ -126,6 +128,27 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
+  // Riwayat pergerakan stok per bahan
+  const [ledgerMaterial, setLedgerMaterial] = useState<RawMaterial | null>(null);
+  const [ledgerRows, setLedgerRows] = useState<StockMovement[]>([]);
+  const [ledgerState, setLedgerState] = useState<'IDLE' | 'LOADING' | 'ERROR'>('IDLE');
+  const [ledgerError, setLedgerError] = useState<string>('');
+
+  const handleOpenLedger = async (raw: RawMaterial) => {
+    setLedgerMaterial(raw);
+    setLedgerRows([]);
+    setLedgerError('');
+    setLedgerState('LOADING');
+    try {
+      const rows = await listStockMovements(raw.branchId, raw.id, 60);
+      setLedgerRows(rows);
+      setLedgerState('IDLE');
+    } catch (error) {
+      setLedgerError(error instanceof Error ? error.message : 'Riwayat stok gagal dimuat.');
+      setLedgerState('ERROR');
+    }
+  };
+
   const handleUploadMenuPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -166,6 +189,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
   const renderRawActions = (raw: RawMaterial) => (
     <div className="flex items-center gap-0.5 md:gap-1">
+      <button
+        onClick={() => handleOpenLedger(raw)}
+        className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+        title="Riwayat keluar-masuk stok"
+      >
+        <History className="w-3 h-3 md:w-3.5 md:h-3.5" />
+      </button>
       <button
         onClick={() => handleOpenRawModal(raw)}
         className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
@@ -928,6 +958,78 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* RIWAYAT PERGERAKAN STOK */}
+      {ledgerMaterial && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-2xl font-sans text-slate-900 border border-slate-200 max-h-[88vh] flex flex-col">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3 gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-black text-[#1A1714] uppercase tracking-tight truncate">
+                  Riwayat Stok — {ledgerMaterial.name}
+                </h2>
+                <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                  Stok sekarang {ledgerMaterial.stockQuantity.toLocaleString('id-ID')} {ledgerMaterial.unit}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLedgerMaterial(null)}
+                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer shrink-0"
+                aria-label="Tutup riwayat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pt-3">
+              {ledgerState === 'LOADING' && (
+                <p className="py-10 text-center text-xs font-bold text-slate-400">Memuat riwayat…</p>
+              )}
+
+              {ledgerState === 'ERROR' && (
+                <p className="py-10 text-center text-xs font-bold text-rose-500">{ledgerError}</p>
+              )}
+
+              {ledgerState === 'IDLE' && ledgerRows.length === 0 && (
+                <p className="py-10 px-4 text-center text-xs font-bold text-slate-400 leading-relaxed">
+                  Belum ada pergerakan tercatat untuk bahan ini.<br />
+                  Riwayat mulai terisi setelah ada penjualan, belanja masuk, atau koreksi stok.
+                </p>
+              )}
+
+              {ledgerState === 'IDLE' && ledgerRows.length > 0 && (
+                <div className="divide-y divide-slate-100">
+                  {ledgerRows.map((row) => {
+                    const isIn = row.quantity > 0;
+                    return (
+                      <div key={row.id} className="py-2.5 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] md:text-xs font-black text-[#1A1714]">
+                            {STOCK_MOVEMENT_LABELS[row.type] || row.type}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {new Date(row.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                            {row.reason ? ` · ${row.reason}` : ''}
+                          </p>
+                        </div>
+
+                        <span className={`text-xs md:text-sm font-black tabular-nums shrink-0 ${isIn ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {isIn ? '+' : ''}{row.quantity.toLocaleString('id-ID')}
+                        </span>
+
+                        <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0 w-24 text-right">
+                          {row.stockBefore.toLocaleString('id-ID')} → {row.stockAfter.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
