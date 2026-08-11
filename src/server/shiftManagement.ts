@@ -18,12 +18,14 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
   const userId = authData.user.id;
 
   const [{ data: profile, error: profileError }, { data: membership, error: membershipError }] = await Promise.all([
-    admin.from('user_profiles').select('tenant_id,display_name,role,is_active').eq('user_id', userId).maybeSingle(),
+    admin.from('user_profiles').select('tenant_id,display_name,is_active').eq('user_id', userId).maybeSingle(),
     admin.from('branch_members').select('role,is_active').eq('user_id', userId).eq('branch_id', branchId).maybeSingle(),
   ]);
 
-  if (profileError || membershipError || !profile?.is_active || !membership?.is_active) return null;
-  const role = membership.role || profile.role || 'KASIR';
+  if (profileError) throw profileError;
+  if (membershipError) throw membershipError;
+  if (!profile?.is_active || !membership?.is_active) return null;
+  const role = membership.role || 'KASIR';
   if (!ALLOWED_ROLES.has(role)) return null;
   return {
     userId,
@@ -86,9 +88,12 @@ async function aggregateShiftMetrics(shiftId: string, branchId: string, admin: S
 }
 
 async function mapShift(row: any, admin: SupabaseClient) {
-  const [{ data: staffProfile }, metrics] = await Promise.all([
+  const [{ data: staffProfile }, { data: staffMembership }, metrics] = await Promise.all([
     row.opened_by
-      ? admin.from('user_profiles').select('display_name,role').eq('user_id', row.opened_by).maybeSingle()
+      ? admin.from('user_profiles').select('display_name').eq('user_id', row.opened_by).maybeSingle()
+      : Promise.resolve({ data: null }),
+    row.opened_by
+      ? admin.from('branch_members').select('role').eq('user_id', row.opened_by).eq('branch_id', row.branch_id).maybeSingle()
       : Promise.resolve({ data: null }),
     aggregateShiftMetrics(row.id, row.branch_id, admin),
   ]);
@@ -97,7 +102,7 @@ async function mapShift(row: any, admin: SupabaseClient) {
     id: row.id,
     staffId: row.opened_by || '',
     staffName: staffProfile?.display_name || 'Kasir',
-    staffRole: staffProfile?.role || 'KASIR',
+    staffRole: staffMembership?.role || 'KASIR',
     startTime: row.opened_at,
     endTime: row.closed_at || undefined,
     initialCash: Number(row.opening_cash || 0),
@@ -118,7 +123,13 @@ export async function handleShiftRequest(
   const branchId = String(payload.branchId || payload.branch_id || '');
   if (!UUID_PATTERN.test(branchId)) return fail(400, 'Outlet tidak valid');
 
-  const actor = await getActor(accessToken, branchId, admin);
+  let actor;
+  try {
+    actor = await getActor(accessToken, branchId, admin);
+  } catch (error) {
+    console.error('Error validating shift actor:', error);
+    return fail(500, 'Gagal memverifikasi sesi shift');
+  }
   if (!actor) return fail(401, 'Sesi telah berakhir. Silakan masuk kembali.');
 
   const { data: branch, error: branchError } = await admin
