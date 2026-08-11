@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { generateQrToken, buildSelfOrderUrl } from '../src/utils/qrToken';
+import { handleTableSessionRequest } from '../src/server/tableSession';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -16,24 +16,9 @@ export default async function handler(request: Request): Promise<Response> {
 
   const authorization = request.headers.get('Authorization') || '';
   const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-  if (!accessToken) return json({ error: 'Tidak terautentikasi' }, 401);
-
   const admin = createClient(supabaseUrl, serverKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  const { data: { user } } = await admin.auth.getUser(accessToken);
-  if (!user) return json({ error: 'Sesi tidak valid' }, 401);
-
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const branchId = String(body.branchId || '');
-  const tableNumber = String(body.tableNumber || '');
-  const baseUrl = String(body.baseUrl || 'https://pos-pro-eight.vercel.app');
-  if (!branchId || !tableNumber) return json({ error: 'branchId dan tableNumber wajib diisi' }, 400);
-
-  const { data: table } = await admin.from('restaurant_tables').select('id,self_order_enabled').eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
-  if (!table) return json({ error: `Meja ${tableNumber} tidak ditemukan` }, 404);
-  if (!table.self_order_enabled) return json({ error: `Meja ${tableNumber} belum diaktifkan untuk self-order` }, 403);
-
   const secret = process.env.QR_TOKEN_SECRET || serverKey;
-  const token = await generateQrToken(branchId, tableNumber, secret);
-  const url = buildSelfOrderUrl(baseUrl, branchId, tableNumber, token);
-  return json({ token, url, expiresInHours: 12 });
+  const result = await handleTableSessionRequest(body, accessToken, admin, secret, 'https://pos-pro-eight.vercel.app');
+  return json(result.data, result.status);
 }

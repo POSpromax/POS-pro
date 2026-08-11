@@ -1,34 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #EA580C;
-  --primary-light: #F97316;
+  color-scheme: light;
+  --primary: #FF7A00;
+  --primary-hover: #E96E00;
+  --primary-light: #FF922B;
   --primary-gradient: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
-  --primary-soft: #FFF4ED;
-  --primary-border: #FED7AA;
+  --primary-soft: #FFF2E6;
+  --primary-border: #FFD4AD;
 
-  --accent-green: #10B981;
-  --accent-red: #EF4444;
+  --accent-green: #22A559;
+  --accent-red: #E5484D;
   --accent-amber: #F59E0B;
+  --accent-blue: #3B6FE8;
 
-  --canvas-bg: #FAFAFA;
-  --canvas-bg-start: #FAFAFA;
-  --canvas-bg-mid: #F2F2F2;
-  --canvas-bg-end: #F7F7F7;
+  --success-soft: #EAF8EF;
+  --warning-soft: #FFF5DF;
+  --danger-soft: #FDECEC;
+  --info-soft: #EDF3FF;
 
-  --panel-bg: #FFFFFF;
-  --panel-border: #E2E8F0;
-  --panel-border-light: #F1F5F9;
+  --canvas-bg: #F4F5F6;
+  --canvas-bg-start: #F4F5F6;
+  --canvas-bg-mid: #F1F2F3;
+  --canvas-bg-end: #F7F7F6;
 
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-tertiary: #94A3B8;
+  --surface-main: #FAFAF9;
+  --surface-card: #FCFCFB;
+  --surface-secondary: #F1F2F3;
+  --panel-bg: #FCFCFB;
+  --panel-border: #E2E5E9;
+  --panel-border-light: #ECEEF1;
+
+  --text-primary: #17202A;
+  --text-secondary: #667085;
+  --text-tertiary: #98A2B3;
 
   --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
   --card-shadow-hover: 0 10px 25px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
-  --card-radius: 16px;
-  --card-radius-lg: 20px;
-  --card-radius-xl: 24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --card-radius: 14px;
+  --card-radius-lg: 18px;
+  --card-radius-xl: 22px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
 
   --transition-smooth: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -36,7 +56,7 @@
 body {
   margin: 0;
   padding: 0;
-  background: #FAFAFA;
+  background: var(--canvas-bg);
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -44,6 +64,70 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   letter-spacing: -0.01em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgb(59 111 232 / 24%);
+  outline-offset: 2px;
+}
+
+.ui-surface { background: var(--surface-main); }
+.ui-card {
+  background: var(--surface-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+.ui-button {
+  min-height: 40px;
+  border-radius: var(--radius-md);
+  font-weight: 750;
+  transition: var(--transition-smooth);
+}
+.ui-button-primary { background: var(--primary); color: white; }
+.ui-button-primary:hover { background: var(--primary-hover); }
+.ui-button-secondary {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--panel-border);
+}
+.ui-input {
+  min-height: 40px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+.ui-input::placeholder { color: var(--text-tertiary); }
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--panel-border);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.ui-skeleton {
+  background: linear-gradient(90deg, #ECEEF1 25%, #F7F7F6 50%, #ECEEF1 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  to { background-position: -200% 0; }
 }
 
 .scrollbar-none::-webkit-scrollbar {
@@ -165,75 +249,6 @@ body {
 /* Normalisasi aksen sistem: aksi charcoal, sorotan oranye, status netral.
    Kelas indigo/blue/violet/purple sudah tidak dipakai di komponen — warnanya
    diganti langsung di sumber, bukan ditambal di sini. */
-.bg-slate-900,
-.bg-slate-800,
-.bg-emerald-600,
-.bg-emerald-700,
-.bg-green-600,
-.bg-green-700,
-.bg-teal-600,
-.bg-teal-700 {
-  background-color: #1C1B19 !important;
-}
-
-.text-slate-300 {
-  color: #D4D4D4 !important;
-}
-
-.hover\:bg-slate-800:hover,
-.hover\:bg-emerald-600:hover,
-.hover\:bg-emerald-700:hover,
-.hover\:bg-green-600:hover,
-.hover\:bg-green-700:hover,
-.hover\:bg-teal-600:hover,
-.hover\:bg-teal-700:hover {
-  background-color: #050505 !important;
-}
-
-.bg-emerald-50,
-.bg-emerald-100,
-.bg-green-50,
-.bg-green-100,
-.bg-teal-50,
-.bg-teal-100 {
-  background-color: #F2F2F2 !important;
-}
-
-.text-emerald-300,
-.text-emerald-400,
-.text-emerald-500,
-.text-emerald-600,
-.text-emerald-700,
-.text-emerald-800,
-.text-emerald-900,
-.text-green-400,
-.text-green-500,
-.text-green-600,
-.text-green-700,
-.text-green-800,
-.text-teal-400,
-.text-teal-500,
-.text-teal-600,
-.text-teal-700,
-.text-teal-800 {
-  color: #4A4A4A !important;
-}
-
-.border-emerald-200,
-.border-emerald-300,
-.border-emerald-400,
-.border-emerald-500,
-.border-green-200,
-.border-green-300,
-.border-green-400,
-.border-green-500,
-.border-teal-200,
-.border-teal-300,
-.border-teal-400,
-.border-teal-500 {
-  border-color: #D9D9D9 !important;
-}
-
 .bg-slate-100\/70,
 .bg-slate-100\/80 {
   background-color: rgb(245 245 245 / 0.9) !important;

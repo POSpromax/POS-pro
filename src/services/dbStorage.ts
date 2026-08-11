@@ -483,7 +483,7 @@ export class DBStorage {
     // Keep table occupancy aligned with the latest operational order state.
     if (newOrder.tableNumber && newOrder.tableNumber !== '-') {
       const isFinished = newOrder.status === 'COMPLETED' || newOrder.status === 'CANCELLED';
-      const nextTableStatus: RestaurantTable['status'] = isFinished ? 'FREE' : 'OCCUPIED';
+      const nextTableStatus: RestaurantTable['status'] = isFinished ? 'DISABLED' : 'OCCUPIED';
       this.updateTableStatus(
         newOrder.tableNumber,
         nextTableStatus,
@@ -627,7 +627,7 @@ export class DBStorage {
     if (table) {
       table.status = status;
       if (activeOrderId) table.activeOrderId = activeOrderId;
-      if (status === 'FREE') table.activeOrderId = undefined;
+      if (status === 'FREE' || status === 'DISABLED') table.activeOrderId = undefined;
       setStoredItem(STORAGE_KEYS.TABLES, tables);
     }
   }
@@ -810,7 +810,7 @@ export class DBStorage {
 
     const cleanTables = this.getTables().map((t) => ({
       ...t,
-      status: 'FREE' as const,
+      status: 'DISABLED' as const,
       activeOrderId: undefined,
       isSelfOrderEnabled: true
     }));

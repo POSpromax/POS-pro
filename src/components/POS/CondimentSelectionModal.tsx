@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, Utensils, Check } from 'lucide-react';
 import { MenuItem, CondimentGroup, SelectedCondimentGroup } from '../../types/pos';
 import { isGroupApplicable } from '../../utils/condimentUtils';
+import { optimizeCloudinaryImage } from '../../utils/imageUrl';
+
+const EMPTY_SELECTED_CONDIMENTS: SelectedCondimentGroup[] = [];
 
 interface CondimentSelectionModalProps {
   isOpen: boolean;
@@ -10,6 +13,8 @@ interface CondimentSelectionModalProps {
   condimentGroups: CondimentGroup[];
   onConfirm: (menuItem: MenuItem, selectedCondiments: SelectedCondimentGroup[], notes: string, extraPrice: number) => void;
   onShowToast?: (title: string, message: string) => void;
+  initialSelectedCondiments?: SelectedCondimentGroup[];
+  initialNotes?: string;
 }
 
 export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = ({
@@ -18,7 +23,9 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   menuItem,
   condimentGroups,
   onConfirm,
-  onShowToast
+  onShowToast,
+  initialSelectedCondiments = EMPTY_SELECTED_CONDIMENTS,
+  initialNotes = '',
 }) => {
   if (!isOpen || !menuItem) return null;
 
@@ -34,15 +41,18 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     const initialSel: Record<string, string[]> = {};
     applicableGroups.forEach((group) => {
       const availableOptions = group.options.filter((o) => o.isAvailable);
-      if (group.required && availableOptions.length > 0) {
+      const existing = initialSelectedCondiments.find((selection) => selection.groupName === group.name);
+      if (existing) {
+        initialSel[group.id] = existing.options;
+      } else if (group.required && availableOptions.length > 0) {
         initialSel[group.id] = [availableOptions[0].name];
       } else {
         initialSel[group.id] = [];
       }
     });
     setSelections(initialSel);
-    setNotes('');
-  }, [menuItem]);
+    setNotes(initialNotes);
+  }, [menuItem, initialNotes, initialSelectedCondiments]);
 
   const toggleOption = (group: CondimentGroup, optionName: string) => {
     setSelections((prev) => {
@@ -119,7 +129,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
         {/* Top Banner Image with Dark Gradient Overlay matching Screenshots 3 & 4 */}
         <div className="relative h-48 sm:h-52 w-full bg-slate-900 overflow-hidden shrink-0">
           {menuItem.image ? (
-            <img src={menuItem.image} alt={menuItem.name} className="w-full h-full object-cover" />
+            <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-tr from-orange-600 via-amber-600 to-amber-500 flex items-center justify-center text-white">
               <Utensils className="w-16 h-16 opacity-40" />

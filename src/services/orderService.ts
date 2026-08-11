@@ -29,7 +29,13 @@ export const updateCloudOrderStatus = (branchId: string, orderId: string, status
 export const getPublicOrder = (branchId: string, orderId: string): Promise<Order | null> =>
   request<Order | null>(`/api/orders?branchId=${encodeURIComponent(branchId)}&orderId=${encodeURIComponent(orderId)}`, undefined, false);
 
-export function subscribeCloudOrders(branchId: string, onChange: () => void): () => void {
+export type RealtimeConnectionState = 'CONNECTING' | 'HEALTHY' | 'DEGRADED';
+
+export function subscribeCloudOrders(
+  branchId: string,
+  onChange: () => void,
+  onConnectionState?: (state: RealtimeConnectionState) => void,
+): () => void {
   if (!isSupabaseConfigured()) return () => undefined;
   const supabase = getSupabase();
   let timer = 0;
@@ -41,7 +47,11 @@ export function subscribeCloudOrders(branchId: string, onChange: () => void): ()
     .on('broadcast', { event: 'INSERT' }, notify)
     .on('broadcast', { event: 'UPDATE' }, notify)
     .on('broadcast', { event: 'DELETE' }, notify)
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');
+      else onConnectionState?.('CONNECTING');
+    });
   return () => {
     window.clearTimeout(timer);
     void supabase.removeChannel(channel);

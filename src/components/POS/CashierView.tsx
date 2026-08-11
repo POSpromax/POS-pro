@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
 import { formatOrderLabel } from '../../utils/orderNumber';
+import { optimizeCloudinaryImage } from '../../utils/imageUrl';
 import {
   Plus,
   Minus,
@@ -96,9 +97,11 @@ const POSMenuItemCard: React.FC<{
       <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#FAFAFA] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
         {item.image && !imgError ? (
           <img
-            src={item.image}
+            src={optimizeCloudinaryImage(item.image, 520)}
             alt={item.name}
             referrerPolicy="no-referrer"
+            loading="lazy"
+            decoding="async"
             onError={() => setImgError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

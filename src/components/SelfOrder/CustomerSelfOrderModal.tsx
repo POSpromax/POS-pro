@@ -22,6 +22,7 @@ interface CustomerSelfOrderModalProps {
   orders?: Order[];
   onSubmitCustomerOrder: (order: Order) => void;
   currentBranch: Branch;
+  qrToken?: string;
 }
 
 export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
@@ -35,7 +36,8 @@ export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
   isSelfOrderSystemEnabled = true,
   orders = [],
   onSubmitCustomerOrder,
-  currentBranch
+  currentBranch,
+  qrToken,
 }) => {
   if (!isOpen) return null;
 
@@ -74,6 +76,7 @@ export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
             onSubmitCustomerOrder={onSubmitCustomerOrder}
             initialTableNumber={tableNumber || '1'}
             currentBranch={currentBranch}
+            qrToken={qrToken}
           />
         </div>
 

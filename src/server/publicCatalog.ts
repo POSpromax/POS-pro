@@ -31,7 +31,17 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient) 
         id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '',
         description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients: [], isAvailable: true,
       })),
-      tables: (tables || []).map((row) => ({ id: row.id, number: row.number, capacity: row.capacity, status: row.status, isSelfOrderEnabled: row.self_order_enabled, branchId })),
+      tables: (tables || []).map((row) => ({
+        id: row.id,
+        number: row.number,
+        capacity: row.capacity,
+        status: row.status,
+        isSelfOrderEnabled: row.self_order_enabled,
+        activeOrderId: row.active_order_id || undefined,
+        qrGeneration: Number(row.qr_generation || 0),
+        qrActivatedAt: row.qr_activated_at || undefined,
+        branchId,
+      })),
       condimentGroups: (groups || []).map((row) => ({
         id: row.id, name: row.name, mode: row.mode, isRequired: row.required, minSelect: row.min_select, maxSelect: row.max_select,
         targetCategories: row.target_categories || [], targetProductIds: scopes[row.id]?.targetProductIds || [], targetProductNames: scopes[row.id]?.targetProductNames || [],

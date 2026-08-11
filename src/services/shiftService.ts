@@ -1,5 +1,6 @@
 import type { Shift } from '../types/pos';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import type { RealtimeConnectionState } from './orderService';
 
 export class ShiftServiceError extends Error {
   constructor(message: string, public readonly status: number) {
@@ -85,7 +86,11 @@ export async function closeCloudShift(params: {
   });
 }
 
-export function subscribeCloudShift(branchId: string, onChange: () => void): () => void {
+export function subscribeCloudShift(
+  branchId: string,
+  onChange: () => void,
+  onConnectionState?: (state: RealtimeConnectionState) => void,
+): () => void {
   if (!isSupabaseConfigured() || !branchId) return () => undefined;
   const supabase = getSupabase();
   let timer = 0;
@@ -108,7 +113,11 @@ export function subscribeCloudShift(branchId: string, onChange: () => void): () 
       },
       notify,
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');
+      else onConnectionState?.('CONNECTING');
+    });
 
   return () => {
     window.clearTimeout(timer);

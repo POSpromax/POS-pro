@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Store,
-  Receipt,
-  UtensilsCrossed,
-  Clock,
-  Boxes,
-  TrendingUp,
-  Settings,
-  LogOut,
-  Grid2X2,
-  Building2,
-  Crown,
-  Smartphone,
   ArrowRight,
+  Boxes,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
   Compass,
-  WalletCards,
+  Crown,
+  Grid2X2,
+  LogOut,
   Menu,
-  X
+  Receipt,
+  Settings,
+  Smartphone,
+  Store,
+  TrendingUp,
+  UtensilsCrossed,
+  WalletCards,
+  X,
 } from 'lucide-react';
 import { AccessControlRule, UserAccount } from '../../types/pos';
 
@@ -31,6 +33,8 @@ interface SidebarProps {
   accessRule?: AccessControlRule;
 }
 
+const SIDEBAR_EXPANDED_KEY = 'omnipos_sidebar_expanded';
+
 export const Sidebar: React.FC<SidebarProps> = ({
   systemPortal,
   onSwitchPortal,
@@ -39,19 +43,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeUser,
   onLogout,
   pendingSyncCount,
-  accessRule
+  accessRule,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [expanded, setExpanded] = useState(() => localStorage.getItem(SIDEBAR_EXPANDED_KEY) === 'true');
 
   useEffect(() => {
     setMobileOpen(false);
   }, [activeTab]);
 
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, String(expanded));
+  }, [expanded]);
+
   const cashierNavItems = [
     { id: 'pos', label: 'Kasir POS', icon: Receipt },
     { id: 'kds', label: 'Dapur / KDS', icon: UtensilsCrossed },
     { id: 'shift', label: 'Shift Kasir', icon: Clock },
-    { id: 'inventory', label: 'Inventory Stok', icon: Boxes }
+    { id: 'inventory', label: 'Inventory Stok', icon: Boxes },
   ];
 
   const ownerNavItems = [
@@ -63,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'attendance', label: 'Absensi Staff', icon: Crown },
     { id: 'payroll', label: 'Payroll Staff', icon: WalletCards },
     { id: 'selforder', label: 'Landing Self-Order', icon: Smartphone },
-    { id: 'settings', label: 'Konfigurasi Owner', icon: Settings }
+    { id: 'settings', label: 'Konfigurasi Owner', icon: Settings },
   ];
 
   const canOpenItem = (id: string) => {
@@ -73,185 +82,152 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (id === 'shift') return accessRule.canAccessShift;
     if (id === 'inventory') return accessRule.canAccessInventory;
     if (id === 'analytics' || id === 'superowner') return accessRule.canAccessAnalytics;
-    if (id === 'payroll') return accessRule.canAccessSettings;
     return accessRule.canAccessSettings;
   };
 
-  const currentNavItems = (systemPortal === 'KASIR' ? cashierNavItems : ownerNavItems).filter((item) => canOpenItem(item.id));
   const isOwnerMode = systemPortal === 'OWNER';
+  const currentNavItems = useMemo(
+    () => (isOwnerMode ? ownerNavItems : cashierNavItems).filter((item) => canOpenItem(item.id)),
+    [isOwnerMode, accessRule],
+  );
   const canSwitchToOwner = Boolean(accessRule?.canAccessAnalytics || accessRule?.canAccessSettings);
   const canSwitchToCashier = Boolean(accessRule?.canAccessPOS || accessRule?.canAccessKDS || accessRule?.canAccessShift || accessRule?.canAccessInventory);
 
-  const sidebarContent = (
-    <>
-      {/* Logo & Mode Badge */}
-      <div className="flex flex-col items-center gap-2 w-full px-2.5 shrink-0">
-        <button
-          id="btn-app-logo"
-          onClick={() => setActiveTab(isOwnerMode ? 'superowner' : 'pos')}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all active:scale-95 cursor-pointer relative bg-[#1C1B19] shadow-lg shadow-black/15"
-          title={isOwnerMode ? 'Portal Back-Office Owner' : 'Terminal Operasional Kasir POS'}
-        >
-          {isOwnerMode ? <Crown className="w-[18px] h-[18px] text-amber-200" /> : <Store className="w-[18px] h-[18px] text-white" />}
-          {pendingSyncCount > 0 && (
-            <span className="absolute -top-1 -right-1 text-[8px] bg-amber-500 text-white font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse ring-2 ring-white">
-              {pendingSyncCount}
-            </span>
-          )}
-        </button>
+  const selectTab = (tab: string) => {
+    setActiveTab(tab);
+    setMobileOpen(false);
+  };
 
-        <span
-          className={`px-2 py-0.5 rounded-md text-[7px] font-bold uppercase tracking-widest ${
-            isOwnerMode
-              ? 'bg-[#FFF4EE] text-[#C2410C] border border-[#F1C7B5]'
-              : 'bg-[#F5F5F5] text-[#5F5F5F] border border-[#E1E1E1]'
-          }`}
-        >
-          {isOwnerMode ? 'OWNER' : 'KASIR'}
-        </span>
-      </div>
-
-      {/* Navigation */}
-      <nav id="nav-main-menu" className="flex-1 flex flex-col items-center justify-start gap-1.5 my-4 w-full px-2.5 overflow-y-auto scrollbar-none">
-        <div className="w-full flex flex-col items-center gap-1">
-          {currentNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                id={`nav-item-${item.id}`}
-                onClick={() => setActiveTab(item.id)}
-                className={`group relative w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[#1C1B19] text-white shadow-md shadow-black/15'
-                    : 'text-[#929292] hover:bg-[#F3F3F3] hover:text-[#1C1B19]'
-                }`}
-                title={`[${isOwnerMode ? 'Sistem Owner' : 'Sistem Kasir'}] ${item.label}`}
-              >
-                {isActive && (
-                  <span className="absolute -left-2.5 w-[3px] h-5 rounded-r-full bg-[#EA580C]" />
-                )}
-                <Icon className="w-[18px] h-[18px] stroke-[2]" />
-                <span className={`text-[7px] font-semibold tracking-tight uppercase mt-0.5 leading-none ${
-                  isActive ? 'text-white/90' : 'text-[#A0A0A0] group-hover:text-[#1C1B19]'
-                }`}>
-                  {item.label.split(' ')[0]}
-                </span>
-
-                {/* Tooltip — desktop only */}
-                <span className="hidden md:flex absolute left-[60px] bg-[#1A1714] text-white text-[10px] font-semibold py-1.5 px-3 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl items-center gap-1.5">
-                  <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-orange-500/20 text-orange-300">
-                    {isOwnerMode ? 'OWNER' : 'KASIR'}
-                  </span>
-                  <span>{item.label}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Bottom Actions */}
-      <div className="flex flex-col items-center gap-2 w-full px-2.5 pt-3 border-t border-[#E2E2E2] shrink-0">
-        {(isOwnerMode ? canSwitchToCashier : canSwitchToOwner) && <button
-          id="btn-switch-system-portal"
-          type="button"
-          onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')}
-          className={`group relative w-10 h-9 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer border ${
-            isOwnerMode
-              ? 'bg-orange-50 hover:bg-orange-100 text-[#C2410C] border-orange-200'
-              : 'bg-[#FFF4EE] hover:bg-[#FFE9DE] text-[#C2410C] border-[#F1C7B5]'
-          }`}
-          title={isOwnerMode ? 'Kembali ke Terminal Kasir POS' : 'Masuk Portal Back-Office Owner'}
-        >
-          {isOwnerMode ? <Store className="w-3.5 h-3.5" /> : <Crown className="w-3.5 h-3.5 text-amber-500" />}
-          <span className="text-[6px] font-bold tracking-tight uppercase mt-0.5 opacity-70">
-            {isOwnerMode ? 'KASIR' : 'OWNER'}
-          </span>
-
-          <span className="hidden md:flex absolute left-[60px] bg-[#1A1714] text-white text-[10px] font-semibold py-1.5 px-3 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl items-center gap-1.5">
-            <span>{isOwnerMode ? 'Terminal Kasir POS' : 'Portal Owner'}</span>
-            <ArrowRight className="w-3 h-3 text-white/50" />
-          </span>
-        </button>}
-
-        <div
-          id="btn-user-avatar-badge"
-          className="relative w-8 h-8 rounded-xl bg-[#F5F5F5] border border-[#E1E1E1] flex items-center justify-center font-bold text-[10px] text-[#1C1B19] overflow-hidden"
-          title={`Pengguna aktif: ${activeUser.name} (${activeUser.role})`}
-        >
-          {activeUser.avatar ? (
-            <img src={activeUser.avatar} alt={activeUser.name} className="w-full h-full object-cover" />
-          ) : (
-            activeUser.name.substring(0, 2).toUpperCase()
-          )}
-        </div>
-
-        <button
-          id="btn-logout-system"
-          onClick={onLogout}
-          className="w-11 h-8 text-[#8E8882] hover:text-[#C2410C] hover:bg-[#FFF4EE] rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer"
-          title="Logout dan akhiri sesi petugas"
-          aria-label="Logout dan akhiri sesi petugas"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span className="text-[6px] font-black uppercase tracking-wide">Logout</span>
-        </button>
-      </div>
-    </>
-  );
-
-  return (
-    <>
-      {/* Desktop/Tablet: fixed sidebar — always visible */}
-      <aside
-        id="app-sidebar"
-        className="hidden md:flex w-[72px] flex-col justify-between items-center py-3.5 select-none shrink-0 z-30 bg-white/95 backdrop-blur-sm border-r border-[#E2E2E2] text-slate-700 h-full font-sans"
-        style={{ boxShadow: '2px 0 16px rgba(0,0,0,0.03)' }}
-      >
-        {sidebarContent}
-      </aside>
-
-      {/* Mobile: floating menu button */}
+  const Rail = () => (
+    <aside
+      id="app-sidebar"
+      className="relative z-40 flex h-full w-[72px] shrink-0 select-none flex-col items-center border-r border-[#E2E5E9] bg-[#FCFCFB]/95 py-3 backdrop-blur-xl"
+      style={{ boxShadow: '2px 0 14px rgba(23,32,42,0.035)' }}
+    >
       <button
+        id="btn-app-logo"
         type="button"
-        onClick={() => setMobileOpen(true)}
-        className={`md:hidden fixed bottom-4 left-4 z-40 w-12 h-12 rounded-full bg-[#1C1B19] text-white shadow-xl flex items-center justify-center cursor-pointer active:scale-90 transition-transform ${mobileOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        aria-label="Buka menu navigasi"
+        onClick={() => selectTab(isOwnerMode ? 'superowner' : 'pos')}
+        className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#17202A] text-white shadow-sm transition active:scale-95"
+        aria-label={isOwnerMode ? 'Buka dashboard Owner' : 'Buka Kasir POS'}
       >
-        <Menu className="w-5 h-5" />
+        {isOwnerMode ? <Crown className="h-[18px] w-[18px] text-amber-200" /> : <Store className="h-[18px] w-[18px]" />}
         {pendingSyncCount > 0 && (
-          <span className="absolute -top-1 -right-1 text-[8px] bg-amber-500 text-white font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[8px] font-black text-white ring-2 ring-[#FCFCFB]">
             {pendingSyncCount}
           </span>
         )}
       </button>
 
-      {/* Mobile: overlay sidebar */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setMobileOpen(false)}
-          />
-          {/* Sidebar panel */}
-          <aside
-            className="relative w-[72px] flex flex-col justify-between items-center py-3.5 select-none shrink-0 bg-white/98 backdrop-blur-sm border-r border-[#E2E2E2] text-slate-700 h-full font-sans animate-slideInLeft"
-            style={{ boxShadow: '2px 0 16px rgba(0,0,0,0.08)' }}
-          >
-            {sidebarContent}
-          </aside>
-          {/* Close button */}
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="mt-2 hidden h-8 w-10 items-center justify-center rounded-lg border border-[#E2E5E9] bg-white text-[#667085] transition hover:border-[#FFD4AD] hover:bg-[#FFF2E6] hover:text-[#E96E00] md:flex"
+        aria-label={expanded ? 'Tutup panel menu' : 'Buka panel menu'}
+        aria-expanded={expanded}
+      >
+        {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </button>
+
+      <nav id="nav-main-menu" className="scrollbar-none my-3 flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-2.5">
+        {currentNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              id={`nav-item-${item.id}`}
+              type="button"
+              onClick={() => selectTab(item.id)}
+              className={`group relative flex h-11 w-11 items-center justify-center rounded-xl transition ${active ? 'bg-[#17202A] text-white shadow-sm' : 'text-[#667085] hover:bg-[#F1F2F3] hover:text-[#17202A]'}`}
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+            >
+              {active && <span className="absolute -left-2.5 h-5 w-[3px] rounded-r-full bg-[#FF7A00]" />}
+              <Icon className="h-[19px] w-[19px] stroke-[1.9]" />
+              {!expanded && (
+                <span className="pointer-events-none absolute left-[52px] z-[70] hidden translate-x-1 items-center whitespace-nowrap rounded-xl border border-[#303A45] bg-[#17202A] px-3 py-2 text-[11px] font-bold text-white opacity-0 shadow-xl transition-all group-hover:translate-x-0 group-hover:opacity-100 md:flex">
+                  {item.label}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="flex w-full flex-col items-center gap-2 border-t border-[#E2E5E9] px-2.5 pt-3">
+        {(isOwnerMode ? canSwitchToCashier : canSwitchToOwner) && (
           <button
+            id="btn-switch-system-portal"
             type="button"
-            onClick={() => setMobileOpen(false)}
-            className="absolute top-4 left-[80px] w-8 h-8 rounded-full bg-white/90 shadow-md flex items-center justify-center text-slate-600 cursor-pointer"
-            aria-label="Tutup menu"
+            onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')}
+            className="group relative flex h-9 w-10 items-center justify-center rounded-xl border border-[#FFD4AD] bg-[#FFF2E6] text-[#D85F00] transition hover:bg-[#FFE5CF]"
+            aria-label={isOwnerMode ? 'Beralih ke Kasir' : 'Beralih ke portal Owner'}
           >
-            <X className="w-4 h-4" />
+            {isOwnerMode ? <Store className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
           </button>
+        )}
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl border border-[#E2E5E9] bg-[#F1F2F3] text-[10px] font-black text-[#17202A]" title={`${activeUser.name} (${activeUser.role})`}>
+          {activeUser.avatar ? <img src={activeUser.avatar} alt={activeUser.name} className="h-full w-full object-cover" /> : activeUser.name.substring(0, 2).toUpperCase()}
+        </div>
+        <button type="button" onClick={onLogout} className="flex h-9 w-10 items-center justify-center rounded-xl text-[#667085] transition hover:bg-[#FDECEC] hover:text-[#E5484D]" aria-label="Logout dan akhiri sesi petugas">
+          <LogOut className="h-4 w-4" />
+        </button>
+      </div>
+    </aside>
+  );
+
+  const ExpandedPanel = ({ mobile = false }: { mobile?: boolean }) => (
+    <aside
+      className={`${mobile ? 'absolute inset-y-0 left-0 w-[286px] rounded-none' : 'fixed bottom-3 left-[84px] top-3 w-[248px] rounded-2xl'} z-[60] flex flex-col border border-[#E2E5E9] bg-[#FCFCFB]/98 p-3 shadow-2xl shadow-slate-900/10 backdrop-blur-xl`}
+      aria-label="Panel navigasi"
+    >
+      <div className="flex items-center justify-between border-b border-[#E2E5E9] px-2 pb-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7A00]">{isOwnerMode ? 'Portal Owner' : 'Operasional'}</p>
+          <p className="mt-0.5 text-sm font-black text-[#17202A]">Bakso Ujo</p>
+        </div>
+        <button type="button" onClick={() => mobile ? setMobileOpen(false) : setExpanded(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E5E9] text-[#667085] hover:bg-[#F1F2F3]" aria-label="Tutup panel menu">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <nav className="scrollbar-thin my-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        {currentNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = activeTab === item.id;
+          return (
+            <button key={item.id} type="button" onClick={() => selectTab(item.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition ${active ? 'bg-[#17202A] text-white shadow-sm' : 'text-[#475467] hover:bg-[#F1F2F3] hover:text-[#17202A]'}`} aria-current={active ? 'page' : undefined}>
+              <Icon className={`h-[18px] w-[18px] stroke-[1.9] ${active ? 'text-[#FFB46E]' : 'text-[#667085]'}`} />
+              <span className="flex-1">{item.label}</span>
+              {active && <span className="h-2 w-2 rounded-full bg-[#FF7A00]" />}
+            </button>
+          );
+        })}
+      </nav>
+
+      {(isOwnerMode ? canSwitchToCashier : canSwitchToOwner) && (
+        <button type="button" onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')} className="flex w-full items-center gap-3 rounded-xl border border-[#FFD4AD] bg-[#FFF2E6] px-3 py-2.5 text-xs font-bold text-[#C55600] hover:bg-[#FFE5CF]">
+          {isOwnerMode ? <Store className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+          <span className="flex-1 text-left">{isOwnerMode ? 'Terminal Kasir POS' : 'Portal Owner'}</span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
+    </aside>
+  );
+
+  return (
+    <>
+      <div className="hidden md:block"><Rail /></div>
+      {expanded && <div className="hidden md:block"><ExpandedPanel /></div>}
+
+      <button type="button" onClick={() => setMobileOpen(true)} className={`fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#17202A] text-white shadow-xl transition active:scale-90 md:hidden ${mobileOpen ? 'pointer-events-none opacity-0' : ''}`} aria-label="Buka menu navigasi">
+        <Menu className="h-5 w-5" />
+      </button>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button type="button" className="absolute inset-0 h-full w-full bg-slate-950/35 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} aria-label="Tutup menu navigasi" />
+          <ExpandedPanel mobile />
         </div>
       )}
     </>

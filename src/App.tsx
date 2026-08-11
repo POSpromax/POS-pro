@@ -4,7 +4,7 @@
  * Nusantara POS & Resto Full-Stack System
  */
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { HeaderBar } from './components/Navigation/HeaderBar';
@@ -47,7 +47,7 @@ import {
 import { listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus } from './services/orderService';
+import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { formatOrderLabel } from './utils/orderNumber';
@@ -70,6 +70,12 @@ const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
 const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
 const TERMINAL_MODE_KEY = 'omnipos_terminal_mode';
 const condimentCloudSaveTimers = new Map<string, number>();
+
+interface SyncHealth {
+  connectionState: RealtimeConnectionState;
+  lastSuccessfulSync: number | null;
+  lastRealtimeEvent: number | null;
+}
 
 if (typeof window !== 'undefined') {
   DBStorage.initDefaults();
@@ -352,44 +358,92 @@ export default function App() {
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
     let active = true;
-    let prevOrderCount = orders.length;
+    let knownItemQuantities = new Map<string, number>(orders.map((order) => [
+      order.id,
+      order.items.reduce((sum, item) => sum + item.quantity, 0),
+    ] as [string, number]));
     let isFirstLoad = true;
+    let isRefreshing = false;
+    let refreshQueued = false;
+    let realtimeState: RealtimeConnectionState = 'CONNECTING';
+    let lastFallbackAt = 0;
     const refresh = () => {
+      if (isRefreshing) { refreshQueued = true; return; }
+      isRefreshing = true;
       void listCloudOrders(currentBranch.id)
         .then((cloudOrders) => {
           if (!active) return;
-          const newCount = cloudOrders.length;
+          const nextItemQuantities = new Map<string, number>(cloudOrders.map((order) => [
+            order.id,
+            order.items.reduce((sum, item) => sum + item.quantity, 0),
+          ] as [string, number]));
+          const changedOrders = cloudOrders.filter((order) => (
+            (nextItemQuantities.get(order.id) || 0) > (knownItemQuantities.get(order.id) || 0)
+          ));
 
-          // Detect genuinely new orders arriving from remote (self-order from customer phone)
-          if (!isFirstLoad && newCount > prevOrderCount) {
-            const newOrders = cloudOrders.slice(0, newCount - prevOrderCount);
-            const selfOrders = newOrders.filter((o) => o.source === 'SELF_ORDER' || o.type === 'DINE_IN');
+          // Mendeteksi order baru dan tambahan item pada bill yang sama.
+          if (!isFirstLoad && changedOrders.length > 0) {
+            const selfOrders = changedOrders.filter((order) => order.source === 'SELF_ORDER');
 
             if (selfOrders.length > 0) {
-              // Play LOUD siren alert for self-order
               playSelfOrderAlertSound();
-              selfOrders.forEach((o) => {
+              selfOrders.forEach((order) => {
                 showPushToast(
-                  '🔔 PESANAN MASUK DARI HP CUSTOMER!',
-                  `Meja ${o.tableNumber} — ${o.orderNumber} — ${o.items?.length || 0} item. Segera proses!`
+                  'Pesanan Self-order Masuk',
+                  `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`
                 );
               });
             } else {
-              // Regular new order sound
               playNewOrderSound();
             }
           }
           isFirstLoad = false;
-          prevOrderCount = newCount;
+          knownItemQuantities = nextItemQuantities;
 
           setOrders(cloudOrders);
           localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+          setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         })
-        .catch((error) => showPushToast('Sinkronisasi Order Tertunda', error instanceof Error ? error.message : 'Order cloud belum dapat dimuat.'));
+        .catch((error) => showPushToast('Sinkronisasi Order Tertunda', error instanceof Error ? error.message : 'Order cloud belum dapat dimuat.'))
+        .finally(() => {
+          isRefreshing = false;
+          if (refreshQueued && active) { refreshQueued = false; refresh(); }
+        });
     };
     refresh();
-    const unsubscribe = subscribeCloudOrders(currentBranch.id, refresh);
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = subscribeCloudOrders(
+      currentBranch.id,
+      () => {
+        setOrderSyncHealth((current) => ({ ...current, lastRealtimeEvent: Date.now() }));
+        refresh();
+      },
+      (state) => {
+        const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
+        realtimeState = state;
+        setOrderSyncHealth((current) => ({ ...current, connectionState: state }));
+        if (recovered) refresh();
+      },
+    );
+    const fallbackTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible' || realtimeState !== 'DEGRADED') return;
+      const visibleTab = activeTabRef.current;
+      const fallbackDelay = visibleTab === 'kds' ? 5_000 : visibleTab === 'pos' ? 12_000 : 0;
+      if (!fallbackDelay || Date.now() - lastFallbackAt < fallbackDelay) return;
+      lastFallbackAt = Date.now();
+      refresh();
+    }, 5_000);
+    const reconcileVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('focus', reconcileVisible);
+    window.addEventListener('online', reconcileVisible);
+    document.addEventListener('visibilitychange', reconcileVisible);
+    return () => {
+      active = false;
+      window.clearInterval(fallbackTimer);
+      window.removeEventListener('focus', reconcileVisible);
+      window.removeEventListener('online', reconcileVisible);
+      document.removeEventListener('visibilitychange', reconcileVisible);
+      unsubscribe();
+    };
   }, [isTerminalUnlocked, currentBranch.id]);
 
   // Database adalah sumber tunggal status shift. Realtime memberi respons
@@ -399,6 +453,7 @@ export default function App() {
     let cancelled = false;
     let requestSequence = 0;
     let syncErrorShown = false;
+    let realtimeState: RealtimeConnectionState = 'CONNECTING';
 
     // Jangan percaya cache shift saat sesi/outlet berubah. POS tetap terkunci
     // sampai server pusat mengonfirmasi apakah ada shift aktif.
@@ -413,6 +468,7 @@ export default function App() {
           ? DBStorage.setCurrentShift(cloudShift)
           : DBStorage.clearCurrentShift(currentBranch.id);
         setCurrentShift(nextShift);
+        setShiftSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         syncErrorShown = false;
       } catch (error) {
         if (cancelled || sequence !== requestSequence || syncErrorShown) return;
@@ -428,8 +484,22 @@ export default function App() {
     };
 
     void syncShiftFromCloud();
-    const unsubscribe = subscribeCloudShift(currentBranch.id, () => { void syncShiftFromCloud(); });
-    const pollTimer = window.setInterval(() => { void syncShiftFromCloud(); }, 5000);
+    const unsubscribe = subscribeCloudShift(
+      currentBranch.id,
+      () => {
+        setShiftSyncHealth((current) => ({ ...current, lastRealtimeEvent: Date.now() }));
+        void syncShiftFromCloud();
+      },
+      (state) => {
+        const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
+        realtimeState = state;
+        setShiftSyncHealth((current) => ({ ...current, connectionState: state }));
+        if (recovered) void syncShiftFromCloud();
+      },
+    );
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void syncShiftFromCloud();
+    }, 60_000);
     const syncWhenVisible = () => {
       if (document.visibilityState === 'visible') void syncShiftFromCloud();
     };
@@ -605,9 +675,14 @@ export default function App() {
   // 4. Online/Offline & Sync Queue State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => DBStorage.getOfflineQueue().length);
+  const [orderSyncHealth, setOrderSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
+  const [shiftSyncHealth, setShiftSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   // 5. Toast Push Notifications State
   const [toastNotification, setToastNotification] = useState<{ title: string; message: string } | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   // 6. Modals State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
@@ -617,6 +692,7 @@ export default function App() {
   const [isTableManagementOpen, setIsTableManagementOpen] = useState<boolean>(false);
   const [isQuickTableModalOpen, setIsQuickTableModalOpen] = useState<boolean>(false);
   const [selectedSelfOrderTable, setSelectedSelfOrderTable] = useState<string>('1');
+  const [selectedSelfOrderToken, setSelectedSelfOrderToken] = useState<string>('');
 
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState<boolean>(false);
 
@@ -633,9 +709,19 @@ export default function App() {
   }, []);
 
   const showPushToast = (title: string, message: string) => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     setToastNotification({ title, message });
-    setTimeout(() => setToastNotification(null), 4000);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastNotification(null);
+      toastTimerRef.current = null;
+    }, 4000);
   };
+
+  useEffect(() => () => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    condimentCloudSaveTimers.forEach((timer) => window.clearTimeout(timer));
+    condimentCloudSaveTimers.clear();
+  }, []);
 
   const ensureOpenShift = (actionLabel: string): boolean => {
     const isShiftOpen = currentShift.status === 'OPEN';
@@ -730,6 +816,9 @@ export default function App() {
         showPushToast('Pembayaran Tersimpan Lokal', error instanceof Error ? error.message : 'Order akan disinkronkan saat koneksi pulih.');
       }
     }
+    if (fullOrder.type === 'DINE_IN' && fullOrder.tableNumber && fullOrder.tableNumber !== '-') {
+      DBStorage.updateTableStatus(fullOrder.tableNumber, 'DISABLED', undefined, fullOrder.branchId);
+    }
     setOrders(DBStorage.getOrders());
     setRawMaterials(DBStorage.getRawMaterials());
     setTables(DBStorage.getTables());
@@ -785,14 +874,13 @@ export default function App() {
       void submitCloudOrder(newOrder)
         .then((saved) => {
           DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== newOrder.id && order.id !== saved.id)]);
+          DBStorage.updateTableStatus(saved.tableNumber, 'OCCUPIED', saved.id, saved.branchId);
           setOrders(DBStorage.getOrders());
+          setTables(DBStorage.getTables());
         })
         .catch((error) => showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.'));
     }
     
-    // Play LOUD self-order siren alert for new order arrival from customer!
-    playSelfOrderAlertSound();
-
     showPushToast('Order Baru dari HP Customer!', `Meja ${newOrder.tableNumber} memesan order ${newOrder.orderNumber}. Meja dikunci (RED).`);
   };
 
@@ -844,10 +932,21 @@ export default function App() {
     setTables(DBStorage.getTables());
   };
 
+  const handleTableSessionUpdated = (updatedTable: RestaurantTable) => {
+    const normalizedNumber = updatedTable.number.replace(/^0+(?=\d)/, '');
+    const nextTables = tables.map((table) => {
+      const sameBranch = !table.branchId || !updatedTable.branchId || table.branchId === updatedTable.branchId;
+      const sameNumber = table.number.replace(/^0+(?=\d)/, '') === normalizedNumber;
+      return table.id === updatedTable.id || (sameBranch && sameNumber) ? { ...table, ...updatedTable } : table;
+    });
+    DBStorage.setTables(nextTables);
+    setTables(nextTables);
+  };
+
   const handleClearTableStatus = (tableNumber: string) => {
-    DBStorage.updateTableStatus(tableNumber, 'FREE', undefined, currentBranch.id);
+    DBStorage.updateTableStatus(tableNumber, 'DISABLED', undefined, currentBranch.id);
     setTables(DBStorage.getTables());
-    showPushToast('Status Meja', `Meja ${tableNumber} di ${currentBranch.name} dikosongkan.`);
+    showPushToast('Status Meja', `Meja ${tableNumber} di ${currentBranch.name} dinonaktifkan.`);
   };
 
   const handleSetTableOccupied = (tableNumber: string) => {
@@ -859,7 +958,7 @@ export default function App() {
   const handleResetAllTablesToFree = () => {
     const updated = tables.map((t) =>
       !t.branchId || t.branchId === currentBranch.id
-        ? { ...t, status: 'FREE' as const, activeOrderId: undefined }
+        ? { ...t, status: 'DISABLED' as const, activeOrderId: undefined }
         : t
     );
     DBStorage.setTables(updated);
@@ -872,7 +971,7 @@ export default function App() {
       id: 'tbl-' + Date.now(),
       number: tableNumber,
       capacity,
-      status: 'FREE',
+      status: 'DISABLED',
       isSelfOrderEnabled: true,
       branchId: currentBranch.id
     };
@@ -1102,6 +1201,7 @@ export default function App() {
             onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
             onOpenCustomerSelfOrder={() => {
               setSelectedSelfOrderTable('1');
+              setSelectedSelfOrderToken('');
               setIsSelfOrderModalOpen(true);
             }}
             onOpenTableManagement={() => setIsTableManagementOpen(true)}
@@ -1134,6 +1234,7 @@ export default function App() {
                   onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
                   onOpenCustomerSelfOrder={() => {
                     setSelectedSelfOrderTable('1');
+                    setSelectedSelfOrderToken('');
                     setIsSelfOrderModalOpen(true);
                   }}
                   onOpenTableManagement={() => setIsTableManagementOpen(true)}
@@ -1173,6 +1274,7 @@ export default function App() {
             <KitchenDisplayView
               orders={branchOrders}
               condimentGroups={condimentGroups}
+              connectionState={orderSyncHealth.connectionState}
               onUpdateOrderStatus={handleUpdateOrderStatus}
               onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur ${formatOrderLabel(ord)} dicetak.`)}
             />
@@ -1224,10 +1326,12 @@ export default function App() {
               branchId={currentBranch.id}
               onToggleSelfOrder={handleToggleTableSelfOrder}
               onClearTableStatus={handleClearTableStatus}
-              onOpenCustomerSelfOrderModal={(tblNum) => {
+              onOpenCustomerSelfOrderModal={(tblNum, token) => {
                 setSelectedSelfOrderTable(tblNum);
+                setSelectedSelfOrderToken(token || '');
                 setIsSelfOrderModalOpen(true);
               }}
+              onTableUpdated={handleTableSessionUpdated}
             />
           )}
 
@@ -1529,6 +1633,7 @@ export default function App() {
             orders={branchOrders}
             onSubmitCustomerOrder={handleSubmitCustomerOrder}
             currentBranch={currentBranch}
+            qrToken={selectedSelfOrderToken || undefined}
           />
         </Suspense>
       )}

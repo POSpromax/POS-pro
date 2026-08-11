@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { verifyQrToken } from '../utils/qrToken';
+import { hashQrToken, verifyQrToken } from '../utils/qrToken';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
@@ -27,6 +27,7 @@ const mapOrder = (row: any, items: any[] = []) => {
     category: item.category || 'MAKANAN',
     notes: item.notes || undefined,
     selectedCondiments: Array.isArray(item.modifiers) ? item.modifiers : [],
+    status: item.kitchen_status || 'PENDING',
   })),
   subtotal: Number(row.subtotal_amount || 0),
   tax: Number(row.tax_amount || 0),
@@ -72,7 +73,13 @@ async function readOrders(branchId: string, admin: SupabaseClient, orderId?: str
     ? await admin.from('order_items').select('*').in('order_id', ids).order('created_at')
     : { data: [], error: null };
   if (itemsError) throw itemsError;
-  return (rows || []).map((row) => mapOrder(row, (items || []).filter((item) => item.order_id === row.id)));
+  const itemsByOrder = new Map<string, any[]>();
+  (items || []).forEach((item) => {
+    const bucket = itemsByOrder.get(item.order_id);
+    if (bucket) bucket.push(item);
+    else itemsByOrder.set(item.order_id, [item]);
+  });
+  return (rows || []).map((row) => mapOrder(row, itemsByOrder.get(row.id) || []));
 }
 
 export async function handleOrderRequest(
@@ -117,8 +124,10 @@ export async function handleOrderRequest(
 
     const { data: updated, error } = await admin.from('orders').update({ status: payload.status }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
     if (error || !updated) return fail(500, 'Status pesanan gagal diperbarui');
-    if (updated.table_id && payload.status === 'COMPLETED') {
-      await admin.from('restaurant_tables').update({ status: 'FREE' }).eq('id', updated.table_id).eq('branch_id', branchId);
+    if (payload.status === 'COOKING') {
+      await admin.from('order_items').update({ kitchen_status: 'PREPARING' }).eq('order_id', payload.orderId).eq('kitchen_status', 'PENDING');
+    } else if (payload.status === 'COMPLETED') {
+      await admin.from('order_items').update({ kitchen_status: 'DONE' }).eq('order_id', payload.orderId).neq('kitchen_status', 'DONE');
     }
     return { status: 200, data: { success: true } };
   }
@@ -132,20 +141,27 @@ export async function handleOrderRequest(
 
   let table: any = null;
   if (input.tableNumber) {
-    const { data } = await admin.from('restaurant_tables').select('id,number,self_order_enabled').eq('branch_id', branchId).eq('number', String(input.tableNumber)).maybeSingle();
+    const { data } = await admin.from('restaurant_tables')
+      .select('id,number,status,self_order_enabled,qr_token_hash,qr_generation,active_order_id')
+      .eq('branch_id', branchId)
+      .eq('number', String(input.tableNumber))
+      .maybeSingle();
     table = data;
   }
   if (source === 'SELF_ORDER' && (!table || !table.self_order_enabled)) return fail(403, 'Self-order tidak tersedia pada meja ini');
 
   if (source === 'SELF_ORDER') {
     const qrToken = String(input.qrToken || payload.qrToken || '');
-    if (qrToken) {
-      const secret = typeof process !== 'undefined' ? (process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '') : '';
-      const tokenResult = await verifyQrToken(qrToken, secret);
-      if (tokenResult.valid === false) return fail(403, tokenResult.error);
-      if (tokenResult.payload.branchId !== branchId || tokenResult.payload.tableNumber !== String(input.tableNumber))
-        return fail(403, 'Token tidak sesuai dengan meja ini');
-    }
+    if (!['READY', 'OCCUPIED'].includes(table.status)) return fail(403, 'Meja belum diaktifkan oleh kasir');
+    if (!qrToken) return fail(403, 'Sesi QR meja tidak ditemukan. Minta kasir mengaktifkan ulang meja.');
+    const secret = typeof process !== 'undefined' ? (process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '') : '';
+    const tokenResult = await verifyQrToken(qrToken, secret);
+    if (tokenResult.valid === false) return fail(403, tokenResult.error);
+    if (tokenResult.payload.branchId !== branchId || tokenResult.payload.tableNumber !== String(input.tableNumber))
+      return fail(403, 'Token tidak sesuai dengan meja ini');
+    if (tokenResult.payload.generation !== Number(table.qr_generation || 0)) return fail(403, 'Sesi QR meja sudah diganti oleh kasir');
+    if (await hashQrToken(qrToken) !== table.qr_token_hash) return fail(403, 'Sesi QR meja sudah dicabut');
+    if (table.status === 'OCCUPIED' && !table.active_order_id) return fail(409, 'Bill aktif meja perlu diperiksa oleh kasir');
   }
 
   if (source === 'SELF_ORDER') {
@@ -219,8 +235,24 @@ export async function handleOrderRequest(
       total_price: unitPrice * quantity,
       modifiers,
       notes: item.notes ? String(item.notes).slice(0, 500) : null,
+      kitchen_status: 'PENDING',
       category: menu.category,
     });
+  }
+
+  // Tambahan self-order masuk sebagai item PENDING pada bill aktif yang sama.
+  // Item lama tidak dihapus atau dikirim ulang ke Kitchen.
+  if (source === 'SELF_ORDER' && table.status === 'OCCUPIED' && table.active_order_id) {
+    const increment = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
+    const { error: appendError } = await admin.rpc('append_self_order_items', {
+      p_order_id: table.active_order_id,
+      p_branch_id: branchId,
+      p_items: normalizedItems.map(({ category: _category, ...item }) => item),
+      p_total_increment: increment,
+    });
+    if (appendError) return fail(500, 'Tambahan pesanan gagal dimasukkan ke bill aktif');
+    const orders = await readOrders(branchId, admin, table.active_order_id);
+    return { status: 200, data: orders[0] };
   }
 
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
@@ -298,6 +330,17 @@ export async function handleOrderRequest(
   });
   const savedOrderId = (checkout as any)?.order_id;
   if (checkoutError || !savedOrderId) return fail(500, 'Pesanan gagal disimpan');
+
+  if (table?.id) {
+    if (paymentStatus === 'PAID') {
+      await admin.from('restaurant_tables').update({
+        status: 'DISABLED', active_order_id: null, qr_token_hash: null, qr_revoked_at: new Date().toISOString(),
+      }).eq('id', table.id).eq('branch_id', branchId);
+    } else {
+      await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
+        .eq('id', table.id).eq('branch_id', branchId);
+    }
+  }
 
   const [{ data: savedRow }, { data: savedItems }] = await Promise.all([
     admin.from('orders').select('*, restaurant_tables(number)').eq('id', savedOrderId).single(),

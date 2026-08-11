@@ -1,297 +1,224 @@
-import React, { useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Grid2X2,
-  Smartphone,
+  Check,
   Copy,
   ExternalLink,
-  Check,
-  Globe,
-  ShieldCheck,
+  Grid2X2,
   Loader2,
-  RefreshCw
+  Power,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Smartphone,
+  Users,
 } from 'lucide-react';
 import { RestaurantTable } from '../../types/pos';
+import { updateCloudTableSession } from '../../services/tableService';
 import { QrCodeCanvas } from './QrCodeCanvas';
-import { generateQrToken, buildSelfOrderUrl } from '../../utils/qrToken';
 
 interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
   onToggleSelfOrder: (tableNumber: string, enabled: boolean) => void;
   onClearTableStatus: (tableNumber: string) => void;
-  onOpenCustomerSelfOrderModal: (tableNumber: string) => void;
+  onOpenCustomerSelfOrderModal: (tableNumber: string, qrToken?: string) => void;
+  onTableUpdated: (table: RestaurantTable) => void;
 }
 
 interface TableToken {
+  token: string;
   url: string;
   generatedAt: number;
 }
+
+const normalizeNumber = (value: string) => value.trim().toUpperCase().replace(/^0+(?=\d)/, '');
 
 export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
   onToggleSelfOrder,
   onClearTableStatus,
-  onOpenCustomerSelfOrderModal
+  onOpenCustomerSelfOrderModal,
+  onTableUpdated,
 }) => {
-  const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
-    if (typeof window !== 'undefined') return window.location.origin;
-    return 'https://pos-pro-eight.vercel.app';
-  });
+  const [customBaseUrl, setCustomBaseUrl] = useState(() => typeof window === 'undefined' ? 'https://pos-pro-eight.vercel.app' : window.location.origin);
+  const [query, setQuery] = useState('');
   const [copiedTableNumber, setCopiedTableNumber] = useState<string | null>(null);
   const [tableTokens, setTableTokens] = useState<Record<string, TableToken>>({});
-  const [generatingTable, setGeneratingTable] = useState<string | null>(null);
-  const [generatingAll, setGeneratingAll] = useState(false);
+  const [busyTable, setBusyTable] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleCopyLink = (tableNum: string, url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedTableNumber(tableNum);
-    setTimeout(() => setCopiedTableNumber(null), 2000);
+  const filteredTables = useMemo(() => {
+    const normalizedQuery = normalizeNumber(query);
+    if (!normalizedQuery) return tables;
+    return tables.filter((table) => normalizeNumber(table.number).includes(normalizedQuery));
+  }, [query, tables]);
+
+  const copyLink = async (tableNumber: string, url: string) => {
+    await navigator.clipboard.writeText(url);
+    setCopiedTableNumber(tableNumber);
+    window.setTimeout(() => setCopiedTableNumber(null), 2000);
   };
 
-  const generateTokenForTable = useCallback(async (tableNumber: string): Promise<TableToken | null> => {
+  const activateTable = async (table: RestaurantTable) => {
+    const tableNumber = normalizeNumber(table.number);
+    setBusyTable(table.id);
+    setErrorMessage(null);
     try {
-      const token = await generateQrToken(branchId, tableNumber);
-      const url = buildSelfOrderUrl(customBaseUrl, branchId, tableNumber, token);
-      return { url, generatedAt: Date.now() };
-    } catch {
-      return null;
+      const active = table.status === 'READY' || table.status === 'OCCUPIED';
+      const result = await updateCloudTableSession({
+        action: active ? 'ROTATE' : 'ACTIVATE',
+        branchId,
+        tableNumber,
+        baseUrl: customBaseUrl,
+      });
+      onTableUpdated(result.table);
+      if (result.token && result.url) {
+        setTableTokens((current) => ({ ...current, [tableNumber]: { token: result.token!, url: result.url!, generatedAt: Date.now() } }));
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Meja gagal diaktifkan');
+    } finally {
+      setBusyTable(null);
     }
-  }, [branchId, customBaseUrl]);
+  };
 
-  const handleGenerateQr = useCallback(async (tableNumber: string) => {
-    setGeneratingTable(tableNumber);
-    const result = await generateTokenForTable(tableNumber);
-    if (result) setTableTokens((prev) => ({ ...prev, [tableNumber]: result }));
-    setGeneratingTable(null);
-  }, [generateTokenForTable]);
-
-  const handleGenerateAll = useCallback(async () => {
-    setGeneratingAll(true);
-    const enabledTables = tables.filter((t) => t.isSelfOrderEnabled);
-    const results: Record<string, TableToken> = {};
-    for (const table of enabledTables) {
-      const num = (table.number || '').replace(/^0+/, '') || table.number;
-      const result = await generateTokenForTable(num);
-      if (result) results[num] = result;
+  const deactivateTable = async (table: RestaurantTable) => {
+    const occupied = table.status === 'OCCUPIED';
+    const confirmed = window.confirm(occupied
+      ? `Meja ${table.number} masih memiliki bill aktif. Nonaktifkan QR secara paksa tanpa menghapus bill?`
+      : `Nonaktifkan sesi QR Meja ${table.number}? Foto QR sesi ini tidak akan berlaku lagi.`);
+    if (!confirmed) return;
+    setBusyTable(table.id);
+    setErrorMessage(null);
+    try {
+      const result = await updateCloudTableSession({
+        action: 'DEACTIVATE', branchId, tableNumber: normalizeNumber(table.number), force: occupied,
+      });
+      onTableUpdated(result.table);
+      setTableTokens((current) => {
+        const next = { ...current };
+        delete next[normalizeNumber(table.number)];
+        return next;
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Meja gagal dinonaktifkan');
+    } finally {
+      setBusyTable(null);
     }
-    setTableTokens((prev) => ({ ...prev, ...results }));
-    setGeneratingAll(false);
-  }, [tables, generateTokenForTable]);
+  };
+
+  const toggleSelfOrder = async (table: RestaurantTable) => {
+    const enabled = !table.isSelfOrderEnabled;
+    setBusyTable(table.id);
+    setErrorMessage(null);
+    try {
+      const result = await updateCloudTableSession({ action: 'SET_ENABLED', branchId, tableNumber: normalizeNumber(table.number), enabled });
+      onTableUpdated(result.table);
+      onToggleSelfOrder(normalizeNumber(table.number), enabled);
+      if (!enabled) {
+        setTableTokens((current) => {
+          const next = { ...current };
+          delete next[normalizeNumber(table.number)];
+          return next;
+        });
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Pengaturan Self-order gagal disimpan');
+    } finally {
+      setBusyTable(null);
+    }
+  };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none text-slate-900">
-      {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div className="ui-surface flex-1 overflow-y-auto p-4 font-sans text-[#17202A] md:p-5">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">
-            <Grid2X2 className="w-6 h-6 md:w-7 md:h-7 text-[#C2410C]" />
-            Manajemen Meja & QR Self-Order
-          </h1>
-          <p className="text-[11px] md:text-xs text-slate-500 font-bold mt-1">
-            Generate QR barcode aman per meja. Setiap QR berisi token unik yang berlaku 12 jam.
-          </p>
+          <div className="flex items-center gap-2"><Grid2X2 className="h-6 w-6 text-[#FF7A00]" /><h1 className="text-xl font-black tracking-tight">Meja & QR Self-order</h1></div>
+          <p className="mt-1 text-[11px] font-semibold text-[#667085]">Cari nomor fisik acak, aktifkan sesi, lalu QR lama otomatis gugur pada aktivasi berikutnya.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-white border border-[#EAE3DB] px-3 py-1.5 rounded-full text-[10px] font-bold shadow-2xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-slate-600">Bebas</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ml-2" />
-            <span className="text-slate-600">Terisi</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleGenerateAll}
-            disabled={generatingAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1C1B19] hover:bg-black text-white text-[10px] font-black cursor-pointer disabled:opacity-50 transition-all"
-          >
-            {generatingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-            {generatingAll ? 'Generating...' : 'Generate Semua QR'}
-          </button>
+        <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+          <span className="ui-badge bg-[#F1F2F3] text-[#667085]"><span className="h-2 w-2 rounded-full bg-[#98A2B3]" />Nonaktif</span>
+          <span className="ui-badge border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]"><span className="h-2 w-2 rounded-full bg-[#22A559]" />Siap</span>
+          <span className="ui-badge border-[#F4C6C8] bg-[#FDECEC] text-[#B4232A]"><span className="h-2 w-2 rounded-full bg-[#E5484D]" />Terisi</span>
         </div>
       </div>
 
-      {/* Custom Domain Base URL */}
-      <div className="bg-white border border-[#EAE3DB] p-3 md:p-4 rounded-2xl mb-6 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-600 shrink-0">
-            <Globe className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <h3 className="text-[11px] font-black text-slate-900 uppercase">Base Domain QR</h3>
-            <p className="text-[10px] font-bold text-slate-400">Domain dasar URL self-order</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          <input
-            type="text"
-            value={customBaseUrl}
-            onChange={(e) => setCustomBaseUrl(e.target.value)}
-            placeholder="https://pos-pro-eight.vercel.app"
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-orange-500"
-          />
-          <button
-            type="button"
-            onClick={() => setCustomBaseUrl(window.location.origin)}
-            className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black transition-colors cursor-pointer"
-          >
-            Reset
-          </button>
-        </div>
+      <div className="ui-card mb-4 grid gap-3 p-3 md:grid-cols-[minmax(220px,1fr)_minmax(260px,1fr)]">
+        <label className="relative block">
+          <span className="sr-only">Cari nomor meja</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari meja: 17, 38, A7..." className="ui-input w-full pl-9 pr-3 text-xs font-bold" />
+        </label>
+        <label className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#667085]">Domain QR</span>
+          <input value={customBaseUrl} onChange={(event) => setCustomBaseUrl(event.target.value)} className="ui-input min-w-0 px-3 text-[11px] font-semibold" />
+          <button type="button" onClick={() => setCustomBaseUrl(window.location.origin)} className="ui-button ui-button-secondary px-3 text-[10px]">Reset</button>
+        </label>
       </div>
 
-      {/* Grid of Tables */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {tables.map((table) => {
-          const cleanNumber = (table.number || '').replace(/^0+/, '') || table.number;
-          const isOccupied = table.status === 'OCCUPIED';
-          const tokenData = tableTokens[cleanNumber];
-          const hasQr = Boolean(tokenData?.url);
-          const isGenerating = generatingTable === cleanNumber;
-          const fallbackUrl = `${customBaseUrl.replace(/\/$/, '')}/?selforder=true&branch=${encodeURIComponent(branchId)}&table=${cleanNumber}`;
-          const displayUrl = tokenData?.url || fallbackUrl;
+      {errorMessage && <div role="alert" className="mb-4 rounded-xl border border-[#F4C6C8] bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#B4232A]">{errorMessage}</div>}
 
-          return (
-            <div
-              key={table.id}
-              className={`bg-white rounded-2xl p-4 md:p-5 border shadow-2xs flex flex-col justify-between transition-all ${
-                isOccupied
-                  ? 'border-rose-300 ring-2 ring-rose-500/20 bg-rose-50/50'
-                  : 'border-[#EAE3DB] hover:border-[#EA580C]'
-              }`}
-            >
-              <div>
-                {/* Table Header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg md:text-xl font-black text-[#1A1714]">MEJA {cleanNumber}</span>
-                    <span className="text-[10px] text-slate-400 font-bold">{table.capacity} Org</span>
-                  </div>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                      isOccupied
-                        ? 'bg-rose-500 text-white shadow-2xs'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                    }`}
-                  >
-                    {isOccupied ? 'TERISI' : 'BEBAS'}
-                  </span>
+      {filteredTables.length === 0 ? (
+        <div className="ui-card py-16 text-center"><Search className="mx-auto mb-2 h-8 w-8 text-[#98A2B3]" /><p className="text-sm font-black">Nomor meja tidak ditemukan</p><p className="mt-1 text-xs text-[#667085]">Nomor meja boleh acak dan tidak harus berurutan.</p></div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredTables.map((table) => {
+            const tableNumber = normalizeNumber(table.number);
+            const legacyInactive = table.status === 'FREE' || table.status === 'RESERVED';
+            const status = legacyInactive ? 'DISABLED' : table.status;
+            const ready = status === 'READY';
+            const occupied = status === 'OCCUPIED';
+            const tokenData = tableTokens[tableNumber];
+            const busy = busyTable === table.id;
+            const statusStyle = occupied
+              ? 'border-[#F4C6C8] bg-[#FDECEC] text-[#B4232A]'
+              : ready
+                ? 'border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]'
+                : 'border-[#E2E5E9] bg-[#F1F2F3] text-[#667085]';
+
+            return (
+              <article key={table.id} className="ui-card overflow-hidden">
+                <div className="flex items-center justify-between border-b border-[#ECEEF1] p-3">
+                  <div><p className="text-lg font-black">Meja {tableNumber}</p><p className="flex items-center gap-1 text-[10px] font-bold text-[#667085]"><Users className="h-3 w-3" />{table.capacity} orang</p></div>
+                  <span className={`ui-badge ${statusStyle}`}>{occupied ? 'Terisi' : ready ? 'Siap' : 'Nonaktif'}</span>
                 </div>
 
-                {/* QR Code Box */}
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center my-3 flex flex-col items-center gap-2">
-                  {hasQr ? (
-                    <QrCodeCanvas value={displayUrl} size={140} className="rounded-lg" />
-                  ) : (
-                    <div className="w-[140px] h-[140px] flex items-center justify-center bg-white rounded-lg border border-dashed border-slate-300">
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateQr(cleanNumber)}
-                        disabled={isGenerating || !table.isSelfOrderEnabled}
-                        className="flex flex-col items-center gap-1.5 text-slate-400 hover:text-orange-600 transition-colors cursor-pointer disabled:opacity-40"
-                      >
-                        {isGenerating ? (
-                          <Loader2 className="w-8 h-8 animate-spin" />
-                        ) : (
-                          <ShieldCheck className="w-8 h-8" />
-                        )}
-                        <span className="text-[10px] font-black">
-                          {!table.isSelfOrderEnabled ? 'Aktifkan dulu' : isGenerating ? 'Generating...' : 'Generate QR'}
-                        </span>
-                      </button>
-                    </div>
-                  )}
-
-                  {hasQr && (
-                    <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      <ShieldCheck className="w-3 h-3" />
-                      Token aman · berlaku 12 jam
-                    </div>
-                  )}
-
-                  <div className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-[8px] font-mono text-slate-500 truncate">
-                    {displayUrl}
-                  </div>
-
-                  <div className="flex items-center justify-center gap-2 w-full pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleCopyLink(cleanNumber, displayUrl)}
-                      className="flex-1 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      {copiedTableNumber === cleanNumber ? (
-                        <><Check className="w-3 h-3 text-emerald-400" /> Tersalin!</>
-                      ) : (
-                        <><Copy className="w-3 h-3" /> Salin Link</>
-                      )}
-                    </button>
-                    <a
-                      href={displayUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-700 flex items-center justify-center cursor-pointer"
-                      title="Buka Self-Order"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    {hasQr && (
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateQr(cleanNumber)}
-                        disabled={isGenerating}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer disabled:opacity-50"
-                        title="Regenerate token"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                      </button>
+                <div className="p-3">
+                  <div className="flex min-h-[168px] flex-col items-center justify-center rounded-xl border border-[#E2E5E9] bg-[#F7F7F6] p-3">
+                    {tokenData ? (
+                      <><QrCodeCanvas value={tokenData.url} size={132} className="rounded-lg" /><p className="mt-2 flex items-center gap-1 text-[9px] font-bold text-[#187A42]"><ShieldCheck className="h-3 w-3" />Sesi generasi {table.qrGeneration || '-'}</p></>
+                    ) : (
+                      <><ShieldCheck className="h-9 w-9 text-[#98A2B3]" /><p className="mt-2 text-center text-[10px] font-bold text-[#667085]">{ready || occupied ? 'QR tidak disimpan di browser. Rotasi untuk menampilkan lagi.' : 'Aktifkan meja untuk membuat QR sesi baru.'}</p></>
                     )}
                   </div>
-                </div>
 
-                {/* Self-Order Toggle */}
-                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-full border border-slate-200 my-2">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-orange-600" />
-                    <span className="text-xs font-bold text-slate-800">Self-Order HP:</span>
+                  <button type="button" onClick={() => void activateTable(table)} disabled={busy || !table.isSelfOrderEnabled} className="ui-button ui-button-primary mt-3 flex w-full items-center justify-center gap-2 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-45">
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : ready || occupied ? <RefreshCw className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                    {busy ? 'Memproses...' : ready || occupied ? 'Rotasi QR sesi' : 'Aktifkan & buat QR'}
+                  </button>
+
+                  {tokenData && (
+                    <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2">
+                      <button type="button" onClick={() => void copyLink(tableNumber, tokenData.url)} className="ui-button ui-button-secondary flex items-center justify-center gap-1 px-2 text-[10px]">{copiedTableNumber === tableNumber ? <Check className="h-3.5 w-3.5 text-[#22A559]" /> : <Copy className="h-3.5 w-3.5" />}{copiedTableNumber === tableNumber ? 'Tersalin' : 'Salin link'}</button>
+                      <a href={tokenData.url} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E2E5E9] bg-white text-[#667085]" aria-label={`Buka Self-order Meja ${tableNumber}`} title="Buka self-order"><ExternalLink className="h-4 w-4" /></a>
+                      <button type="button" onClick={() => onOpenCustomerSelfOrderModal(tableNumber, tokenData.token)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#FFD4AD] bg-[#FFF2E6] text-[#D85F00]" aria-label={`Simulasikan Self-order Meja ${tableNumber}`} title="Simulator self-order"><Smartphone className="h-4 w-4" /></button>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between rounded-xl border border-[#E2E5E9] bg-white p-2.5">
+                    <span className="text-[10px] font-black text-[#475467]">Fitur Self-order</span>
+                    <button type="button" onClick={() => void toggleSelfOrder(table)} disabled={busy} className={`rounded-full px-3 py-1 text-[10px] font-black disabled:opacity-50 ${table.isSelfOrderEnabled ? 'bg-[#17202A] text-white' : 'bg-[#E2E5E9] text-[#667085]'}`} aria-label={`${table.isSelfOrderEnabled ? 'Matikan' : 'Aktifkan'} Self-order Meja ${tableNumber}`}>{table.isSelfOrderEnabled ? 'ON' : 'OFF'}</button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onToggleSelfOrder(cleanNumber, !table.isSelfOrderEnabled)}
-                    className={`px-3 py-1 rounded-full text-xs font-black transition-all cursor-pointer ${
-                      table.isSelfOrderEnabled
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'bg-slate-300 text-slate-600'
-                    }`}
-                  >
-                    {table.isSelfOrderEnabled ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <button
-                  disabled={!table.isSelfOrderEnabled}
-                  onClick={() => onOpenCustomerSelfOrderModal(cleanNumber)}
-                  className="w-full py-2.5 rounded-full bg-orange-600 hover:bg-orange-700 text-white font-black text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer active:scale-95"
-                >
-                  <Smartphone className="w-4 h-4" /> Simulator QR Order
-                </button>
-                {isOccupied && (
-                  <button
-                    type="button"
-                    onClick={() => onClearTableStatus(cleanNumber)}
-                    className="w-full py-2 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    Reset Meja (Bebaskan)
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  {(ready || occupied) && <button type="button" onClick={() => void deactivateTable(table)} disabled={busy} className="mt-2 min-h-9 w-full rounded-xl text-[10px] font-bold text-[#B4232A] hover:bg-[#FDECEC]">Nonaktifkan / revoke QR</button>}
+                  {occupied && <button type="button" onClick={() => onClearTableStatus(tableNumber)} className="mt-1 min-h-9 w-full rounded-xl text-[10px] font-bold text-[#667085] hover:bg-[#F1F2F3]">Perbaiki status lokal meja</button>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

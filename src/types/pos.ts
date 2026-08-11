@@ -81,7 +81,9 @@ export interface Branch {
   gpsRadiusMeters?: number;
 }
 
-export type TableStatus = 'FREE' | 'OCCUPIED' | 'RESERVED';
+// FREE dipertahankan untuk membaca cache/data lama. Alur baru memakai
+// DISABLED -> READY -> OCCUPIED -> DISABLED.
+export type TableStatus = 'FREE' | 'DISABLED' | 'READY' | 'OCCUPIED' | 'RESERVED';
 
 export interface RestaurantTable {
   id: string;
@@ -90,6 +92,9 @@ export interface RestaurantTable {
   status: TableStatus;
   isSelfOrderEnabled: boolean; // Turn on/off customer QR order per table
   activeOrderId?: string;
+  qrGeneration?: number;
+  qrActivatedAt?: string;
+  qrRevokedAt?: string;
   branchId?: string;
 }
 

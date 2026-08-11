@@ -1,4 +1,4 @@
-const QR_TOKEN_VERSION = 1;
+const QR_TOKEN_VERSION = 2;
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 function getSecret(): string {
@@ -26,16 +26,23 @@ async function hmacVerify(message: string, signature: string, secret: string): P
 export interface QrTokenPayload {
   branchId: string;
   tableNumber: string;
+  generation: number;
   expiresAt: number;
   version: number;
 }
 
-export async function generateQrToken(branchId: string, tableNumber: string, secret?: string): Promise<string> {
+export async function generateQrToken(branchId: string, tableNumber: string, generation: number, secret?: string): Promise<string> {
   const expiresAt = Date.now() + TOKEN_TTL_MS;
-  const payload: QrTokenPayload = { branchId, tableNumber, expiresAt, version: QR_TOKEN_VERSION };
+  const payload: QrTokenPayload = { branchId, tableNumber, generation, expiresAt, version: QR_TOKEN_VERSION };
   const payloadB64 = btoa(JSON.stringify(payload));
   const sig = await hmacSign(payloadB64, secret || getSecret());
   return `${payloadB64}.${sig}`;
+}
+
+export async function hashQrToken(token: string): Promise<string> {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function verifyQrToken(token: string, secret?: string): Promise<{ valid: true; payload: QrTokenPayload } | { valid: false; error: string }> {

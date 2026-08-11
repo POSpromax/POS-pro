@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
 import {
   ShoppingBag,
@@ -39,6 +39,7 @@ import {
   Branch
 } from '../../types/pos';
 import { CondimentSelectionModal } from '../POS/CondimentSelectionModal';
+import { optimizeCloudinaryImage } from '../../utils/imageUrl';
 
 export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'ORDER_SUCCESS';
 
@@ -82,16 +83,23 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
+  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
 
   // Submitted Order Tracking State
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
   const [localToast, setLocalToast] = useState<string | null>(null);
+  const localToastTimerRef = useRef<number | null>(null);
 
   const toast = (title: string, message: string) => {
     if (onShowToast) { onShowToast(title, message); return; }
+    if (localToastTimerRef.current) window.clearTimeout(localToastTimerRef.current);
     setLocalToast(message);
-    setTimeout(() => setLocalToast(null), 3000);
+    localToastTimerRef.current = window.setTimeout(() => setLocalToast(null), 3000);
   };
+
+  useEffect(() => () => {
+    if (localToastTimerRef.current) window.clearTimeout(localToastTimerRef.current);
+  }, []);
 
   // Find active live order from global state
   const liveSubmittedOrder = orders.find((o) => o.id === submittedOrderId) || null;
@@ -166,6 +174,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setTableErrorMsg(`Meja ${foundTable.number} saat ini sedang dinonaktifkan oleh Kasir.`);
       return;
     }
+    if (!['READY', 'OCCUPIED'].includes(foundTable.status)) {
+      setTableErrorMsg(`Meja ${foundTable.number} belum diaktifkan oleh Kasir.`);
+      return;
+    }
 
     setSelectedTable(foundTable.number);
     setActiveStep('MENU');
@@ -205,6 +217,16 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     notes: string,
     extraPrice: number
   ) => {
+    if (editingCartItemId) {
+      setCartItems((current) => current.map((cartItem) => cartItem.id === editingCartItemId ? {
+        ...cartItem,
+        price: item.price + extraPrice,
+        notes: notes || undefined,
+        selectedCondiments: selectedCondiments.length ? selectedCondiments : undefined,
+      } : cartItem));
+      setEditingCartItemId(null);
+      return;
+    }
     setCartItems((prev) => [
       ...prev,
       {
@@ -218,6 +240,25 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
         selectedCondiments: selectedCondiments
       }
     ]);
+  };
+
+  const handleConfigurePerPortion = (cartItem: OrderItem) => {
+    if (cartItem.quantity <= 1) {
+      const menu = menuItems.find((item) => item.id === cartItem.menuId);
+      if (menu) {
+        setEditingCartItemId(cartItem.id);
+        setActiveItemForCondiment(menu);
+      }
+      return;
+    }
+    setCartItems((current) => current.flatMap((item) => item.id !== cartItem.id
+      ? [item]
+      : Array.from({ length: item.quantity }, (_, index) => ({
+          ...item,
+          id: `${item.id}-portion-${index + 1}-${Date.now()}`,
+          quantity: 1,
+        }))));
+    toast('Atur per Porsi', `${cartItem.menuName} dipisah menjadi ${cartItem.quantity} porsi. Pilih Ubah pada tiap porsi yang berbeda.`);
   };
 
   const handleUpdateQty = (cartItemId: string, delta: number) => {
@@ -254,6 +295,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     }
     if (cartItems.length === 0) {
       toast('Keranjang Kosong', 'Keranjang belanja masih kosong!');
+      return;
+    }
+    if (!qrToken) {
+      toast('QR Belum Aktif', 'Minta kasir mengaktifkan meja dan scan QR sesi terbaru.');
       return;
     }
 
@@ -628,9 +673,11 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                           <div className="relative aspect-4/3 rounded-2xl overflow-hidden mb-2 bg-slate-100 flex items-center justify-center">
                             {item.image ? (
                               <img
-                                src={item.image}
+                                src={optimizeCloudinaryImage(item.image, 480)}
                                 alt={item.name}
                                 referrerPolicy="no-referrer"
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               />
                             ) : (
@@ -762,6 +809,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       <p className="text-[10px] font-medium text-amber-600 italic pt-0.5">
                         "{item.notes}"
                       </p>
+                    )}
+
+                    {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
+                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[9px] font-black text-[#C55600]">
+                        {item.quantity > 1 ? 'Atur per porsi' : 'Ubah porsi ini'}
+                      </button>
                     )}
 
                     <span className="text-xs font-black text-orange-600 block pt-1">
@@ -926,10 +979,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       {/* Condiment Selection Modal */}
       <CondimentSelectionModal
         isOpen={!!activeItemForCondiment}
-        onClose={() => setActiveItemForCondiment(null)}
+        onClose={() => { setActiveItemForCondiment(null); setEditingCartItemId(null); }}
         menuItem={activeItemForCondiment}
         condimentGroups={condimentGroups}
         onConfirm={handleConfirmCondiments}
+        initialSelectedCondiments={cartItems.find((item) => item.id === editingCartItemId)?.selectedCondiments}
+        initialNotes={cartItems.find((item) => item.id === editingCartItemId)?.notes}
       />
 
     </div>
