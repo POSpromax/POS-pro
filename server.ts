@@ -10,6 +10,7 @@ import { handleHrRequest } from './src/server/hrManagement';
 import { handleOrderRequest } from './src/server/orderManagement';
 import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
+import { handleCloudinarySign } from './src/server/cloudinarySign';
 import { generateQrToken, buildSelfOrderUrl } from './src/utils/qrToken';
 
 async function startServer() {
@@ -20,18 +21,41 @@ async function startServer() {
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
-    const checks = {
+    // Supabase menentukan hidup-matinya sistem: tanpa itu kasir tidak bisa
+    // login, memesan, atau membaca shift.
+    const required = {
       supabaseUrl: Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
       supabasePublicKey: Boolean(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY),
-      supabaseServerKey: Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+      supabaseServerKey: Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+    };
+    // Cloudinary hanya untuk unggah foto menu. Tanpa itu POS tetap melayani,
+    // jadi jangan laporkan seluruh sistem sebagai mati.
+    const optional = {
       cloudinaryCredentials: Boolean(process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET && process.env.CLOUDINARY_CLOUD_NAME))
     };
-    const ready = Object.values(checks).every(Boolean);
+    const ready = Object.values(required).every(Boolean);
+    const degraded = ready && !Object.values(optional).every(Boolean);
     res.status(ready ? 200 : 503);
     res.json({
-      status: ready ? 'ready' : 'configuration_required',
-      checks
+      status: ready ? (degraded ? 'degraded' : 'ready') : 'configuration_required',
+      checks: { ...required, ...optional }
     });
+  });
+
+  // Tanpa route ini, unggah foto di localhost jatuh ke SPA fallback dan
+  // fotonya hanya jadi blob sementara yang hilang saat halaman dimuat ulang.
+  app.post('/api/cloudinary-sign', async (req, res) => {
+    try {
+      const result = await handleCloudinarySign(
+        'POST',
+        req.header('Authorization') || '',
+        req.body || {},
+      );
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      console.error('[CLOUDINARY SIGN ERROR]:', err);
+      res.status(503).json({ error: 'Layanan media belum dikonfigurasi' });
+    }
   });
 
   app.post('/api/auth/pin-login', async (req, res) => {
