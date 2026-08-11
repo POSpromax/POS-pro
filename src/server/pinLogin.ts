@@ -43,11 +43,19 @@ export type PinLoginResult =
   | { status: number; data: PinLoginSuccess }
   | { status: number; data: PinLoginError };
 
+const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
+  'br-1': '00000000-0000-4000-a000-000000000010',
+  'br-2': '00000000-0000-4000-a000-000000000020',
+};
+
 export async function handlePinLogin(
   body: PinLoginRequest,
   admin: SupabaseClient,
 ): Promise<PinLoginResult> {
-  if (!body.branchId || !UUID_PATTERN.test(body.branchId)) {
+  const rawBranchId = body.branchId || '';
+  const branchId = LEGACY_BRANCH_ID_MAP[rawBranchId] || rawBranchId;
+
+  if (!branchId || !UUID_PATTERN.test(branchId)) {
     return { status: 400, data: { error: 'Outlet tidak valid' } };
   }
   if (!body.pin || !/^\d{6}$/.test(body.pin)) {
@@ -58,12 +66,13 @@ export async function handlePinLogin(
   }
 
   const { data, error } = await admin.rpc('verify_staff_pin', {
-    p_branch_id: body.branchId,
+    p_branch_id: branchId,
     p_pin: body.pin,
     p_device_hash: body.deviceFingerprintHash.toLowerCase(),
   });
 
   if (error) {
+    console.error('[verify_staff_pin RPC ERROR]:', error);
     return { status: 500, data: { error: 'Verifikasi tidak dapat diproses' } };
   }
 

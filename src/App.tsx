@@ -48,6 +48,7 @@ import { listCloudAttendance, saveCloudAttendance } from './services/attendanceS
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus } from './services/orderService';
+import { getCloudActiveShift, openCloudShift, closeCloudShift, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { formatOrderLabel } from './utils/orderNumber';
 
@@ -390,6 +391,50 @@ export default function App() {
     const unsubscribe = subscribeCloudOrders(currentBranch.id, refresh);
     return () => { active = false; unsubscribe(); };
   }, [isTerminalUnlocked, currentBranch.id]);
+
+  // Real-Time Cloud Shift Synchronizer & Single Open Shift Enforcer across Localhost & Public Cloud
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !currentBranch?.id) return;
+    let cancelled = false;
+
+    const syncShiftFromCloud = () => {
+      void getCloudActiveShift(currentBranch.id).then((cloudShift) => {
+        if (cancelled) return;
+        if (cloudShift) {
+          setCurrentShift(cloudShift);
+          localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(cloudShift));
+        } else {
+          // If no shift is open in cloud DB, ensure local state reflects CLOSED if previously OPEN
+          const localShift = DBStorage.getCurrentShift();
+          if (localShift.status === 'OPEN') {
+            const emptyShift: Shift = {
+              id: 'shift-not-opened',
+              staffId: '',
+              staffName: 'Belum ada petugas',
+              staffRole: 'KASIR',
+              startTime: new Date(0).toISOString(),
+              initialCash: 0,
+              grossOmset: 0,
+              cashSales: 0,
+              nonCashSales: 0,
+              totalExpense: 0,
+              totalIncome: 0,
+              status: 'CLOSED',
+            };
+            setCurrentShift(emptyShift);
+            localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(emptyShift));
+          }
+        }
+      });
+    };
+
+    syncShiftFromCloud();
+    const unsubscribe = subscribeCloudShift(currentBranch.id, syncShiftFromCloud);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [currentBranch?.id]);
 
   // Siaran perubahan stok/menu/meja/shift untuk semua perangkat di cabang yang sama.
   useEffect(() => {
@@ -1222,14 +1267,25 @@ export default function App() {
                 setExpenseRecords(DBStorage.getExpenseRecords());
                 setCurrentShift(DBStorage.getCurrentShift());
               }}
-              onCloseShift={(notes) => {
-                DBStorage.closeShift(notes);
-                setCurrentShift(DBStorage.getCurrentShift());
+              onCloseShift={async (notes) => {
+                const closed = DBStorage.closeShift(notes);
+                setCurrentShift(closed);
+                if (cloudReadiness.supabase && currentBranch.id) {
+                  try {
+                    await closeCloudShift({
+                      branchId: currentBranch.id,
+                      shiftId: currentShift.id,
+                      notes,
+                    });
+                  } catch (err) {
+                    console.warn('Cloud shift close fallback:', err);
+                  }
+                }
                 showPushToast('Shift Ditutup', 'Shift kasir telah berhasil ditutup dan dicatat.');
               }}
-              onOpenNewShift={(name, role, cash) => {
+              onOpenNewShift={async (name, role, cash) => {
                 const matchingStaff = staffAccounts.find((staff) => staff.name === name);
-                const ns = DBStorage.openNewShift(
+                let ns = DBStorage.openNewShift(
                   name,
                   role,
                   cash,
@@ -1238,8 +1294,35 @@ export default function App() {
                   matchingStaff?.shiftStart,
                   matchingStaff?.shiftEnd
                 );
+                if (cloudReadiness.supabase && currentBranch.id) {
+                  try {
+                    const res = await openCloudShift({
+                      branchId: currentBranch.id,
+                      staffId: matchingStaff?.id,
+                      staffName: name,
+                      staffRole: role,
+                      initialCash: cash,
+                    });
+                    if (res.shift) {
+                      ns = res.shift;
+                      if (res.alreadyOpen) {
+                        showPushToast(
+                          'Shift Sudah Aktif!',
+                          `Outlet ${currentBranch.name} sudah memiliki shift aktif (${res.shift.staffName}). Terhubung ke shift aktif.`
+                        );
+                      } else {
+                        showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
+                      }
+                    }
+                  } catch (err) {
+                    console.warn('Cloud shift open fallback:', err);
+                    showPushToast('Shift Baru Dibuka (Lokal)', `Shift kasir aktif secara lokal untuk ${name}.`);
+                  }
+                } else {
+                  showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
+                }
                 setCurrentShift(ns);
-                showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
+                localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(ns));
               }}
             />
           )}

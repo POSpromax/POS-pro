@@ -8,6 +8,7 @@ import { handleStaffRequest } from './src/server/staffManagement';
 import { handleAttendanceRequest } from './src/server/attendanceManagement';
 import { handleHrRequest } from './src/server/hrManagement';
 import { handleOrderRequest } from './src/server/orderManagement';
+import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
 import { generateQrToken, buildSelfOrderUrl } from './src/utils/qrToken';
 
@@ -36,10 +37,12 @@ async function startServer() {
   app.post('/api/auth/pin-login', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
-      const result = await handlePinLogin(req.body, admin);
+      const payload = req.body || {};
+      const result = await handlePinLogin(payload, admin);
       res.status(result.status).json(result.data);
-    } catch {
-      res.status(503).json({ error: 'Server autentikasi belum dikonfigurasi' });
+    } catch (err) {
+      console.error('[PIN LOGIN EXPRESS ERROR]:', err);
+      res.status(503).json({ error: err instanceof Error ? err.message : 'Server autentikasi belum dikonfigurasi' });
     }
   });
 
@@ -89,6 +92,19 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server pesanan belum dikonfigurasi' });
+    }
+  });
+
+  app.all('/api/shifts', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const payload = req.method === 'GET' ? req.query : (req.body || {});
+      const result = await handleShiftRequest(req.method, payload, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server shift belum dikonfigurasi' });
     }
   });
 
