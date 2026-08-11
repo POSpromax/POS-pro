@@ -17,6 +17,11 @@
 
 begin;
 
+-- Aman dijalankan ulang: tanpa ini, mengulang migration gagal dengan
+-- "policy already exists" dan menyisakan sebagian perubahan.
+drop policy if exists branch_members_receive_sync_broadcasts on realtime.messages;
+drop policy if exists branch_members_send_sync_broadcasts on realtime.messages;
+
 create policy branch_members_receive_sync_broadcasts
 on realtime.messages for select to authenticated
 using (
