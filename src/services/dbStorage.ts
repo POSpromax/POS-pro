@@ -125,7 +125,31 @@ export function connectBranchSync(branchId: string): void {
               // Abaikan kegagalan tulis localStorage (kuota penuh / mode privat)
             }
           })
-          .subscribe();
+          .on('broadcast', { event: 'request_shift_sync' }, () => {
+            // When another terminal joins, broadcast current shift if OPEN
+            const currentShift = getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+            if (currentShift && currentShift.status === 'OPEN' && supabaseSyncChannel) {
+              supabaseSyncChannel
+                .send({
+                  type: 'broadcast',
+                  event: 'pos_sync',
+                  payload: { key: STORAGE_KEYS.CURRENT_SHIFT, value: currentShift, timestamp: Date.now(), branchId: syncChannelBranchId }
+                })
+                .catch(() => {});
+            }
+          })
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              // Ask online terminals for active shift
+              channel
+                .send({
+                  type: 'broadcast',
+                  event: 'request_shift_sync',
+                  payload: { branchId }
+                })
+                .catch(() => {});
+            }
+          });
         supabaseSyncChannel = channel;
       } catch {
         // Fallback silently if Supabase client fails to connect
@@ -168,11 +192,13 @@ function setStoredItem<T>(key: string, value: T): void {
       window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
       posBroadcastChannel?.postMessage({ key, value, timestamp: Date.now() });
 
-      // 2. Selective Cloud Broadcast (Only for Critical Events with 1.5s Throttling to protect Free Tier Quota)
+      // 2. Selective Cloud Broadcast (Shift changes are sent instantly without 1.5s throttle)
       if (supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
         const lastSent = cloudBroadcastDebounceMap.get(key) || 0;
         const now = Date.now();
-        if (now - lastSent > 1500) {
+        const isShift = key === STORAGE_KEYS.CURRENT_SHIFT;
+
+        if (isShift || now - lastSent > 1500) {
           cloudBroadcastDebounceMap.set(key, now);
           supabaseSyncChannel
             .send({

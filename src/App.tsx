@@ -391,15 +391,15 @@ export default function App() {
     return () => { active = false; unsubscribe(); };
   }, [isTerminalUnlocked, currentBranch.id]);
 
-  // Siaran perubahan stok/menu/meja hanya untuk perangkat di cabang yang sama.
+  // Siaran perubahan stok/menu/meja/shift untuk semua perangkat di cabang yang sama.
   useEffect(() => {
-    if (!isTerminalUnlocked || !currentBranch.id) {
+    if (!currentBranch?.id) {
       DBStorage.disconnectBranchSync();
       return;
     }
     DBStorage.connectBranchSync(currentBranch.id);
     return () => DBStorage.disconnectBranchSync();
-  }, [isTerminalUnlocked, currentBranch.id]);
+  }, [currentBranch?.id]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
