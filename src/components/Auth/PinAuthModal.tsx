@@ -332,8 +332,8 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
           {/* Error / Status */}
           <div className="mb-4 min-h-9">
             {isVerifying ? (
-              <p className="flex items-center justify-center gap-1.5 rounded-xl border border-[#D4E4FA] bg-[#EEF4FF] px-3 py-2 text-center text-[10px] font-bold text-[#2563EB]">
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+              <p className="flex items-center justify-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-center text-[10px] font-bold text-[#C2410C]">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#EA580C] border-t-transparent" />
                 Memverifikasi PIN...
               </p>
             ) : errorMessage ? (

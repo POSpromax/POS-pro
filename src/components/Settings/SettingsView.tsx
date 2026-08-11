@@ -269,7 +269,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900">
+    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none text-slate-900">
       <div>
         {/* Main Header Bar */}
         <div className="flex items-center justify-between mb-6">

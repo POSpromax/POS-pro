@@ -89,12 +89,12 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     return (
       <div className="flex-1 bg-gradient-to-tr from-[#EBF3FA] via-[#F3EBF9] to-[#FAF3FB] p-4 md:p-8 overflow-y-auto font-sans select-none flex items-center justify-center text-slate-900 min-h-0">
         <div className="max-w-md w-full bg-white rounded-[32px] p-8 md:p-10 shadow-2xl shadow-orange-500/10 border border-orange-200 text-center space-y-6">
-          <div className="w-20 h-20 bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] rounded-3xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/30">
+          <div className="w-20 h-20 bg-gradient-to-tr from-[#C2410C] to-[#EA580C] rounded-3xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/30">
             <Store className="w-10 h-10" />
           </div>
 
           <div className="space-y-1.5">
-            <h2 className="text-2xl md:text-3xl font-black text-[#1E1B4B] tracking-tight">
+            <h2 className="text-2xl md:text-3xl font-black text-[#1A1714] tracking-tight">
               Buka Shift Baru
             </h2>
             <p className="text-xs font-bold text-slate-500 max-w-xs mx-auto leading-relaxed">
@@ -104,13 +104,20 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
           <div className="space-y-4 pt-2">
             <div>
-              <label className="text-[10px] font-black text-[#6366F1] tracking-wider uppercase block mb-1.5">
+              <label className="text-[10px] font-black text-[#C2410C] tracking-wider uppercase block mb-1.5">
                 MODAL AWAL (CASH)
               </label>
               <input
                 type="number"
-                value={openShiftCashInput}
-                onChange={(e) => setOpenShiftCashInput(Number(e.target.value))}
+                min="0"
+                inputMode="numeric"
+                // Kosong saat nol, bukan menampilkan "0": kalau angkanya dicetak,
+                // kasir tidak bisa menghapusnya dan nominal jadi "050000".
+                value={openShiftCashInput || ''}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setOpenShiftCashInput(Number.isFinite(next) && next > 0 ? next : 0);
+                }}
                 className="w-full bg-[#FAFAFA] border-2 border-orange-500 focus:border-orange-600 rounded-2xl p-4 text-center font-black text-2xl text-slate-900 outline-none shadow-2xs"
                 placeholder="0"
               />
@@ -126,7 +133,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   .finally(() => setIsShiftMutationPending(false));
               }}
               disabled={isShiftMutationPending}
-              className="w-full py-4 bg-gradient-to-r from-[#6366F1] via-[#7C3AED] to-[#A855F7] hover:opacity-95 disabled:cursor-wait disabled:opacity-60 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-[#C2410C] to-[#EA580C] hover:opacity-95 disabled:cursor-wait disabled:opacity-60 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
             >
               {isShiftMutationPending ? 'MENGONFIRMASI SERVER...' : 'MULAI SHIFT'}
             </button>
@@ -173,11 +180,11 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900 min-h-0">
+    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none text-slate-900 min-h-0">
       {/* Top Bar matching Reference Image */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-tr from-[#6366F1] via-[#7C3AED] to-[#A855F7] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+          <div className="w-12 h-12 bg-gradient-to-tr from-[#C2410C] to-[#EA580C] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
             <Store className="w-6 h-6" />
           </div>
           <div>

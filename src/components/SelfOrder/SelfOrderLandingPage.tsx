@@ -306,7 +306,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 1: LANDING PAGE (Screenshot 1 Match)
            ========================================= */}
         {activeStep === 'LANDING' && (
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F4F5F7] flex flex-col justify-between">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F4F5F7]">
             <div className="space-y-4">
               
               {/* Top Restaurant Profile Header Card */}
@@ -455,7 +455,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 2: TABLE & NAME INPUT SCREEN (Screenshot 2 Match)
            ========================================= */}
         {activeStep === 'TABLE_INPUT' && (
-          <div className="flex-1 bg-[#F4F5F7] p-6 flex flex-col justify-center overflow-y-auto animate-fadeIn space-y-6">
+          <div className="flex-1 bg-[#F4F5F7] p-6 overflow-y-auto animate-fadeIn">
+            {/* Pemusatan dipindah ke pembungkus dalam: kalau container yang
+                men-scroll ikut memusatkan, isinya menyusut dan tidak bisa digulir. */}
+            <div className="min-h-full flex flex-col justify-center space-y-6">
             <div className="text-center space-y-2">
               {/* Orange Chef Hat Icon Box */}
               <div className="w-20 h-20 bg-[#EA580C] text-white rounded-[24px] flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
@@ -523,6 +526,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <span>Start Order</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
               </button>
+            </div>
             </div>
           </div>
         )}
@@ -817,7 +821,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 5: ORDER SUCCESS (Screenshot 5 Match)
            ========================================= */}
         {activeStep === 'ORDER_SUCCESS' && (
-          <div className="flex-1 bg-[#F4F5F7] p-5 flex flex-col justify-between overflow-y-auto animate-fadeIn space-y-5">
+          <div className="flex-1 bg-[#F4F5F7] p-5 overflow-y-auto animate-fadeIn space-y-5">
             <div className="space-y-5 pt-2">
               
               {/* Big Green Checkmark Badge Header */}

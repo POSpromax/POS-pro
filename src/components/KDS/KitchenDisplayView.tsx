@@ -87,7 +87,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#121110] text-white p-4 md:p-6 overflow-y-auto font-sans flex flex-col justify-between select-none min-h-screen">
+    <div className="flex-1 bg-[#121110] text-white p-4 md:p-6 overflow-y-auto font-sans select-none">
       {/* KDS Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-4">
         {/* Left Title & Logo */}
