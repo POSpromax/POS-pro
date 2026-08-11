@@ -338,26 +338,26 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] flex flex-col items-center font-sans text-slate-800 antialiased select-none w-full">
+    <div className="theme-self-order flex min-h-screen w-full select-none flex-col items-center bg-[#FFF8F2] font-sans text-slate-800 antialiased">
       {localToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-lg animate-pulse">
+        <div className="animate-fadeIn fixed left-1/2 top-4 z-[9999] -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg">
           {localToast}
         </div>
       )}
       {/* Clean Responsive Web App Wrapper */}
-      <div className="w-full max-w-lg min-h-screen bg-[#F4F5F7] flex flex-col relative shadow-sm">
+      <div className="relative flex min-h-screen w-full max-w-lg flex-col bg-[#FFF8F2] shadow-sm">
         
         {/* =========================================
             STEP 1: LANDING PAGE (Screenshot 1 Match)
            ========================================= */}
         {activeStep === 'LANDING' && (
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#F4F5F7]">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-[#FFF8F2] p-5">
             <div className="space-y-4">
               
               {/* Top Restaurant Profile Header Card */}
               <div className="bg-white rounded-[28px] p-4.5 shadow-sm border border-slate-200/60 flex items-center gap-4">
                 <div className="relative shrink-0">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white font-black text-xl flex items-center justify-center shadow-md overflow-hidden border border-slate-100">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white font-bold text-xl flex items-center justify-center shadow-md overflow-hidden border border-slate-100">
                     {profile.logoUrl ? (
                       <img src={profile.logoUrl} alt={profile.name} className="w-full h-full object-cover" />
                     ) : (
@@ -367,14 +367,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <span className="w-4 h-4 bg-emerald-500 border-2 border-white rounded-full absolute -bottom-0.5 -right-0.5 shadow-xs" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-black text-base text-slate-900 tracking-tight leading-tight uppercase truncate">
+                  <h1 className="font-bold text-base text-slate-900 tracking-tight leading-tight uppercase truncate">
                     {profile.name || 'BAKSO UJO'}
                   </h1>
                   <p className="text-[11px] font-bold text-slate-500 line-clamp-2 mt-0.5 leading-snug">
                     📍 {currentBranch.address || profile.address || 'Jl. Re. Abdullah No.7-9, RT.01/RW.07, Pasirmulya BOGOR BARAT'}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
                       OPEN NOW
                     </span>
                   </div>
@@ -383,7 +383,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
               {/* Disabled System Banner Notice */}
               {!isSelfOrderSystemEnabled && (
-                <div className="bg-red-600 text-white text-xs font-black p-3.5 rounded-2xl text-center space-y-1 shadow-md flex items-center justify-center gap-2">
+                <div className="bg-red-600 text-white text-xs font-bold p-3.5 rounded-2xl text-center space-y-1 shadow-md flex items-center justify-center gap-2">
                   <Info className="w-4 h-4 shrink-0" />
                   <span>Sistem Self-Order QR sedang dinonaktifkan oleh Kasir.</span>
                 </div>
@@ -391,14 +391,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
               {/* Featured Promo Card */}
               <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/70 border border-amber-200/80 rounded-[28px] p-5 space-y-1.5 relative overflow-hidden shadow-2xs">
-                <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
                   <Sparkles className="w-3 h-3 text-orange-600" />
                   <span>FEATURED</span>
                 </div>
-                <h3 className="font-black text-base text-slate-900 leading-tight">
+                <h3 className="font-bold text-base text-slate-900 leading-tight">
                   FREE ICE CREAM ATAU ES TEH MANIS
                 </h3>
-                <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                   TUNJUKAN REVIEW GMAPS DIKASIR
                 </p>
               </div>
@@ -410,10 +410,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 className="w-full bg-[#EA580C] hover:bg-orange-600 text-white rounded-[28px] p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
               >
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-100 block opacity-90">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-orange-100 block opacity-90">
                     MENU TERSEDIA
                   </span>
-                  <span className="text-2xl font-black text-white tracking-tight">
+                  <span className="text-2xl font-bold text-white tracking-tight">
                     Pesan Makan
                   </span>
                 </div>
@@ -428,8 +428,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
                     <Clock className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">JAM BUKA</span>
-                  <span className="text-xs font-black text-slate-900">10:00 - 22:00</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">JAM BUKA</span>
+                  <span className="text-xs font-bold text-slate-900">10:00 - 22:00</span>
                 </div>
 
                 <a
@@ -441,8 +441,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-1">
                     <PhoneCall className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">WHATSAPP</span>
-                  <span className="text-xs font-black text-slate-900">Hubungi</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">WHATSAPP</span>
+                  <span className="text-xs font-bold text-slate-900">Hubungi</span>
                 </a>
               </div>
 
@@ -453,7 +453,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     <span key={i} className="text-lg">⭐</span>
                   ))}
                 </div>
-                <h4 className="font-black text-base text-slate-900">Ulas Kami</h4>
+                <h4 className="font-bold text-base text-slate-900">Ulas Kami</h4>
                 <p className="text-xs font-semibold text-slate-400">
                   Bagikan pengalaman makanmu disini
                 </p>
@@ -475,7 +475,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 type="button"
                 className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs hover:bg-slate-50 hover:text-orange-600 transition-all"
               >
-                <span className="font-black text-xs">🎵</span>
+                <span className="font-bold text-xs">🎵</span>
               </button>
               <button
                 type="button"
@@ -500,7 +500,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 2: TABLE & NAME INPUT SCREEN (Screenshot 2 Match)
            ========================================= */}
         {activeStep === 'TABLE_INPUT' && (
-          <div className="flex-1 bg-[#F4F5F7] p-6 overflow-y-auto animate-fadeIn">
+          <div className="animate-fadeIn flex-1 overflow-y-auto bg-[#FFF8F2] p-6">
             {/* Pemusatan dipindah ke pembungkus dalam: kalau container yang
                 men-scroll ikut memusatkan, isinya menyusut dan tidak bisa digulir. */}
             <div className="min-h-full flex flex-col justify-center space-y-6">
@@ -510,42 +510,42 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <ChefHat className="w-10 h-10 stroke-[2.2]" />
               </div>
 
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
                 Smart Order
               </h2>
               <p className="text-xs font-semibold text-slate-500">
-                Welcome to intelligent dining
+                Pesan mudah langsung dari meja Anda
               </p>
             </div>
 
             {/* Form Container Box */}
             <div className="bg-white rounded-[32px] p-6 sm:p-7 shadow-xl border border-slate-100 space-y-5">
               {tableErrorMsg && (
-                <div className="bg-red-50 text-red-600 text-xs font-black p-3.5 rounded-2xl border border-red-200">
+                <div className="bg-red-50 text-red-600 text-xs font-bold p-3.5 rounded-2xl border border-red-200">
                   ⚠️ {tableErrorMsg}
                 </div>
               )}
 
               {/* Customer Name Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-orange-500" />
-                  Customer Name
+                  Nama Pemesan
                 </label>
                 <input
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Nama pemesan"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400"
+                  className="w-full rounded-2xl border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
                 />
               </div>
 
               {/* Table Number Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-orange-500" />
-                  Table Number
+                  Nomor Meja
                 </label>
                 <input
                   type="text"
@@ -553,10 +553,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   onChange={(e) => { if (!qrToken) setSelectedTable(e.target.value); }}
                   readOnly={Boolean(qrToken)}
                   placeholder="Nomor meja"
-                  className={`w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-400 ${qrToken ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`w-full rounded-2xl border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100 ${qrToken ? 'cursor-not-allowed opacity-70' : ''}`}
                 />
                 {qrToken && (
-                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
+                  <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
                     <CheckCircle2 className="w-3 h-3" /> Meja terverifikasi dari QR
                   </p>
                 )}
@@ -566,9 +566,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleProceedToMenu}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
               >
-                <span>Start Order</span>
+                <span>Mulai Pesan</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
               </button>
             </div>
@@ -583,22 +583,22 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
           <div className="flex-1 flex flex-col h-full overflow-hidden animate-fadeIn">
             
             {/* Header Menu Bar */}
-            <div className="bg-slate-900 text-white p-4 pt-5 pb-3 shrink-0 shadow-md">
+            <div className="shrink-0 border-b border-orange-100 bg-white p-4 pb-3 pt-5 text-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <button
                   type="button"
                   onClick={() => setActiveStep('LANDING')}
-                  className="flex items-center gap-1 bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:text-white"
+                  className="flex items-center gap-1 rounded-xl border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Beranda</span>
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl">
+                  <span className="text-xs font-bold text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-xl">
                     Meja #{selectedTable}
                   </span>
-                  <span className="text-xs font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-xl">
+                  <span className="rounded-xl bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                     {customerName}
                   </span>
                 </div>
@@ -612,7 +612,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari bakso, mie, minuman..."
-                  className="w-full bg-slate-800 text-white placeholder-slate-400 text-xs pl-9 pr-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 border border-slate-700/60 font-medium"
+                  className="w-full rounded-xl border border-orange-100 bg-orange-50/50 py-2 pl-9 pr-4 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-100"
                 />
                 {searchQuery && (
                   <button
@@ -649,7 +649,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
             {/* Menu Items Grid */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24 bg-slate-100/60">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
                 {categories.find((c) => c.key === selectedCategory)?.label || 'Daftar Menu'} ({filteredMenu.length})
               </h2>
 
@@ -657,7 +657,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <div className="bg-white rounded-3xl p-8 text-center text-slate-400 space-y-2 border border-slate-200/80">
                   <span className="text-3xl block">🔍</span>
                   <p className="text-xs font-bold text-slate-700">Menu tidak ditemukan</p>
-                  <p className="text-[10px] text-slate-400">Silakan gunakan kata kunci pencarian lain.</p>
+                  <p className="text-[11px] text-slate-400">Silakan gunakan kata kunci pencarian lain.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5">
@@ -683,16 +683,16 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex flex-col items-center justify-center text-white p-2 text-center">
                                 <span className="text-2xl mb-0.5">🍲</span>
-                                <span className="text-[9px] font-black uppercase tracking-wider">{item.category}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.category}</span>
                               </div>
                             )}
 
-                            <div className="absolute top-1.5 right-1.5 bg-slate-900/90 backdrop-blur-xs text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                            <div className="absolute right-1.5 top-1.5 rounded-full border border-white/70 bg-white/95 px-2 py-0.5 text-[11px] font-bold text-slate-800 shadow-xs backdrop-blur-xs">
                               Rp {item.price.toLocaleString('id-ID')}
                             </div>
 
                             {qtyInCart > 0 && (
-                              <div className="absolute top-1.5 left-1.5 bg-orange-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scaleUp">
+                              <div className="absolute top-1.5 left-1.5 bg-orange-600 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-scaleUp">
                                 {qtyInCart}
                               </div>
                             )}
@@ -727,21 +727,21 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveStep('CART')}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-2xl shadow-xl border border-slate-700/80 flex items-center justify-between gap-3 cursor-pointer"
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-orange-600 bg-orange-600 p-3.5 text-white shadow-xl shadow-orange-500/20 hover:bg-orange-700"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
                       {totalCartQty}
                     </div>
                     <div className="text-left">
-                      <span className="text-[10px] text-slate-400 font-bold block uppercase leading-tight">KERANJANG PESANAN</span>
-                      <span className="text-xs font-black text-white leading-none">
+                      <span className="block text-[11px] font-bold uppercase leading-tight text-orange-100">KERANJANG PESANAN</span>
+                      <span className="text-xs font-bold text-white leading-none">
                         Rp {totalAmount.toLocaleString('id-ID')}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all">
+                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all">
                     <span>Lihat Keranjang</span>
                     <ChevronRight className="w-4 h-4" />
                   </div>
@@ -766,7 +766,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
                     Konfirmasi Keranjang
                   </h3>
-                  <p className="text-[10px] font-bold text-slate-500">
+                  <p className="text-[11px] font-bold text-slate-500">
                     Meja #{selectedTable} • {customerName}
                   </p>
                 </div>
@@ -782,7 +782,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
             {/* Cart Items List */}
             <div className="p-4 overflow-y-auto space-y-3 flex-1">
-              <h4 className="text-xs font-black uppercase text-slate-400">Item Pesanan ({cartItems.length}):</h4>
+              <h4 className="text-xs font-bold uppercase text-slate-400">Item Pesanan ({cartItems.length}):</h4>
               
               {cartItems.map((item) => (
                 <div
@@ -797,7 +797,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         {item.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
                           <span
                             key={i}
-                            className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-md uppercase"
+                            className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-md uppercase"
                           >
                             + {opt.name}
                           </span>
@@ -806,18 +806,18 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     )}
 
                     {item.notes && (
-                      <p className="text-[10px] font-medium text-amber-600 italic pt-0.5">
+                      <p className="text-[11px] font-medium text-amber-600 italic pt-0.5">
                         "{item.notes}"
                       </p>
                     )}
 
                     {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
-                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[9px] font-black text-[#C55600]">
+                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[10px] font-bold text-[#C55600]">
                         {item.quantity > 1 ? 'Atur per porsi' : 'Ubah porsi ini'}
                       </button>
                     )}
 
-                    <span className="text-xs font-black text-orange-600 block pt-1">
+                    <span className="text-xs font-bold text-orange-600 block pt-1">
                       Rp {item.price.toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -830,7 +830,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="text-xs font-black text-slate-900 w-4 text-center">
+                    <span className="text-xs font-bold text-slate-900 w-4 text-center">
                       {item.quantity}
                     </span>
                     <button
@@ -852,7 +852,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
             {/* Cart Footer */}
             <div className="p-4 border-t border-slate-100 bg-white space-y-3">
-              <div className="flex justify-between text-sm font-black text-slate-900">
+              <div className="flex justify-between text-sm font-bold text-slate-900">
                 <span>TOTAL BAYAR</span>
                 <span className="text-orange-600 text-base font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
@@ -860,7 +860,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Kirim Pesanan ke Dapur & Kasir</span>
                 <ArrowRight className="w-4 h-4" />
@@ -874,7 +874,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 5: ORDER SUCCESS (Screenshot 5 Match)
            ========================================= */}
         {activeStep === 'ORDER_SUCCESS' && (
-          <div className="flex-1 bg-[#F4F5F7] p-5 overflow-y-auto animate-fadeIn space-y-5">
+          <div className="animate-fadeIn flex-1 space-y-5 overflow-y-auto bg-[#FFF8F2] p-5">
             <div className="space-y-5 pt-2">
               
               {/* Big Green Checkmark Badge Header */}
@@ -882,11 +882,11 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <div className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/30 mx-auto">
                   <Check className="w-10 h-10 stroke-[3.5]" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
                   Pesanan Terkirim!
                 </h3>
                 <p className="text-xs font-bold text-slate-500">
-                  Pesanan <span className="font-black text-slate-900">{liveSubmittedOrder?.orderNumber || '#001'}</span> sedang diproses dapur.
+                  Pesanan <span className="font-bold text-slate-900">{liveSubmittedOrder?.orderNumber || '#001'}</span> sedang diproses dapur.
                 </p>
               </div>
 
@@ -896,7 +896,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   href={`https://wa.me/${profile.phone?.replace(/[^0-9]/g, '') || '628123456789'}?text=Halo%20Kasir,%20saya%20sudah%20memesan%20order%20${liveSubmittedOrder?.orderNumber}%20di%20Meja%20${selectedTable}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-white" />
                   <span>WhatsApp</span>
@@ -907,7 +907,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   onClick={() => {
                     toast('Struk Tersimpan', 'Struk digital pesanan Anda berhasil disimpan!');
                   }}
-                  className="py-3.5 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-3.5 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Simpan Struk</span>
@@ -918,7 +918,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <div className="bg-white rounded-[28px] p-5 border border-slate-100 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                   <Receipt className="w-4 h-4 text-slate-400" />
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                     RINCIAN PESANAN
                   </h4>
                 </div>
@@ -927,11 +927,11 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   {(liveSubmittedOrder?.items || cartItems).map((it) => (
                     <div key={it.id} className="flex items-start justify-between text-xs">
                       <div className="space-y-0.5">
-                        <p className="font-black text-slate-900">{it.menuName}</p>
+                        <p className="font-bold text-slate-900">{it.menuName}</p>
                         {it.selectedCondiments && it.selectedCondiments.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-0.5">
                             {it.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
-                              <span key={i} className="text-[9px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md uppercase">
+                              <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md uppercase">
                                 {opt.name}
                               </span>
                             ))}
@@ -939,8 +939,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-[10px] text-slate-400 font-bold block">{it.quantity}x</span>
-                        <span className="font-black text-slate-900 font-mono">Rp {(it.price * it.quantity).toLocaleString('id-ID')}</span>
+                        <span className="text-[11px] text-slate-400 font-bold block">{it.quantity}x</span>
+                        <span className="font-bold text-slate-900 font-mono">Rp {(it.price * it.quantity).toLocaleString('id-ID')}</span>
                       </div>
                     </div>
                   ))}
@@ -951,7 +951,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     <span>Subtotal</span>
                     <span className="font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between font-black text-sm text-slate-900 pt-1">
+                  <div className="flex justify-between font-bold text-sm text-slate-900 pt-1">
                     <span>Total</span>
                     <span className="text-orange-600 font-mono text-base">Rp {totalAmount.toLocaleString('id-ID')}</span>
                   </div>
@@ -965,7 +965,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleResetToLanding}
-                className="w-full py-4 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 font-black text-xs rounded-2xl shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Home className="w-4 h-4 text-slate-400" />
                 <span>Kembali ke Halaman Utama</span>

@@ -123,15 +123,15 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fadeIn">
+    <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fadeIn">
       <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[92vh] font-sans text-slate-900">
         
         {/* Top Banner Image with Dark Gradient Overlay matching Screenshots 3 & 4 */}
-        <div className="relative h-48 sm:h-52 w-full bg-slate-900 overflow-hidden shrink-0">
+        <div className="relative h-48 sm:h-52 w-full bg-[var(--surface-secondary)] overflow-hidden shrink-0">
           {menuItem.image ? (
             <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-orange-600 via-amber-600 to-amber-500 flex items-center justify-center text-white">
+            <div className="w-full h-full bg-gradient-to-tr from-[var(--primary-solid)] via-[var(--primary)] to-[var(--primary-light)] flex items-center justify-center text-white">
               <Utensils className="w-16 h-16 opacity-40" />
             </div>
           )}
@@ -150,10 +150,10 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
 
           {/* Item Name & Price Pill Badge on Banner Bottom */}
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-            <h2 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold text-white leading-tight drop-shadow-md min-w-0 flex-1">
               {menuItem.name}
             </h2>
-            <div className="bg-[#EA580C] text-white font-black text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-lg shrink-0 font-mono">
+            <div className="bg-[var(--primary)] text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-lg shrink-0 font-mono">
               Rp {finalUnitPrice.toLocaleString('id-ID')}
             </div>
           </div>
@@ -175,12 +175,12 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                   {/* Group Header matching Screenshots 3 & 4 */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${isRequired ? 'bg-orange-500' : 'bg-emerald-500'}`} />
-                      <h3 className="font-black text-xs text-slate-900 uppercase tracking-wider">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isRequired ? 'bg-[var(--primary-solid)]' : 'bg-emerald-500'}`} />
+                      <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
                         {group.name}
                       </h3>
                       {isRequired && (
-                        <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
                           *WAJIB
                         </span>
                       )}
@@ -191,14 +191,14 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                         <button
                           type="button"
                           onClick={() => handleSelectAllGroup(group)}
-                          className="text-[10px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                          className="text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
                         >
                           Pilih Semua
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResetGroup(group)}
-                          className="text-[10px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
+                          className="text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors"
                         >
                           Bersihkan
                         </button>
@@ -218,7 +218,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           type="button"
                           disabled={!isAvailable}
                           onClick={() => isAvailable && toggleOption(group, option.name)}
-                          className={`p-3 rounded-2xl text-left border text-xs font-black transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
+                          className={`p-3 rounded-2xl text-left border text-xs font-bold transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
                             !isAvailable
                               ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                               : isSelected
@@ -227,9 +227,9 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           }`}
                         >
                           <span className="truncate">
-                            <span className="block font-black text-slate-900 uppercase">{option.name}</span>
+                            <span className="block font-bold text-slate-900 uppercase">{option.name}</span>
                             {option.price > 0 && (
-                              <span className="block text-[10px] font-black text-orange-600 mt-0.5 font-mono">
+                              <span className="block text-[11px] font-bold text-[var(--primary-text)] mt-0.5 font-mono">
                                 +Rp {option.price.toLocaleString('id-ID')}
                               </span>
                             )}
@@ -238,7 +238,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           <div
                             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                               isSelected
-                                ? 'border-orange-600 bg-orange-600 text-white'
+                                ? 'border-[var(--primary)] bg-[var(--primary-solid)] text-white'
                                 : 'border-slate-300 bg-slate-100'
                             }`}
                           >
@@ -270,7 +270,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 active:scale-95 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-4 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] active:scale-95 text-white font-bold text-sm rounded-2xl shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+ Tambahkan Pesanan</span>
           </button>

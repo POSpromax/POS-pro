@@ -235,7 +235,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       </button>
       <button
         onClick={() => handleAdjustStock(raw, 1)}
-        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 flex items-center justify-center cursor-pointer transition-colors"
+        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-text)] hover:bg-[var(--brand-100)] flex items-center justify-center cursor-pointer transition-colors"
         title="Tambah stok"
       >
         <Plus className="w-2.5 h-2.5 md:w-3 md:h-3" />
@@ -380,15 +380,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   return (
-    <div className="ui-surface flex-1 p-3 md:p-6 overflow-y-auto font-sans select-none text-[#17202A]">
+    <div className="ui-surface flex-1 p-3 md:p-6 overflow-y-auto font-sans select-none text-[var(--text-primary)]">
       {/* Top Header Bar — stacks vertically on mobile */}
       <div className="flex flex-col gap-3 mb-4 md:mb-5">
         {/* Title row */}
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-900 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-[var(--primary)] rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0">
             <Boxes className="w-4 h-4 md:w-5 md:h-5" />
           </div>
-          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">Inventory</h1>
+          <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">Inventory</h1>
         </div>
 
         {/* Sub-tab Navigation — scrollable on mobile */}
@@ -404,9 +404,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               <button
                 key={key}
                 onClick={() => setSubTab(key)}
-                className={`px-3 md:px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                className={`px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   subTab === key
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-[var(--primary)] text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 font-bold'
                 }`}
               >
@@ -425,7 +425,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               placeholder="Cari Item..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-full pl-9 pr-4 py-2 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 shadow-2xs"
+              className="w-full bg-white border border-slate-200 rounded-full pl-9 pr-4 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] shadow-2xs"
             />
           </div>
 
@@ -443,7 +443,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     aria-label={label}
                     aria-pressed={viewMode === key}
                     className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                      viewMode === key ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                      viewMode === key ? 'bg-[var(--primary)] text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -454,7 +454,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
             <button
               onClick={handleExportCSV}
-              className="px-3 md:px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+              className="px-3 md:px-4 py-2 bg-[var(--primary-solid)] hover:bg-[var(--primary-pressed)] text-white rounded-full text-[11px] md:text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
             >
               <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
             </button>
@@ -462,14 +462,14 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             {subTab === 'MENU' ? (
               <button
                 onClick={() => handleOpenEditMenuModal()}
-                className="px-3 md:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
+                className="px-3 md:px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-full text-[11px] md:text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
               >
                 <Plus className="w-3.5 h-3.5" /> TAMBAH MENU
               </button>
             ) : (
               <button
                 onClick={() => handleOpenRawModal()}
-                className="px-3 md:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
+                className="px-3 md:px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-full text-[11px] md:text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 transition-all flex-1 sm:flex-initial justify-center"
               >
                 <Plus className="w-3.5 h-3.5" /> TAMBAH {subTab === 'KEMASAN' ? 'KEMASAN' : subTab === 'DAPUR' ? 'STOK DAPUR' : 'BAHAN'}
               </button>
@@ -490,18 +490,18 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4 mb-4 md:mb-6">
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">MENU</p>
-            <p className="text-xl md:text-3xl font-black text-slate-900 mt-0.5 md:mt-1">{menuItems.length}</p>
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">MENU</p>
+            <p className="text-xl md:text-3xl font-bold text-slate-900 mt-0.5 md:mt-1">{menuItems.length}</p>
           </div>
-          <div className="w-9 h-9 md:w-12 md:h-12 bg-slate-900 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xs">
+          <div className="w-9 h-9 md:w-12 md:h-12 bg-[var(--primary)] rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xs">
             <Utensils className="w-4 h-4 md:w-6 md:h-6 text-white" />
           </div>
         </div>
 
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">TOTAL BAHAN</p>
-            <p className="text-xl md:text-3xl font-black text-slate-900 mt-0.5 md:mt-1">{totalAssetsCount}</p>
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">TOTAL BAHAN</p>
+            <p className="text-xl md:text-3xl font-bold text-slate-900 mt-0.5 md:mt-1">{totalAssetsCount}</p>
           </div>
           <div className="w-9 h-9 md:w-12 md:h-12 bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-700">
             <Boxes className="w-4 h-4 md:w-6 md:h-6" />
@@ -510,18 +510,18 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">PERLU BELANJA</p>
-            <p className="text-xl md:text-3xl font-black text-orange-600 mt-0.5 md:mt-1">{restockNeedCount}</p>
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">PERLU BELANJA</p>
+            <p className="text-xl md:text-3xl font-bold text-[var(--primary-text)] mt-0.5 md:mt-1">{restockNeedCount}</p>
           </div>
-          <div className="w-9 h-9 md:w-12 md:h-12 bg-orange-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xs shadow-orange-500/20">
+          <div className="w-9 h-9 md:w-12 md:h-12 bg-[var(--primary-solid)] rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-xs shadow-orange-500/20">
             <AlertTriangle className="w-4 h-4 md:w-6 md:h-6 text-white" />
           </div>
         </div>
 
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-5 border border-slate-200 shadow-xs flex justify-between items-center">
           <div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-slate-400">KATEGORI</p>
-            <p className="text-xl md:text-3xl font-black text-slate-900 mt-0.5 md:mt-1">{categoriesList.length}</p>
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">KATEGORI</p>
+            <p className="text-xl md:text-3xl font-bold text-slate-900 mt-0.5 md:mt-1">{categoriesList.length}</p>
           </div>
           <div className="w-9 h-9 md:w-12 md:h-12 bg-slate-100 border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-700">
             <Layers className="w-4 h-4 md:w-6 md:h-6" />
@@ -547,21 +547,21 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-[11px] md:text-xs text-[#1A1714] truncate">{raw.name}</h3>
-                      <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase">
+                      <h3 className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{raw.name}</h3>
+                      <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase">
                         {raw.unit} <span className="text-slate-300">Min: {raw.minStockThreshold}</span>
                       </p>
                     </div>
 
                     {isLow && (
-                      <span className="bg-rose-500 text-white text-[8px] md:text-[9px] font-black px-1 md:px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
+                      <span className="bg-rose-500 text-white text-[10px] md:text-[10px] font-bold px-1 md:px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-0.5">
                         MENIPIS
                       </span>
                     )}
                   </div>
 
                   <div className="my-1.5 md:my-2 text-right">
-                    <span className="text-lg md:text-xl font-black text-[#1A1714] tracking-tight">
+                    <span className="text-lg md:text-xl font-bold text-[var(--text-primary)] tracking-tight">
                       {raw.stockQuantity.toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -583,20 +583,20 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 <div key={raw.id} className="p-2.5 md:p-3.5 flex items-center gap-2 md:gap-4 hover:bg-slate-50/80 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-black text-[11px] md:text-xs text-[#1A1714] truncate">{raw.name}</span>
+                      <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{raw.name}</span>
                       {isLow && (
-                        <span className="bg-rose-500 text-white text-[8px] md:text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                        <span className="bg-rose-500 text-white text-[10px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-md">
                           MENIPIS
                         </span>
                       )}
                     </div>
-                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase">
+                    <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase">
                       {raw.unit} <span className="text-slate-300">Min: {raw.minStockThreshold}</span>
                       <span className="text-slate-300"> · Rp {raw.costPerUnit.toLocaleString('id-ID')}</span>
                     </p>
                   </div>
 
-                  <span className="text-base md:text-lg font-black text-[#1A1714] tracking-tight tabular-nums shrink-0">
+                  <span className="text-base md:text-lg font-bold text-[var(--text-primary)] tracking-tight tabular-nums shrink-0">
                     {raw.stockQuantity.toLocaleString('id-ID')}
                   </span>
 
@@ -621,11 +621,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               placeholder="Buat Kategori Baru..."
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              className="bg-white border border-[#E5E5E7] rounded-full px-3 md:px-4 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#EA580C] flex-1 max-w-64 shadow-2xs"
+              className="bg-white border border-[#E5E5E7] rounded-full px-3 md:px-4 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)] flex-1 max-w-64 shadow-2xs"
             />
             <button
               onClick={handleAddCategory}
-              className="px-4 py-2 bg-[#EA580C] hover:bg-[#C2410C] text-white rounded-full text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-full text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Tambah</span>
             </button>
@@ -643,12 +643,12 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   onClick={() =>
                     setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
                   }
-                  className="p-3 md:p-4 bg-[#FAFAFA] flex items-center justify-between border-b border-slate-100 cursor-pointer hover:bg-slate-100/60 transition-colors"
+                  className="p-3 md:p-4 bg-[var(--surface-card)] flex items-center justify-between border-b border-slate-100 cursor-pointer hover:bg-slate-100/60 transition-colors"
                 >
                   <div className="flex items-center gap-2 md:gap-3">
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400" />}
-                    <h3 className="font-black text-xs md:text-sm text-[#1A1714] uppercase">{cat}</h3>
-                    <span className="text-[9px] md:text-[10px] font-bold bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-full">
+                    <h3 className="font-bold text-xs md:text-sm text-[var(--text-primary)] uppercase">{cat}</h3>
+                    <span className="text-[10px] md:text-[11px] font-bold bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-full">
                       {categoryItems.length}
                     </span>
                   </div>
@@ -659,7 +659,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     {categoryItems.map((item) => (
                       <div
                         key={item.id}
-                        className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[#FAFAFA] transition-colors gap-2"
+                        className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[var(--surface-card)] transition-colors gap-2"
                       >
                         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                           <img
@@ -669,32 +669,32 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                           />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1 md:gap-2 flex-wrap">
-                              <span className="font-black text-[11px] md:text-xs text-[#1A1714] truncate">{item.name}</span>
+                              <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{item.name}</span>
                               {item.isAutoStock !== false && (
-                                <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[8px] md:text-[9px] font-black px-1 md:px-1.5 py-0.5 rounded hidden sm:inline-block">
+                                <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] md:text-[10px] font-bold px-1 md:px-1.5 py-0.5 rounded hidden sm:inline-block">
                                   Auto-Stock
                                 </span>
                               )}
                             </div>
-                            <span className="font-black text-[10px] md:text-xs text-slate-500 md:hidden">
+                            <span className="font-bold text-[11px] md:text-xs text-slate-500 md:hidden">
                               Rp {item.price.toLocaleString('id-ID')}
                             </span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                          <span className="font-black text-xs text-[#1A1714] hidden md:inline">
+                          <span className="font-bold text-xs text-[var(--text-primary)] hidden md:inline">
                             Rp {item.price.toLocaleString('id-ID')}
                           </span>
 
-                          <span className="bg-slate-100 text-slate-700 text-[10px] md:text-xs font-black px-2 md:px-3 py-0.5 md:py-1 rounded-md border border-slate-200">
+                          <span className="bg-slate-100 text-slate-700 text-[11px] md:text-xs font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-md border border-slate-200">
                             {item.stockCount || 100}
                           </span>
 
                           <div className="flex items-center gap-0.5">
                             <button
                               onClick={() => handleOpenEditMenuModal(item)}
-                              className="p-1 md:p-1.5 text-[#C2410C] hover:bg-orange-100 rounded-lg cursor-pointer"
+                              className="p-1 md:p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer"
                               title="Edit Menu & Resep"
                             >
                               <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -733,35 +733,35 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       {subTab === 'LAPORAN' && (
         <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border border-slate-200/90 shadow-2xs space-y-4 font-sans">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
-            <h2 className="font-black text-[#1A1714] text-sm md:text-base">Laporan Ringkasan Stok & HPP</h2>
+            <h2 className="font-bold text-[var(--text-primary)] text-sm md:text-base">Laporan Ringkasan Stok & HPP</h2>
             <button
               onClick={handlePrintReport}
-              className="px-3 md:px-4 py-2 bg-[#EA580C] text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 md:px-4 py-2 bg-[var(--primary)] text-white rounded-full text-[11px] md:text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" /> Cetak Laporan
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
-              <p className="text-[10px] md:text-xs font-bold text-slate-400">Total Nilai Bahan Baku:</p>
-              <p className="text-lg md:text-xl font-black text-emerald-600 mt-1">
+            <div className="p-3 md:p-4 bg-[var(--surface-card)] rounded-xl md:rounded-2xl border border-slate-200">
+              <p className="text-[11px] md:text-xs font-bold text-slate-400">Total Nilai Bahan Baku:</p>
+              <p className="text-lg md:text-xl font-bold text-emerald-600 mt-1">
                 Rp {rawMaterials.reduce((acc, curr) => acc + (curr.stockQuantity * curr.costPerUnit), 0).toLocaleString('id-ID')}
               </p>
             </div>
 
-            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
-              <p className="text-[10px] md:text-xs font-bold text-slate-400">Rata-rata Margin HPP:</p>
-              <p className="text-lg md:text-xl font-black text-[#C2410C] mt-1">
+            <div className="p-3 md:p-4 bg-[var(--surface-card)] rounded-xl md:rounded-2xl border border-slate-200">
+              <p className="text-[11px] md:text-xs font-bold text-slate-400">Rata-rata Margin HPP:</p>
+              <p className="text-lg md:text-xl font-bold text-[var(--primary-hover)] mt-1">
                 {Math.round(
                   menuItems.reduce((acc, curr) => acc + (((curr.price - curr.hppCost) / curr.price) * 100), 0) / (menuItems.length || 1)
                 )}%
               </p>
             </div>
 
-            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
-              <p className="text-[10px] md:text-xs font-bold text-slate-400">Bahan Baku Perlu Restock:</p>
-              <p className="text-lg md:text-xl font-black text-rose-600 mt-1">{restockNeedCount} Item</p>
+            <div className="p-3 md:p-4 bg-[var(--surface-card)] rounded-xl md:rounded-2xl border border-slate-200">
+              <p className="text-[11px] md:text-xs font-bold text-slate-400">Bahan Baku Perlu Restock:</p>
+              <p className="text-lg md:text-xl font-bold text-rose-600 mt-1">{restockNeedCount} Item</p>
             </div>
           </div>
         </div>
@@ -769,13 +769,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* EDIT MENU Modal */}
       {isEditMenuModalOpen && editingMenu && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
+        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
           <form
             onSubmit={handleSaveMenuForm}
             className="bg-white w-full max-w-3xl rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-2xl space-y-4 md:space-y-5 font-sans text-slate-900 border border-slate-200 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-sm md:text-base font-black text-[#1A1714] tracking-tight uppercase">EDIT MENU</h2>
+              <h2 className="text-sm md:text-base font-bold text-[var(--text-primary)] tracking-tight uppercase">EDIT MENU</h2>
               <button
                 type="button"
                 onClick={() => setIsEditMenuModalOpen(false)}
@@ -788,7 +788,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* LEFT: INFO PRODUK */}
               <div className="space-y-3 md:space-y-4">
-                <label className="text-xs font-black text-orange-600 uppercase tracking-wider block border-b border-orange-100 pb-1">
+                <label className="text-xs font-bold text-[var(--primary-text)] uppercase tracking-wider block border-b border-[var(--brand-200)] pb-1">
                   INFO PRODUK
                 </label>
 
@@ -799,7 +799,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                       alt={editingMenu.name || 'Preview'}
                       className="w-16 h-16 md:w-20 md:h-20 rounded-xl md:rounded-2xl object-cover border border-slate-200 shadow-2xs"
                     />
-                    <label className="absolute inset-0 bg-slate-950/60 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-white text-[9px] font-black opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <label className="absolute inset-0 bg-[var(--primary)]/75 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                       <Camera className="w-4 h-4 mb-0.5" />
                       <span>UPLOAD</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleUploadMenuPhoto} />
@@ -807,17 +807,17 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   </div>
 
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">NAMA MENU</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">NAMA MENU</label>
                     <input
                       type="text"
                       required
                       placeholder="Contoh: Bakso Keju Komplit"
                       value={editingMenu.name || ''}
                       onChange={(e) => setEditingMenu({ ...editingMenu, name: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                     />
 
-                    <label className="inline-flex items-center gap-1.5 px-2 md:px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl text-[9px] md:text-[10px] font-bold cursor-pointer hover:bg-orange-100/80 transition-colors">
+                    <label className="inline-flex items-center gap-1.5 px-2 md:px-3 py-1 bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-text)] rounded-xl text-[10px] md:text-[11px] font-bold cursor-pointer hover:bg-[var(--brand-100)]/80 transition-colors">
                       <Upload className="w-3 h-3 md:w-3.5 md:h-3.5" />
                       <span>{isUploadingPhoto ? 'Mengunggah...' : 'Upload Foto'}</span>
                       <input type="file" accept="image/*" className="hidden" disabled={isUploadingPhoto} onChange={handleUploadMenuPhoto} />
@@ -826,11 +826,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">KATEGORI</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">KATEGORI</label>
                   <select
                     value={editingMenu.category || 'BAKSO'}
                     onChange={(e) => setEditingMenu({ ...editingMenu, category: e.target.value as any })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   >
                     {categoriesList.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -840,24 +840,24 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">HARGA</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">HARGA</label>
                     <input
                       type="number"
                       required
                       value={editingMenu.price ?? 28000}
                       onChange={(e) => setEditingMenu({ ...editingMenu, price: Number(e.target.value) })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">DESKRIPSI</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">DESKRIPSI</label>
                     <input
                       type="text"
                       placeholder="Deskripsi..."
                       value={editingMenu.description || ''}
                       onChange={(e) => setEditingMenu({ ...editingMenu, description: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                     />
                   </div>
                 </div>
@@ -868,9 +868,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     id="auto-stock-chk"
                     checked={editingMenu.isAutoStock !== false}
                     onChange={(e) => setEditingMenu({ ...editingMenu, isAutoStock: e.target.checked })}
-                    className="w-4 h-4 accent-orange-600 rounded cursor-pointer"
+                    className="w-4 h-4 accent-[var(--primary)] rounded cursor-pointer"
                   />
-                  <label htmlFor="auto-stock-chk" className="text-[10px] md:text-xs font-black text-slate-900 cursor-pointer uppercase">
+                  <label htmlFor="auto-stock-chk" className="text-[11px] md:text-xs font-bold text-slate-900 cursor-pointer uppercase">
                     GUNAKAN RESEP (AUTO-STOCK)
                   </label>
                 </div>
@@ -878,7 +878,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
               {/* RIGHT: RESEP & KOMPOSISI */}
               <div className="space-y-3 md:space-y-4">
-                <label className="text-xs font-black text-orange-600 uppercase tracking-wider block border-b border-orange-100 pb-1">
+                <label className="text-xs font-bold text-[var(--primary-text)] uppercase tracking-wider block border-b border-[var(--brand-200)] pb-1">
                   RESEP & KOMPOSISI
                 </label>
 
@@ -886,7 +886,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   <select
                     value={selectedRecipeMaterialId}
                     onChange={(e) => setSelectedRecipeMaterialId(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-slate-900 focus:bg-white text-slate-900"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
                   >
                     <option value="">Pilih Bahan...</option>
                     {(['MENU', 'DAPUR', 'KEMASAN'] as MaterialGroup[]).map((group) => {
@@ -906,13 +906,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     type="number"
                     value={selectedRecipeQty}
                     onChange={(e) => setSelectedRecipeQty(Number(e.target.value))}
-                    className="w-14 md:w-16 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-center outline-none focus:border-slate-900 focus:bg-white text-slate-900"
+                    className="w-14 md:w-16 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-center outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
                   />
 
                   <button
                     type="button"
                     onClick={handleAddIngredientToRecipe}
-                    className="w-8 h-8 md:w-9 md:h-9 bg-orange-600 hover:bg-orange-700 text-white rounded-xl md:rounded-2xl flex items-center justify-center font-black cursor-pointer shadow-xs shrink-0"
+                    className="w-8 h-8 md:w-9 md:h-9 bg-[var(--primary-solid)] hover:bg-[var(--primary-pressed)] text-white rounded-xl md:rounded-2xl flex items-center justify-center font-bold cursor-pointer shadow-xs shrink-0"
                   >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
@@ -925,9 +925,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                         key={ing.rawMaterialId}
                         className="bg-white border border-slate-200 rounded-xl p-2 md:p-2.5 flex items-center justify-between shadow-2xs"
                       >
-                        <span className="font-black text-[11px] md:text-xs text-slate-900">{ing.rawMaterialName}</span>
+                        <span className="font-bold text-[11px] md:text-xs text-slate-900">{ing.rawMaterialName}</span>
                         <div className="flex items-center gap-2 md:gap-3">
-                          <span className="font-black text-[10px] md:text-xs text-slate-600 font-mono">
+                          <span className="font-bold text-[11px] md:text-xs text-slate-600 font-mono">
                             {ing.amountNeeded} {ing.unit}
                           </span>
                           <button
@@ -941,7 +941,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                       </div>
                     ))
                   ) : (
-                    <div className="h-36 md:h-40 flex items-center justify-center text-[10px] md:text-xs font-bold text-slate-400 italic">
+                    <div className="h-36 md:h-40 flex items-center justify-center text-[11px] md:text-xs font-bold text-slate-400 italic">
                       Belum ada bahan baku dikonfigurasi pada resep ini.
                     </div>
                   )}
@@ -952,7 +952,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full py-3 md:py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs rounded-xl md:rounded-2xl shadow-md uppercase tracking-wider transition-all cursor-pointer"
+                className="w-full py-3 md:py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] active:scale-95 text-white font-bold text-xs rounded-xl md:rounded-2xl shadow-md uppercase tracking-wider transition-all cursor-pointer"
               >
                 Simpan Perubahan Menu
               </button>
@@ -963,11 +963,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* RIWAYAT PERGERAKAN STOK */}
       {ledgerMaterial && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
+        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
           <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-2xl font-sans text-slate-900 border border-slate-200 max-h-[88vh] flex flex-col">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3 gap-3">
               <div className="min-w-0">
-                <h2 className="text-sm font-black text-[#1A1714] uppercase tracking-tight truncate">
+                <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight truncate">
                   Riwayat Stok — {ledgerMaterial.name}
                 </h2>
                 <p className="text-[11px] font-bold text-slate-400 mt-0.5">
@@ -1007,20 +1007,20 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     return (
                       <div key={row.id} className="py-2.5 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] md:text-xs font-black text-[#1A1714]">
+                          <p className="text-[11px] md:text-xs font-bold text-[var(--text-primary)]">
                             {STOCK_MOVEMENT_LABELS[row.type] || row.type}
                           </p>
-                          <p className="text-[10px] font-bold text-slate-400">
+                          <p className="text-[11px] font-bold text-slate-400">
                             {new Date(row.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                             {row.reason ? ` · ${row.reason}` : ''}
                           </p>
                         </div>
 
-                        <span className={`text-xs md:text-sm font-black tabular-nums shrink-0 ${isIn ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <span className={`text-xs md:text-sm font-bold tabular-nums shrink-0 ${isIn ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {isIn ? '+' : ''}{row.quantity.toLocaleString('id-ID')}
                         </span>
 
-                        <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0 w-24 text-right">
+                        <span className="text-[11px] font-bold text-slate-400 tabular-nums shrink-0 w-24 text-right">
                           {row.stockBefore.toLocaleString('id-ID')} → {row.stockAfter.toLocaleString('id-ID')}
                         </span>
                       </div>
@@ -1035,13 +1035,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* EDIT / TAMBAH BAHAN BAKU Modal */}
       {isRawModalOpen && editingRaw && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
+        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
           <form
             onSubmit={handleSaveRawForm}
             className="bg-white w-full max-w-md rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-2xl space-y-3 md:space-y-4 font-sans text-slate-900 border border-slate-200"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
                 {editingRaw.id ? 'EDIT BAHAN BAKU' : 'TAMBAH BAHAN BAKU'}
               </h2>
               <button
@@ -1055,7 +1055,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">KELOMPOK STOK</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">KELOMPOK STOK</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {([
                     { key: 'MENU' as const, label: 'Bahan Menu' },
@@ -1066,9 +1066,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                       key={key}
                       type="button"
                       onClick={() => setEditingRaw({ ...editingRaw, group: key, takeAwayUsagePerItem: key === 'KEMASAN' ? (editingRaw.takeAwayUsagePerItem || 1) : undefined })}
-                      className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-colors cursor-pointer ${
+                      className={`py-2 rounded-xl text-[11px] font-bold uppercase border transition-colors cursor-pointer ${
                         (editingRaw.group || 'DAPUR') === key
-                          ? 'bg-slate-900 text-white border-slate-900'
+                          ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
                           : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -1079,24 +1079,24 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">NAMA BAHAN BAKU</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">NAMA BAHAN BAKU</label>
                 <input
                   type="text"
                   required
                   placeholder="Contoh: Daging Sapi Urat, Keju, Minyak..."
                   value={editingRaw.name || ''}
                   onChange={(e) => setEditingRaw({ ...editingRaw, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">SATUAN</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">SATUAN</label>
                   <select
                     value={editingRaw.unit || 'pcs'}
                     onChange={(e) => setEditingRaw({ ...editingRaw, unit: e.target.value as any })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   >
                     <option value="pcs">PCS</option>
                     <option value="porsi">PORSI</option>
@@ -1110,52 +1110,52 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">STOK SAAT INI</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">STOK SAAT INI</label>
                   <input
                     type="number"
                     step="any"
                     value={editingRaw.stockQuantity ?? 10}
                     onChange={(e) => setEditingRaw({ ...editingRaw, stockQuantity: Number(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">BATAS MINIMUM</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">BATAS MINIMUM</label>
                   <input
                     type="number"
                     step="any"
                     value={editingRaw.minStockThreshold ?? 5}
                     onChange={(e) => setEditingRaw({ ...editingRaw, minStockThreshold: Number(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">BIAYA (RP/SATUAN)</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">BIAYA (RP/SATUAN)</label>
                   <input
                     type="number"
                     value={editingRaw.costPerUnit ?? 10000}
                     onChange={(e) => setEditingRaw({ ...editingRaw, costPerUnit: Number(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   />
                 </div>
               </div>
 
               {editingRaw.group === 'KEMASAN' && (
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">PEMAKAIAN PER ITEM BAWA PULANG</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PEMAKAIAN PER ITEM BAWA PULANG</label>
                   <input
                     type="number"
                     step="any"
                     min="0"
                     value={editingRaw.takeAwayUsagePerItem ?? 1}
                     onChange={(e) => setEditingRaw({ ...editingRaw, takeAwayUsagePerItem: Number(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-black text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                   />
-                  <p className="text-[9px] font-bold text-slate-400 mt-1">
+                  <p className="text-[10px] font-bold text-slate-400 mt-1">
                     Stok berkurang otomatis sebanyak angka ini untuk setiap item pesanan bawa pulang.
                   </p>
                 </div>
@@ -1165,7 +1165,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full py-3 md:py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl md:rounded-2xl shadow-md uppercase tracking-wider transition-all cursor-pointer"
+                className="w-full py-3 md:py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs rounded-xl md:rounded-2xl shadow-md uppercase tracking-wider transition-all cursor-pointer"
               >
                 Simpan Bahan Baku
               </button>

@@ -42,22 +42,22 @@ export const CustomerSelfOrderModal: React.FC<CustomerSelfOrderModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4 overflow-y-auto animate-fadeIn">
+    <div className="theme-self-order animate-fadeIn fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-600/30 p-0 backdrop-blur-sm md:p-4">
       {/* Modal Shell */}
-      <div className="relative w-full max-w-[460px] bg-slate-900 md:rounded-[48px] shadow-2xl flex flex-col max-h-screen md:max-h-[920px] overflow-hidden">
+      <div className="relative flex max-h-screen w-full max-w-[460px] flex-col overflow-hidden bg-white shadow-2xl md:max-h-[920px] md:rounded-[32px]">
         
         {/* Top Floating Modal Bar for Cashier Control */}
-        <div className="bg-slate-900 text-white px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0 z-50">
+        <div className="z-50 flex shrink-0 items-center justify-between border-b border-orange-100 bg-white px-4 py-3 text-slate-800">
           <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-orange-400" />
-            <span className="text-xs font-black tracking-wide text-slate-200">
+            <Smartphone className="h-4 w-4 text-orange-500" />
+            <span className="text-xs font-bold tracking-wide text-slate-700">
               Simulasi Tampilan HP Customer (Meja #{tableNumber})
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all cursor-pointer"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-orange-100 bg-orange-50 text-orange-700 transition-all hover:bg-orange-100"
             title="Tutup Simulasi"
           >
             <X className="w-4 h-4" />

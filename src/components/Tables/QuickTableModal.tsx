@@ -86,26 +86,26 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in font-sans">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 bg-slate-600/30 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in font-sans">
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-[var(--panel-border)] bg-white shadow-[0_24px_70px_rgba(26,23,20,0.20)]">
         
         {/* MODAL HEADER */}
-        <div className="bg-slate-900/90 border-b border-slate-800 p-4 md:p-5 flex items-center justify-between shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--panel-border)] bg-white p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#EA580C] text-white flex items-center justify-center font-bold shadow-lg shadow-orange-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-lg shadow-orange-500/30">
               <Grid2X2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">
+                <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)] md:text-xl">
                   Pengelolaan & Status Meja Resto
                 </h2>
-                <span className="bg-[#EA580C]/20 text-orange-300 border border-[#EA580C]/40 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                  MODAL POP-UP
+                <span className="rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--primary-hover)]">
+                  Monitor cepat
                 </span>
               </div>
-              <p className="text-[#B8B0A8] text-xs font-medium mt-0.5">
-                Indikator visual real-time: <span className="text-emerald-400 font-bold">HIJAU = KOSONG</span> | <span className="text-rose-400 font-bold">MERAH = TERISI</span>. Klik kotak meja untuk ubah status atau pilih order.
+              <p className="mt-0.5 text-xs font-medium text-[var(--text-secondary)]">
+                <span className="font-bold text-emerald-600">Hijau = kosong</span> · <span className="font-bold text-rose-600">Merah = terisi</span>. Pilih kartu meja untuk tindakan cepat.
               </p>
             </div>
           </div>
@@ -113,19 +113,20 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-800 text-[#B8B0A8] hover:text-white hover:bg-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0"
+            className="ui-icon-button h-9 w-9 cursor-pointer rounded-xl"
+            aria-label="Tutup pengelolaan meja"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* QUICK CONTROL SUMMARY BAR */}
-        <div className="bg-slate-950/80 px-4 py-3 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--panel-border)] bg-[var(--surface-secondary)] px-4 py-3">
           {/* Status Counters */}
           <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
-            <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
-              <span className="text-[#B8B0A8] text-[11px]">Total:</span>
-              <span className="text-white font-bold">{tables.length} Meja</span>
+            <div className="flex items-center gap-1.5 rounded-xl border border-[var(--panel-border)] bg-white px-3 py-1.5">
+              <span className="text-[var(--text-tertiary)] text-[11px]">Total:</span>
+              <span className="font-bold text-[var(--text-primary)]">{tables.length} meja</span>
             </div>
 
             <button
@@ -134,7 +135,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
                 filterMode === 'FREE'
                   ? 'bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/30'
-                  : 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/40'
+                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
               }`}
             >
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -147,7 +148,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
                 filterMode === 'OCCUPIED'
                   ? 'bg-rose-600 text-white border-rose-500 ring-2 ring-rose-500/30'
-                  : 'bg-rose-950/40 text-rose-300 border-rose-800/60 hover:bg-rose-900/40'
+                  : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
               }`}
             >
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
@@ -158,7 +159,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               <button
                 type="button"
                 onClick={() => setFilterMode('ALL')}
-                className="text-[11px] text-[#B8B0A8] hover:text-white underline cursor-pointer"
+                className="cursor-pointer text-[11px] font-semibold text-[var(--primary-hover)] hover:underline"
               >
                 Lihat Semua
               </button>
@@ -182,7 +183,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border ${
                   confirmingReset
                     ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-white hover:bg-[var(--primary-soft)] text-[var(--text-secondary)] border-[var(--panel-border)]'
                 }`}
               >
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
@@ -194,9 +195,9 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleAllSelfOrder(true)}
-                className="bg-[#EA580C]/30 hover:bg-[#C2410C]/50 text-orange-300 border border-[#EA580C]/40 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                className="bg-[var(--primary)]/30 hover:bg-[var(--primary-hover)]/50 text-[var(--primary-text)] border border-[var(--primary)]/40 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
-                <Smartphone className="w-3.5 h-3.5 text-orange-300" />
+                <Smartphone className="w-3.5 h-3.5 text-[var(--primary-text)]" />
                 <span>Self-Order ON Semua</span>
               </button>
             )}
@@ -216,28 +217,28 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         {isAddingTable && (
           <form
             onSubmit={handleAddTableSubmit}
-            className="bg-slate-950 p-4 border-b border-slate-800 flex flex-wrap items-end gap-3 animate-fade-in"
+            className="animate-fade-in flex flex-wrap items-end gap-3 border-b border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4"
           >
             <div className="flex-1 min-w-[140px]">
-              <label className="block text-[11px] font-bold text-slate-300 mb-1">Nomor / Nama Meja Baru *</label>
+              <label className="mb-1 block text-[11px] font-bold text-[var(--text-secondary)]">Nomor / nama meja baru *</label>
               <input
                 type="text"
                 required
                 placeholder="Misal: 09 atau VIP-1"
                 value={newTableNum}
                 onChange={(e) => setNewTableNum(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-[#EA580C]"
+                className="ui-input w-full bg-white px-3 text-xs font-bold"
               />
             </div>
             <div className="w-28">
-              <label className="block text-[11px] font-bold text-slate-300 mb-1">Kapasitas (Orang)</label>
+              <label className="mb-1 block text-[11px] font-bold text-[var(--text-secondary)]">Kapasitas</label>
               <input
                 type="number"
                 min={1}
                 max={20}
                 value={newTableCap}
                 onChange={(e) => setNewTableCap(parseInt(e.target.value) || 4)}
-                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-[#EA580C] text-center"
+                className="ui-input w-full bg-white px-3 text-center text-xs font-bold"
               />
             </div>
             <button
@@ -249,7 +250,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
             <button
               type="button"
               onClick={() => setIsAddingTable(false)}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer"
+              className="ui-button ui-button-secondary min-h-9 cursor-pointer px-3 text-xs"
             >
               Batal
             </button>
@@ -269,71 +270,71 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                   key={table.id}
                   className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-lg ${
                     isOccupied
-                      ? 'bg-rose-950/40 border-rose-500/80 text-white hover:border-rose-400 ring-1 ring-rose-500/30'
-                      : 'bg-emerald-950/40 border-emerald-500/80 text-white hover:border-emerald-400 ring-1 ring-emerald-500/30'
+                      ? 'bg-[#FFF0F1] border-[#F3CBD0] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
+                      : 'bg-[#EAF8F1] border-[#CCEBDC] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
                   }`}
                 >
                   {/* Top Header Card */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-base font-bold tracking-tight text-white">
+                        <span className="text-base font-bold tracking-tight text-[var(--text-primary)]">
                           MEJA {table.number}
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#B8B0A8] font-medium">
+                      <span className="text-[11px] font-medium text-[var(--text-secondary)]">
                         Kapasitas: {table.capacity} Org
                       </span>
                     </div>
 
                     {/* Status Pill Indicator */}
                     <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs ${
                         isOccupied
                           ? 'bg-rose-600 text-white'
-                          : 'bg-emerald-500 text-slate-950'
+                          : 'bg-emerald-600 text-white'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOccupied ? 'bg-white animate-pulse' : 'bg-slate-950'}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${isOccupied ? 'animate-pulse bg-white' : 'bg-white'}`} />
                       {isOccupied ? 'MERAH (TERISI)' : 'HIJAU (KOSONG)'}
                     </span>
                   </div>
 
                   {/* Body Content */}
-                  <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 text-[11px] space-y-1">
+                  <div className="space-y-1 rounded-xl border border-white/80 bg-white/80 p-2.5 text-[11px]">
                     {isOccupied ? (
                       <div>
-                        <div className="flex items-center justify-between text-rose-300 font-semibold text-[10px]">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-rose-600">
                           <span>ORDER ACTIVE</span>
                           <span className="font-mono">{activeOrderOnTable?.orderNumber || '#ACTIVE'}</span>
                         </div>
-                        <p className="font-bold text-white truncate mt-0.5">
+                        <p className="mt-0.5 truncate font-bold text-[var(--text-primary)]">
                           {activeOrderOnTable?.customerName || 'Tamu Resto'}
                         </p>
-                        <p className="text-[9px] text-[#B8B0A8] font-medium">
+                        <p className="text-[10px] text-[var(--text-tertiary)] font-medium">
                           Total: Rp {(activeOrderOnTable?.total || 0).toLocaleString('id-ID')}
                         </p>
                       </div>
                     ) : (
                       <div className="text-center py-1">
-                        <p className="text-emerald-400 font-bold text-xs">SIAP DIGUNAKAN</p>
-                        <p className="text-[9px] text-[#B8B0A8]">Meja belum ada pemesan</p>
+                        <p className="text-xs font-bold text-emerald-700">Siap digunakan</p>
+                        <p className="text-[10px] text-[var(--text-tertiary)]">Meja belum ada pemesan</p>
                       </div>
                     )}
                   </div>
 
                   {/* Self Order Toggle Button */}
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px] font-bold">
-                    <span className="text-[#B8B0A8] flex items-center gap-1">
-                      <Smartphone className="w-3 h-3 text-orange-300" /> HP QR:
+                  <div className="flex items-center justify-between border-t border-white/80 pt-1 text-[11px] font-bold">
+                    <span className="text-[var(--text-tertiary)] flex items-center gap-1">
+                      <Smartphone className="w-3 h-3 text-[var(--primary-text)]" /> HP QR:
                     </span>
                     <button
                       type="button"
                       onClick={() => onToggleSelfOrder(table.number, !table.isSelfOrderEnabled)}
                       className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
                         table.isSelfOrderEnabled
-                          ? 'bg-[#EA580C] text-white'
-                          : 'bg-slate-800 text-[#B8B0A8] hover:bg-slate-700'
+                          ? 'bg-[var(--primary)] text-white'
+                          : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--primary-soft)]'
                       }`}
                       title="Toggle Akses Self-Order dari HP Customer"
                     >
@@ -348,7 +349,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         <button
                           type="button"
                           onClick={() => onClearTableStatus(table.number)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
                           title="Ubah status meja menjadi Kosong (Hijau)"
                         >
                           <Unlock className="w-3 h-3" />
@@ -363,7 +364,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                               onClose();
                             }
                           }}
-                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
                           title="Buka order meja ini di kasir"
                         >
                           <ShoppingBag className="w-3 h-3" />
@@ -381,7 +382,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                               onClearTableStatus(table.number);
                             }
                           }}
-                          className="w-full bg-rose-900/80 hover:bg-rose-800 text-rose-200 font-semibold text-[10px] py-1.5 rounded-xl transition-all border border-rose-700/50 flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-rose-900/80 hover:bg-rose-800 text-rose-200 font-semibold text-[11px] py-1.5 rounded-xl transition-all border border-rose-700/50 flex items-center justify-center gap-1 cursor-pointer"
                           title="Tandai meja terisi (Merah)"
                         >
                           <Lock className="w-3 h-3" />
@@ -396,7 +397,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                               onClose();
                             }
                           }}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
                           title="Pilih meja ini untuk transaksi POS baru"
                         >
                           <Check className="w-3 h-3 stroke-[3]" />
@@ -412,7 +413,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         </div>
 
         {/* MODAL FOOTER */}
-        <div className="bg-slate-900 border-t border-slate-800 p-3.5 md:p-4 flex items-center justify-between shrink-0 text-xs font-medium text-[#B8B0A8]">
+        <div className="flex shrink-0 items-center justify-between border-t border-[var(--panel-border)] bg-white p-3.5 text-xs font-medium text-[var(--text-secondary)] md:p-4">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Hijau = Kosong</span>
@@ -423,7 +424,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="bg-[#EA580C] hover:bg-orange-1000 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-lg shadow-orange-500/30 cursor-pointer"
+            className="ui-button ui-button-primary cursor-pointer px-6"
           >
             Tutup Modal
           </button>

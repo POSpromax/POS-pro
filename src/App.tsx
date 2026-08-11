@@ -1009,15 +1009,15 @@ export default function App() {
     const selfOrderTables = tables.filter((table) => !table.branchId || table.branchId === selfOrderBranch.id);
     const selfOrderOrders = orders.filter((order) => !order.branchId || order.branchId === selfOrderBranch.id);
     return (
-      <div className="w-screen h-screen overflow-hidden bg-slate-950 flex flex-col relative">
+      <div className="w-screen h-screen overflow-hidden bg-[var(--canvas-bg)] flex flex-col relative">
         {/* Cashier return floating bar if logged in as cashier */}
         {!isSelfOrderUrlParam && (
-          <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between text-xs text-slate-300 z-50">
+          <div className="bg-white border-b border-[var(--panel-border)] px-4 py-2 flex items-center justify-between text-xs text-[var(--text-secondary)] z-50">
             <span className="font-bold text-orange-400">📱 Mode Tampilan Customer Self-Order QR</span>
             <button
               type="button"
               onClick={() => setActiveTab('pos')}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-xl font-bold transition-all cursor-pointer"
+              className="bg-[var(--primary-solid)] hover:bg-[var(--primary-pressed)] text-white px-3 py-1 rounded-xl font-bold transition-all cursor-pointer"
             >
               ← Kembali ke POS Kasir
             </button>
@@ -1119,11 +1119,11 @@ export default function App() {
   // Attendance kiosks intentionally run outside the administrative/POS shell.
   if (isAttendanceTerminal) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F3F3F2] text-[#181715]">
+      <div className="flex min-h-screen flex-col bg-[var(--canvas-bg)] text-[var(--text-primary)]">
         <div className="flex h-16 items-center justify-between border-b border-[#E2E2E2] bg-white px-5">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#C2410C]">Terminal absensi</p>
-            <p className="text-sm font-black">{currentBranch.name}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--primary-hover)]">Terminal absensi</p>
+            <p className="text-sm font-bold">{currentBranch.name}</p>
           </div>
           <button type="button" onClick={() => void logoutTerminal()} className="rounded-xl border border-[#E2E2E2] bg-white px-4 py-2 text-xs font-bold hover:bg-[#F5F5F5]">
             Selesai & logout
@@ -1155,7 +1155,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F5F6] font-sans antialiased text-[#17202A]">
+    <div className="app-shell flex h-screen w-screen overflow-hidden font-sans antialiased">
       <PWAUpdatePrompt />
       {toastNotification && (
         // Ditaruh di tengah bawah: tombol aksi kasir ada di sisi bawah layar,
@@ -1163,14 +1163,14 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1714] text-white pl-4 pr-5 py-3 rounded-2xl shadow-2xl border border-white/10 animate-fadeIn flex items-center gap-3 max-w-[92vw]"
+          className="animate-fadeIn fixed bottom-6 left-1/2 z-[60] flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-white py-3 pl-3 pr-5 text-[var(--text-primary)] shadow-[0_18px_48px_rgba(26,23,20,0.16)]"
         >
-          <div className="w-7 h-7 rounded-full bg-[#EA580C] flex items-center justify-center shrink-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]">
             <CheckCircle2 className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-xs text-orange-300">{toastNotification.title}</p>
-            <p className="text-[11px] text-white/70 font-medium">{toastNotification.message}</p>
+            <p className="text-xs font-bold text-[var(--text-primary)]">{toastNotification.title}</p>
+            <p className="text-[11px] font-medium text-[var(--text-secondary)]">{toastNotification.message}</p>
           </div>
         </div>
       )}
@@ -1342,20 +1342,20 @@ export default function App() {
 
           {activeTab === 'selforder' && (
             <div className="ui-surface flex-1 overflow-y-auto p-5">
-              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-[18px] border border-[#E2E5E9] bg-[#FCFCFB] px-5 py-4 shadow-sm">
+              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-[18px] border border-[var(--panel-border)] bg-[var(--surface-card)] px-5 py-4 shadow-sm">
                 <div>
-                  <h2 className="text-base font-black text-[#1A1714]">Pratinjau Landing Self-Order</h2>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">Pratinjau Landing Self-Order</h2>
                   <p className="mt-0.5 text-[11px] font-medium text-[#8E8882]">Pratinjau admin tetap berada di portal Owner. Halaman pelanggan dibuka terpisah.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => window.open(`/?selforder&branch=${encodeURIComponent(currentBranch.id)}&table=01`, '_blank', 'noopener,noreferrer')}
-                  className="rounded-xl bg-[#17202A] px-4 py-2 text-[10px] font-bold text-white hover:bg-[#24303C]"
+                  className="rounded-xl bg-[var(--primary)] px-4 py-2 text-[11px] font-bold text-white hover:bg-[var(--primary-hover)]"
                 >
                   Buka Halaman Publik
                 </button>
               </div>
-              <div className="mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-[28px] border-[8px] border-[#1C1B19] bg-white shadow-xl">
+              <div className="theme-self-order mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-[28px] border-[8px] border-[var(--panel-border-strong)] bg-white shadow-xl">
                 <div className="h-full overflow-y-auto">
                   <SelfOrderLandingPage
                     tables={branchTables}
@@ -1487,9 +1487,9 @@ export default function App() {
           {activeTab === 'payroll' && (
             <div className="ui-surface flex-1 overflow-y-auto p-4 md:p-6">
               <div className="mx-auto max-w-7xl">
-                <div className="mb-5 rounded-[20px] border border-[#E2E5E9] bg-[#FCFCFB] p-5 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D85F00]">Owner Finance</p>
-                  <h1 className="mt-1 text-2xl font-black text-[#17202A]">Payroll & Penggajian Staff</h1>
+                <div className="mb-5 rounded-[20px] border border-[var(--panel-border)] bg-[var(--surface-card)] p-5 shadow-sm">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--primary-hover)]">Owner Finance</p>
+                  <h1 className="mt-1 text-2xl font-bold text-[var(--text-primary)]">Payroll & Penggajian Staff</h1>
                   <p className="mt-1 text-xs font-semibold text-slate-500">Atur gaji pokok, tunjangan, lembur, dan potongan keterlambatan per outlet.</p>
                 </div>
                 <AttendanceHrPanel activeUser={activeUser} staffAccounts={staffAccounts} currentBranch={currentBranch} attendanceRecords={branchAttendanceRecords} terminalMode={false} initialTab="PAYROLL" onShowToast={showPushToast} />

@@ -27,16 +27,16 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
   const totalCount = tables.length;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="theme-self-order fixed inset-0 z-50 flex items-center justify-center bg-slate-600/30 p-4 backdrop-blur-sm">
       <div className="bg-white w-full max-w-md sm:max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-black/5 flex flex-col animate-in fade-in zoom-in-95 duration-200 font-sans">
         
         {/* Header matching Image 2 */}
         <div className="p-6 pb-4 bg-white flex items-start justify-between shrink-0">
           <div>
-            <span className="text-[11px] font-black tracking-wider text-slate-400 uppercase block mb-0.5">
+            <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-0.5">
               CUSTOMER ORDER
             </span>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manajemen Meja</h2>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Manajemen Meja</h2>
             <p className="text-xs font-semibold text-slate-500 mt-1 leading-relaxed">
               Hanya mengatur meja untuk customer order, POS kasir tetap bebas.
             </p>
@@ -74,7 +74,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 />
               </button>
               <span
-                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider ${
+                className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider ${
                   isSelfOrderSystemEnabled ? 'bg-[#FFF4EE] text-[#C94716]' : 'bg-slate-200 text-slate-600'
                 }`}
               >
@@ -88,7 +88,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
             
             {/* Control & Active Counter Header */}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-black text-slate-700">
+              <span className="text-xs font-bold text-slate-700">
                 Meja aktif: <span className="text-slate-900">{activeCount}/{totalCount}</span>
               </span>
 
@@ -96,7 +96,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 <button
                   type="button"
                   onClick={() => onToggleAllTables(true)}
-                  className="px-3.5 py-1.5 bg-[#1C1B19] hover:bg-black text-white font-black text-xs rounded-full shadow-2xs transition-all cursor-pointer"
+                  className="cursor-pointer rounded-full bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition-all hover:bg-orange-700"
                 >
                   Aktifkan semua
                 </button>
@@ -126,7 +126,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                         : 'bg-white text-slate-400 border-slate-200 opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <span className="text-xs sm:text-sm font-black">{tbl.number}</span>
+                    <span className="text-xs sm:text-sm font-bold">{tbl.number}</span>
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
                         isEnabled ? 'bg-[#EA580C]' : 'bg-slate-300'

@@ -1,0 +1,104 @@
+/* Bahasa desain: oranye tunggal di atas putih.
+   Aksen dipakai hemat — tombol utama, angka penting, item aktif. Hijau/merah
+   hanya untuk makna (stok aman, batal, naik-turun), bukan hiasan. */
+:root {
+  color-scheme: light;
+
+  --brand-50: #fff7ed;
+  --brand-100: #ffedd5;
+  --brand-200: #fed7aa;
+  --brand-300: #fdba74;
+  --brand-400: #fb923c;
+  --brand-500: #f97316;
+  --brand-600: #ea580c;
+  --brand-700: #c2410c;
+  --brand-800: #9a3412;
+  --brand-900: #7c2d12;
+
+  --primary: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --primary-pressed: var(--brand-800);
+  --primary-light: var(--brand-500);
+  --primary-gradient: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  --primary-soft: var(--brand-50);
+  --primary-border: var(--brand-200);
+  /* Teks aksen di atas latar terang: brand-600 hanya 3.6:1, di bawah ambang
+     terbaca. brand-700 mencapai 5.2:1 dan tetap terbaca oranye. */
+  --primary-text: var(--brand-700);
+  /* Latar tombol berteks putih kecil. brand-600 memberi 3.6:1 — cukup untuk
+     angka besar, kurang untuk label 12px yang dibaca kasir sepanjang shift. */
+  --primary-solid: var(--brand-700);
+
+  --canvas-bg: #f7f7f8;
+  --canvas-bg-start: #fafafa;
+  --canvas-bg-mid: #f5f5f6;
+  --canvas-bg-end: #fafafa;
+  --surface-main: #f7f7f8;
+  --surface-card: #ffffff;
+  --surface-secondary: #f4f4f5;
+  --surface-selected: var(--brand-50);
+  --surface-inverse: #1c1b19;
+
+  --panel-bg: #ffffff;
+  --panel-border: #eaeaec;
+  --panel-border-light: #f2f2f4;
+  --panel-border-strong: #d8d8dc;
+
+  --text-primary: #1a1714;
+  --text-secondary: #6b6b70;
+  --text-tertiary: #9a9aa0;
+  --text-inverse: #ffffff;
+
+  /* Hijau referensi (#16a34a) hanya 3.3:1 di atas putih — dipakai untuk label
+     kecil seperti "Stok Aman" jadi digelapkan sampai terbaca. */
+  --accent-green: #15803d;
+  --accent-amber: #f59e0b;
+  --accent-red: #dc2626;
+  --info-soft: var(--brand-50);
+  --success-soft: #f0fdf4;
+  --warning-soft: #fffbeb;
+  --danger-soft: #fef2f2;
+
+  --shadow-xs: 0 1px 2px rgb(26 23 20 / 4%);
+  --shadow-sm: 0 2px 10px rgb(26 23 20 / 5%);
+  --shadow-md: 0 12px 30px rgb(234 88 12 / 10%);
+  --shadow-lg: 0 20px 48px rgb(26 23 20 / 10%);
+  --card-shadow: var(--shadow-xs), var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-md);
+
+  /* Referensi memakai sudut yang jauh lebih bulat daripada bawaan Tailwind:
+     kartu ~20-28px, tombol pill penuh. */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+  --card-radius: 20px;
+  --card-radius-lg: 24px;
+  --card-radius-xl: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --transition-fast: 140ms ease;
+  --transition-smooth: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Layar pelanggan: warna merek sama, latarnya dihangatkan sedikit supaya
+   terasa berbeda dari terminal petugas tanpa memakai palet lain. */
+.theme-self-order {
+  --canvas-bg: #fffaf6;
+  --canvas-bg-start: #fffcfa;
+  --canvas-bg-mid: #fff6ef;
+  --canvas-bg-end: #fffaf7;
+  --surface-main: #fffaf6;
+  --surface-secondary: #fff4e9;
+  --panel-border: #f2e6da;
+  --panel-border-light: #f8f0e8;
+  --panel-border-strong: #e6d5c5;
+}

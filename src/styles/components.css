@@ -1,0 +1,172 @@
+.app-shell, .ui-surface { background: var(--surface-main); color: var(--text-primary); }
+.ui-page { min-height: 100%; background: var(--surface-main); }
+
+.ui-card, .ui-panel, .glass-panel, .ios-card {
+  border: 1px solid var(--panel-border);
+  background: var(--surface-card);
+  box-shadow: var(--card-shadow);
+}
+.ui-card, .ios-card { border-radius: var(--card-radius); }
+.ui-panel, .glass-panel { border-radius: var(--card-radius-lg); }
+.ui-card-interactive, .ios-card {
+  transition: border-color var(--transition-fast), box-shadow var(--transition-smooth), transform var(--transition-smooth);
+}
+.ui-card-interactive:hover, .ios-card:hover {
+  border-color: var(--brand-200);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* Kartu sorotan: satu angka penting di atas oranye penuh, sisanya tetap putih.
+   Efeknya hilang kalau dipakai di banyak kartu sekaligus. */
+.ui-card-feature {
+  border: 1px solid var(--brand-600);
+  border-radius: var(--card-radius);
+  background: var(--primary-gradient);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-md);
+}
+.ui-card-feature .ui-stat-label { color: rgb(255 255 255 / 78%); }
+.ui-card-feature .ui-stat-value { color: var(--text-inverse); }
+
+/* Label kecil di atas, angka besar di bawah — urutan baca dari referensi. */
+.ui-stat-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ui-stat-value {
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.ui-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 0 18px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+.ui-button:hover:not(:disabled) { transform: translateY(-1px); }
+.ui-button:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+.ui-button:disabled { cursor: not-allowed; opacity: 0.48; }
+.ui-button-primary {
+  border-color: var(--primary-solid);
+  background: var(--primary-solid);
+  color: var(--text-inverse);
+  box-shadow: 0 7px 18px rgb(234 88 12 / 22%);
+}
+.ui-button-primary:hover:not(:disabled) { border-color: var(--primary-pressed); background: var(--primary-pressed); }
+.ui-button-secondary { border-color: var(--panel-border); background: var(--surface-card); color: var(--text-primary); }
+.ui-button-secondary:hover:not(:disabled) { border-color: var(--brand-200); background: var(--brand-50); color: var(--primary-text); }
+.ui-button-soft { border-color: var(--primary-border); background: var(--primary-soft); color: var(--primary-text); }
+.ui-button-danger { border-color: #fecaca; background: var(--danger-soft); color: #b91c1c; }
+
+.ui-icon-button {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+.ui-icon-button:hover { border-color: var(--brand-200); background: var(--brand-50); color: var(--primary-text); }
+
+.ui-input {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  padding: 0 14px;
+  font-size: 13px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.ui-input:hover { border-color: var(--panel-border-strong); }
+.ui-input:focus { border-color: var(--brand-400); background: var(--surface-card); box-shadow: 0 0 0 3px rgb(234 88 12 / 12%); outline: none; }
+.ui-input::placeholder { color: var(--text-tertiary); }
+
+/* Filter periode dan sejenisnya: deretan pill, yang aktif berlatar gelap. */
+.ui-tabs, .ios-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  padding: 4px;
+}
+.ui-tab, .ios-segmented-item-active {
+  min-height: 34px;
+  border-radius: var(--radius-pill);
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.ui-tab-active, .ios-segmented-item-active {
+  background: var(--surface-inverse);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-badge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  padding: 2px 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ui-badge-info { border-color: var(--primary-border); background: var(--info-soft); color: var(--primary-text); }
+.ui-badge-success { border-color: #bbf7d0; background: var(--success-soft); color: var(--accent-green); }
+.ui-badge-warning { border-color: #fde68a; background: var(--warning-soft); color: #b45309; }
+.ui-badge-danger { border-color: #fecaca; background: var(--danger-soft); color: #b91c1c; }
+
+.ui-skeleton {
+  background: linear-gradient(90deg, #eeeef0 25%, #f8f8f9 50%, #eeeef0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.ui-empty-state {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--panel-border-strong);
+  border-radius: var(--card-radius-lg);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  text-align: center;
+}
+.active-indicator { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; }
+
+@media (max-width: 767px) {
+  .ui-button { min-height: 44px; }
+  .ui-icon-button { width: 44px; height: 44px; }
+}

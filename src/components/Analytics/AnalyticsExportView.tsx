@@ -230,11 +230,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   };
 
   return (
-    <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none space-y-6 text-[#17202A]">
+    <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none space-y-6 text-[var(--text-primary)]">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-7 h-7 text-[#C2410C]" />
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-2">
+            <TrendingUp className="w-7 h-7 text-[var(--primary-hover)]" />
             Dashboard Monitoring & Analitik Laporan
           </h1>
           <p className="text-xs text-slate-500 font-bold mt-1">
@@ -246,7 +246,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-black shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Download className="w-4 h-4" /> Export CSV Transaksi
           </button>
@@ -254,7 +254,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handlePrintPDF}
-            className="px-4 py-2.5 bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 text-white rounded-full text-xs font-black shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2.5 bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" /> Cetak Laporan PDF
           </button>
@@ -264,7 +264,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {/* Rentang waktu — memotong seluruh metrik, tabel, dan export di halaman ini */}
       <div className="flex flex-col gap-2 -mt-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
             <Calendar className="w-3.5 h-3.5" /> Periode
           </span>
 
@@ -276,9 +276,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 onClick={() => setPeriod(key)}
                 title={hint}
                 aria-pressed={period === key}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
                   period === key
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-[var(--primary)] text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -298,35 +298,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('OVERVIEW')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'OVERVIEW'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <BarChart3 className="w-4 h-4 text-orange-400" />
+          <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
           Ringkasan & Grafik
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('TOP_ITEMS')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'TOP_ITEMS'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <Flame className="w-4 h-4 text-amber-400" />
+          <Flame className="w-4 h-4 text-[var(--brand-300)]" />
           Menu Terlaris ({topSellingList.length})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('VOID')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'VOID'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -337,35 +337,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('TAX_DISCOUNT')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'TAX_DISCOUNT'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <Receipt className="w-4 h-4 text-orange-300" />
+          <Receipt className="w-4 h-4 text-[var(--primary-text)]" />
           Pajak & Diskon
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('SHIFT_HISTORY')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'SHIFT_HISTORY'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <History className="w-4 h-4 text-orange-300" />
+          <History className="w-4 h-4 text-[var(--primary-text)]" />
           Histori Shift ({shifts.length})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('ATTENDANCE_HISTORY')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'ATTENDANCE_HISTORY'
-              ? 'bg-[#1A1714] text-white shadow-sm'
+              ? 'bg-[var(--primary)] text-white shadow-sm'
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -377,46 +377,46 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TOTAL OMSET HARI INI</p>
-              <p className="text-2xl font-black text-[#C2410C]">Rp {grossOmset.toLocaleString('id-ID')}</p>
-              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TOTAL OMSET HARI INI</p>
+              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {grossOmset.toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-0.5">
                 <ArrowUpRight className="w-3 h-3" /> Bersih (ex. tax): Rp {netOmset.toLocaleString('id-ID')}
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">STRUK TRANSAKSI LUNAS</p>
-              <p className="text-2xl font-black text-slate-900">{totalTransactions} <span className="text-xs font-bold text-slate-400">Order</span></p>
-              <span className="text-[10px] font-bold text-[#C2410C] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
+            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">STRUK TRANSAKSI LUNAS</p>
+              <p className="text-2xl font-bold text-slate-900">{totalTransactions} <span className="text-xs font-bold text-slate-400">Order</span></p>
+              <span className="text-[11px] font-bold text-[var(--primary-hover)] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">METODE TUNAI (CASH)</p>
-              <p className="text-2xl font-black text-emerald-600">Rp {cashTotal.toLocaleString('id-ID')}</p>
-              <span className="text-[10px] font-bold text-slate-400 block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
+            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE TUNAI (CASH)</p>
+              <p className="text-2xl font-bold text-emerald-600">Rp {cashTotal.toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-slate-400 block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">METODE NON-TUNAI (QRIS/DEBIT)</p>
-              <p className="text-2xl font-black text-[#C2410C]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
-              <span className="text-[10px] font-bold text-slate-400 block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
+            <div className="bg-white p-5 rounded-3xl border border-[var(--panel-border)] shadow-2xs space-y-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE NON-TUNAI (QRIS/DEBIT)</p>
+              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-slate-400 block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-orange-500" />
+                <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
+                  <PieChart className="w-4 h-4 text-[var(--primary-text)]" />
                   Distribusi Metode Pembayaran
                 </h2>
-                <span className="text-[10px] font-black text-slate-400 uppercase">Real-time</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Real-time</span>
               </div>
 
               <div className="space-y-3 pt-2">
                 <div>
-                  <div className="flex justify-between text-xs font-black text-slate-700 mb-1">
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
                     <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"/> TUNAI (CASH)</span>
                     <span>Rp {cashTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
@@ -426,17 +426,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs font-black text-slate-700 mb-1">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#EA580C]"/> QRIS (E-WALLET & M-BANKING)</span>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]"/> QRIS (E-WALLET & M-BANKING)</span>
                     <span>Rp {qrisTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((qrisTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div className="bg-[#EA580C] h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%` }} />
+                    <div className="bg-[var(--primary)] h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%` }} />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs font-black text-slate-700 mb-1">
+                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
                     <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"/> DEBIT / KREDIT EDC</span>
                     <span>Rp {debitTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((debitTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
@@ -447,13 +447,13 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-orange-500" />
+                <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[var(--primary-text)]" />
                   Grafik Analisis Jam Sibuk Penjualan (Peak Hours)
                 </h2>
-                <span className="text-[10px] font-black text-slate-400">07:00 - 22:00</span>
+                <span className="text-[11px] font-bold text-slate-400">07:00 - 22:00</span>
               </div>
 
               <div className="flex items-end gap-1.5 h-36 pt-4 px-2 border-b border-slate-100">
@@ -461,31 +461,31 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   const pct = Math.round((item.revenue / maxHourlyRevenue) * 100);
                   return (
                     <div key={item.hourLabel} className="flex-1 flex flex-col items-center gap-1 group relative">
-                      <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-bold p-1 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                      <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[10px] font-bold p-1 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
                         {item.hourLabel}: Rp {item.revenue.toLocaleString('id-ID')} ({item.count} order)
                       </div>
                       <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-28">
                         <div
-                          className="w-full bg-gradient-to-t from-orange-600 to-amber-400 rounded-t-md transition-all duration-500 group-hover:from-orange-500 group-hover:to-amber-300"
+                          className="w-full bg-gradient-to-t from-[var(--primary-solid)] to-[var(--primary-light)] rounded-t-md transition-all duration-500 group-hover:from-[var(--primary-solid)] group-hover:to-[var(--primary-light)]"
                           style={{ height: `${pct > 0 ? pct : 4}%` }}
                         />
                       </div>
-                      <span className="text-[8px] font-black text-slate-400 transform -rotate-45 origin-top-left mt-1">{item.hourLabel.slice(0, 2)}h</span>
+                      <span className="text-[10px] font-bold text-slate-400 transform -rotate-45 origin-top-left mt-1">{item.hourLabel.slice(0, 2)}h</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[10px] font-bold text-slate-400 text-center">Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.</p>
+              <p className="text-[11px] font-bold text-slate-400 text-center">Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.</p>
             </div>
 
             {/* Tren omset per tanggal */}
-            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-orange-500" />
+                <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
                   Tren Omset Harian
                 </h2>
-                <span className="text-[10px] font-black text-slate-400">{formatPeriodRange(period, periodRange)}</span>
+                <span className="text-[11px] font-bold text-slate-400">{formatPeriodRange(period, periodRange)}</span>
               </div>
 
               {dailyTrendData.length === 0 ? (
@@ -499,35 +499,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         const isBest = day.revenue === maxDailyRevenue;
                         return (
                           <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative min-w-[28px]">
-                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[10px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
                               {day.label}: Rp {day.revenue.toLocaleString('id-ID')} ({day.count} order)
                             </div>
                             <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-32">
                               <div
-                                className={`w-full rounded-t-md transition-all duration-500 ${isBest ? 'bg-orange-600' : 'bg-slate-800'}`}
+                                className={`w-full rounded-t-md transition-all duration-500 ${isBest ? 'bg-[var(--primary-solid)]' : 'bg-[var(--primary-hover)]'}`}
                                 style={{ height: `${pct > 0 ? pct : 4}%` }}
                               />
                             </div>
-                            <span className="text-[8px] font-black text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
+                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                  <p className="text-[10px] font-bold text-slate-400 text-center">Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.</p>
+                  <p className="text-[11px] font-bold text-slate-400 text-center">Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.</p>
                 </>
               )}
             </div>
 
             {/* Hari paling laris dalam seminggu */}
-            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+            <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-orange-500" />
+                <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
                   Hari Paling Laris
                 </h2>
                 {bestWeekday && bestWeekday.avgRevenue > 0 && (
-                  <span className="text-[10px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full">
+                  <span className="text-[11px] font-bold text-[var(--primary-text)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-2.5 py-1 rounded-full">
                     Tertinggi: {bestWeekday.name}
                   </span>
                 )}
@@ -542,23 +542,23 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     const isBest = bestWeekday && row.name === bestWeekday.name && row.avgRevenue > 0;
                     return (
                       <div key={row.name} className="flex items-center gap-3">
-                        <span className="w-14 shrink-0 text-[10px] font-black text-slate-500 uppercase">{row.name.slice(0, 3)}</span>
+                        <span className="w-14 shrink-0 text-[11px] font-bold text-slate-500 uppercase">{row.name.slice(0, 3)}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${isBest ? 'bg-orange-600' : 'bg-slate-800'}`}
+                            className={`h-full rounded-full transition-all duration-500 ${isBest ? 'bg-[var(--primary-solid)]' : 'bg-[var(--primary-hover)]'}`}
                             style={{ width: `${pct > 0 ? Math.max(pct, 2) : 0}%` }}
                           />
                         </div>
-                        <span className="w-32 shrink-0 text-right text-[10px] font-black text-slate-700 tabular-nums">
+                        <span className="w-32 shrink-0 text-right text-[11px] font-bold text-slate-700 tabular-nums">
                           Rp {row.avgRevenue.toLocaleString('id-ID')}
                         </span>
-                        <span className="w-16 shrink-0 text-right text-[9px] font-bold text-slate-400 tabular-nums">
+                        <span className="w-16 shrink-0 text-right text-[10px] font-bold text-slate-400 tabular-nums">
                           {row.count} order
                         </span>
                       </div>
                     );
                   })}
-                  <p className="text-[10px] font-bold text-slate-400 pt-1">
+                  <p className="text-[11px] font-bold text-slate-400 pt-1">
                     Angka adalah rata-rata omset per hari buka, bukan total — supaya hari yang lebih sering muncul dalam periode tidak otomatis terlihat paling laris.
                   </p>
                 </div>
@@ -569,10 +569,10 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'TOP_ITEMS' && (
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
+              <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
                 <Flame className="w-5 h-5 text-amber-500" />
                 Peringkat Menu Terlaris & Margin Profit
               </h2>
@@ -587,7 +587,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   placeholder="Cari nama menu..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-transparent outline-none text-xs font-black text-slate-900 w-32"
+                  className="bg-transparent outline-none text-xs font-bold text-slate-900 w-32"
                 />
               </div>
 
@@ -596,8 +596,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   key={cat}
                   type="button"
                   onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-black cursor-pointer transition-all ${
-                    categoryFilter === cat ? 'bg-orange-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all ${
+                    categoryFilter === cat ? 'bg-[var(--primary-solid)] text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {cat === 'ALL' ? 'Semua' : cat}
@@ -609,7 +609,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                   <th className="py-3 px-3">Peringkat</th>
                   <th className="py-3 px-3">Nama Menu</th>
                   <th className="py-3 px-3">Kategori</th>
@@ -629,24 +629,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     const profit = item.revenue - item.hppCost;
                     const marginPct = item.revenue > 0 ? Math.round((profit / item.revenue) * 100) : 0;
                     return (
-                      <tr key={item.name} className="hover:bg-orange-50/40 transition-colors">
-                        <td className="py-3 px-3 font-black">
-                          <span className={`w-6 h-6 rounded-lg text-white font-black text-xs inline-flex items-center justify-center ${
-                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-amber-700' : 'bg-slate-800'
+                      <tr key={item.name} className="hover:bg-[var(--brand-100)]/40 transition-colors">
+                        <td className="py-3 px-3 font-bold">
+                          <span className={`w-6 h-6 rounded-lg text-white font-bold text-xs inline-flex items-center justify-center ${
+                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-amber-700' : 'bg-[var(--primary-hover)]'
                           }`}>
                             #{idx + 1}
                           </span>
                         </td>
-                        <td className="py-3 px-3 font-black text-slate-900">{item.name}</td>
+                        <td className="py-3 px-3 font-bold text-slate-900">{item.name}</td>
                         <td className="py-3 px-3">
-                          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-black">{item.category}</span>
+                          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-bold">{item.category}</span>
                         </td>
-                        <td className="py-3 px-3 text-center font-black text-slate-900">{item.qty} porsi</td>
-                        <td className="py-3 px-3 text-right font-black text-emerald-600">Rp {item.revenue.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-center font-bold text-slate-900">{item.qty} porsi</td>
+                        <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {item.revenue.toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold text-slate-500">Rp {item.hppCost.toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right">
-                          <span className="font-black text-orange-600 block">Rp {profit.toLocaleString('id-ID')}</span>
-                          <span className="text-[9px] font-bold text-emerald-600">Margin {marginPct}%</span>
+                          <span className="font-bold text-[var(--primary-text)] block">Rp {profit.toLocaleString('id-ID')}</span>
+                          <span className="text-[10px] font-bold text-emerald-600">Margin {marginPct}%</span>
                         </td>
                       </tr>
                     );
@@ -662,24 +662,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-5 rounded-3xl border border-rose-200 bg-rose-50/40 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-rose-500 uppercase tracking-wider">TOTAL NOMINAL VOID</p>
-              <p className="text-2xl font-black text-rose-600">Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
-              <p className="text-[10px] font-bold text-slate-400">Total nilai pesanan yang dibatalkan</p>
+              <p className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">TOTAL NOMINAL VOID</p>
+              <p className="text-2xl font-bold text-rose-600">Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-slate-400">Total nilai pesanan yang dibatalkan</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-rose-200 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">JUMLAH TRANSAKSI VOID</p>
-              <p className="text-2xl font-black text-slate-900">{voidCount} <span className="text-xs text-slate-400 font-bold">Struk</span></p>
-              <p className="text-[10px] font-bold text-slate-400">Frekuensi pembatalan pesanan</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">JUMLAH TRANSAKSI VOID</p>
+              <p className="text-2xl font-bold text-slate-900">{voidCount} <span className="text-xs text-slate-400 font-bold">Struk</span></p>
+              <p className="text-[11px] font-bold text-slate-400">Frekuensi pembatalan pesanan</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">RASIO VOID vs TOTAL OMSET</p>
-              <p className="text-2xl font-black text-amber-600">{grossOmset > 0 ? ((totalVoidNominal / grossOmset) * 100).toFixed(1) : 0}%</p>
-              <p className="text-[10px] font-bold text-slate-400">Toleransi VOID ideal &lt; 2%</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RASIO VOID vs TOTAL OMSET</p>
+              <p className="text-2xl font-bold text-amber-600">{grossOmset > 0 ? ((totalVoidNominal / grossOmset) * 100).toFixed(1) : 0}%</p>
+              <p className="text-[11px] font-bold text-slate-400">Toleransi VOID ideal &lt; 2%</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
-            <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
+          <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <Ban className="w-5 h-5 text-rose-500" />
               Daftar Rincian Pesanan Dibatalkan (Void)
             </h2>
@@ -687,7 +687,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-bold">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                     <th className="py-3 px-3">No Order</th>
                     <th className="py-3 px-3">Tanggal / Waktu</th>
                     <th className="py-3 px-3">Customer / Meja</th>
@@ -704,14 +704,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   ) : (
                     voidOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-rose-50/30 transition-colors">
-                        <td className="py-3 px-3 font-black text-rose-600 font-mono">{o.orderNumber}</td>
+                        <td className="py-3 px-3 font-bold text-rose-600 font-mono">{o.orderNumber}</td>
                         <td className="py-3 px-3 text-slate-600">{new Date(o.createdAt).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-slate-900">{o.customerName} (Meja {o.tableNumber})</td>
                         <td className="py-3 px-3 text-slate-600">
                           {o.items.map((it) => `${it.quantity}x ${it.menuName}`).join(', ')}
                         </td>
                         <td className="py-3 px-3 text-slate-700">{o.cashierName || 'Kasir'}</td>
-                        <td className="py-3 px-3 text-right font-black text-rose-600">Rp {o.total.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold text-rose-600">Rp {o.total.toLocaleString('id-ID')}</td>
                       </tr>
                     ))
                   )}
@@ -725,33 +725,33 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'TAX_DISCOUNT' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-orange-200 bg-orange-50/40 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-[#C2410C] uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
-              <p className="text-2xl font-black text-[#C2410C]">Rp {totalTax.toLocaleString('id-ID')}</p>
-              <p className="text-[10px] font-bold text-slate-400">Pajak restoran yang terkumpul</p>
+            <div className="bg-white p-5 rounded-3xl border border-[var(--brand-200)] bg-[var(--brand-50)]/40 shadow-2xs space-y-1">
+              <p className="text-[11px] font-bold text-[var(--primary-hover)] uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
+              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {totalTax.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-slate-400">Pajak restoran yang terkumpul</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-amber-200 bg-amber-50/40 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider">TOTAL DISKON DIBERIKAN</p>
-              <p className="text-2xl font-black text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
-              <p className="text-[10px] font-bold text-slate-400">Potongan harga promo & voucher</p>
+              <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">TOTAL DISKON DIBERIKAN</p>
+              <p className="text-2xl font-bold text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-slate-400">Potongan harga promo & voucher</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">SUBTOTAL KOTOR (GROSS)</p>
-              <p className="text-2xl font-black text-slate-900">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
-              <p className="text-[10px] font-bold text-slate-400">Subtotal murni sebelum diskon & pajak</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SUBTOTAL KOTOR (GROSS)</p>
+              <p className="text-2xl font-bold text-slate-900">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-slate-400">Subtotal murni sebelum diskon & pajak</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
-            <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-[#C2410C]" />
+          <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
+            <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
               Audit Rincian Pajak & Diskon Per Struk
             </h2>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-bold">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                     <th className="py-3 px-3">No Order</th>
                     <th className="py-3 px-3">Waktu</th>
                     <th className="py-3 px-3 text-right">Subtotal</th>
@@ -768,12 +768,12 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   ) : (
                     paidOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-3 font-black font-mono text-slate-900">{o.orderNumber}</td>
+                        <td className="py-3 px-3 font-bold font-mono text-slate-900">{o.orderNumber}</td>
                         <td className="py-3 px-3 text-slate-600">{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {(o.subtotal || o.total).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold text-rose-600">-Rp {(o.discount || 0).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-[#C2410C]">+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-black text-emerald-600">Rp {o.total.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {o.total.toLocaleString('id-ID')}</td>
                       </tr>
                     ))
                   )}
@@ -785,11 +785,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'SHIFT_HISTORY' && (
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
-                <History className="w-5 h-5 text-[#C2410C]" />
+              <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+                <History className="w-5 h-5 text-[var(--primary-hover)]" />
                 Histori Shift Operasional & Rekonsiliasi Kas Laci
               </h2>
               <p className="text-xs font-bold text-slate-500">Log lengkap modal awal, pemasukan kasir, pengeluaran petty cash, & status shift.</p>
@@ -797,7 +797,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <button
               type="button"
               onClick={handleExportShiftCSV}
-              className="px-3 py-1.5 bg-[#EA580C] hover:bg-[#C2410C] text-white rounded-full text-xs font-black flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" /> Export Shift CSV
             </button>
@@ -806,7 +806,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                   <th className="py-3 px-3">ID Shift</th>
                   <th className="py-3 px-3">Kasir / Staf</th>
                   <th className="py-3 px-3">Mulai Shift</th>
@@ -826,16 +826,16 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 ) : (
                   shifts.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-3 font-mono font-black text-slate-900">{s.id}</td>
-                      <td className="py-3 px-3 font-black text-slate-900">{s.staffName} <span className="text-[10px] font-bold text-orange-600">({s.staffRole})</span></td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-900">{s.id}</td>
+                      <td className="py-3 px-3 font-bold text-slate-900">{s.staffName} <span className="text-[11px] font-bold text-[var(--primary-text)]">({s.staffRole})</span></td>
                       <td className="py-3 px-3 text-slate-600">{new Date(s.startTime).toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-slate-600">{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
                       <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {s.initialCash.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {s.cashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-[#C2410C]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-right font-bold text-rose-600">Rp {s.totalExpense.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                           s.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-600'
                         }`}>
                           {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
@@ -851,9 +851,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'ATTENDANCE_HISTORY' && (
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-[var(--panel-border)] shadow-2xs space-y-4">
           <div>
-            <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
+            <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-emerald-500" />
               Histori Presensi & Kehadiran Karyawan
             </h2>
@@ -863,7 +863,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                   <th className="py-3 px-3">Bukti Selfie</th>
                   <th className="py-3 px-3">Nama Karyawan</th>
                   <th className="py-3 px-3">Role / Jabatan</th>
@@ -883,14 +883,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <tr key={att.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-3">
                         <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200">
-                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-[9px] font-black text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
+                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[10px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-black text-slate-900">{att.staffName}</td>
-                      <td className="py-3 px-3"><span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-black">{att.role}</span></td>
+                      <td className="py-3 px-3 font-bold text-slate-900">{att.staffName}</td>
+                      <td className="py-3 px-3"><span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[11px] font-bold">{att.role}</span></td>
                       <td className="py-3 px-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                          att.type === 'CLOCK_IN' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-800 text-white'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          att.type === 'CLOCK_IN' ? 'bg-[var(--brand-100)] text-[var(--primary-text)] border border-[var(--brand-200)]' : 'bg-[var(--primary-hover)] text-white'
                         }`}>
                           {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                         </span>
@@ -898,18 +898,18 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                       <td className="py-3 px-3 text-slate-700 font-mono">{new Date(att.timestamp).toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3">
                         {att.status === 'LATE' ? (
-                          <span className="text-rose-600 font-black text-[10px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                          <span className="text-rose-600 font-bold text-[11px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
                             Terlambat ({att.minutesLate || 0} m)
                           </span>
                         ) : (
-                          <span className="text-emerald-600 font-black text-[10px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                             Tepat Waktu
                           </span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-slate-600 text-[11px]">
                         {att.location}
-                        {att.gpsValidated && <span className="text-emerald-600 font-bold block text-[9px]">📍 GPS Valid</span>}
+                        {att.gpsValidated && <span className="text-emerald-600 font-bold block text-[10px]">📍 GPS Valid</span>}
                       </td>
                     </tr>
                   ))

@@ -15,7 +15,7 @@ export const QrCodeCanvas: React.FC<QrCodeCanvasProps> = ({ value, size = 160, c
     QRCode.toCanvas(canvasRef.current, value, {
       width: size,
       margin: 1,
-      color: { dark: '#1A1714', light: '#FFFFFF' },
+      color: { dark: 'var(--text-primary)', light: '#FFFFFF' },
       errorCorrectionLevel: 'M',
     }).catch(() => {});
   }, [value, size]);

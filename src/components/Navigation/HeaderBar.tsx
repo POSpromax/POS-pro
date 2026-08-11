@@ -67,20 +67,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   return (
     <header
       id="app-header-bar"
-      className={`h-11 border px-3.5 flex items-center justify-between gap-3 shrink-0 z-20 font-sans select-none transition-all duration-300 rounded-[14px] ${
-        isOwnerMode
-          ? 'bg-[#17202A] border-[#303A45] text-white'
-          : 'bg-[#FCFCFB]/95 backdrop-blur-xl border-[#E2E5E9] text-[#17202A]'
-      }`}
-      style={{ boxShadow: isOwnerMode ? 'none' : '0 1px 3px rgba(15,23,42,0.05)' }}
+      className="z-20 flex h-12 shrink-0 select-none items-center justify-between gap-3 rounded-[16px] border border-[var(--panel-border)] bg-white/95 px-3.5 font-sans text-[var(--text-primary)] shadow-[0_3px_14px_rgba(26,23,20,0.06)] backdrop-blur-xl transition-all duration-300"
     >
       {/* Left: Time & Connection */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="flex items-baseline gap-1.5">
-          <span className={`text-sm font-bold tracking-tight font-mono leading-none ${isOwnerMode ? 'text-white' : 'text-[#17202A]'}`}>
+          <span className="font-mono text-sm font-bold leading-none tracking-tight text-[var(--text-primary)]">
             {timeStr}
           </span>
-          <span className={`text-[9px] font-semibold uppercase tracking-wider ${isOwnerMode ? 'text-white/50' : 'text-[#98A2B3]'}`}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
             {dateStr}
           </span>
         </div>
@@ -88,10 +83,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         <div
           id="btn-toggle-online-status"
           role="status"
-          className={`h-5 px-2 rounded-md border flex items-center justify-center shrink-0 text-[8px] font-bold tracking-wider ${
+          className={`h-5 px-2 rounded-md border flex items-center justify-center shrink-0 text-[10px] font-bold tracking-wider ${
             isOnline
-              ? 'bg-[#EDF3FF] text-[#2D5FCC] border-[#CAD8FA]'
-              : 'bg-[#F1F2F3] text-[#667085] border-[#D8DDE3]'
+              ? 'bg-[#EAF8F1] text-[#168253] border-[#CCEBDC]'
+              : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border-strong)]'
           }`}
           title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
         >
@@ -103,15 +98,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       {activeTab === 'pos' && !isOwnerMode && (
         <div className="flex-1 flex items-center justify-end gap-2 overflow-x-auto scrollbar-none pl-2">
           {/* Search */}
-          <div className="bg-[#F1F2F3] text-[#17202A] rounded-[10px] px-3 py-1.5 flex items-center gap-2 border border-[#E2E5E9] transition-all w-40 sm:w-52 focus-within:w-56 focus-within:border-[#AAB4C0] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#3B6FE8]/10 shrink-0">
-            <Search className="w-3.5 h-3.5 text-[#98A2B3] shrink-0" />
+          <div className="bg-[var(--surface-secondary)] text-[var(--text-primary)] rounded-[10px] px-3 py-1.5 flex items-center gap-2 border border-[var(--panel-border)] transition-all w-40 sm:w-52 focus-within:w-56 focus-within:border-[var(--brand-300)] focus-within:bg-white focus-within:ring-2 focus-within:ring-[var(--primary)]/10 shrink-0">
+            <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
             <input
               id="input-header-search"
               type="text"
               placeholder="Cari menu, kode..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent text-[#17202A] text-xs outline-none placeholder:text-[#98A2B3] font-semibold"
+              className="w-full bg-transparent text-[var(--text-primary)] text-xs outline-none placeholder:text-[var(--text-tertiary)] font-semibold"
             />
           </div>
 
@@ -121,7 +116,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               id="btn-header-meja-customer"
               type="button"
               onClick={onOpenTableManagement}
-              className="flex items-center gap-1.5 bg-[#17202A] hover:bg-[#24303C] text-white font-semibold text-[11px] px-3 py-1.5 rounded-[10px] transition-all shadow-sm shadow-slate-950/10 cursor-pointer active:scale-95 shrink-0"
+              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-[11px] px-3 py-1.5 rounded-[10px] transition-all shadow-sm shadow-slate-950/10 cursor-pointer active:scale-95 shrink-0"
               title="Konfigurasi Meja Customer Order"
             >
               <Grid2X2 className="w-3.5 h-3.5" />
@@ -135,11 +130,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             onClick={onOpenPrinterSetup}
             className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
               printerConfig.isConnected
-                ? 'bg-[#F1F2F3] text-[#17202A] border-[#D8DDE3] hover:bg-[#E9ECEF]'
-                : 'bg-[#FCFCFB] text-[#D85F00] border-[#FFD4AD] hover:bg-[#FFF2E6]'
+                ? 'bg-[var(--surface-secondary)] text-[var(--text-primary)] border-[var(--panel-border-strong)] hover:bg-[#E6EEFF]'
+                : 'bg-[var(--surface-card)] text-[var(--primary-hover)] border-[var(--primary-border)] hover:bg-[var(--primary-soft)]'
             }`}
           >
-            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[#D85F00]' : 'text-[#E5484D]'}`} />
+            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[var(--primary-hover)]' : 'text-[#E5484D]'}`} />
             <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
           </button>
         </div>
@@ -151,7 +146,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             type="button"
             onClick={() => onSwitchPortal('KASIR')}
-            className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-[var(--primary-solid)] hover:bg-[var(--primary-pressed)] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer"
           >
             <Store className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Terminal POS Kasir</span>

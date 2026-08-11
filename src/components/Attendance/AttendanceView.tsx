@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Camera, MapPin, UserCheck, Delete, CheckCircle2, Clock, Video, ShieldCheck } from 'lucide-react';
 import { AttendanceRecord, Branch, RestaurantProfile, UserAccount } from '../../types/pos';
 import { cloudReadiness } from '../../lib/runtimeEnv';
@@ -344,18 +344,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   };
 
   return (
-    <div className="ui-surface flex flex-1 flex-col overflow-y-auto p-4 font-sans select-none md:p-6 text-[#17202A]">
+    <div className="ui-surface flex flex-1 flex-col overflow-y-auto p-4 font-sans select-none md:p-6 text-[var(--text-primary)]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-[#1A1714]">
-            <UserCheck className="h-7 w-7 text-[#C2410C]" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+            <UserCheck className="h-7 w-7 text-[var(--primary-hover)]" />
             Presensi Karyawan
           </h1>
           <p className="mt-1 text-xs font-bold text-slate-500">
             {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           <Clock className="w-3.5 h-3.5" />
           {currentBranch.name}
         </div>
@@ -365,10 +365,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="flex flex-col gap-4">
 
           {step === 'PIN' && (
-            <div className="rounded-3xl border border-[#EAE3DB] bg-white p-6 shadow-sm space-y-4">
+            <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
-                <h2 className="text-base font-black text-slate-900">Masukkan PIN Anda</h2>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
+                <h2 className="text-base font-bold text-slate-900">Masukkan PIN Anda</h2>
                 <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan — otomatis teridentifikasi</p>
               </div>
 
@@ -377,7 +377,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <span
                     key={i}
                     className={`h-4 w-4 rounded-full border-2 transition-all ${
-                      i < pinInput.length ? 'border-[#EA580C] bg-[#EA580C] scale-110' : 'border-slate-300 bg-slate-100'
+                      i < pinInput.length ? 'border-[var(--primary)] bg-[var(--primary)] scale-110' : 'border-slate-300 bg-slate-100'
                     }`}
                   />
                 ))}
@@ -387,7 +387,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <p className="text-center text-xs font-bold text-rose-600 bg-rose-50 rounded-2xl py-2 px-3 border border-rose-200">{pinError}</p>
               )}
               {isVerifying && (
-                <p className="text-center text-xs font-bold text-[#C2410C] bg-orange-50 rounded-2xl py-2 px-3 border border-orange-200">Memverifikasi PIN...</p>
+                <p className="text-center text-xs font-bold text-[var(--primary-hover)] bg-[var(--brand-50)] rounded-2xl py-2 px-3 border border-[var(--brand-200)]">Memverifikasi PIN...</p>
               )}
 
               <div className="grid grid-cols-3 gap-2">
@@ -397,47 +397,47 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     type="button"
                     onClick={() => handlePinKey(d)}
                     disabled={isVerifying}
-                    className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-orange-300 hover:bg-orange-50 active:bg-[#EA580C] active:text-white disabled:opacity-40 cursor-pointer"
+                    className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer"
                   >{d}</button>
                 ))}
                 <button type="button" onClick={() => { setPinInput(''); setPinError(''); }} disabled={isVerifying}
-                  className="h-12 rounded-2xl bg-slate-100 text-[9px] font-black text-slate-500 disabled:opacity-40 cursor-pointer hover:bg-slate-200">HAPUS</button>
+                  className="h-12 rounded-2xl bg-slate-100 text-[10px] font-bold text-slate-500 disabled:opacity-40 cursor-pointer hover:bg-slate-200">HAPUS</button>
                 <button type="button" onClick={() => handlePinKey('0')} disabled={isVerifying}
-                  className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-orange-300 hover:bg-orange-50 active:bg-[#EA580C] active:text-white disabled:opacity-40 cursor-pointer">0</button>
+                  className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer">0</button>
                 <button type="button" onClick={() => { setPinInput((v) => v.slice(0, -1)); setPinError(''); }} disabled={isVerifying}
-                  className="h-12 rounded-2xl bg-[#1A1917] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer hover:bg-black">
+                  className="h-12 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer hover:bg-[var(--primary-pressed)]">
                   <Delete className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-center text-[9px] font-bold text-slate-400">PIN bersifat unik per karyawan</p>
+              <p className="text-center text-[10px] font-bold text-slate-400">PIN bersifat unik per karyawan</p>
             </div>
           )}
 
           {step === 'SELFIE_GPS' && (
-            <div className="rounded-3xl border border-[#EAE3DB] bg-white p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3.5">
-                <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-orange-400 shrink-0">
+            <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-[var(--brand-200)] bg-[var(--brand-50)] p-3.5">
+                <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-[var(--primary)] shrink-0">
                   {selfiePreview || selectedStaff.avatar ? (
                     <img src={selfiePreview || selectedStaff.avatar} alt={selectedStaff.name} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-xs font-black text-white">{selectedStaff.name.slice(0, 2).toUpperCase()}</div>
+                    <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-xs font-bold text-white">{selectedStaff.name.slice(0, 2).toUpperCase()}</div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-slate-900 truncate">{selectedStaff.name}</p>
-                  <p className="text-[10px] font-bold text-orange-600">{selectedStaff.role} - {currentBranch.code}</p>
-                  <p className="text-[10px] font-bold text-slate-400">Jadwal {getScheduledStart()}--{selectedStaff.shiftEnd || '-'}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{selectedStaff.name}</p>
+                  <p className="text-[11px] font-bold text-[var(--primary-text)]">{selectedStaff.role} - {currentBranch.code}</p>
+                  <p className="text-[11px] font-bold text-slate-400">Jadwal {getScheduledStart()}--{selectedStaff.shiftEnd || '-'}</p>
                 </div>
                 {!terminalMode && (
                   <button type="button" onClick={() => { stopCameraStream(); setStep('PIN'); setPinInput(''); setPinError(''); }}
-                    className="ml-auto text-[10px] font-bold text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer">Ganti</button>
+                    className="ml-auto text-[11px] font-bold text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer">Ganti</button>
                 )}
               </div>
 
-              <div className={`rounded-2xl border p-3.5 ${profile.isAttendanceEnabled !== false ? 'border-orange-200 bg-orange-50/50' : 'border-slate-200 bg-slate-50'}`}>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Aksi Berikutnya</p>
-                <p className="mt-1 text-sm font-black text-slate-900">{clockType === 'CLOCK_IN' ? 'CLOCK IN - Masuk Kerja' : 'CLOCK OUT - Selesai Kerja'}</p>
-                <p className="mt-0.5 text-[10px] font-bold text-slate-500">Toleransi {profile.latenessToleranceMinutes || 0} menit keterlambatan</p>
+              <div className={`rounded-2xl border p-3.5 ${profile.isAttendanceEnabled !== false ? 'border-[var(--brand-200)] bg-[var(--brand-50)]/50' : 'border-slate-200 bg-slate-50'}`}>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Aksi Berikutnya</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{clockType === 'CLOCK_IN' ? 'CLOCK IN - Masuk Kerja' : 'CLOCK OUT - Selesai Kerja'}</p>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-500">Toleransi {profile.latenessToleranceMinutes || 0} menit keterlambatan</p>
               </div>
 
               {(() => {
@@ -446,7 +446,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dayIdx];
                 return isOff ? (
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
-                    <p className="font-black text-xs text-rose-900">HARI LIBUR RUTIN ({dayName.toUpperCase()})</p>
+                    <p className="font-bold text-xs text-rose-900">HARI LIBUR RUTIN ({dayName.toUpperCase()})</p>
                     <p className="text-[11px] font-semibold text-rose-700 leading-snug mt-1">Dicatat sebagai Kerja Lembur / Ekstra Shift.</p>
                   </div>
                 ) : null;
@@ -455,7 +455,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               {/* LIVE WEBCAM CAMERA CONTAINER */}
               <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center gap-3">
                 {isCameraActive ? (
-                  <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-orange-500 shadow-lg bg-black">
+                  <div className="relative h-44 w-44 overflow-hidden rounded-full border-4 border-[var(--primary-border)] shadow-lg bg-[var(--surface-secondary)]">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -467,7 +467,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     />
                   </div>
                 ) : selfiePreview ? (
-                  <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-orange-400 shadow-md">
+                  <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-[var(--primary)] shadow-md">
                     <img src={selfiePreview} alt="selfie preview" className="h-full w-full object-cover" />
                   </div>
                 ) : (
@@ -477,7 +477,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 )}
 
                 {cameraError && (
-                  <p className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">{cameraError}</p>
+                  <p className="text-[11px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">{cameraError}</p>
                 )}
 
                 {/* Camera Buttons Control */}
@@ -487,7 +487,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       type="button"
                       onClick={captureLiveSnapshot}
                       disabled={!isCameraReady}
-                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                     >
                       <Camera className="h-4 w-4" />
                       {isCameraReady ? 'Potret Live Selfie' : 'Menyiapkan Kamera...'}
@@ -496,38 +496,38 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     <button
                       type="button"
                       onClick={startCameraStream}
-                      className="flex items-center gap-1.5 rounded-full bg-slate-900 hover:bg-slate-700 px-4 py-2 text-[11px] font-black text-white shadow-sm transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[var(--brand-800)] px-4 py-2 text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
                     >
-                      <Video className="h-3.5 w-3.5 text-orange-400" />
+                      <Video className="h-3.5 w-3.5 text-[var(--primary-text)]" />
                       {selfiePreview ? 'Ambil Selfie Ulang (Kamera Live)' : 'Buka Kamera Live'}
                     </button>
                   )}
 
                 </div>
 
-                <p className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400">
-                  <ShieldCheck className="h-3.5 w-3.5 text-orange-500" />
+                <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                  <ShieldCheck className="h-3.5 w-3.5 text-[var(--primary-text)]" />
                   Bukti presensi hanya dapat diambil langsung dari kamera perangkat.
                 </p>
 
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-                  <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                  <MapPin className="w-3.5 h-3.5 text-[var(--primary-text)]" />
                   <span>{gpsMessage}</span>
                 </div>
                 {profile.requireGpsActive && (
-                  <button type="button" onClick={() => verifyGps()} className="text-[10px] font-black text-orange-600 hover:text-orange-800 underline cursor-pointer">
+                  <button type="button" onClick={() => verifyGps()} className="text-[11px] font-bold text-[var(--primary-text)] hover:text-[var(--primary-text)] underline cursor-pointer">
                     Verifikasi Lokasi GPS
                   </button>
                 )}
-                {uploadMessage && <p className="text-[9px] font-extrabold text-orange-600">{uploadMessage}</p>}
+                {uploadMessage && <p className="text-[10px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
               </div>
 
               <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
-                className="w-full rounded-full bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 py-3.5 text-xs font-black text-white transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
+                className="w-full rounded-full bg-gradient-to-r from-[var(--primary-solid)] to-[var(--primary)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] py-3.5 text-xs font-bold text-white transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
                 {isSubmitting ? 'MENYIMPAN PRESENSI...' : clockType === 'CLOCK_IN' ? 'CLOCK IN SEKARANG' : 'CLOCK OUT SEKARANG'}
               </button>
               {!isSubmitting && ((profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)) && (
-                <p className="text-center text-[10px] font-bold text-slate-500">
+                <p className="text-center text-[11px] font-bold text-slate-500">
                   {profile.requireSelfiePhoto && !selfieFile ? 'Ambil selfie langsung terlebih dahulu. ' : ''}
                   {profile.requireGpsActive && !isGpsValid ? 'Pastikan GPS valid di area outlet.' : ''}
                 </p>
@@ -539,17 +539,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 shadow-sm flex flex-col items-center text-center gap-4">
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
               <div>
-                <p className="text-lg font-black text-emerald-900">Presensi Berhasil!</p>
+                <p className="text-lg font-bold text-emerald-900">Presensi Berhasil!</p>
                 <p className="text-sm font-bold text-emerald-700">{selectedStaff.name}</p>
                 <p className="text-xs font-bold text-emerald-600 mt-1">{clockType === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'} tercatat</p>
               </div>
-              <p className="text-[10px] font-bold text-emerald-500">Kembali otomatis dalam 3 detik...</p>
+              <p className="text-[11px] font-bold text-emerald-500">Kembali otomatis dalam 3 detik...</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-3xl border border-[#EAE3DB] bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 text-base font-black text-[#1A1714]">
+        <div className="rounded-3xl border border-[var(--panel-border)] bg-white p-6 shadow-sm lg:col-span-2">
+          <h2 className="mb-4 text-base font-bold text-[var(--text-primary)]">
             {['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && !terminalMode
               ? 'Presensi Staff Hari Ini'
               : 'Presensi Saya Hari Ini'}
@@ -569,22 +569,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 .slice()
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map((att) => (
-                  <div key={att.id} className="flex items-center justify-between rounded-2xl border border-[#EAE3DB] bg-[#F8F2EC] p-3.5 shadow-2xs">
+                  <div key={att.id} className="flex items-center justify-between rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3.5 shadow-2xs">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 overflow-hidden rounded-full border border-[#EAE3DB] shrink-0">
-                        {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-[10px] font-black text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
+                      <div className="h-10 w-10 overflow-hidden rounded-full border border-[var(--panel-border)] shrink-0">
+                        {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[11px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-[#1A1714]">{att.staffName} <span className="text-[10px] font-black text-[#C2410C]">({att.role})</span></p>
-                        <p className="text-[10px] font-bold text-slate-400">{att.location} - Jadwal {att.scheduledStart || '-'}</p>
-                        {att.gpsValidated && <p className="text-[9px] font-bold text-emerald-600">GPS Terverifikasi</p>}
+                        <p className="text-xs font-bold text-[var(--text-primary)]">{att.staffName} <span className="text-[11px] font-bold text-[var(--primary-hover)]">({att.role})</span></p>
+                        <p className="text-[11px] font-bold text-slate-400">{att.location} - Jadwal {att.scheduledStart || '-'}</p>
+                        {att.gpsValidated && <p className="text-[10px] font-bold text-emerald-600">GPS Terverifikasi</p>}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${att.type === 'CLOCK_IN' ? 'bg-[#FFF4ED] text-[#C2410C] border border-[#FFDDD0]' : 'bg-[#1A1714] text-white'}`}>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${att.type === 'CLOCK_IN' ? 'bg-[var(--primary-soft)] text-[var(--primary-hover)] border border-[var(--primary-border)]' : 'bg-[var(--primary)] text-white'}`}>
                         {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                       </span>
-                      <p className="mt-1 text-xs font-mono font-black text-slate-800">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>
+                      <p className="mt-1 text-xs font-mono font-bold text-slate-800">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>
                     </div>
                   </div>
                 ))

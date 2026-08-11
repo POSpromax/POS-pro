@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const BubbleLabel = ({ children }: { children: React.ReactNode }) => (
-    <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 z-[90] hidden -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-full border border-[#2F3A46] bg-[#17202A] px-3 py-2 text-[10px] font-extrabold tracking-wide text-white opacity-0 shadow-xl transition-all group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 md:block">
+    <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 z-[90] hidden -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-xl border border-[var(--panel-border)] bg-white px-3 py-2 text-[11px] font-semibold tracking-normal text-[var(--text-primary)] opacity-0 shadow-[0_10px_28px_rgba(26,23,20,0.12)] transition-all group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 md:block">
       {children}
     </span>
   );
@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div ref={quickAccessRef} className="fixed bottom-3 left-3 z-[80] flex flex-col items-start gap-2 md:bottom-4 md:left-4">
       <div
         id="quick-access-menu"
-        className={`flex w-[216px] flex-row-reverse flex-wrap-reverse items-center justify-end gap-2 overflow-visible px-1 py-1 transition-all duration-200 md:w-auto md:flex-col-reverse md:flex-nowrap ${
+        className={`flex w-[224px] flex-row-reverse flex-wrap-reverse items-center justify-end gap-2 overflow-visible rounded-[22px] border border-[var(--panel-border)] bg-white/92 p-2 shadow-[0_16px_44px_rgba(26,23,20,0.12)] backdrop-blur-xl transition-all duration-200 md:w-auto md:flex-col-reverse md:flex-nowrap ${
           menuOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
         }`}
         aria-hidden={!menuOpen}
@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           onClick={onLogout}
           tabIndex={menuOpen ? 0 : -1}
-          className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#F3C8CB] bg-[#FFF8F8] text-[#D93D43] shadow-lg shadow-slate-900/8 transition hover:-translate-y-0.5 hover:bg-[#FDECEC] focus-visible:-translate-y-0.5"
+          className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[#F3C8CB] bg-[#FFF8F8] text-[#D93D43] transition hover:-translate-y-0.5 hover:bg-[#FDECEC] focus-visible:-translate-y-0.5"
           aria-label="Logout dan akhiri sesi petugas"
         >
           <LogOut className="h-[18px] w-[18px] stroke-[1.9]" />
@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <div
-          className="group relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#E2E5E9] bg-[#FCFCFB] text-[10px] font-black text-[#17202A] shadow-lg shadow-slate-900/8"
+          className="group relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-[var(--panel-border)] bg-white text-[11px] font-bold text-[var(--text-primary)]"
           title={`${activeUser.name} (${activeUser.role})`}
           aria-label={`${activeUser.name} (${activeUser.role})`}
         >
@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')}
             tabIndex={menuOpen ? 0 : -1}
-            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#FFD4AD] bg-[#FFF2E6] text-[#D85F00] shadow-lg shadow-orange-900/8 transition hover:-translate-y-0.5 hover:bg-[#FFE5CF] focus-visible:-translate-y-0.5"
+            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-hover)] transition hover:-translate-y-0.5 hover:bg-[#E6EEFF] focus-visible:-translate-y-0.5"
             aria-label={isOwnerMode ? 'Beralih ke Kasir' : 'Beralih ke portal Owner'}
           >
             {isOwnerMode ? <Store className="h-[18px] w-[18px] stroke-[1.9]" /> : <Crown className="h-[18px] w-[18px] stroke-[1.9]" />}
@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        <span className="my-0.5 hidden h-px w-7 shrink-0 bg-[#D8DDE3] md:block" aria-hidden="true" />
+        <span className="my-0.5 hidden h-px w-7 shrink-0 bg-[var(--panel-border-strong)] md:block" aria-hidden="true" />
 
         {currentNavItems.slice().reverse().map((item) => {
           const Icon = item.icon;
@@ -171,16 +171,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => selectTab(item.id)}
               tabIndex={menuOpen ? 0 : -1}
-              className={`group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-lg transition hover:-translate-y-0.5 focus-visible:-translate-y-0.5 ${
+              className={`group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border transition hover:-translate-y-0.5 focus-visible:-translate-y-0.5 ${
                 active
-                  ? 'border-[#17202A] bg-[#17202A] text-white shadow-slate-950/20'
-                  : 'border-[#E2E5E9] bg-[#FCFCFB]/95 text-[#667085] shadow-slate-900/8 backdrop-blur-xl hover:border-[#CCD2D9] hover:bg-white hover:text-[#17202A]'
+                  ? 'border-[var(--primary)] bg-[var(--primary)] text-white shadow-[0_8px_20px_rgba(234,88,12,0.22)]'
+                  : 'border-transparent bg-white text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[#F2F6FF] hover:text-[var(--primary-hover)]'
               }`}
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
             >
               <Icon className="h-[19px] w-[19px] stroke-[1.9]" />
-              {active && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[#FF7A00]" />}
+              {active && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[var(--primary)]" />}
               <BubbleLabel>{item.label}</BubbleLabel>
             </button>
           );
@@ -191,17 +191,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         id="btn-quick-access"
         type="button"
         onClick={() => setMenuOpen((value) => !value)}
-        className={`group relative flex h-[52px] w-[52px] items-center justify-center rounded-[19px] border text-white shadow-2xl transition duration-200 hover:-translate-y-0.5 active:scale-95 ${
-          menuOpen ? 'border-[#303A45] bg-[#17202A]' : 'border-[#303A45] bg-[#17202A] shadow-slate-950/25'
+        className={`group relative flex h-[54px] w-[54px] items-center justify-center rounded-[18px] border text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 ${
+          menuOpen ? 'border-[var(--primary-hover)] bg-[var(--primary-hover)] shadow-[0_12px_30px_rgba(234,88,12,0.28)]' : 'border-[var(--primary)] bg-[var(--primary)] shadow-[0_12px_30px_rgba(234,88,12,0.24)]'
         }`}
         aria-label={menuOpen ? 'Tutup quick access menu' : 'Buka quick access menu'}
         aria-expanded={menuOpen}
         aria-controls="quick-access-menu"
       >
         {menuOpen ? <X className="h-5 w-5 stroke-[2]" /> : <CurrentIcon className="h-5 w-5 stroke-[1.9]" />}
-        {!menuOpen && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[3px] border-[#17202A] bg-[#FF7A00]" />}
+        {!menuOpen && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-[var(--primary)]" />}
         {pendingSyncCount > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[9px] font-black text-white ring-2 ring-[#F4F5F6]">
+          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[10px] font-bold text-white ring-2 ring-[#F3F6FB]">
             {pendingSyncCount}
           </span>
         )}
