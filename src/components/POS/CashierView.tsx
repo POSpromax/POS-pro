@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
+import { formatOrderLabel } from '../../utils/orderNumber';
 import {
   Plus,
   Minus,
@@ -457,8 +458,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-[#D94B15] tracking-tight">
-                          {order.orderNumber}
+                        <span
+                          className="font-bold text-sm text-[#D94B15] tracking-tight tabular-nums"
+                          title={order.orderNumber}
+                        >
+                          {formatOrderLabel(order)}
                         </span>
                         <div className="flex items-center gap-0.5">
                           <span className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-md ${
@@ -571,8 +575,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 Order
               </h3>
               {currentEditingOrder && (
-                <span className="text-[9px] font-semibold text-[#EA580C] bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100">
-                  {currentEditingOrder.orderNumber}
+                <span
+                  className="text-[10px] font-bold text-[#EA580C] bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 tabular-nums"
+                  title={currentEditingOrder.orderNumber}
+                >
+                  {formatOrderLabel(currentEditingOrder)}
                 </span>
               )}
 

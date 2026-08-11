@@ -141,7 +141,8 @@ export type OrderStatus = 'NEW' | 'COOKING' | 'READY' | 'COMPLETED' | 'CANCELLED
 
 export interface Order {
   id: string;
-  orderNumber: string; // e.g., "#038"
+  orderNumber: string; // Identitas unik penuh, mis. "POS-MSNWCM6VFDL"
+  dailyNumber?: number; // Nomor antrean harian per cabang, untuk ditampilkan
   customerName: string;
   tableNumber: string;
   type: OrderType;

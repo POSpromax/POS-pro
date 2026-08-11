@@ -141,6 +141,58 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   const maxHourlyRevenue = useMemo(() => Math.max(...hourlyPeakData.map((h) => h.revenue), 1), [hourlyPeakData]);
 
+  // Tren per tanggal dalam periode terpilih — melihat naik-turun omset harian.
+  const dailyTrendData = useMemo(() => {
+    const buckets = new Map<string, { key: string; label: string; revenue: number; count: number }>();
+    paidOrders.forEach((order) => {
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const bucket = buckets.get(key) || {
+        key,
+        label: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        revenue: 0,
+        count: 0
+      };
+      bucket.revenue += order.total;
+      bucket.count += 1;
+      buckets.set(key, bucket);
+    });
+    return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [paidOrders]);
+
+  const maxDailyRevenue = useMemo(() => Math.max(...dailyTrendData.map((d) => d.revenue), 1), [dailyTrendData]);
+
+  // Hari apa yang paling laris — dirata-rata supaya periode yang memuat lebih
+  // banyak hari Senin daripada Minggu tidak otomatis memenangkan Senin.
+  const weekdayPerformance = useMemo(() => {
+    const names = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const rows = names.map((name) => ({ name, revenue: 0, count: 0, days: new Set<string>() }));
+    paidOrders.forEach((order) => {
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const row = rows[date.getDay()];
+      row.revenue += order.total;
+      row.count += 1;
+      row.days.add(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
+    });
+    // Urutan tampil Senin dulu, sesuai kebiasaan minggu kerja.
+    const ordered = [...rows.slice(1), rows[0]];
+    return ordered.map((row) => ({
+      name: row.name,
+      revenue: row.revenue,
+      count: row.count,
+      activeDays: row.days.size,
+      avgRevenue: row.days.size > 0 ? Math.round(row.revenue / row.days.size) : 0
+    }));
+  }, [paidOrders]);
+
+  const maxWeekdayAvg = useMemo(() => Math.max(...weekdayPerformance.map((d) => d.avgRevenue), 1), [weekdayPerformance]);
+  const bestWeekday = useMemo(
+    () => weekdayPerformance.reduce((best, row) => (row.avgRevenue > best.avgRevenue ? row : best), weekdayPerformance[0]),
+    [weekdayPerformance]
+  );
+
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Pajak,Total,Status\n';
@@ -424,6 +476,93 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 })}
               </div>
               <p className="text-[10px] font-bold text-slate-400 text-center">Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.</p>
+            </div>
+
+            {/* Tren omset per tanggal */}
+            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-orange-500" />
+                  Tren Omset Harian
+                </h2>
+                <span className="text-[10px] font-black text-slate-400">{formatPeriodRange(period, periodRange)}</span>
+              </div>
+
+              {dailyTrendData.length === 0 ? (
+                <p className="py-8 text-center text-xs font-bold text-slate-400">Belum ada transaksi lunas pada periode ini.</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <div className="flex items-end gap-1.5 h-40 pt-4 px-1 border-b border-slate-100 min-w-full" style={{ minWidth: `${dailyTrendData.length * 34}px` }}>
+                      {dailyTrendData.map((day) => {
+                        const pct = Math.round((day.revenue / maxDailyRevenue) * 100);
+                        const isBest = day.revenue === maxDailyRevenue;
+                        return (
+                          <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative min-w-[28px]">
+                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                              {day.label}: Rp {day.revenue.toLocaleString('id-ID')} ({day.count} order)
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-32">
+                              <div
+                                className={`w-full rounded-t-md transition-all duration-500 ${isBest ? 'bg-orange-600' : 'bg-slate-800'}`}
+                                style={{ height: `${pct > 0 ? pct : 4}%` }}
+                              />
+                            </div>
+                            <span className="text-[8px] font-black text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 text-center">Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.</p>
+                </>
+              )}
+            </div>
+
+            {/* Hari paling laris dalam seminggu */}
+            <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-black text-[#1A1714] text-sm flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-orange-500" />
+                  Hari Paling Laris
+                </h2>
+                {bestWeekday && bestWeekday.avgRevenue > 0 && (
+                  <span className="text-[10px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full">
+                    Tertinggi: {bestWeekday.name}
+                  </span>
+                )}
+              </div>
+
+              {paidOrders.length === 0 ? (
+                <p className="py-8 text-center text-xs font-bold text-slate-400">Belum ada transaksi lunas pada periode ini.</p>
+              ) : (
+                <div className="space-y-2">
+                  {weekdayPerformance.map((row) => {
+                    const pct = Math.round((row.avgRevenue / maxWeekdayAvg) * 100);
+                    const isBest = bestWeekday && row.name === bestWeekday.name && row.avgRevenue > 0;
+                    return (
+                      <div key={row.name} className="flex items-center gap-3">
+                        <span className="w-14 shrink-0 text-[10px] font-black text-slate-500 uppercase">{row.name.slice(0, 3)}</span>
+                        <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${isBest ? 'bg-orange-600' : 'bg-slate-800'}`}
+                            style={{ width: `${pct > 0 ? Math.max(pct, 2) : 0}%` }}
+                          />
+                        </div>
+                        <span className="w-32 shrink-0 text-right text-[10px] font-black text-slate-700 tabular-nums">
+                          Rp {row.avgRevenue.toLocaleString('id-ID')}
+                        </span>
+                        <span className="w-16 shrink-0 text-right text-[9px] font-bold text-slate-400 tabular-nums">
+                          {row.count} order
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] font-bold text-slate-400 pt-1">
+                    Angka adalah rata-rata omset per hari buka, bukan total — supaya hari yang lebih sering muncul dalam periode tidak otomatis terlihat paling laris.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

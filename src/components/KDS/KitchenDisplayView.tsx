@@ -18,6 +18,7 @@ import {
 import { CondimentGroup, Order, OrderStatus } from '../../types/pos';
 import { playNewOrderSound, playWarningAlarmSound } from '../../utils/audioNotification';
 import { summarizeCondimentOptions } from '../../utils/condimentUtils';
+import { formatOrderLabel } from '../../utils/orderNumber';
 
 interface KitchenDisplayViewProps {
   orders: Order[];
@@ -243,7 +244,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                       {/* Card Header */}
                       <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-2.5 pt-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-lg font-black text-white font-mono tracking-tight">{order.orderNumber}</span>
+                          <span className="text-2xl font-black text-white font-mono tracking-tight tabular-nums" title={order.orderNumber}>{formatOrderLabel(order)}</span>
                           <span className="bg-slate-800 text-slate-300 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-slate-700">
                             {order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
                           </span>
@@ -451,7 +452,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                 <div key={order.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-md">
                   <div>
                     <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-                      <span className="text-base font-black font-mono text-emerald-400">{order.orderNumber}</span>
+                      <span className="text-lg font-black font-mono text-emerald-400 tabular-nums" title={order.orderNumber}>{formatOrderLabel(order)}</span>
                       <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
                         <Check className="w-3 h-3" /> SELESAI
                       </span>

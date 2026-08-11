@@ -14,6 +14,7 @@ const mapOrder = (row: any, items: any[] = []) => {
   return ({
   id: row.id,
   orderNumber: row.order_number,
+  dailyNumber: row.daily_number ?? undefined,
   customerName: row.customer_name || 'Guest',
   tableNumber: row.restaurant_tables?.number || row.table_number || '',
   type: row.order_type,
@@ -99,9 +100,24 @@ export async function handleOrderRequest(
   if (method === 'PATCH') {
     if (!actor) return fail(401, 'Sesi telah berakhir');
     if (!UUID_PATTERN.test(String(payload.orderId || '')) || !ORDER_STATUSES.has(payload.status)) return fail(400, 'Status pesanan tidak valid');
+
+    // Pembatalan bukan sekadar ganti status: stok dikembalikan, pembayaran
+    // ditandai refund, dan peristiwanya dicatat — semuanya dalam satu transaksi.
+    if (payload.status === 'CANCELLED') {
+      const { error: voidError } = await admin.rpc('void_order', {
+        p_order_id: payload.orderId,
+        p_branch_id: branchId,
+        p_reason: payload.reason ? String(payload.reason).slice(0, 500) : null,
+        p_actor_user_id: actor.id,
+        p_request_id: null,
+      });
+      if (voidError) return fail(500, 'Pembatalan pesanan gagal diproses');
+      return { status: 200, data: { success: true } };
+    }
+
     const { data: updated, error } = await admin.from('orders').update({ status: payload.status }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
     if (error || !updated) return fail(500, 'Status pesanan gagal diperbarui');
-    if (updated.table_id && ['COMPLETED', 'CANCELLED'].includes(payload.status)) {
+    if (updated.table_id && payload.status === 'COMPLETED') {
       await admin.from('restaurant_tables').update({ status: 'FREE' }).eq('id', updated.table_id).eq('branch_id', branchId);
     }
     return { status: 200, data: { success: true } };
@@ -263,9 +279,10 @@ export async function handleOrderRequest(
     cashier_name: actor?.name || 'Self Order',
   };
 
+  // Kunci idempotensi ditetapkan RPC dari order_id, supaya bill yang diedit
+  // lalu dibayar ulang tetap menghasilkan satu baris payments.
   const paymentPayload = paymentStatus === 'PAID' && total > 0
     ? {
-        idempotency_key: clientRequestId,
         method: paymentMethod || 'CASH',
         amount: total,
         paid_amount: cashPaid,
