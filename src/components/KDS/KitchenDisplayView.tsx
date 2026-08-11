@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Utensils,
   Clock,
@@ -50,11 +50,18 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Filter active kitchen orders (NEW, COOKING, READY)
-  const kitchenOrders = orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
-  const completedOrders = orders
-    .filter((o) => o.status === 'COMPLETED')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Di-memo supaya identitasnya stabil: jam di atas me-render tiap detik, dan
+  // daftar baru setiap render akan terus-menerus mereset timer alarm di bawah.
+  const kitchenOrders = useMemo(
+    () => orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED'),
+    [orders],
+  );
+  const completedOrders = useMemo(
+    () => orders
+      .filter((o) => o.status === 'COMPLETED')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [orders],
+  );
 
   // Detect new orders arriving & trigger audio chime sound
   useEffect(() => {
@@ -65,11 +72,16 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
     prevNewCountRef.current = newCount;
   }, [kitchenOrders, soundEnabled]);
 
+  // Antrean dibaca lewat ref, bukan dependency: setiap pesanan baru masuk akan
+  // mereset interval, dan alarm 25 detik tidak pernah sempat berbunyi.
+  const kitchenOrdersRef = useRef(kitchenOrders);
+  kitchenOrdersRef.current = kitchenOrders;
+
   // Periodic alarm sound trigger for overdue orders (> 15 minutes)
   useEffect(() => {
+    if (!soundEnabled) return;
     const alarmInterval = setInterval(() => {
-      if (!soundEnabled) return;
-      const hasOverdue = kitchenOrders.some((o) => {
+      const hasOverdue = kitchenOrdersRef.current.some((o) => {
         const diffMs = Date.now() - new Date(o.createdAt).getTime();
         return diffMs / (1000 * 60) >= 15;
       });
@@ -78,7 +90,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
       }
     }, 25_000);
     return () => clearInterval(alarmInterval);
-  }, [kitchenOrders, soundEnabled]);
+  }, [soundEnabled]);
 
   // Helper to calculate minutes elapsed
   const getElapsedMinutes = (isoString: string): number => {
