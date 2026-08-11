@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["tsx", "server.ts"],
+      "runtimeArgs": ["tsx", "watch", "server.ts"],
       "port": 3000,
       "autoPort": true
     }
