@@ -216,18 +216,30 @@ textarea:focus-visible {
 /* Neutralize legacy warm utility colors so white and grayscale stay dominant. */
 .bg-\[\#F5EFE8\],
 .bg-\[\#F3F1EE\],
-.bg-\[\#F1EFEC\] {
-  background-color: #F5F5F5;
+.bg-\[\#F1EFEC\],
+.bg-\[\#F6EFE7\],
+.bg-\[\#F8F2EC\],
+.bg-\[\#F8F7F5\] {
+  background-color: #F1F2F3;
 }
 
 .bg-\[\#FAFAF8\] {
-  background-color: #FAFAFA;
+  background-color: #FAFAF9;
+}
+
+.bg-\[\#FFF4ED\],
+.bg-\[\#FFF7F3\],
+.bg-\[\#FFF8F3\],
+.bg-\[\#FFF9F6\] {
+  background-color: #FFF2E6;
 }
 
 .border-\[\#E8E0D8\],
 .border-\[\#E2DFDA\],
-.border-\[\#DEDAD4\] {
-  border-color: #E2E2E2;
+.border-\[\#DEDAD4\],
+.border-\[\#EAE3DB\],
+.border-\[\#E7E2DE\] {
+  border-color: #E2E5E9;
 }
 
 .border-\[\#F0E8E0\] {
@@ -243,7 +255,38 @@ textarea:focus-visible {
 }
 
 .text-\[\#B8B0A8\] {
-  color: #A3A3A3;
+  color: #98A2B3;
+}
+
+.bg-\[\#1A1714\],
+.bg-\[\#1C1B19\],
+.bg-\[\#1A1917\] {
+  background-color: #17202A;
+}
+
+.text-\[\#1A1714\],
+.text-\[\#181715\] {
+  color: #17202A;
+}
+
+.bg-\[\#EA580C\] {
+  background-color: #FF7A00;
+}
+
+.border-\[\#EA580C\] {
+  border-color: #FF7A00;
+}
+
+.text-\[\#EA580C\] {
+  color: #FF7A00;
+}
+
+.text-\[\#C2410C\] {
+  color: #D85F00;
+}
+
+.border-\[\#FFDDD0\] {
+  border-color: #FFD4AD;
 }
 
 /* Normalisasi aksen sistem: aksi charcoal, sorotan oranye, status netral.
@@ -256,4 +299,15 @@ textarea:focus-visible {
 
 .bg-slate-200\/80 {
   background-color: rgb(232 232 232 / 0.9) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

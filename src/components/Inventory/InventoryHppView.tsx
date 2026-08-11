@@ -380,7 +380,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-3 md:p-6 overflow-y-auto font-sans select-none text-slate-900">
+    <div className="ui-surface flex-1 p-3 md:p-6 overflow-y-auto font-sans select-none text-[#17202A]">
       {/* Top Header Bar — stacks vertically on mobile */}
       <div className="flex flex-col gap-3 mb-4 md:mb-5">
         {/* Title row */}

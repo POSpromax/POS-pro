@@ -87,7 +87,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
   if (currentShift.status !== 'OPEN') {
     return (
-      <div className="flex-1 bg-gradient-to-tr from-[#EBF3FA] via-[#F3EBF9] to-[#FAF3FB] p-4 md:p-8 overflow-y-auto font-sans select-none flex items-center justify-center text-slate-900 min-h-0">
+      <div className="ui-surface flex-1 p-4 md:p-8 overflow-y-auto font-sans select-none flex items-center justify-center text-[#17202A] min-h-0">
         <div className="max-w-md w-full bg-white rounded-[32px] p-8 md:p-10 shadow-2xl shadow-orange-500/10 border border-orange-200 text-center space-y-6">
           <div className="w-20 h-20 bg-gradient-to-tr from-[#C2410C] to-[#EA580C] rounded-3xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/30">
             <Store className="w-10 h-10" />
@@ -180,7 +180,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none text-slate-900 min-h-0">
+    <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none text-[#17202A] min-h-0">
       {/* Top Bar matching Reference Image */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">

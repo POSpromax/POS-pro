@@ -163,7 +163,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
   };
 
   return (
-    <div className="flex-1 bg-slate-100/80 text-[#1A1714] overflow-y-auto p-4 md:p-6 font-sans">
+    <div className="ui-surface flex-1 text-[#17202A] overflow-y-auto p-4 md:p-6 font-sans">
       {/* Executive Studio Header Banner */}
       <div className="bg-white border border-[#E8E0D8] rounded-2xl p-6 mb-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">

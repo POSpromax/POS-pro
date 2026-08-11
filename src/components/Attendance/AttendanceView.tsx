@@ -344,7 +344,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto bg-[#FAFAFA] p-4 font-sans select-none md:p-6 text-slate-900">
+    <div className="ui-surface flex flex-1 flex-col overflow-y-auto p-4 font-sans select-none md:p-6 text-[#17202A]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-[#1A1714]">

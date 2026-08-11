@@ -230,7 +230,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none space-y-6 text-slate-900">
+    <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none space-y-6 text-[#17202A]">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">

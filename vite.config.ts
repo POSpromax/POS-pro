@@ -13,8 +13,8 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         injectRegister: 'auto',
         manifest: {
-          name: 'OmniPOS Multi Cabang',
-          short_name: 'OmniPOS',
+          name: 'Bakso Ujo POS',
+          short_name: 'Bakso Ujo',
           description: 'POS restoran multi cabang, KDS, absensi, dan self-order.',
           theme_color: '#181816',
           background_color: '#f5f5f4',

@@ -134,6 +134,11 @@ export default function App() {
     window.location.hash.includes('self-order') ||
     window.location.hash.includes('order')
   );
+
+  useEffect(() => {
+    document.title = isSelfOrderUrlParam ? 'Pesan di Bakso Ujo' : 'Bakso Ujo POS';
+  }, [isSelfOrderUrlParam]);
+
   // 1. Navigation State & System Portals ('KASIR' | 'OWNER')
   const [systemPortal, setSystemPortal] = useState<'KASIR' | 'OWNER'>(() => {
     const saved = sessionStorage.getItem('omnipos_portal');
@@ -1150,7 +1155,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #FAFAFA 0%, #F2F2F2 52%, #F7F7F7 100%)' }}>
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F5F6] font-sans antialiased text-[#17202A]">
       <PWAUpdatePrompt />
       {toastNotification && (
         // Ditaruh di tengah bawah: tombol aksi kasir ada di sisi bawah layar,
@@ -1336,8 +1341,8 @@ export default function App() {
           )}
 
           {activeTab === 'selforder' && (
-            <div className="flex-1 overflow-y-auto bg-[#F3F3F2] p-5">
-              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-2xl border border-[#E2E2E2] bg-white px-5 py-4">
+            <div className="ui-surface flex-1 overflow-y-auto p-5">
+              <div className="mx-auto mb-4 flex max-w-5xl items-center justify-between rounded-[18px] border border-[#E2E5E9] bg-[#FCFCFB] px-5 py-4 shadow-sm">
                 <div>
                   <h2 className="text-base font-black text-[#1A1714]">Pratinjau Landing Self-Order</h2>
                   <p className="mt-0.5 text-[11px] font-medium text-[#8E8882]">Pratinjau admin tetap berada di portal Owner. Halaman pelanggan dibuka terpisah.</p>
@@ -1345,7 +1350,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => window.open(`/?selforder&branch=${encodeURIComponent(currentBranch.id)}&table=01`, '_blank', 'noopener,noreferrer')}
-                  className="rounded-xl bg-[#1C1B19] px-4 py-2 text-[10px] font-bold text-white hover:bg-black"
+                  className="rounded-xl bg-[#17202A] px-4 py-2 text-[10px] font-bold text-white hover:bg-[#24303C]"
                 >
                   Buka Halaman Publik
                 </button>
@@ -1480,11 +1485,11 @@ export default function App() {
           )}
 
           {activeTab === 'payroll' && (
-            <div className="flex-1 overflow-y-auto bg-[#F6F6F5] p-4 md:p-6">
+            <div className="ui-surface flex-1 overflow-y-auto p-4 md:p-6">
               <div className="mx-auto max-w-7xl">
-                <div className="mb-5 rounded-3xl border border-[#E4E2DF] bg-white p-5 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C2410C]">Owner Finance</p>
-                  <h1 className="mt-1 text-2xl font-black text-[#1A1714]">Payroll & Penggajian Staff</h1>
+                <div className="mb-5 rounded-[20px] border border-[#E2E5E9] bg-[#FCFCFB] p-5 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D85F00]">Owner Finance</p>
+                  <h1 className="mt-1 text-2xl font-black text-[#17202A]">Payroll & Penggajian Staff</h1>
                   <p className="mt-1 text-xs font-semibold text-slate-500">Atur gaji pokok, tunjangan, lembur, dan potongan keterlambatan per outlet.</p>
                 </div>
                 <AttendanceHrPanel activeUser={activeUser} staffAccounts={staffAccounts} currentBranch={currentBranch} attendanceRecords={branchAttendanceRecords} terminalMode={false} initialTab="PAYROLL" onShowToast={showPushToast} />

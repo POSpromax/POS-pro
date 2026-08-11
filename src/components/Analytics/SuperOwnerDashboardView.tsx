@@ -159,7 +159,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#FAFAFA] px-3 py-4 text-slate-900 md:px-6 md:py-5 font-sans select-none">
+    <div className="ui-surface flex-1 overflow-y-auto px-3 py-4 text-[#17202A] md:px-6 md:py-5 font-sans select-none">
       {/* Hero Section */}
       <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-2xs">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">

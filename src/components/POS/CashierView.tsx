@@ -87,14 +87,14 @@ const POSMenuItemCard: React.FC<{
           onAddToCart(item);
         }
       }}
-      className={`bg-white rounded-xl border transition-all duration-200 p-2.5 flex flex-col justify-between group overflow-hidden relative select-none h-full ${
+      className={`bg-[#FCFCFB] rounded-[14px] border transition-all duration-200 p-2.5 flex flex-col justify-between group overflow-hidden relative select-none h-full ${
         isPaidOrder
-          ? 'opacity-60 cursor-not-allowed border-[#E8E0D8]'
-          : 'border-[#E2DFDA] hover:border-[#BEB8B0] cursor-pointer hover:shadow-md'
+          ? 'opacity-60 cursor-not-allowed border-[#E2E5E9]'
+          : 'border-[#E2E5E9] hover:border-[#C7CED6] cursor-pointer hover:-translate-y-0.5 hover:shadow-md'
       }`}
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+      style={{ boxShadow: '0 1px 3px rgba(15,23,42,0.045)' }}
     >
-      <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#FAFAFA] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
+      <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#F1F2F3] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
         {item.image && !imgError ? (
           <img
             src={optimizeCloudinaryImage(item.image, 520)}
@@ -122,12 +122,12 @@ const POSMenuItemCard: React.FC<{
       </div>
 
       <div className="flex-1 flex flex-col justify-between gap-1.5">
-        <h3 className="font-black text-sm text-[#181715] line-clamp-2 leading-tight tracking-tight group-hover:text-black transition-colors">
+        <h3 className="font-extrabold text-sm text-[#17202A] line-clamp-2 leading-tight tracking-tight transition-colors">
           {item.name}
         </h3>
 
-        <div className="flex items-center justify-between pt-1.5 border-t border-[#F0E8E0] shrink-0">
-          <span className="font-bold text-xs sm:text-sm text-[#181715] tracking-tight tabular-nums">
+        <div className="flex items-center justify-between pt-1.5 border-t border-[#ECEEF1] shrink-0">
+          <span className="font-bold text-xs sm:text-sm text-[#17202A] tracking-tight tabular-nums">
             Rp {item.price.toLocaleString('id-ID')}
           </span>
 
@@ -145,11 +145,12 @@ const POSMenuItemCard: React.FC<{
             }}
             className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 cursor-pointer ${
               isPaidOrder
-                ? 'bg-[#E8E0D8] text-[#9C9590] cursor-not-allowed'
-                : 'bg-gradient-to-br from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 active:scale-95 text-white'
+                ? 'bg-[#E2E5E9] text-[#98A2B3] cursor-not-allowed'
+                : 'bg-[#FF7A00] hover:bg-[#E96E00] active:scale-95 text-white'
             }`}
             style={isPaidOrder ? {} : { boxShadow: '0 2px 6px rgba(234,88,12,0.2)' }}
             title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
+            aria-label={`${shouldTriggerCondiments ? 'Pilih isian dan topping untuk' : 'Tambah'} ${item.name}`}
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
           </button>
@@ -411,7 +412,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   );
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col md:flex-row h-full overflow-hidden bg-transparent select-none font-sans text-[#1A1714]">
+    <div className="flex-1 min-h-0 flex flex-col md:flex-row h-full overflow-hidden bg-[#F4F5F6] select-none font-sans text-[#17202A]">
       
       {/* LEFT + CENTER AREA WRAPPER */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden p-1.5 md:p-2 pr-0 gap-1.5 md:gap-2">
@@ -420,27 +421,27 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
         <div className="flex-1 flex flex-col md:flex-row h-full min-h-0 gap-1.5 md:gap-2 overflow-hidden">
           {/* 1. LEFT PANEL: Queue & Active Orders */}
-          <div className="w-full md:w-44 lg:w-48 xl:w-52 bg-white rounded-xl border border-[#E8E0D8] p-2 flex flex-col shrink-0 max-h-60 md:max-h-none h-full min-h-0 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div className="w-full md:w-44 lg:w-48 xl:w-52 bg-[#FCFCFB] rounded-[16px] border border-[#E2E5E9] p-2 flex flex-col shrink-0 max-h-60 md:max-h-none h-full min-h-0 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(15,23,42,0.045)' }}>
 
             {/* Queue Header */}
-            <div className="flex items-center justify-between bg-[#FAFAFA] p-1.5 rounded-lg mb-1.5 border border-[#E8E0D8]">
+            <div className="flex items-center justify-between bg-[#F1F2F3] p-1.5 rounded-[10px] mb-1.5 border border-[#E2E5E9]">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-md bg-[#1A1714] text-white flex items-center justify-center font-bold text-[9px]">
+                <div className="w-5 h-5 rounded-md bg-[#17202A] text-white flex items-center justify-center font-bold text-[9px]">
                   Q
                 </div>
-                <span className="text-[11px] font-bold text-[#1A1714]">Queue POS</span>
+                <span className="text-[11px] font-bold text-[#17202A]">Queue POS</span>
               </div>
-              <span className="w-2 h-2 rounded-full bg-[#EA580C] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse" />
             </div>
 
             {/* Tab Switcher */}
-            <div className="grid grid-cols-2 bg-[#F3F3F3] p-0.5 rounded-lg mb-1.5 text-[9px] font-semibold border border-[#E2E2E2]">
+            <div className="grid grid-cols-2 bg-[#F1F2F3] p-0.5 rounded-[10px] mb-1.5 text-[9px] font-semibold border border-[#E2E5E9]">
               <button
                 onClick={() => setQueueTab('ACTIVE')}
                 className={`py-1 rounded-md transition-all ${
                   queueTab === 'ACTIVE'
-                    ? 'bg-[#1A1714] text-white font-bold'
-                    : 'text-[#9C9590] hover:text-[#1A1714]'
+                    ? 'bg-[#17202A] text-white font-bold shadow-sm'
+                    : 'text-[#667085] hover:text-[#17202A]'
                 }`}
               >
                 Active ({activeOrdersList.length})
@@ -449,8 +450,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 onClick={() => setQueueTab('HISTORY')}
                 className={`py-1 rounded-md transition-all ${
                   queueTab === 'HISTORY'
-                    ? 'bg-[#1A1714] text-white font-bold'
-                    : 'text-[#9C9590] hover:text-[#1A1714]'
+                    ? 'bg-[#17202A] text-white font-bold shadow-sm'
+                    : 'text-[#667085] hover:text-[#17202A]'
                 }`}
               >
                 Shift Ini ({historyOrdersList.length})
@@ -460,7 +461,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
             {/* Order Cards Scroll List */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
               {(queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).length === 0 ? (
-                <div className="py-12 px-3 text-center text-[#B8B0A8] text-xs font-medium leading-relaxed">
+                <div className="py-12 px-3 text-center text-[#98A2B3] text-xs font-medium leading-relaxed">
                   {queueTab === 'ACTIVE'
                     ? 'Tidak ada order antrean'
                     : 'Belum ada order selesai di shift ini. Riwayat per tanggal, minggu, atau bulan ada di menu Laporan.'}
@@ -480,15 +481,15 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       onClick={() => { if (!isVoided) handleLoadExistingOrder(order); }}
                       className={`p-2 rounded-lg border border-l-[3px] transition-all relative ${
                         isVoided
-                          ? 'bg-[#FAFAFA] border-[#E2E2E2] border-l-[#B8B0A8] opacity-75 cursor-default'
+                          ? 'bg-[#F7F7F6] border-[#E2E5E9] border-l-[#98A2B3] opacity-75 cursor-default'
                           : isEditingThis
-                            ? 'bg-[#FFF7F3] border-[#EA580C] border-l-[#EA580C] ring-2 ring-[#EA580C]/10 shadow-sm cursor-pointer'
-                            : 'bg-white border-[#E2E2E2] border-l-[#EA580C] hover:border-[#F2B59B] hover:bg-[#FFF9F6] hover:shadow-sm cursor-pointer'
+                            ? 'bg-[#FFF2E6] border-[#FF7A00] border-l-[#FF7A00] ring-2 ring-[#FF7A00]/10 shadow-sm cursor-pointer'
+                            : 'bg-white border-[#E2E5E9] border-l-[#FF7A00] hover:border-[#FFD4AD] hover:bg-[#FFFAF6] hover:shadow-sm cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span
-                          className="font-bold text-sm text-[#C2410C] tracking-tight tabular-nums"
+                          className="font-bold text-sm text-[#D85F00] tracking-tight tabular-nums"
                           title={order.orderNumber}
                         >
                           {formatOrderLabel(order)}
@@ -497,11 +498,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                           <span className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-md ${
                             isVoided
                               ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                              : orderIsPaid ? 'bg-[#F1F1F1] text-[#333333]' : 'bg-[#FFF2EB] text-[#C2410C]'
+                              : orderIsPaid ? 'bg-[#EAF8EF] text-[#157A40]' : 'bg-[#FFF2E6] text-[#C55600]'
                           }`}>
                             {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
                           </span>
-                          <span className="text-[7px] bg-[#1A1714] text-white font-semibold px-1.5 py-0.5 rounded-md">
+                          <span className="text-[7px] bg-[#17202A] text-white font-semibold px-1.5 py-0.5 rounded-md">
                             {order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
                           </span>
                         </div>
@@ -509,15 +510,15 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
                       <div className="text-[10px] space-y-0.5">
                         <div className="flex justify-between items-baseline gap-2">
-                          <span className="font-bold text-[11px] text-[#252525] truncate max-w-[90px]">
+                          <span className="font-bold text-[11px] text-[#17202A] truncate max-w-[90px]">
                             {order.customerName}
                           </span>
-                          <span className="text-[9px] text-[#363636] font-bold whitespace-nowrap">Meja: {order.tableNumber || '-'}</span>
+                          <span className="text-[9px] text-[#475467] font-bold whitespace-nowrap">Meja: {order.tableNumber || '-'}</span>
                         </div>
 
-                        <div className="pt-0.5 flex items-center justify-between border-t border-[#F0E8E0]">
-                          <span className="font-medium text-[#9C9590] text-[8px]">{itemCount} menu</span>
-                          <span className="font-bold text-[10px] text-[#181715]">
+                        <div className="pt-0.5 flex items-center justify-between border-t border-[#ECEEF1]">
+                          <span className="font-medium text-[#98A2B3] text-[8px]">{itemCount} menu</span>
+                          <span className="font-bold text-[10px] text-[#17202A]">
                             Rp {order.total.toLocaleString('id-ID')}
                           </span>
                         </div>
@@ -528,8 +529,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                             e.stopPropagation();
                             onPrintPreBill(order);
                           }}
-                          className="mt-1 p-1 text-[#C94A1A] bg-[#FFF9F6] hover:bg-[#FFF1EA] rounded-md border border-[#F0D4C8] transition-all self-end"
+                          className="mt-1 p-1 text-[#D85F00] bg-[#FFF2E6] hover:bg-[#FFE5CF] rounded-md border border-[#FFD4AD] transition-all self-end"
                           title="Cetak Struk"
+                          aria-label={`Cetak struk ${formatOrderLabel(order)}`}
                         >
                           <Printer className="w-3 h-3" />
                         </button>
@@ -542,9 +544,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
           </div>
 
           {/* 2. CENTER PANEL: Category Pills & Product Grid */}
-          <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col overflow-hidden bg-white rounded-xl border border-[#E8E0D8] p-2 md:p-2.5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col overflow-hidden bg-[#FCFCFB] rounded-[16px] border border-[#E2E5E9] p-2 md:p-2.5" style={{ boxShadow: '0 1px 3px rgba(15,23,42,0.045)' }}>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-[#F0E8E0] scrollbar-none shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-[#ECEEF1] scrollbar-none shrink-0">
               {categories.map((cat) => {
                 const isSelected = selectedCategory === cat.id;
 
@@ -555,9 +557,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all uppercase tracking-wide cursor-pointer ${
                       isSelected
                         ? cat.id === 'ALL'
-                          ? 'bg-[#1A1714] text-white'
-                          : 'bg-[#1C1B19] text-white'
-                        : 'bg-[#F4F4F4] hover:bg-[#EAEAEA] text-[#5F5F5F] border border-[#E1E1E1]'
+                          ? 'bg-[#17202A] text-white shadow-sm'
+                          : 'bg-[#17202A] text-white shadow-sm'
+                        : 'bg-[#F1F2F3] hover:bg-[#E9ECEF] text-[#667085] border border-[#E2E5E9]'
                     }`}
                   >
                     {cat.label}
@@ -569,8 +571,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
             {/* Product Catalog Grid */}
             <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 p-0.5 content-start auto-rows-max scrollbar-thin">
               {filteredMenu.length === 0 ? (
-                <div className="col-span-full py-16 text-center text-[#B8B0A8] text-xs font-medium space-y-2">
-                  <Utensils className="w-10 h-10 text-[#D5CFC8] mx-auto" />
+                <div className="col-span-full py-16 text-center text-[#98A2B3] text-xs font-medium space-y-2">
+                  <Utensils className="w-10 h-10 text-[#CDD3DA] mx-auto" />
                   <p>Menu tidak ditemukan</p>
                 </div>
               ) : (
@@ -597,17 +599,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
       </div>
 
       {/* 3. RIGHT PANEL: ORDER CART */}
-      <div className="w-full md:w-80 lg:w-88 xl:w-96 h-full min-h-0 bg-white border-l border-[#E8E0D8] p-3 md:p-3.5 flex flex-col justify-between shrink-0 overflow-hidden rounded-l-2xl rounded-r-none" style={{ boxShadow: '-4px 0 16px rgba(0,0,0,0.03)' }}>
+      <div className="w-full md:w-80 lg:w-88 xl:w-96 h-full min-h-0 bg-[#FCFCFB] border-l border-[#E2E5E9] p-3 md:p-3.5 flex flex-col justify-between shrink-0 overflow-hidden rounded-l-[18px] rounded-r-none" style={{ boxShadow: '-4px 0 16px rgba(15,23,42,0.035)' }}>
         <div className="flex flex-col h-full overflow-hidden">
           {/* Cart Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#F0E8E0] shrink-0">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#ECEEF1] shrink-0">
             <div className="flex items-center gap-1.5">
-              <h3 className="font-bold text-xs text-[#1A1714]">
+              <h3 className="font-bold text-xs text-[#17202A]">
                 Order
               </h3>
               {currentEditingOrder && (
                 <span
-                  className="text-[10px] font-bold text-[#C2410C] bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 tabular-nums"
+                  className="text-[10px] font-bold text-[#C55600] bg-[#FFF2E6] px-1.5 py-0.5 rounded-md border border-[#FFD4AD] tabular-nums"
                   title={currentEditingOrder.orderNumber}
                 >
                   {formatOrderLabel(currentEditingOrder)}
@@ -617,13 +619,13 @@ export const CashierView: React.FC<CashierViewProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
-              <div className="flex items-center bg-[#F3F3F3] border border-[#E1E1E1] p-0.5 rounded-lg text-[9px] font-semibold">
+              <div className="flex items-center bg-[#F1F2F3] border border-[#E2E5E9] p-0.5 rounded-[10px] text-[9px] font-semibold">
                 <button
                   type="button"
                   disabled={isPaidOrder}
                   onClick={() => setOrderType('DINE_IN')}
                   className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 ${
-                    orderType === 'DINE_IN' ? 'bg-[#1C1B19] text-white font-bold' : 'text-[#9C9590] hover:text-[#1A1714]'
+                    orderType === 'DINE_IN' ? 'bg-[#17202A] text-white font-bold shadow-sm' : 'text-[#667085] hover:text-[#17202A]'
                   } ${isPaidOrder ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <Utensils className="w-3 h-3" />
@@ -634,7 +636,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   disabled={isPaidOrder}
                   onClick={() => setOrderType('TAKE_AWAY')}
                   className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 ${
-                    orderType === 'TAKE_AWAY' ? 'bg-[#1C1B19] text-white font-bold' : 'text-[#9C9590] hover:text-[#1A1714]'
+                    orderType === 'TAKE_AWAY' ? 'bg-[#17202A] text-white font-bold shadow-sm' : 'text-[#667085] hover:text-[#17202A]'
                   } ${isPaidOrder ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <ShoppingBag className="w-3 h-3" />
@@ -644,8 +646,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
               <button
                 onClick={handleClearCart}
-                className="p-1 text-[#B8B0A8] hover:text-rose-500 transition-colors"
+                className="p-1 text-[#98A2B3] hover:text-[#E5484D] transition-colors"
                 title={isPaidOrder ? 'Tutup View Order' : 'Kosongkan'}
+                aria-label={isPaidOrder ? 'Tutup tampilan order' : 'Kosongkan keranjang'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -683,8 +686,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 disabled={isPaidOrder}
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className={`w-full border rounded-lg px-2.5 py-1.5 text-sm font-bold text-[#1A1A1A] outline-none ${
-                  isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#929292] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] focus:border-[#AFAFAF] focus:bg-white focus:ring-1 focus:ring-black/5'
+                className={`w-full border rounded-[10px] px-2.5 py-1.5 text-sm font-bold text-[#17202A] outline-none ${
+                  isPaidOrder ? 'bg-[#F7F7F6] border-[#E2E5E9] text-[#98A2B3] cursor-not-allowed' : 'bg-[#F1F2F3] border-[#E2E5E9] focus:border-[#AAB4C0] focus:bg-white focus:ring-2 focus:ring-[#3B6FE8]/10'
                 }`}
                 placeholder="Name"
               />
@@ -697,8 +700,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 disabled={isPaidOrder}
                 value={selectedTable}
                 onChange={(e) => setSelectedTable(e.target.value)}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm font-bold text-[#1A1A1A] outline-none ${
-                  isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#929292] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] focus:border-[#AFAFAF] focus:bg-white focus:ring-1 focus:ring-black/5 cursor-pointer'
+                className={`w-full border rounded-[10px] px-2 py-1.5 text-sm font-bold text-[#17202A] outline-none ${
+                  isPaidOrder ? 'bg-[#F7F7F6] border-[#E2E5E9] text-[#98A2B3] cursor-not-allowed' : 'bg-[#F1F2F3] border-[#E2E5E9] focus:border-[#AAB4C0] focus:bg-white focus:ring-2 focus:ring-[#3B6FE8]/10 cursor-pointer'
                 }`}
               >
                 <option value="-">Pilih meja</option>
@@ -711,26 +714,26 @@ export const CashierView: React.FC<CashierViewProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5 border-t border-[#F0E8E0] pt-2 scrollbar-thin">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5 border-t border-[#ECEEF1] pt-2 scrollbar-thin">
             {cartItems.length === 0 ? (
               <div className="py-16 text-center space-y-2">
-                <div className="w-11 h-11 rounded-xl bg-[#FAFAFA] border border-[#E2DFDA] flex items-center justify-center mx-auto text-[#C2410C]">
+                <div className="w-11 h-11 rounded-xl bg-[#FFF2E6] border border-[#FFD4AD] flex items-center justify-center mx-auto text-[#D85F00]">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
-                <p className="text-xs font-semibold text-[#9C9590]">Keranjang Kosong</p>
-                <p className="text-[10px] text-[#B8B0A8] font-medium">Pilih menu di sebelah kiri</p>
+                <p className="text-xs font-semibold text-[#667085]">Keranjang Kosong</p>
+                <p className="text-[10px] text-[#98A2B3] font-medium">Pilih menu di sebelah kiri</p>
               </div>
             ) : (
               cartItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-2 rounded-lg bg-[#FAFAFA] border border-[#E8E0D8] space-y-1"
+                  className="p-2 rounded-[10px] bg-[#F7F7F6] border border-[#E2E5E9] space-y-1"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-xs text-[#1A1714] leading-snug">
+                    <span className="font-semibold text-xs text-[#17202A] leading-snug">
                       {item.menuName}
                     </span>
-                    <span className="font-bold text-xs text-[#181818] shrink-0">
+                    <span className="font-bold text-xs text-[#17202A] shrink-0">
                       Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                     </span>
                   </div>
@@ -741,10 +744,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     </span>
 
                     {!isPaidOrder && (
-                      <div className="flex items-center gap-0.5 bg-white border border-[#E8E0D8] rounded-lg p-0.5">
+                      <div className="flex items-center gap-0.5 bg-white border border-[#E2E5E9] rounded-lg p-0.5">
                         <button
                           onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="w-5 h-5 rounded-md bg-[#FAFAFA] hover:bg-[#EDE5DC] text-[#6B6560] flex items-center justify-center transition-colors"
+                          className="w-5 h-5 rounded-md bg-[#F1F2F3] hover:bg-[#E9ECEF] text-[#667085] flex items-center justify-center transition-colors"
+                          aria-label={`Kurangi ${item.menuName}`}
                         >
                           <Minus className="w-2.5 h-2.5" />
                         </button>
@@ -753,7 +757,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                         </span>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="w-5 h-5 rounded-md bg-gradient-to-r from-[#EA580C] to-[#F97316] text-white flex items-center justify-center transition-all"
+                          className="w-5 h-5 rounded-md bg-[#FF7A00] hover:bg-[#E96E00] text-white flex items-center justify-center transition-all"
+                          aria-label={`Tambah ${item.menuName}`}
                         >
                           <Plus className="w-2.5 h-2.5" />
                         </button>
@@ -765,7 +770,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
             )}
           </div>
 
-          <div className="pt-2.5 border-t border-[#F0E8E0] shrink-0 space-y-2 mt-auto">
+          <div className="pt-2.5 border-t border-[#ECEEF1] shrink-0 space-y-2 mt-auto">
             <div className="grid grid-cols-2 gap-1.5 text-xs">
               <input
                 type="number"
@@ -775,8 +780,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 placeholder={discountMode === 'PERCENT' ? 'Diskon %' : 'Diskon Rp'}
                 value={discountValue || ''}
                 onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
-                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none ${
-                  isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] text-[#1A1A1A] focus:border-[#AFAFAF] focus:bg-white'
+                className={`w-full border rounded-[10px] px-2.5 py-1.5 text-xs font-semibold outline-none ${
+                  isPaidOrder ? 'bg-[#F7F7F6] border-[#E2E5E9] text-[#98A2B3] cursor-not-allowed' : 'bg-[#F1F2F3] border-[#E2E5E9] text-[#17202A] focus:border-[#AAB4C0] focus:bg-white'
                 }`}
               />
               <select
@@ -784,8 +789,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 value={discountMode}
                 onChange={(e) => setDiscountMode(e.target.value as 'PERCENT' | 'IDR')}
                 aria-label="Satuan diskon"
-                className={`w-full border rounded-lg px-2 py-1.5 text-xs font-semibold outline-none ${
-                  isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] text-[#1A1A1A] focus:border-[#AFAFAF] focus:bg-white cursor-pointer'
+                className={`w-full border rounded-[10px] px-2 py-1.5 text-xs font-semibold outline-none ${
+                  isPaidOrder ? 'bg-[#F7F7F6] border-[#E2E5E9] text-[#98A2B3] cursor-not-allowed' : 'bg-[#F1F2F3] border-[#E2E5E9] text-[#17202A] focus:border-[#AAB4C0] focus:bg-white cursor-pointer'
                 }`}
               >
                 <option value="PERCENT">Persen (%)</option>
@@ -810,9 +815,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 </div>
               )}
 
-              <div className="flex justify-between text-sm font-bold text-[#1A1714] pt-0.5">
+              <div className="flex justify-between text-sm font-bold text-[#17202A] pt-0.5">
                 <span>TOTAL</span>
-                <span className="text-base font-bold text-[#C2410C]">
+                <span className="text-base font-bold text-[#D85F00]">
                   Rp {total.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -865,8 +870,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       }}
                       className={`py-2.5 border disabled:opacity-40 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         pendingConfirm === 'SAVE'
-                          ? 'bg-[#1C1B19] border-[#1C1B19] text-white'
-                          : 'bg-white border-[#E8E0D8] hover:bg-[#FAFAFA] text-[#6B6560]'
+                          ? 'bg-[#17202A] border-[#17202A] text-white'
+                          : 'bg-white border-[#E2E5E9] hover:bg-[#F7F7F6] text-[#667085]'
                       }`}
                     >
                       {pendingConfirm === 'SAVE' ? (
@@ -888,8 +893,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       }}
                       className={`py-2.5 active:scale-95 disabled:opacity-40 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         pendingConfirm === 'PAY'
-                          ? 'bg-[#1C1B19]'
-                          : 'bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600'
+                          ? 'bg-[#17202A]'
+                          : 'bg-[#FF7A00] hover:bg-[#E96E00]'
                       }`}
                       style={{ boxShadow: '0 2px 8px rgba(234,88,12,0.25)' }}
                     >
