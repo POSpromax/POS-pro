@@ -73,7 +73,10 @@ export async function handlePinLogin(
 
   if (error) {
     console.error('[verify_staff_pin RPC ERROR]:', error);
-    return { status: 500, data: { error: 'Verifikasi tidak dapat diproses' } };
+    const developmentDetail = process.env.NODE_ENV !== 'production' && error.message
+      ? `: ${error.message}`
+      : '';
+    return { status: 500, data: { error: `Verifikasi tidak dapat diproses${developmentDetail}` } };
   }
 
   const verification = (data?.[0] || null) as VerificationRow | null;
