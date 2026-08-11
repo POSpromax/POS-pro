@@ -169,8 +169,8 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider">
-                <Crown className="w-3.5 h-3.5 text-indigo-600" /> Executive Portal Owner Studio
+              <span className="bg-orange-50 text-[#C2410C] border border-orange-200 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider">
+                <Crown className="w-3.5 h-3.5 text-[#C2410C]" /> Executive Portal Owner Studio
               </span>
               <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
                 <Store className="w-3.5 h-3.5 text-emerald-600" /> Outlet Aktif: {currentBranch.name} ({currentBranch.code})
@@ -188,7 +188,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             <button
               type="button"
               onClick={handleSaveBlueprintSettings}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+              className="bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold text-xs px-5 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>Simpan Perubahan Studio</span>
@@ -200,7 +200,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
         <div className="mt-6 pt-5 border-t border-[#F0E8E0]">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <Store className="w-4 h-4 text-indigo-600" />
+              <Store className="w-4 h-4 text-[#C2410C]" />
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Daftar Outlet & Cabang Terdaftar ({branches.length}):
               </span>
@@ -226,8 +226,8 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   onClick={() => onSelectBranch && onSelectBranch(br)}
                   className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer flex flex-col justify-between gap-2 relative ${
                     isSelected
-                      ? 'bg-[#FFF7F3] border-[#F05A1F] text-[#2A211D] shadow-sm ring-2 ring-[#F05A1F]/10'
-                      : 'bg-[#FAFAF8] border-[#E8E0D8] text-[#6B6560] hover:border-slate-300 hover:bg-white'
+                      ? 'bg-[#FFF7F3] border-[#EA580C] text-[#2A211D] shadow-sm ring-2 ring-[#EA580C]/10'
+                      : 'bg-[#FAFAFA] border-[#E8E0D8] text-[#6B6560] hover:border-slate-300 hover:bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -244,14 +244,14 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     </div>
 
                     {isSelected && (
-                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                      <span className="w-5 h-5 rounded-full bg-[#EA580C] text-white flex items-center justify-center shrink-0">
                         <Check className="w-3 h-3" />
                       </span>
                     )}
                   </div>
 
                   <div className="pt-2 border-t border-[#E8E0D8]/60 flex items-center justify-between text-[10px] font-bold text-[#9C9590]">
-                    <span className="font-mono text-indigo-700">KODE: {br.code}</span>
+                    <span className="font-mono text-[#C2410C]">KODE: {br.code}</span>
                     <span className="text-emerald-700 font-bold">POS AKTIF</span>
                   </div>
                 </button>
@@ -275,11 +275,11 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('PROFILE')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'PROFILE'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
-            <Building2 className="w-4 h-4 text-indigo-400" />
+            <Building2 className="w-4 h-4 text-orange-300" />
             <span>1. Profil Resto & Struk</span>
           </button>
 
@@ -288,7 +288,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('LAYOUT')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'LAYOUT'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
@@ -301,11 +301,11 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('MENU_TREE')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'MENU_TREE'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
-            <UtensilsCrossed className="w-4 h-4 text-blue-500" />
+            <UtensilsCrossed className="w-4 h-4 text-[#C2410C]" />
             <span>3. Katalog Menu & Auto-Markup</span>
           </button>
 
@@ -314,7 +314,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('ACCESS_MATRIX')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'ACCESS_MATRIX'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
@@ -327,7 +327,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('PAYMENT_GATEWAY')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'PAYMENT_GATEWAY'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
@@ -340,7 +340,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             onClick={() => setActiveSubBlueprint('WORKFLOW')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap border ${
               activeSubBlueprint === 'WORKFLOW'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
                 : 'bg-slate-100/80 hover:bg-slate-200/80 text-[#6B6560] border-[#E8E0D8]/80'
             }`}
           >
@@ -357,7 +357,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[#1A1714] flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-indigo-600" /> Pengaturan Identitas Resto & Cetak Struk
+                  <Building2 className="w-5 h-5 text-[#C2410C]" /> Pengaturan Identitas Resto & Cetak Struk
                 </h2>
                 <p className="text-xs text-[#9C9590] font-medium mt-0.5">
                   Atur informasi resmi usaha, nomor kontak customer, alamat lengkap, dan teks footer pada nota transaksi.
@@ -367,7 +367,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <button
                 type="button"
                 onClick={handleSaveBlueprintSettings}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                className="bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <Save className="w-4 h-4" /> Simpan Profil
               </button>
@@ -381,7 +381,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="text"
                     value={restoName}
                     onChange={(e) => setRestoName(e.target.value)}
-                    className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] font-semibold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:bg-white"
+                    className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] font-semibold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] focus:bg-white"
                   />
                 </div>
 
@@ -391,7 +391,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="text"
                     value={restoPhone}
                     onChange={(e) => setRestoPhone(e.target.value)}
-                    className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] font-semibold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:bg-white"
+                    className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] font-semibold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] focus:bg-white"
                   />
                 </div>
 
@@ -401,7 +401,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     rows={3}
                     value={restoAddress}
                     onChange={(e) => setRestoAddress(e.target.value)}
-                    className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl p-3 outline-none focus:border-indigo-500 focus:bg-white resize-none"
+                    className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl p-3 outline-none focus:border-[#EA580C] focus:bg-white resize-none"
                   />
                 </div>
               </div>
@@ -413,7 +413,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="text"
                     value={receiptHeader}
                     onChange={(e) => setReceiptHeader(e.target.value)}
-                    className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:bg-white"
+                    className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] focus:bg-white"
                   />
                 </div>
 
@@ -423,7 +423,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="text"
                     value={receiptFooter}
                     onChange={(e) => setReceiptFooter(e.target.value)}
-                    className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:bg-white"
+                    className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] font-medium text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] focus:bg-white"
                   />
                 </div>
 
@@ -459,7 +459,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <button
                 type="button"
                 onClick={() => onNavigateTab('tables')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                className="bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
               >
                 <QrCode className="w-4 h-4" />
                 <span>Buka Kelola QR Meja Full</span>
@@ -467,7 +467,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             </div>
 
             {/* Visual Table Cards Matrix */}
-            <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-6 relative overflow-hidden">
+            <div className="bg-[#FAFAFA] border border-[#E8E0D8] rounded-2xl p-6 relative overflow-hidden">
               <div className="flex items-center justify-between mb-4 border-b border-[#E8E0D8]/80 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
@@ -489,7 +489,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                       className={`border rounded-2xl p-4 flex flex-col items-center justify-between gap-3 text-center transition-all shadow-2xs ${
                         isOccupied
                           ? 'bg-rose-50 border-rose-200 text-rose-950'
-                          : 'bg-white border-[#E8E0D8] hover:border-indigo-400'
+                          : 'bg-white border-[#E8E0D8] hover:border-[#EA580C]'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
@@ -505,7 +505,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-[#E8E0D8] flex flex-col items-center justify-center font-bold text-[#1A1714]">
                         <span className="text-[9px] text-[#B8B0A8] uppercase">MEJA</span>
-                        <span className="text-lg leading-none text-indigo-600">{cleanNumber}</span>
+                        <span className="text-lg leading-none text-[#C2410C]">{cleanNumber}</span>
                       </div>
 
                       <div className="w-full pt-2 border-t border-[#F0E8E0] flex items-center justify-between text-[10px] font-bold">
@@ -536,7 +536,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
               <div>
                 <h2 className="text-lg font-bold text-[#1A1714] flex items-center gap-2">
-                  <UtensilsCrossed className="w-5 h-5 text-blue-600" /> Katalog Menu & Auto-Markup Online
+                  <UtensilsCrossed className="w-5 h-5 text-[#C2410C]" /> Katalog Menu & Auto-Markup Online
                 </h2>
                 <p className="text-xs text-[#9C9590] font-medium mt-0.5">
                   Atur struktur kategori menu, markup harga order online (GoFood/GrabFood), serta persentase profit margin target.
@@ -546,7 +546,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <button
                 type="button"
                 onClick={() => onNavigateTab('settings')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                className="bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer shadow-xs"
               >
                 <Plus className="w-4 h-4" />
                 <span>Kelola Katalog Menu & Topping</span>
@@ -554,9 +554,9 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             </div>
 
             {/* Price Markup Blueprint Card */}
-            <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-5 mb-6">
+            <div className="bg-[#FAFAFA] border border-[#E8E0D8] rounded-2xl p-5 mb-6">
               <h3 className="text-sm font-bold text-[#1A1714] mb-3 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-indigo-600" /> Auto-Markup Harga Online (GoFood / GrabFood)
+                <Sliders className="w-4 h-4 text-[#C2410C]" /> Auto-Markup Harga Online (GoFood / GrabFood)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div>
@@ -570,7 +570,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                       max={100}
                       value={onlinePriceMarkup}
                       onChange={(e) => setOnlinePriceMarkup(Number(e.target.value))}
-                      className="bg-white border border-[#E8E0D8] text-indigo-700 font-bold text-sm rounded-xl px-3 py-2 outline-none w-28 text-center"
+                      className="bg-white border border-[#E8E0D8] text-[#C2410C] font-bold text-sm rounded-xl px-3 py-2 outline-none w-28 text-center"
                     />
                     <span className="text-xs font-bold text-[#9C9590]">% dari Harga Normal</span>
                   </div>
@@ -590,7 +590,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   <button
                     type="button"
                     onClick={handleSaveBlueprintSettings}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                    className="bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
                   >
                     Terapkan Markup
                   </button>
@@ -615,14 +615,14 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     const onlinePrice = Math.round(item.price * (1 + onlinePriceMarkup / 100));
 
                     return (
-                      <tr key={item.id} className="hover:bg-[#FAFAF8] transition-colors">
+                      <tr key={item.id} className="hover:bg-[#FAFAFA] transition-colors">
                         <td className="p-3 font-semibold text-[#1A1714] flex items-center gap-2">
                           <div className="w-7 h-7 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-[#E8E0D8]">
                             <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                           </div>
                           <span>{item.name}</span>
                         </td>
-                        <td className="p-3 font-bold text-indigo-700">{item.category}</td>
+                        <td className="p-3 font-bold text-[#C2410C]">{item.category}</td>
                         <td className="p-3 font-bold text-emerald-600">Rp {item.price.toLocaleString('id-ID')}</td>
                         <td className="p-3 font-bold text-amber-600">Rp {onlinePrice.toLocaleString('id-ID')}</td>
                         <td className="p-3">
@@ -664,25 +664,25 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 <thead className="bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider border-b border-[#E8E0D8]">
                   <tr>
                     <th className="p-3.5">Aksi / Tindakan Sensitif Sistem</th>
-                    <th className="p-3.5 text-center text-indigo-700">Super Owner</th>
-                    <th className="p-3.5 text-center text-blue-700">Manager</th>
+                    <th className="p-3.5 text-center text-[#C2410C]">Super Owner</th>
+                    <th className="p-3.5 text-center text-[#C2410C]">Manager</th>
                     <th className="p-3.5 text-center text-emerald-700">Kasir POS</th>
                     <th className="p-3.5 text-center text-amber-700">Koki Dapur</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {rolePermissions.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-[#FAFAF8] transition-colors">
+                    <tr key={idx} className="hover:bg-[#FAFAFA] transition-colors">
                       <td className="p-3.5 font-semibold text-[#1A1714]">{item.action}</td>
                       <td className="p-3.5 text-center">
-                        <span className="text-indigo-700 font-bold">FULL (✓)</span>
+                        <span className="text-[#C2410C] font-bold">FULL (✓)</span>
                       </td>
                       <td className="p-3.5 text-center">
                         <button
                           type="button"
                           onClick={() => togglePermission(idx, 'manager')}
                           className={`w-6 h-6 rounded-lg inline-flex items-center justify-center cursor-pointer transition-colors ${
-                            item.manager ? 'bg-blue-600 text-white' : 'bg-slate-200 text-[#B8B0A8]'
+                            item.manager ? 'bg-[#EA580C] text-white' : 'bg-slate-200 text-[#B8B0A8]'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -734,9 +734,9 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* PB1 Tax & Service Charge Card */}
-              <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-5 space-y-4">
+              <div className="bg-[#FAFAFA] border border-[#E8E0D8] rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-bold text-[#1A1714] flex items-center gap-2">
-                  <Percent className="w-4 h-4 text-indigo-600" /> Aturan Pajak PB1 & Service Charge
+                  <Percent className="w-4 h-4 text-[#C2410C]" /> Aturan Pajak PB1 & Service Charge
                 </h3>
 
                 <div>
@@ -747,7 +747,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="number"
                     value={pb1TaxRate}
                     onChange={(e) => setPb1TaxRate(Number(e.target.value))}
-                    className="w-full bg-white border border-[#E8E0D8] text-[#1A1714] font-bold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-[#E8E0D8] text-[#1A1714] font-bold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C]"
                   />
                 </div>
 
@@ -759,21 +759,21 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     type="number"
                     value={serviceChargeRate}
                     onChange={(e) => setServiceChargeRate(Number(e.target.value))}
-                    className="w-full bg-white border border-[#E8E0D8] text-[#1A1714] font-bold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-[#E8E0D8] text-[#1A1714] font-bold text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C]"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={handleSaveBlueprintSettings}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs transition-all shadow-xs cursor-pointer"
                 >
                   Simpan Aturan Pajak & Service
                 </button>
               </div>
 
               {/* QRIS & Payment Channels */}
-              <div className="bg-[#FAFAF8] border border-[#E8E0D8] rounded-2xl p-5 space-y-3">
+              <div className="bg-[#FAFAFA] border border-[#E8E0D8] rounded-2xl p-5 space-y-3">
                 <h3 className="text-sm font-bold text-[#1A1714] flex items-center gap-2">
                   <QrCode className="w-4 h-4 text-emerald-600" /> Payment Gateway Channels
                 </h3>
@@ -827,7 +827,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 </div>
                 <p className="text-xs text-[#8A8580]">Checklist ini mengarahkan urutan konfigurasi sebelum outlet menerima transaksi nyata.</p>
               </div>
-              <span className="rounded-full border border-[#F1C7B5] bg-[#FFF7F3] px-3 py-1.5 text-[10px] font-bold text-[#D94B15]">BLUEPRINT P0 / P1</span>
+              <span className="rounded-full border border-[#F1C7B5] bg-[#FFF7F3] px-3 py-1.5 text-[10px] font-bold text-[#C2410C]">BLUEPRINT P0 / P1</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -839,14 +839,14 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 { title: 'Katalog aktif', ready: menuItems.some((item) => item.isAvailable !== false), detail: `${menuItems.filter((item) => item.isAvailable !== false).length} menu tersedia` },
                 { title: 'Keamanan produksi', ready: false, detail: 'Backend auth, audit log, signed QR, dan idempotency wajib P0' }
               ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-[#E8E0D8] bg-[#FAFAF8] p-4 flex items-start gap-3">
+                <div key={item.title} className="rounded-2xl border border-[#E8E0D8] bg-[#FAFAFA] p-4 flex items-start gap-3">
                   <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center ${item.ready ? 'bg-[#1A1714] text-white' : 'bg-[#FFF0E8] text-[#E95412]'}`}>
                     {item.ready ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[#1A1714]">{item.title}</p>
                     <p className="text-[10px] leading-relaxed text-[#8A8580] mt-1">{item.detail}</p>
-                    <p className={`text-[9px] font-bold uppercase mt-2 ${item.ready ? 'text-[#55504C]' : 'text-[#D94B15]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
+                    <p className={`text-[9px] font-bold uppercase mt-2 ${item.ready ? 'text-[#55504C]' : 'text-[#C2410C]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
                   </div>
                 </div>
               ))}
@@ -862,7 +862,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
               <div key={group.phase} className="bg-white border border-[#E8E0D8] rounded-2xl p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-[10px] font-bold text-[#D94B15]">{group.phase}</p>
+                    <p className="text-[10px] font-bold text-[#C2410C]">{group.phase}</p>
                     <h3 className="text-sm font-bold text-[#1A1714]">{group.title}</h3>
                   </div>
                   <Clock className="w-4 h-4 text-[#8A8580]" />
@@ -880,7 +880,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
           </div>
 
           <div className="rounded-2xl border border-[#F1C7B5] bg-[#FFF7F3] p-4 flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-[#D94B15] shrink-0" />
+            <ShieldCheck className="w-5 h-5 text-[#C2410C] shrink-0" />
             <p className="text-xs leading-relaxed text-[#5F514A]"><strong>Batas keamanan:</strong> kontrol PIN dan lockout pada UI saat ini hanya untuk demonstrasi. Jangan memproses data biometrik atau pembayaran nyata sebelum seluruh P0 pada dokumen blueprint repository selesai.</p>
           </div>
         </div>
@@ -892,7 +892,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
           <div className="bg-white border border-[#E8E0D8] rounded-2xl p-6 max-w-md w-full shadow-xl relative animate-fade-in">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#F0E8E0]">
               <div className="flex items-center gap-2">
-                <Store className="w-5 h-5 text-indigo-600" />
+                <Store className="w-5 h-5 text-[#C2410C]" />
                 <h3 className="text-base font-bold text-[#1A1714]">Tambah Outlet / Cabang Baru</h3>
               </div>
               <button
@@ -913,7 +913,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   placeholder="Misal: Bakso Malang - Cabang Bekasi"
                   value={newBranchName}
                   onChange={(e) => setNewBranchName(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 font-bold"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] font-bold"
                 />
               </div>
 
@@ -925,7 +925,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   placeholder="Misal: BKS-01"
                   value={newBranchCode}
                   onChange={(e) => setNewBranchCode(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-amber-700 text-xs font-mono rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 uppercase font-bold"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-amber-700 text-xs font-mono rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] uppercase font-bold"
                 />
               </div>
 
@@ -936,7 +936,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   placeholder="Misal: Jl. Raya Ahmad Yani No. 88, Bekasi"
                   value={newBranchAddress}
                   onChange={(e) => setNewBranchAddress(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] font-medium"
                 />
               </div>
 
@@ -947,7 +947,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   placeholder="0812-9988-7766"
                   value={newBranchPhone}
                   onChange={(e) => setNewBranchPhone(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] text-[#1A1714] text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-[#EA580C] font-medium"
                 />
               </div>
 
@@ -961,7 +961,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   Daftarkan Outlet Baru
                 </button>

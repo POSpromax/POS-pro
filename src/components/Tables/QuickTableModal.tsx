@@ -92,7 +92,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         {/* MODAL HEADER */}
         <div className="bg-slate-900/90 border-b border-slate-800 p-4 md:p-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-indigo-600/30">
+            <div className="w-10 h-10 rounded-2xl bg-[#EA580C] text-white flex items-center justify-center font-bold shadow-lg shadow-orange-500/30">
               <Grid2X2 className="w-5 h-5" />
             </div>
             <div>
@@ -100,7 +100,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                 <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">
                   Pengelolaan & Status Meja Resto
                 </h2>
-                <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                <span className="bg-[#EA580C]/20 text-orange-300 border border-[#EA580C]/40 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
                   MODAL POP-UP
                 </span>
               </div>
@@ -194,9 +194,9 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleAllSelfOrder(true)}
-                className="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                className="bg-[#EA580C]/30 hover:bg-[#C2410C]/50 text-orange-300 border border-[#EA580C]/40 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
-                <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+                <Smartphone className="w-3.5 h-3.5 text-orange-300" />
                 <span>Self-Order ON Semua</span>
               </button>
             )}
@@ -226,7 +226,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                 placeholder="Misal: 09 atau VIP-1"
                 value={newTableNum}
                 onChange={(e) => setNewTableNum(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-indigo-500"
+                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-[#EA580C]"
               />
             </div>
             <div className="w-28">
@@ -237,7 +237,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                 max={20}
                 value={newTableCap}
                 onChange={(e) => setNewTableCap(parseInt(e.target.value) || 4)}
-                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-indigo-500 text-center"
+                className="w-full bg-slate-900 border border-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-[#EA580C] text-center"
               />
             </div>
             <button
@@ -325,14 +325,14 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                   {/* Self Order Toggle Button */}
                   <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px] font-bold">
                     <span className="text-[#B8B0A8] flex items-center gap-1">
-                      <Smartphone className="w-3 h-3 text-indigo-400" /> HP QR:
+                      <Smartphone className="w-3 h-3 text-orange-300" /> HP QR:
                     </span>
                     <button
                       type="button"
                       onClick={() => onToggleSelfOrder(table.number, !table.isSelfOrderEnabled)}
                       className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
                         table.isSelfOrderEnabled
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-[#EA580C] text-white'
                           : 'bg-slate-800 text-[#B8B0A8] hover:bg-slate-700'
                       }`}
                       title="Toggle Akses Self-Order dari HP Customer"
@@ -423,7 +423,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-lg shadow-purple-600/30 cursor-pointer"
+            className="bg-[#EA580C] hover:bg-orange-1000 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-lg shadow-orange-500/30 cursor-pointer"
           >
             Tutup Modal
           </button>

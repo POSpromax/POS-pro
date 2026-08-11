@@ -230,11 +230,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#F8FAFC] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col gap-6 text-slate-900">
+    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col gap-6 text-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-7 h-7 text-[#EA580C]" />
+            <TrendingUp className="w-7 h-7 text-[#C2410C]" />
             Dashboard Monitoring & Analitik Laporan
           </h1>
           <p className="text-xs text-slate-500 font-bold mt-1">
@@ -246,7 +246,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-black shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Download className="w-4 h-4" /> Export CSV Transaksi
           </button>
@@ -343,7 +343,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <Receipt className="w-4 h-4 text-purple-400" />
+          <Receipt className="w-4 h-4 text-orange-300" />
           Pajak & Diskon
         </button>
 
@@ -356,7 +356,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <History className="w-4 h-4 text-blue-400" />
+          <History className="w-4 h-4 text-orange-300" />
           Histori Shift ({shifts.length})
         </button>
 
@@ -379,7 +379,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TOTAL OMSET HARI INI</p>
-              <p className="text-2xl font-black text-[#EA580C]">Rp {grossOmset.toLocaleString('id-ID')}</p>
+              <p className="text-2xl font-black text-[#C2410C]">Rp {grossOmset.toLocaleString('id-ID')}</p>
               <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
                 <ArrowUpRight className="w-3 h-3" /> Bersih (ex. tax): Rp {netOmset.toLocaleString('id-ID')}
               </span>
@@ -388,7 +388,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">STRUK TRANSAKSI LUNAS</p>
               <p className="text-2xl font-black text-slate-900">{totalTransactions} <span className="text-xs font-bold text-slate-400">Order</span></p>
-              <span className="text-[10px] font-bold text-[#EA580C] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
+              <span className="text-[10px] font-bold text-[#C2410C] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
             </div>
 
             <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
@@ -399,7 +399,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
             <div className="bg-white p-5 rounded-3xl border border-[#EAE3DB] shadow-2xs space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">METODE NON-TUNAI (QRIS/DEBIT)</p>
-              <p className="text-2xl font-black text-purple-600">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
+              <p className="text-2xl font-black text-[#C2410C]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
               <span className="text-[10px] font-bold text-slate-400 block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
             </div>
           </div>
@@ -427,11 +427,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
                 <div>
                   <div className="flex justify-between text-xs font-black text-slate-700 mb-1">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-600"/> QRIS (E-WALLET & M-BANKING)</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#EA580C]"/> QRIS (E-WALLET & M-BANKING)</span>
                     <span>Rp {qrisTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((qrisTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%` }} />
+                    <div className="bg-[#EA580C] h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%` }} />
                   </div>
                 </div>
 
@@ -725,9 +725,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'TAX_DISCOUNT' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-purple-200 bg-purple-50/40 shadow-2xs space-y-1">
-              <p className="text-[10px] font-black text-purple-600 uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
-              <p className="text-2xl font-black text-purple-700">Rp {totalTax.toLocaleString('id-ID')}</p>
+            <div className="bg-white p-5 rounded-3xl border border-orange-200 bg-orange-50/40 shadow-2xs space-y-1">
+              <p className="text-[10px] font-black text-[#C2410C] uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
+              <p className="text-2xl font-black text-[#C2410C]">Rp {totalTax.toLocaleString('id-ID')}</p>
               <p className="text-[10px] font-bold text-slate-400">Pajak restoran yang terkumpul</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-amber-200 bg-amber-50/40 shadow-2xs space-y-1">
@@ -744,7 +744,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
           <div className="bg-white rounded-3xl p-6 border border-[#EAE3DB] shadow-2xs space-y-4">
             <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-purple-600" />
+              <Receipt className="w-5 h-5 text-[#C2410C]" />
               Audit Rincian Pajak & Diskon Per Struk
             </h2>
 
@@ -772,7 +772,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         <td className="py-3 px-3 text-slate-600">{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {(o.subtotal || o.total).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold text-rose-600">-Rp {(o.discount || 0).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-purple-600">+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold text-[#C2410C]">+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-black text-emerald-600">Rp {o.total.toLocaleString('id-ID')}</td>
                       </tr>
                     ))
@@ -789,7 +789,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-black text-[#1A1714] text-base flex items-center gap-2">
-                <History className="w-5 h-5 text-blue-500" />
+                <History className="w-5 h-5 text-[#C2410C]" />
                 Histori Shift Operasional & Rekonsiliasi Kas Laci
               </h2>
               <p className="text-xs font-bold text-slate-500">Log lengkap modal awal, pemasukan kasir, pengeluaran petty cash, & status shift.</p>
@@ -797,7 +797,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <button
               type="button"
               onClick={handleExportShiftCSV}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-black flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-[#EA580C] hover:bg-[#C2410C] text-white rounded-full text-xs font-black flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" /> Export Shift CSV
             </button>
@@ -832,7 +832,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                       <td className="py-3 px-3 text-slate-600">{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
                       <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {s.initialCash.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {s.cashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-purple-600">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-bold text-[#C2410C]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-right font-bold text-rose-600">Rp {s.totalExpense.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-center">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${

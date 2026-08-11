@@ -159,18 +159,18 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#F8FAFC] px-3 py-4 text-slate-900 md:px-6 md:py-5 font-sans select-none">
+    <div className="flex-1 overflow-y-auto bg-[#FAFAFA] px-3 py-4 text-slate-900 md:px-6 md:py-5 font-sans select-none">
       {/* Hero Section */}
       <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-2xs">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#EA580C]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#C2410C]">
                 <Store className="h-3.5 w-3.5" />
                 Portal Multi-Cabang Owner
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700">
-                <CheckCircle2 className="h-3.5 w-3.5 text-[#EA580C]" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#C2410C]" />
                 {branches.length} Outlet
               </span>
             </div>
@@ -196,7 +196,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               onClick={() => onNavigateTab('settings')}
               className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] hover:bg-white px-3 md:px-4 py-2.5 md:py-3 text-[10px] md:text-[11px] font-black text-slate-800 transition cursor-pointer active:scale-95"
             >
-              <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 text-[#EA580C]" />
+              <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 text-[#C2410C]" />
               Pengaturan
             </button>
             <button
@@ -243,7 +243,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   onClick={() => setSelectedOutletId(b.id)}
                   className={`px-3 py-1.5 rounded-full text-[10px] md:text-[11px] font-black whitespace-nowrap transition-all cursor-pointer border ${
                     selectedOutletId === b.id
-                      ? 'bg-[#FFF4ED] border-[#FFDDD0] text-[#EA580C]'
+                      ? 'bg-[#FFF4ED] border-[#FFDDD0] text-[#C2410C]'
                       : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
                   }`}
                 >
@@ -395,7 +395,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               <h2 className="mt-1 text-base md:text-lg font-black text-[#1A1714]">Status Kesiapan Outlet</h2>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#EAE3DB] bg-[#F6EFE7] px-3 py-1.5 text-[10px] md:text-[11px] font-black text-slate-800">
-              <Store className="h-3 w-3 md:h-3.5 md:w-3.5 text-[#EA580C]" />
+              <Store className="h-3 w-3 md:h-3.5 md:w-3.5 text-[#C2410C]" />
               Aktif: {currentBranch.name.replace('Bakso Ujo - ', '')}
             </div>
           </div>
@@ -459,7 +459,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                         </span>
                       )}
                       {isSelected && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-2 py-0.5 text-[8px] md:text-[9px] font-black uppercase tracking-wider text-[#EA580C]">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-2 py-0.5 text-[8px] md:text-[9px] font-black uppercase tracking-wider text-[#C2410C]">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           Aktif
                         </span>
@@ -477,11 +477,11 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
                 <div className="mb-3 md:mb-4 space-y-1.5 text-[11px] md:text-xs font-bold text-slate-600">
                   <p className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[#EA580C]" />
+                    <MapPin className="mt-0.5 h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[#C2410C]" />
                     <span className="line-clamp-2">{branch.address}</span>
                   </p>
                   <p className="flex items-center gap-2">
-                    <Phone className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[#EA580C]" />
+                    <Phone className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[#C2410C]" />
                     <span>{branch.phone}</span>
                   </p>
                 </div>
@@ -549,7 +549,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '1')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-2 md:py-2.5 text-[9px] md:text-[10px] font-black text-[#EA580C] transition hover:bg-[#FFE9DE] cursor-pointer"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[#FFDDD0] bg-[#FFF4ED] px-3 py-2 md:py-2.5 text-[9px] md:text-[10px] font-black text-[#C2410C] transition hover:bg-[#FFE9DE] cursor-pointer"
                 >
                   <ExternalLink className="h-2.5 w-2.5 md:h-3 md:w-3" />
                   <span>Pratinjau Self-Order</span>
@@ -562,7 +562,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
       {filteredBranches.length === 0 && (
         <div className="rounded-2xl border border-dashed border-[#D8D2CC] bg-white p-8 md:p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-3xl bg-[#FFF4EE] text-[#F05A1F]">
+          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-3xl bg-[#FFF4EE] text-[#C2410C]">
             <Search className="h-5 w-5" />
           </div>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-black text-[#1A1714]">Outlet tidak ditemukan</h3>
@@ -578,7 +578,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           <div className="bg-white border border-[#E8E0D8] w-full max-w-lg rounded-2xl p-4 md:p-5 relative overflow-hidden" style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)' }}>
             <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-3 md:pb-4 mb-3 md:mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[#FFF4EE] border border-[#F1C7B5] flex items-center justify-center text-[#D94B15]">
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[#FFF4EE] border border-[#F1C7B5] flex items-center justify-center text-[#C2410C]">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
@@ -589,7 +589,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#FAFAF8] hover:bg-[#F0E8E0] text-[#9C9590] flex items-center justify-center transition-colors cursor-pointer border border-[#E8E0D8]"
+                className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#FAFAFA] hover:bg-[#F0E8E0] text-[#9C9590] flex items-center justify-center transition-colors cursor-pointer border border-[#E8E0D8]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -604,7 +604,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   placeholder="Contoh: Bakso Ujo - Cabang Depok"
                   value={newBranchName}
                   onChange={(e) => setNewBranchName(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium"
                 />
               </div>
 
@@ -615,7 +615,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   placeholder="Contoh: Jl. Margonda Raya No. 120, Depok"
                   value={newBranchAddress}
                   onChange={(e) => setNewBranchAddress(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium resize-none"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium resize-none"
                 />
               </div>
 
@@ -626,7 +626,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   placeholder="Contoh: 081298765432"
                   value={newBranchPhone}
                   onChange={(e) => setNewBranchPhone(e.target.value)}
-                  className="w-full bg-[#FAFAF8] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium"
+                  className="w-full bg-[#FAFAFA] border border-[#E8E0D8] rounded-xl px-3.5 py-2.5 text-[#1A1714] text-xs outline-none focus:border-[#EA580C] focus:ring-1 focus:ring-orange-500/20 transition-all font-medium"
                 />
               </div>
 
@@ -636,7 +636,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   id="chk-main-branch"
                   checked={isMainBranchCheck}
                   onChange={(e) => setIsMainBranchCheck(e.target.checked)}
-                  className="w-4 h-4 rounded bg-[#FAFAF8] border-[#E8E0D8] text-[#EA580C] focus:ring-0 cursor-pointer accent-[#EA580C]"
+                  className="w-4 h-4 rounded bg-[#FAFAFA] border-[#E8E0D8] text-[#C2410C] focus:ring-0 cursor-pointer accent-[#EA580C]"
                 />
                 <label htmlFor="chk-main-branch" className="text-xs text-[#6B6560] font-medium cursor-pointer">
                   Jadikan Cabang Utama / Pusat
@@ -647,7 +647,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-[#FAFAF8] hover:bg-[#F0E8E0] text-[#6B6560] text-xs font-semibold transition-all cursor-pointer border border-[#E8E0D8]"
+                  className="px-4 py-2 rounded-xl bg-[#FAFAFA] hover:bg-[#F0E8E0] text-[#6B6560] text-xs font-semibold transition-all cursor-pointer border border-[#E8E0D8]"
                 >
                   Batal
                 </button>

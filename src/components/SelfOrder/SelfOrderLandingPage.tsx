@@ -362,7 +362,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleStartOrder}
-                className="w-full bg-[#FF6B35] hover:bg-orange-600 text-white rounded-[28px] p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
+                className="w-full bg-[#EA580C] hover:bg-orange-600 text-white rounded-[28px] p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
               >
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-100 block opacity-90">
@@ -458,7 +458,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
           <div className="flex-1 bg-[#F4F5F7] p-6 flex flex-col justify-center overflow-y-auto animate-fadeIn space-y-6">
             <div className="text-center space-y-2">
               {/* Orange Chef Hat Icon Box */}
-              <div className="w-20 h-20 bg-[#FF6B35] text-white rounded-[24px] flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
+              <div className="w-20 h-20 bg-[#EA580C] text-white rounded-[24px] flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
                 <ChefHat className="w-10 h-10 stroke-[2.2]" />
               </div>
 
@@ -518,7 +518,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleProceedToMenu}
-                className="w-full py-4 bg-[#FF6B35] hover:bg-orange-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
               >
                 <span>Start Order</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
@@ -803,7 +803,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                className="w-full py-4 bg-[#FF6B35] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Kirim Pesanan ke Dapur & Kasir</span>
                 <ArrowRight className="w-4 h-4" />
@@ -850,7 +850,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   onClick={() => {
                     toast('Struk Tersimpan', 'Struk digital pesanan Anda berhasil disimpan!');
                   }}
-                  className="py-3.5 bg-[#FF6B35] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-3.5 bg-[#EA580C] hover:bg-orange-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Simpan Struk</span>

@@ -103,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span
           className={`px-2 py-0.5 rounded-md text-[7px] font-bold uppercase tracking-widest ${
             isOwnerMode
-              ? 'bg-[#FFF4EE] text-[#D94B15] border border-[#F1C7B5]'
+              ? 'bg-[#FFF4EE] text-[#C2410C] border border-[#F1C7B5]'
               : 'bg-[#F5F5F5] text-[#5F5F5F] border border-[#E1E1E1]'
           }`}
         >
@@ -130,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={`[${isOwnerMode ? 'Sistem Owner' : 'Sistem Kasir'}] ${item.label}`}
               >
                 {isActive && (
-                  <span className="absolute -left-2.5 w-[3px] h-5 rounded-r-full bg-[#F05A1F]" />
+                  <span className="absolute -left-2.5 w-[3px] h-5 rounded-r-full bg-[#EA580C]" />
                 )}
                 <Icon className="w-[18px] h-[18px] stroke-[2]" />
                 <span className={`text-[7px] font-semibold tracking-tight uppercase mt-0.5 leading-none ${
@@ -160,8 +160,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')}
           className={`group relative w-10 h-9 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer border ${
             isOwnerMode
-              ? 'bg-orange-50 hover:bg-orange-100 text-[#EA580C] border-orange-200'
-              : 'bg-[#FFF4EE] hover:bg-[#FFE9DE] text-[#D94B15] border-[#F1C7B5]'
+              ? 'bg-orange-50 hover:bg-orange-100 text-[#C2410C] border-orange-200'
+              : 'bg-[#FFF4EE] hover:bg-[#FFE9DE] text-[#C2410C] border-[#F1C7B5]'
           }`}
           title={isOwnerMode ? 'Kembali ke Terminal Kasir POS' : 'Masuk Portal Back-Office Owner'}
         >
@@ -191,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           id="btn-logout-system"
           onClick={onLogout}
-          className="w-11 h-8 text-[#8E8882] hover:text-[#D94B15] hover:bg-[#FFF4EE] rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer"
+          className="w-11 h-8 text-[#8E8882] hover:text-[#C2410C] hover:bg-[#FFF4EE] rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer"
           title="Logout dan akhiri sesi petugas"
           aria-label="Logout dan akhiri sesi petugas"
         >

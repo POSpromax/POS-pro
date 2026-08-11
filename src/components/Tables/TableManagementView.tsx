@@ -80,12 +80,12 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   }, [tables, generateTokenForTable]);
 
   return (
-    <div className="flex-1 bg-[#F8FAFC] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col text-slate-900">
+    <div className="flex-1 bg-[#FAFAFA] p-4 md:p-6 overflow-y-auto font-sans select-none flex flex-col text-slate-900">
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-[#1A1714] tracking-tight flex items-center gap-2">
-            <Grid2X2 className="w-6 h-6 md:w-7 md:h-7 text-[#EA580C]" />
+            <Grid2X2 className="w-6 h-6 md:w-7 md:h-7 text-[#C2410C]" />
             Manajemen Meja & QR Self-Order
           </h1>
           <p className="text-[11px] md:text-xs text-slate-500 font-bold mt-1">

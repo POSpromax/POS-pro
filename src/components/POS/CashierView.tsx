@@ -93,7 +93,7 @@ const POSMenuItemCard: React.FC<{
       }`}
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
     >
-      <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#F1EFEC] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
+      <div className="relative -mx-2.5 -mt-2.5 h-32 sm:h-36 bg-[#FAFAFA] overflow-hidden mb-2.5 flex items-center justify-center shrink-0">
         {item.image && !imgError ? (
           <img
             src={item.image}
@@ -420,14 +420,14 @@ export const CashierView: React.FC<CashierViewProps> = ({
           <div className="w-full md:w-44 lg:w-48 xl:w-52 bg-white rounded-xl border border-[#E8E0D8] p-2 flex flex-col shrink-0 max-h-60 md:max-h-none h-full min-h-0 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
 
             {/* Queue Header */}
-            <div className="flex items-center justify-between bg-[#FAFAF8] p-1.5 rounded-lg mb-1.5 border border-[#E8E0D8]">
+            <div className="flex items-center justify-between bg-[#FAFAFA] p-1.5 rounded-lg mb-1.5 border border-[#E8E0D8]">
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-md bg-[#1A1714] text-white flex items-center justify-center font-bold text-[9px]">
                   Q
                 </div>
                 <span className="text-[11px] font-bold text-[#1A1714]">Queue POS</span>
               </div>
-              <span className="w-2 h-2 rounded-full bg-[#F05A1F] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#EA580C] animate-pulse" />
             </div>
 
             {/* Tab Switcher */}
@@ -479,13 +479,13 @@ export const CashierView: React.FC<CashierViewProps> = ({
                         isVoided
                           ? 'bg-[#FAFAFA] border-[#E2E2E2] border-l-[#B8B0A8] opacity-75 cursor-default'
                           : isEditingThis
-                            ? 'bg-[#FFF7F3] border-[#F05A1F] border-l-[#F05A1F] ring-2 ring-[#F05A1F]/10 shadow-sm cursor-pointer'
-                            : 'bg-white border-[#E2E2E2] border-l-[#F05A1F] hover:border-[#F2B59B] hover:bg-[#FFF9F6] hover:shadow-sm cursor-pointer'
+                            ? 'bg-[#FFF7F3] border-[#EA580C] border-l-[#EA580C] ring-2 ring-[#EA580C]/10 shadow-sm cursor-pointer'
+                            : 'bg-white border-[#E2E2E2] border-l-[#EA580C] hover:border-[#F2B59B] hover:bg-[#FFF9F6] hover:shadow-sm cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span
-                          className="font-bold text-sm text-[#D94B15] tracking-tight tabular-nums"
+                          className="font-bold text-sm text-[#C2410C] tracking-tight tabular-nums"
                           title={order.orderNumber}
                         >
                           {formatOrderLabel(order)}
@@ -494,7 +494,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                           <span className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-md ${
                             isVoided
                               ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                              : orderIsPaid ? 'bg-[#F1F1F1] text-[#333333]' : 'bg-[#FFF2EB] text-[#C54515]'
+                              : orderIsPaid ? 'bg-[#F1F1F1] text-[#333333]' : 'bg-[#FFF2EB] text-[#C2410C]'
                           }`}>
                             {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
                           </span>
@@ -604,7 +604,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
               </h3>
               {currentEditingOrder && (
                 <span
-                  className="text-[10px] font-bold text-[#EA580C] bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 tabular-nums"
+                  className="text-[10px] font-bold text-[#C2410C] bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 tabular-nums"
                   title={currentEditingOrder.orderNumber}
                 >
                   {formatOrderLabel(currentEditingOrder)}
@@ -652,7 +652,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
           {isPaidOrder && (
             <div className="bg-[#FFF7F3] border border-[#F2B59B] rounded-lg p-2 mb-2 flex items-center justify-between text-[#B83C0F] shrink-0">
               <div className="flex items-center gap-1.5 font-semibold text-xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#F05A1F] shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#C2410C] shrink-0" />
                 <span>LUNAS (PAID)</span>
               </div>
               <span className="text-[8px] font-semibold bg-[#FFE9DE] text-[#A8370C] px-1.5 py-0.5 rounded-md uppercase tracking-wider">
@@ -711,7 +711,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
           <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5 border-t border-[#F0E8E0] pt-2 scrollbar-thin">
             {cartItems.length === 0 ? (
               <div className="py-16 text-center space-y-2">
-                <div className="w-11 h-11 rounded-xl bg-[#F3F1EE] border border-[#E2DFDA] flex items-center justify-center mx-auto text-[#F05A1F]">
+                <div className="w-11 h-11 rounded-xl bg-[#FAFAFA] border border-[#E2DFDA] flex items-center justify-center mx-auto text-[#C2410C]">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <p className="text-xs font-semibold text-[#9C9590]">Keranjang Kosong</p>
@@ -721,7 +721,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
               cartItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-2 rounded-lg bg-[#FAFAF8] border border-[#E8E0D8] space-y-1"
+                  className="p-2 rounded-lg bg-[#FAFAFA] border border-[#E8E0D8] space-y-1"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-semibold text-xs text-[#1A1714] leading-snug">
@@ -741,7 +741,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       <div className="flex items-center gap-0.5 bg-white border border-[#E8E0D8] rounded-lg p-0.5">
                         <button
                           onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="w-5 h-5 rounded-md bg-[#F5EFE8] hover:bg-[#EDE5DC] text-[#6B6560] flex items-center justify-center transition-colors"
+                          className="w-5 h-5 rounded-md bg-[#FAFAFA] hover:bg-[#EDE5DC] text-[#6B6560] flex items-center justify-center transition-colors"
                         >
                           <Minus className="w-2.5 h-2.5" />
                         </button>
@@ -809,7 +809,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
               <div className="flex justify-between text-sm font-bold text-[#1A1714] pt-0.5">
                 <span>TOTAL</span>
-                <span className="text-base font-bold text-[#EA580C]">
+                <span className="text-base font-bold text-[#C2410C]">
                   Rp {total.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -820,7 +820,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 <div className="space-y-2">
                   <button
                     onClick={() => onPrintPreBill(currentEditingOrder || (buildCurrentOrderDraft() as Order))}
-                    className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#EA580C] font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all border border-orange-200"
+                    className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#C2410C] font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all border border-orange-200"
                   >
                     <Printer className="w-3.5 h-3.5" /> CETAK STRUK LUNAS
                   </button>
@@ -842,7 +842,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <button
                     disabled={cartItems.length === 0}
                     onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                    className="w-full py-2 bg-white hover:bg-[#F3F1EE] text-[#68645F] font-semibold text-xs rounded-xl border border-[#D9D5CF] flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
+                    className="w-full py-2 bg-white hover:bg-[#FAFAFA] text-[#68645F] font-semibold text-xs rounded-xl border border-[#D9D5CF] flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" /> CETAK TAGIHAN
                   </button>
@@ -863,7 +863,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       className={`py-2.5 border disabled:opacity-40 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         pendingConfirm === 'SAVE'
                           ? 'bg-[#1C1B19] border-[#1C1B19] text-white'
-                          : 'bg-white border-[#E8E0D8] hover:bg-[#FAFAF8] text-[#6B6560]'
+                          : 'bg-white border-[#E8E0D8] hover:bg-[#FAFAFA] text-[#6B6560]'
                       }`}
                     >
                       {pendingConfirm === 'SAVE' ? (

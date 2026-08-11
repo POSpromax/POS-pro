@@ -344,11 +344,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto bg-[#F8FAFC] p-4 font-sans select-none md:p-6 text-slate-900">
+    <div className="flex flex-1 flex-col overflow-y-auto bg-[#FAFAFA] p-4 font-sans select-none md:p-6 text-slate-900">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-[#1A1714]">
-            <UserCheck className="h-7 w-7 text-[#EA580C]" />
+            <UserCheck className="h-7 w-7 text-[#C2410C]" />
             Presensi Karyawan
           </h1>
           <p className="mt-1 text-xs font-bold text-slate-500">
@@ -387,7 +387,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <p className="text-center text-xs font-bold text-rose-600 bg-rose-50 rounded-2xl py-2 px-3 border border-rose-200">{pinError}</p>
               )}
               {isVerifying && (
-                <p className="text-center text-xs font-bold text-blue-600 bg-blue-50 rounded-2xl py-2 px-3 border border-blue-200">Memverifikasi PIN...</p>
+                <p className="text-center text-xs font-bold text-[#C2410C] bg-orange-50 rounded-2xl py-2 px-3 border border-orange-200">Memverifikasi PIN...</p>
               )}
 
               <div className="grid grid-cols-3 gap-2">
@@ -575,13 +575,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                         {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[#1A1917] text-[10px] font-black text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-[#1A1714]">{att.staffName} <span className="text-[10px] font-black text-[#EA580C]">({att.role})</span></p>
+                        <p className="text-xs font-bold text-[#1A1714]">{att.staffName} <span className="text-[10px] font-black text-[#C2410C]">({att.role})</span></p>
                         <p className="text-[10px] font-bold text-slate-400">{att.location} - Jadwal {att.scheduledStart || '-'}</p>
                         {att.gpsValidated && <p className="text-[9px] font-bold text-emerald-600">GPS Terverifikasi</p>}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${att.type === 'CLOCK_IN' ? 'bg-[#FFF4ED] text-[#EA580C] border border-[#FFDDD0]' : 'bg-[#1A1714] text-white'}`}>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${att.type === 'CLOCK_IN' ? 'bg-[#FFF4ED] text-[#C2410C] border border-[#FFDDD0]' : 'bg-[#1A1714] text-white'}`}>
                         {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                       </span>
                       <p className="mt-1 text-xs font-mono font-black text-slate-800">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>

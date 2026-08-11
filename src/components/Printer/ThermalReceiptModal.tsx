@@ -46,7 +46,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
       <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-5 border border-slate-100">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-[#EA580C] text-white flex items-center justify-center">
               <Printer className="w-5 h-5" />
             </div>
             <div>
@@ -74,7 +74,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
           <button
             onClick={handleConnectBluetooth}
             disabled={isConnecting}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-1 transition-all disabled:opacity-50"
+            className="px-3.5 py-2 bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-1 transition-all disabled:opacity-50"
           >
             <Bluetooth className="w-3.5 h-3.5" />
             <span>{isConnecting ? 'Mencari...' : 'Hubungkan'}</span>
@@ -96,7 +96,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 onClick={() => setFormConfig({ ...formConfig, paperSize: '58mm' })}
                 className={`py-2.5 rounded-xl border font-black text-xs transition-all ${
                   formConfig.paperSize === '58mm'
-                    ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-500/20'
+                    ? 'bg-orange-50 border-[#EA580C] text-[#C2410C] ring-2 ring-[#EA580C]/20'
                     : 'bg-slate-50 border-slate-200 text-slate-600'
                 }`}
               >
@@ -106,7 +106,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 onClick={() => setFormConfig({ ...formConfig, paperSize: '80mm' })}
                 className={`py-2.5 rounded-xl border font-black text-xs transition-all ${
                   formConfig.paperSize === '80mm'
-                    ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-500/20'
+                    ? 'bg-orange-50 border-[#EA580C] text-[#C2410C] ring-2 ring-[#EA580C]/20'
                     : 'bg-slate-50 border-slate-200 text-slate-600'
                 }`}
               >
@@ -123,7 +123,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
             <button
               onClick={() => setFormConfig({ ...formConfig, autoPrintOnPayment: !formConfig.autoPrintOnPayment })}
               className={`w-12 h-6 rounded-full p-1 transition-colors ${
-                formConfig.autoPrintOnPayment ? 'bg-blue-600' : 'bg-slate-300'
+                formConfig.autoPrintOnPayment ? 'bg-[#EA580C]' : 'bg-slate-300'
               }`}
             >
               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
@@ -139,7 +139,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
               onSaveConfig(formConfig);
               onClose();
             }}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-2xl shadow-md transition-all"
+            className="w-full py-3 bg-[#EA580C] hover:bg-[#C2410C] text-white font-black text-xs rounded-2xl shadow-md transition-all"
           >
             Simpan Konfigurasi
           </button>

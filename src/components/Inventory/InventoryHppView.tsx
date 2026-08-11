@@ -380,7 +380,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   return (
-    <div className="flex-1 bg-[#F8FAFC] p-3 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900">
+    <div className="flex-1 bg-[#FAFAFA] p-3 md:p-6 overflow-y-auto font-sans select-none flex flex-col justify-between text-slate-900">
       {/* Top Header Bar — stacks vertically on mobile */}
       <div className="flex flex-col gap-3 mb-4 md:mb-5">
         {/* Title row */}
@@ -621,11 +621,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               placeholder="Buat Kategori Baru..."
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              className="bg-white border border-[#E5E5E7] rounded-full px-3 md:px-4 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 flex-1 max-w-64 shadow-2xs"
+              className="bg-white border border-[#E5E5E7] rounded-full px-3 md:px-4 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[#EA580C] flex-1 max-w-64 shadow-2xs"
             />
             <button
               onClick={handleAddCategory}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="px-4 py-2 bg-[#EA580C] hover:bg-[#C2410C] text-white rounded-full text-xs font-black shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Tambah</span>
             </button>
@@ -643,7 +643,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   onClick={() =>
                     setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
                   }
-                  className="p-3 md:p-4 bg-[#FAFAF8] flex items-center justify-between border-b border-slate-100 cursor-pointer hover:bg-slate-100/60 transition-colors"
+                  className="p-3 md:p-4 bg-[#FAFAFA] flex items-center justify-between border-b border-slate-100 cursor-pointer hover:bg-slate-100/60 transition-colors"
                 >
                   <div className="flex items-center gap-2 md:gap-3">
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400" />}
@@ -659,7 +659,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     {categoryItems.map((item) => (
                       <div
                         key={item.id}
-                        className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[#FAFAF8] transition-colors gap-2"
+                        className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[#FAFAFA] transition-colors gap-2"
                       >
                         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                           <img
@@ -694,7 +694,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                           <div className="flex items-center gap-0.5">
                             <button
                               onClick={() => handleOpenEditMenuModal(item)}
-                              className="p-1 md:p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg cursor-pointer"
+                              className="p-1 md:p-1.5 text-[#C2410C] hover:bg-orange-100 rounded-lg cursor-pointer"
                               title="Edit Menu & Resep"
                             >
                               <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -736,30 +736,30 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             <h2 className="font-black text-[#1A1714] text-sm md:text-base">Laporan Ringkasan Stok & HPP</h2>
             <button
               onClick={handlePrintReport}
-              className="px-3 md:px-4 py-2 bg-indigo-600 text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 md:px-4 py-2 bg-[#EA580C] text-white rounded-full text-[10px] md:text-xs font-black shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" /> Cetak Laporan
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-            <div className="p-3 md:p-4 bg-[#FAFAF8] rounded-xl md:rounded-2xl border border-slate-200">
+            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
               <p className="text-[10px] md:text-xs font-bold text-slate-400">Total Nilai Bahan Baku:</p>
               <p className="text-lg md:text-xl font-black text-emerald-600 mt-1">
                 Rp {rawMaterials.reduce((acc, curr) => acc + (curr.stockQuantity * curr.costPerUnit), 0).toLocaleString('id-ID')}
               </p>
             </div>
 
-            <div className="p-3 md:p-4 bg-[#FAFAF8] rounded-xl md:rounded-2xl border border-slate-200">
+            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
               <p className="text-[10px] md:text-xs font-bold text-slate-400">Rata-rata Margin HPP:</p>
-              <p className="text-lg md:text-xl font-black text-indigo-600 mt-1">
+              <p className="text-lg md:text-xl font-black text-[#C2410C] mt-1">
                 {Math.round(
                   menuItems.reduce((acc, curr) => acc + (((curr.price - curr.hppCost) / curr.price) * 100), 0) / (menuItems.length || 1)
                 )}%
               </p>
             </div>
 
-            <div className="p-3 md:p-4 bg-[#FAFAF8] rounded-xl md:rounded-2xl border border-slate-200">
+            <div className="p-3 md:p-4 bg-[#FAFAFA] rounded-xl md:rounded-2xl border border-slate-200">
               <p className="text-[10px] md:text-xs font-bold text-slate-400">Bahan Baku Perlu Restock:</p>
               <p className="text-lg md:text-xl font-black text-rose-600 mt-1">{restockNeedCount} Item</p>
             </div>

@@ -136,10 +136,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
               printerConfig.isConnected
                 ? 'bg-[#F5F5F5] text-[#2B2B2B] border-[#DDDDDD] hover:bg-[#EEEEEE]'
-                : 'bg-white text-[#F05A1F] border-[#E0E0E0] hover:bg-[#F7F7F7]'
+                : 'bg-white text-[#C2410C] border-[#E0E0E0] hover:bg-[#FAFAFA]'
             }`}
           >
-            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[#F05A1F]' : 'text-rose-500'}`} />
+            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[#C2410C]' : 'text-rose-500'}`} />
             <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
           </button>
         </div>

@@ -78,11 +78,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   }}
                   className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'CASH'
-                      ? 'bg-[#FFF4ED] border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] font-black'
+                      ? 'bg-[#FFF4ED] border-[#EA580C] ring-2 ring-orange-500/20 text-[#C2410C] font-black'
                       : 'bg-white border-[#EAE3DB] text-slate-600 hover:bg-[#F6EFE7]'
                   }`}
                 >
-                  <Banknote className="w-6 h-6 text-[#EA580C]" />
+                  <Banknote className="w-6 h-6 text-[#C2410C]" />
                   <span className="text-xs font-black">TUNAI (CASH)</span>
                 </button>
 
@@ -93,11 +93,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   }}
                   className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'QRIS'
-                      ? 'bg-[#FFF4ED] border-[#EA580C] ring-2 ring-orange-500/20 text-[#EA580C] font-black'
+                      ? 'bg-[#FFF4ED] border-[#EA580C] ring-2 ring-orange-500/20 text-[#C2410C] font-black'
                       : 'bg-white border-[#EAE3DB] text-slate-600 hover:bg-[#F6EFE7]'
                   }`}
                 >
-                  <QrCode className="w-6 h-6 text-purple-600" />
+                  <QrCode className="w-6 h-6 text-[#C2410C]" />
                   <span className="text-xs font-black">QRIS</span>
                 </button>
 
@@ -230,7 +230,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span>SUBTOTAL</span>
                   <span>{order.subtotal?.toLocaleString('id-ID')}</span>
                 </div>
-                <div className="flex justify-between text-[#EA580C] text-xs font-black pt-1">
+                <div className="flex justify-between text-[#C2410C] text-xs font-black pt-1">
                   <span>TOTAL</span>
                   <span>{totalAmount.toLocaleString('id-ID')}</span>
                 </div>

@@ -937,7 +937,7 @@ export default function App() {
       <div className="flex min-h-screen flex-col bg-[#F3F3F2] text-[#181715]">
         <div className="flex h-16 items-center justify-between border-b border-[#E2E2E2] bg-white px-5">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D94B15]">Terminal absensi</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#C2410C]">Terminal absensi</p>
             <p className="text-sm font-black">{currentBranch.name}</p>
           </div>
           <button type="button" onClick={() => void logoutTerminal()} className="rounded-xl border border-[#E2E2E2] bg-white px-4 py-2 text-xs font-bold hover:bg-[#F5F5F5]">
@@ -970,7 +970,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #F7F7F7 0%, #EEEEEE 52%, #F5F5F5 100%)' }}>
+    <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #FAFAFA 0%, #F2F2F2 52%, #F7F7F7 100%)' }}>
       <PWAUpdatePrompt />
       {toastNotification && (
         // Ditaruh di tengah bawah: tombol aksi kasir ada di sisi bawah layar,
@@ -1242,7 +1242,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto bg-[#F6F6F5] p-4 md:p-6">
               <div className="mx-auto max-w-7xl">
                 <div className="mb-5 rounded-3xl border border-[#E4E2DF] bg-white p-5 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#EA580C]">Owner Finance</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C2410C]">Owner Finance</p>
                   <h1 className="mt-1 text-2xl font-black text-[#1A1714]">Payroll & Penggajian Staff</h1>
                   <p className="mt-1 text-xs font-semibold text-slate-500">Atur gaji pokok, tunjangan, lembur, dan potongan keterlambatan per outlet.</p>
                 </div>

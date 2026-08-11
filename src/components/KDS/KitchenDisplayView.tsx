@@ -96,7 +96,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
             <Utensils className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-[#EA580C]">KDS DAPUR PRO</h1>
+            <h1 className="text-xl font-black tracking-tight text-[#C2410C]">KDS DAPUR PRO</h1>
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
               MONITOR TIKET PESANAN & ALARM WAKTU REAL-TIME
             </p>
@@ -135,7 +135,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
         {/* Center Controls: Category Filter & Audio Toggle */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <Filter className="w-4 h-4 text-[#EA580C]" />
+            <Filter className="w-4 h-4 text-[#C2410C]" />
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}

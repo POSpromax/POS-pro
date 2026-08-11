@@ -143,7 +143,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
             <h2 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md min-w-0 flex-1">
               {menuItem.name}
             </h2>
-            <div className="bg-[#FF6B35] text-white font-black text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-lg shrink-0 font-mono">
+            <div className="bg-[#EA580C] text-white font-black text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-lg shrink-0 font-mono">
               Rp {finalUnitPrice.toLocaleString('id-ID')}
             </div>
           </div>
@@ -260,7 +260,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-4 bg-[#FF6B35] hover:bg-orange-600 active:scale-95 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 active:scale-95 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+ Tambahkan Pesanan</span>
           </button>

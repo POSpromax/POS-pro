@@ -10,12 +10,11 @@
   --accent-green: #10B981;
   --accent-red: #EF4444;
   --accent-amber: #F59E0B;
-  --accent-indigo: #6366F1;
 
-  --canvas-bg: #F8FAFC;
-  --canvas-bg-start: #F8FAFC;
-  --canvas-bg-mid: #F1F5F9;
-  --canvas-bg-end: #F8FAFC;
+  --canvas-bg: #FAFAFA;
+  --canvas-bg-start: #FAFAFA;
+  --canvas-bg-mid: #F2F2F2;
+  --canvas-bg-end: #F7F7F7;
 
   --panel-bg: #FFFFFF;
   --panel-border: #E2E8F0;
@@ -37,7 +36,7 @@
 body {
   margin: 0;
   padding: 0;
-  background: #F8FAFC;
+  background: #FAFAFA;
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -163,17 +162,11 @@ body {
   color: #A3A3A3;
 }
 
-/* System-wide accent normalization: charcoal actions, orange highlights, neutral statuses. */
+/* Normalisasi aksen sistem: aksi charcoal, sorotan oranye, status netral.
+   Kelas indigo/blue/violet/purple sudah tidak dipakai di komponen — warnanya
+   diganti langsung di sumber, bukan ditambal di sini. */
 .bg-slate-900,
 .bg-slate-800,
-.bg-blue-600,
-.bg-blue-700,
-.bg-indigo-600,
-.bg-indigo-700,
-.bg-violet-600,
-.bg-violet-700,
-.bg-purple-600,
-.bg-purple-700,
 .bg-emerald-600,
 .bg-emerald-700,
 .bg-green-600,
@@ -188,14 +181,6 @@ body {
 }
 
 .hover\:bg-slate-800:hover,
-.hover\:bg-blue-600:hover,
-.hover\:bg-blue-700:hover,
-.hover\:bg-indigo-600:hover,
-.hover\:bg-indigo-700:hover,
-.hover\:bg-violet-600:hover,
-.hover\:bg-violet-700:hover,
-.hover\:bg-purple-600:hover,
-.hover\:bg-purple-700:hover,
 .hover\:bg-emerald-600:hover,
 .hover\:bg-emerald-700:hover,
 .hover\:bg-green-600:hover,
@@ -203,60 +188,6 @@ body {
 .hover\:bg-teal-600:hover,
 .hover\:bg-teal-700:hover {
   background-color: #050505 !important;
-}
-
-.bg-blue-50,
-.bg-blue-100,
-.bg-indigo-50,
-.bg-indigo-100,
-.bg-violet-50,
-.bg-violet-100,
-.bg-purple-50,
-.bg-purple-100 {
-  background-color: #FFF4EE !important;
-}
-
-.text-blue-400,
-.text-blue-500,
-.text-blue-600,
-.text-blue-700,
-.text-blue-800,
-.text-indigo-400,
-.text-indigo-500,
-.text-indigo-600,
-.text-indigo-700,
-.text-indigo-800,
-.text-violet-400,
-.text-violet-500,
-.text-violet-600,
-.text-violet-700,
-.text-violet-800,
-.text-purple-400,
-.text-purple-500,
-.text-purple-600,
-.text-purple-700,
-.text-purple-800 {
-  color: #D94B15 !important;
-}
-
-.border-blue-200,
-.border-blue-300,
-.border-blue-400,
-.border-blue-500,
-.border-indigo-200,
-.border-indigo-300,
-.border-indigo-400,
-.border-indigo-500,
-.border-indigo-600,
-.border-violet-200,
-.border-violet-300,
-.border-violet-400,
-.border-violet-500,
-.border-purple-200,
-.border-purple-300,
-.border-purple-400,
-.border-purple-500 {
-  border-color: #F1C7B5 !important;
 }
 
 .bg-emerald-50,
@@ -310,27 +241,4 @@ body {
 
 .bg-slate-200\/80 {
   background-color: rgb(232 232 232 / 0.9) !important;
-}
-
-.focus\:border-blue-500:focus,
-.focus\:border-indigo-500:focus,
-.focus\:border-violet-500:focus,
-.focus\:border-purple-500:focus {
-  border-color: #F05A1F !important;
-}
-
-.text-\[\#007AFF\] {
-  color: #D94B15 !important;
-}
-
-.bg-\[\#007AFF\] {
-  background-color: #1C1B19 !important;
-}
-
-.text-\[\#248A3D\] {
-  color: #4A4A4A !important;
-}
-
-.bg-\[\#34C759\]\/10 {
-  background-color: #F2F2F2 !important;
 }

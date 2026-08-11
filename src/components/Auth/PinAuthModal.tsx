@@ -205,7 +205,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                     onClick={() => switchTab(tab)}
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
                       isActive
-                        ? 'bg-[#F05A1F] text-white shadow-lg shadow-orange-950/30'
+                        ? 'bg-[#EA580C] text-white shadow-lg shadow-orange-950/30'
                         : 'text-white/45 hover:text-white/70'
                     }`}
                   >
@@ -218,7 +218,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
             {/* Header */}
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F05A1F] shadow-lg shadow-orange-950/30">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EA580C] shadow-lg shadow-orange-950/30">
                 <TabIcon className="h-5 w-5" />
               </div>
               <div>
@@ -232,7 +232,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             {/* Branch Selector */}
             <label className="block rounded-2xl border border-white/10 bg-white/[0.06] p-4">
               <span className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-white/55">
-                <Building2 className="h-3.5 w-3.5 text-[#F05A1F]" /> Pilih Cabang
+                <Building2 className="h-3.5 w-3.5 text-[#C2410C]" /> Pilih Cabang
               </span>
               <select
                 aria-label="Pilih cabang"
@@ -251,7 +251,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             {/* Info Items */}
             <div className="mt-5 space-y-3">
               <div className="flex gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#F05A1F]" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#C2410C]" />
                 <div>
                   <p className="text-xs font-bold">Akses otomatis berdasarkan PIN</p>
                   <p className="mt-1 text-[10px] leading-relaxed text-white/50">
@@ -260,7 +260,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 </div>
               </div>
               <div className="flex gap-3">
-                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#F05A1F]" />
+                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#C2410C]" />
                 <div>
                   <p className="text-xs font-bold">PIN bersifat pribadi</p>
                   <p className="mt-1 text-[10px] leading-relaxed text-white/50">
@@ -322,7 +322,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 key={i}
                 className={`h-3.5 w-3.5 rounded-full border-2 transition-all ${
                   i < pinInput.length
-                    ? 'scale-110 border-[#F05A1F] bg-[#F05A1F]'
+                    ? 'scale-110 border-[#EA580C] bg-[#EA580C]'
                     : 'border-[#D8D4D0] bg-[#F5F3F1]'
                 }`}
               />
@@ -358,7 +358,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 type="button"
                 onClick={() => handleKeyPress(digit)}
                 disabled={isVerifying}
-                className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[#F05A1F] active:text-white disabled:opacity-50"
+                className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[#EA580C] active:text-white disabled:opacity-50"
               >
                 {digit}
               </button>
@@ -375,7 +375,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
               type="button"
               onClick={() => handleKeyPress('0')}
               disabled={isVerifying}
-              className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[#F05A1F] active:text-white disabled:opacity-50"
+              className="h-12 rounded-2xl border border-[#E7E2DE] bg-[#F8F7F5] text-lg font-black text-[#1A1714] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[#EA580C] active:text-white disabled:opacity-50"
             >
               0
             </button>
