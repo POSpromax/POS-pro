@@ -278,6 +278,10 @@ export interface RestaurantProfile {
   pinLockoutMinutes?: number;
   allowedSelfOrderTables?: string;
 
+  // Terminal Kasir Config
+  confirmBeforeSaveOrder?: boolean;
+  confirmBeforePayment?: boolean;
+
   // Keuangan Config
   taxRatePercent: number;
   isTaxEnabled?: boolean;

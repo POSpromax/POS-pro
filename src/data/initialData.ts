@@ -880,6 +880,8 @@ export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {
   serviceChargePercent: 0,
   isServiceChargeEnabled: false,
   isManualDiscountEnabled: true,
+  confirmBeforeSaveOrder: false,
+  confirmBeforePayment: false,
   roundingMode: 'TERDEKAT',
   isRoundingEnabled: false
 };

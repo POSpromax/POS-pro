@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { HeaderBar } from './components/Navigation/HeaderBar';
 import { PinAuthModal } from './components/Auth/PinAuthModal';
@@ -48,6 +49,7 @@ import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveClou
 import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus } from './services/orderService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
+import { formatOrderLabel } from './utils/orderNumber';
 
 const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
 const CashierView = lazy(() => import('./components/POS/CashierView').then((m) => ({ default: m.CashierView })));
@@ -606,7 +608,7 @@ export default function App() {
     setCurrentShift(DBStorage.getCurrentShift());
     if (!isOnline) setPendingSyncCount(DBStorage.getOfflineQueue().length);
 
-    showPushToast('Pesanan Disimpan', `Order ${saved.orderNumber} berhasil disimpan ke antrean.`);
+    showPushToast('Pesanan Disimpan', `Order ${formatOrderLabel(saved)} masuk antrean. Buka lewat Queue POS untuk melanjutkan.`);
   };
 
   const handleOpenCheckoutModal = (draftOrder: Partial<Order>) => {
@@ -961,11 +963,19 @@ export default function App() {
     <div className="flex h-screen w-screen overflow-hidden font-sans antialiased text-[#181715]" style={{ background: 'linear-gradient(145deg, #F7F7F7 0%, #EEEEEE 52%, #F5F5F5 100%)' }}>
       <PWAUpdatePrompt />
       {toastNotification && (
-        <div className="fixed top-4 right-4 z-50 bg-[#1A1714] text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10 animate-fadeIn flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#EA580C] animate-pulse" />
-          <div>
-            <p className="font-semibold text-xs text-orange-300">{toastNotification.title}</p>
-            <p className="text-[11px] text-white/60 font-medium">{toastNotification.message}</p>
+        // Ditaruh di tengah bawah: tombol aksi kasir ada di sisi bawah layar,
+        // notifikasi di pojok atas terlalu jauh dari pandangan dan terlewat.
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-[#1A1714] text-white pl-4 pr-5 py-3 rounded-2xl shadow-2xl border border-white/10 animate-fadeIn flex items-center gap-3 max-w-[92vw]"
+        >
+          <div className="w-7 h-7 rounded-full bg-[#EA580C] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs text-orange-300">{toastNotification.title}</p>
+            <p className="text-[11px] text-white/70 font-medium">{toastNotification.message}</p>
           </div>
         </div>
       )}
@@ -1059,10 +1069,12 @@ export default function App() {
               onSaveHoldOrder={handleSaveHoldOrder}
               onPrintPreBill={handlePrintPreBill}
               onSelectExistingOrderToEdit={(ord) => {
-                showPushToast('Order Loaded', `Order ${ord.orderNumber} dimuat ke Kasir.`);
+                showPushToast('Order Dimuat', `Order ${formatOrderLabel(ord)} dibuka di Kasir.`);
               }}
               onOpenTableModal={() => setIsQuickTableModalOpen(true)}
               onOpenShiftTab={() => handleTabChange('shift')}
+              confirmBeforeSaveOrder={profile.confirmBeforeSaveOrder === true}
+              confirmBeforePayment={profile.confirmBeforePayment === true}
             />
           )}
 
@@ -1071,7 +1083,7 @@ export default function App() {
               orders={branchOrders}
               condimentGroups={condimentGroups}
               onUpdateOrderStatus={handleUpdateOrderStatus}
-              onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur #${ord.orderNumber} dicetak.`)}
+              onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur ${formatOrderLabel(ord)} dicetak.`)}
             />
           )}
 

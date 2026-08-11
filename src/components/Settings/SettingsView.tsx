@@ -1699,6 +1699,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
 
+                  {/* Konfirmasi Terminal Kasir */}
+                  <div className="border border-[#E8E0D8] rounded-2xl p-5 bg-[#FAFAF8]/80 space-y-4">
+                    <div>
+                      <p className="text-sm font-bold text-[#1A1714]">Konfirmasi Terminal Kasir</p>
+                      <p className="text-xs text-[#9C9590] font-medium">
+                        Minta kasir menekan tombol dua kali sebelum aksi dijalankan. Menahan salah klik, tapi memperlambat saat jam ramai.
+                      </p>
+                    </div>
+
+                    {([
+                      { key: 'confirmBeforeSaveOrder' as const, label: 'Tanya sebelum SIMPAN', hint: 'Tombol berubah jadi "Yakin simpan?" dulu.' },
+                      { key: 'confirmBeforePayment' as const, label: 'Tanya sebelum BAYAR', hint: 'Tombol berubah jadi "Yakin bayar?" dulu.' }
+                    ]).map(({ key, label, hint }) => {
+                      const isOn = formProfile[key] === true;
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3 border-t border-[#EFE9E2] pt-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#1A1714]">{label}</p>
+                            <p className="text-[11px] text-[#9C9590] font-medium">{hint}</p>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`text-xs font-bold ${isOn ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {isOn ? 'AKTIF' : 'NONAKTIF'}
+                            </span>
+                            <button
+                              type="button"
+                              aria-pressed={isOn}
+                              onClick={() => setFormProfile({ ...formProfile, [key]: !isOn })}
+                              className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${isOn ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                            >
+                              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isOn ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   {/* Pembulatan Harga */}
                   <div className="border border-[#E8E0D8] rounded-2xl p-5 bg-[#FAFAF8]/80 flex items-center justify-between">
                     <div>

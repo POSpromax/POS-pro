@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
 import { formatOrderLabel } from '../../utils/orderNumber';
 import {
@@ -172,6 +172,8 @@ interface CashierViewProps {
   currentShift: Shift;
   headerElement?: React.ReactNode;
   onOpenShiftTab?: () => void;
+  confirmBeforeSaveOrder?: boolean;
+  confirmBeforePayment?: boolean;
 }
 
 export const CashierView: React.FC<CashierViewProps> = ({
@@ -189,8 +191,19 @@ export const CashierView: React.FC<CashierViewProps> = ({
   currentBranch,
   currentShift,
   headerElement,
-  onOpenShiftTab
+  onOpenShiftTab,
+  confirmBeforeSaveOrder = false,
+  confirmBeforePayment = false
 }) => {
+  // Konfirmasi dua tahap; direset otomatis kalau kasir tidak jadi menekan.
+  const [pendingConfirm, setPendingConfirm] = useState<'SAVE' | 'PAY' | null>(null);
+
+  useEffect(() => {
+    if (!pendingConfirm) return;
+    const timer = window.setTimeout(() => setPendingConfirm(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [pendingConfirm]);
+
   // Top Table Panel State
   const [isTablePanelExpanded, setIsTablePanelExpanded] = useState<boolean>(true);
   const [tableFilter, setTableFilter] = useState<'ALL' | 'KOSONG' | 'TERISI'>('ALL');
@@ -817,22 +830,50 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     <button
                       disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
                       onClick={() => {
+                        if (confirmBeforeSaveOrder && pendingConfirm !== 'SAVE') {
+                          setPendingConfirm('SAVE');
+                          return;
+                        }
+                        setPendingConfirm(null);
                         const draft = buildCurrentOrderDraft() as Order;
                         onSaveHoldOrder(draft);
                         handleClearCart();
                       }}
-                      className="py-2.5 bg-white border border-[#E8E0D8] hover:bg-[#FAFAF8] disabled:opacity-40 text-[#6B6560] font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className={`py-2.5 border disabled:opacity-40 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        pendingConfirm === 'SAVE'
+                          ? 'bg-[#1C1B19] border-[#1C1B19] text-white'
+                          : 'bg-white border-[#E8E0D8] hover:bg-[#FAFAF8] text-[#6B6560]'
+                      }`}
                     >
-                      <Save className="w-3.5 h-3.5 text-[#9C9590]" /> SIMPAN
+                      {pendingConfirm === 'SAVE' ? (
+                        <><CheckCircle2 className="w-3.5 h-3.5" /> YAKIN SIMPAN?</>
+                      ) : (
+                        <><Save className="w-3.5 h-3.5 text-[#9C9590]" /> SIMPAN</>
+                      )}
                     </button>
 
                     <button
                       disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
-                      onClick={() => onOpenCheckoutModal(buildCurrentOrderDraft())}
-                      className="py-2.5 bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600 active:scale-95 disabled:opacity-40 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      onClick={() => {
+                        if (confirmBeforePayment && pendingConfirm !== 'PAY') {
+                          setPendingConfirm('PAY');
+                          return;
+                        }
+                        setPendingConfirm(null);
+                        onOpenCheckoutModal(buildCurrentOrderDraft());
+                      }}
+                      className={`py-2.5 active:scale-95 disabled:opacity-40 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        pendingConfirm === 'PAY'
+                          ? 'bg-[#1C1B19]'
+                          : 'bg-gradient-to-r from-[#EA580C] to-[#F97316] hover:from-orange-700 hover:to-orange-600'
+                      }`}
                       style={{ boxShadow: '0 2px 8px rgba(234,88,12,0.25)' }}
                     >
-                      <CreditCard className="w-3.5 h-3.5" /> BAYAR
+                      {pendingConfirm === 'PAY' ? (
+                        <><CheckCircle2 className="w-3.5 h-3.5" /> YAKIN BAYAR?</>
+                      ) : (
+                        <><CreditCard className="w-3.5 h-3.5" /> BAYAR</>
+                      )}
                     </button>
                   </div>
                 </div>
