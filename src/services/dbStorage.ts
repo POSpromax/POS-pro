@@ -59,7 +59,7 @@ const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
 const migrateBranchId = (branchId?: string): string | undefined =>
   branchId ? (LEGACY_BRANCH_ID_MAP[branchId] || branchId) : branchId;
 
-const createEmptyShift = (): Shift => ({
+const createEmptyShift = (branchId?: string): Shift => ({
   id: 'shift-not-opened',
   staffId: '',
   staffName: 'Belum ada petugas',
@@ -71,7 +71,8 @@ const createEmptyShift = (): Shift => ({
   nonCashSales: 0,
   totalExpense: 0,
   totalIncome: 0,
-  status: 'CLOSED'
+  status: 'CLOSED',
+  branchId
 });
 
 const posBroadcastChannel =
@@ -118,6 +119,8 @@ export function connectBranchSync(branchId: string): void {
             // Channel sudah per-cabang; ini penjaga kedua supaya siaran nyasar
             // tidak pernah menimpa data cabang yang sedang dibuka.
             if (!key || value === undefined || senderBranchId !== syncChannelBranchId) return;
+            // Status shift lintas perangkat hanya boleh berasal dari database/API.
+            if (key === STORAGE_KEYS.CURRENT_SHIFT) return;
             try {
               localStorage.setItem(key, JSON.stringify(value));
               window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
@@ -125,30 +128,8 @@ export function connectBranchSync(branchId: string): void {
               // Abaikan kegagalan tulis localStorage (kuota penuh / mode privat)
             }
           })
-          .on('broadcast', { event: 'request_shift_sync' }, () => {
-            // When another terminal joins, broadcast current shift if OPEN
-            const currentShift = getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
-            if (currentShift && currentShift.status === 'OPEN' && supabaseSyncChannel) {
-              supabaseSyncChannel
-                .send({
-                  type: 'broadcast',
-                  event: 'pos_sync',
-                  payload: { key: STORAGE_KEYS.CURRENT_SHIFT, value: currentShift, timestamp: Date.now(), branchId: syncChannelBranchId }
-                })
-                .catch(() => {});
-            }
-          })
           .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              // Ask online terminals for active shift
-              channel
-                .send({
-                  type: 'broadcast',
-                  event: 'request_shift_sync',
-                  payload: { branchId }
-                })
-                .catch(() => {});
-            }
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') syncChannelBranchId = null;
           });
         supabaseSyncChannel = channel;
       } catch {
@@ -174,7 +155,6 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
 
 // Keys that require cloud real-time broadcast across different devices/origins
 const CRITICAL_CLOUD_SYNC_KEYS = new Set([
-  STORAGE_KEYS.CURRENT_SHIFT,
   STORAGE_KEYS.EXPENSES,
   STORAGE_KEYS.TABLES,
   STORAGE_KEYS.MENU,
@@ -196,9 +176,7 @@ function setStoredItem<T>(key: string, value: T): void {
       if (supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
         const lastSent = cloudBroadcastDebounceMap.get(key) || 0;
         const now = Date.now();
-        const isShift = key === STORAGE_KEYS.CURRENT_SHIFT;
-
-        if (isShift || now - lastSent > 1500) {
+        if (now - lastSent > 1500) {
           cloudBroadcastDebounceMap.set(key, now);
           supabaseSyncChannel
             .send({
@@ -666,8 +644,21 @@ export class DBStorage {
   }
 
   // Shift & Cash Accounting
-  static getCurrentShift(): Shift {
-    return getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+  static getCurrentShift(branchId?: string): Shift {
+    const shift = getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift(branchId));
+    if (branchId && shift.branchId !== branchId) return createEmptyShift(branchId);
+    return shift;
+  }
+
+  static setCurrentShift(shift: Shift): Shift {
+    setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, shift);
+    return shift;
+  }
+
+  static clearCurrentShift(branchId?: string): Shift {
+    const emptyShift = createEmptyShift(branchId);
+    setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, emptyShift);
+    return emptyShift;
   }
 
   static updateShiftMetricsForOrder(order: Order): void {
@@ -703,8 +694,8 @@ export class DBStorage {
     return getStoredItem<ExpenseIncomeRecord[]>(STORAGE_KEYS.EXPENSES, []);
   }
 
-  static closeShift(closingNotes: string): Shift {
-    const shift = this.getCurrentShift();
+  static closeShift(closingNotes: string, shiftToClose?: Shift): Shift {
+    const shift = { ...(shiftToClose || this.getCurrentShift()) };
     shift.status = 'CLOSED';
     shift.endTime = new Date().toISOString();
     shift.notes = closingNotes;
@@ -868,11 +859,6 @@ export class DBStorage {
 
   static syncAllDataWithCloud(): void {
     if (typeof window === 'undefined') return;
-    // Only broadcast shift if it's an active OPEN shift — never overwrite remote OPEN with local CLOSED
-    const localShift = this.getCurrentShift();
-    if (localShift.status === 'OPEN') {
-      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, localShift);
-    }
     setStoredItem(STORAGE_KEYS.ORDERS, this.getOrders());
     setStoredItem(STORAGE_KEYS.EXPENSES, this.getExpenseRecords());
     setStoredItem(STORAGE_KEYS.TABLES, this.getTables());

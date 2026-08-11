@@ -27,8 +27,9 @@ interface ShiftMonitorViewProps {
   expenseRecords: ExpenseIncomeRecord[];
   activeUser?: UserAccount;
   onAddExpenseIncome: (record: ExpenseIncomeRecord) => void;
-  onCloseShift: (notes: string) => void;
-  onOpenNewShift: (staffName: string, role: any, initialCash: number) => void;
+  onCloseShift: (notes: string, actualCash: number, expectedCash: number) => Promise<void>;
+  onOpenNewShift: (staffName: string, role: any, initialCash: number) => Promise<void>;
+  onRefreshShift?: () => Promise<void>;
   onShowToast?: (title: string, message: string) => void;
 }
 
@@ -40,6 +41,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   onAddExpenseIncome,
   onCloseShift,
   onOpenNewShift,
+  onRefreshShift,
   onShowToast
 }) => {
   const toast = (title: string, msg: string) => onShowToast?.(title, msg);
@@ -55,6 +57,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const [closeNotes, setCloseNotes] = useState<string>('');
   const [actualCashInput, setActualCashInput] = useState<number | ''>('');
   const [handoverStaffName, setHandoverStaffName] = useState<string>('');
+  const [isShiftMutationPending, setIsShiftMutationPending] = useState(false);
 
   const handleSaveRecord = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,11 +120,15 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               type="button"
               onClick={() => {
                 const name = openShiftStaffName.trim() || activeUser?.name || 'Kasir 01';
-                onOpenNewShift(name, openShiftRole, openShiftCashInput);
+                setIsShiftMutationPending(true);
+                void onOpenNewShift(name, openShiftRole, openShiftCashInput)
+                  .catch(() => undefined)
+                  .finally(() => setIsShiftMutationPending(false));
               }}
-              className="w-full py-4 bg-gradient-to-r from-[#6366F1] via-[#7C3AED] to-[#A855F7] hover:opacity-95 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+              disabled={isShiftMutationPending}
+              className="w-full py-4 bg-gradient-to-r from-[#6366F1] via-[#7C3AED] to-[#A855F7] hover:opacity-95 disabled:cursor-wait disabled:opacity-60 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
             >
-              MULAI SHIFT
+              {isShiftMutationPending ? 'MENGONFIRMASI SERVER...' : 'MULAI SHIFT'}
             </button>
           </div>
         </div>
@@ -151,9 +158,18 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
   const shiftFormattedTime = new Date(currentShift.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-  const handleForceSync = () => {
-    DBStorage.syncAllDataWithCloud();
-    toast('Sinkronisasi Berhasil', 'Status shift & data transaksi berhasil disinkronkan.');
+  const handleForceSync = async () => {
+    if (isShiftMutationPending) return;
+    setIsShiftMutationPending(true);
+    try {
+      if (onRefreshShift) await onRefreshShift();
+      DBStorage.syncAllDataWithCloud();
+      toast('Sinkronisasi Berhasil', 'Status shift terbaru telah dibaca dari server pusat.');
+    } catch (error) {
+      toast('Sinkronisasi Gagal', error instanceof Error ? error.message : 'Server pusat belum dapat dihubungi.');
+    } finally {
+      setIsShiftMutationPending(false);
+    }
   };
 
   return (
@@ -177,7 +193,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={handleForceSync}
+            onClick={() => { void handleForceSync(); }}
+            disabled={isShiftMutationPending}
             className="px-3 py-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full text-xs font-black text-emerald-700 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
             title="Klik untuk sinkronkan status shift secara realtime"
           >
@@ -554,13 +571,16 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                     const actualVal = actualCashInput !== '' ? Number(actualCashInput) : 0;
                     const diff = actualVal - cashInDrawer;
                     const selisihNote = ` [Uang Fisik: Rp ${actualVal.toLocaleString('id-ID')}, Selisih: Rp ${diff.toLocaleString('id-ID')}]`;
-                    onCloseShift((closeNotes + selisihNote).trim());
-                    setIsCloseModalOpen(false);
-                    toast('Shift Ditutup', 'Z-Report berhasil dicetak.');
+                    setIsShiftMutationPending(true);
+                    void onCloseShift((closeNotes + selisihNote).trim(), actualVal, cashInDrawer)
+                      .then(() => setIsCloseModalOpen(false))
+                      .catch(() => undefined)
+                      .finally(() => setIsShiftMutationPending(false));
                   }}
-                  className="flex-1 py-4 bg-[#181B2A] hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-lg cursor-pointer transition-all uppercase tracking-wider"
+                  disabled={isShiftMutationPending}
+                  className="flex-1 py-4 bg-[#181B2A] hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60 text-white font-black text-xs rounded-2xl shadow-lg cursor-pointer transition-all uppercase tracking-wider"
                 >
-                  TUTUP SHIFT & CETAK LAPORAN
+                  {isShiftMutationPending ? 'MENGONFIRMASI SERVER...' : 'TUTUP SHIFT & CETAK LAPORAN'}
                 </button>
               </div>
             </div>
@@ -671,12 +691,16 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                     toast('Input Tidak Lengkap', 'Mohon isi nama kasir penerima handover.');
                     return;
                   }
+                  const actualVal = Number(actualCashInput || cashInDrawer);
                   const handoverNotes = `[HANDOVER] Serah terima shift ke ${handoverStaffName}. Uang fisik: Rp ${Number(actualCashInput || cashInDrawer).toLocaleString('id-ID')}`;
-                  onCloseShift(handoverNotes);
-                  setIsHandoverModalOpen(false);
-                  toast('Handover Berhasil', `Serah terima shift ke ${handoverStaffName} diproses.`);
+                  setIsShiftMutationPending(true);
+                  void onCloseShift(handoverNotes, actualVal, cashInDrawer)
+                    .then(() => setIsHandoverModalOpen(false))
+                    .catch(() => undefined)
+                    .finally(() => setIsShiftMutationPending(false));
                 }}
-                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-2xl shadow-md cursor-pointer transition-all"
+                disabled={isShiftMutationPending}
+                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60 text-white font-black text-xs rounded-2xl shadow-md cursor-pointer transition-all"
               >
                 Proses Handover Shift
               </button>

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACTIVE_STATUSES = ['OPEN', 'HANDOVER'];
+const ALLOWED_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
 
 export interface ShiftRequestResult {
   status: number;
@@ -15,45 +17,95 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
   if (authError || !authData.user) return null;
   const userId = authData.user.id;
 
-  const [{ data: profile }, { data: membership }] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: membership, error: membershipError }] = await Promise.all([
     admin.from('user_profiles').select('tenant_id,display_name,role,is_active').eq('user_id', userId).maybeSingle(),
     admin.from('branch_members').select('role,is_active').eq('user_id', userId).eq('branch_id', branchId).maybeSingle(),
   ]);
 
-  if (!profile?.is_active || !membership?.is_active) return null;
+  if (profileError || membershipError || !profile?.is_active || !membership?.is_active) return null;
+  const role = membership.role || profile.role || 'KASIR';
+  if (!ALLOWED_ROLES.has(role)) return null;
   return {
     userId,
     tenantId: profile.tenant_id,
     name: profile.display_name || 'Kasir',
-    role: membership.role || profile.role || 'KASIR',
+    role,
   };
 }
 
-async function aggregateShiftOmset(shiftId: string, openedAt: string, branchId: string, admin: SupabaseClient) {
+async function readActiveShift(branchId: string, admin: SupabaseClient) {
+  const { data, error } = await admin
+    .from('cashier_shifts')
+    .select('*')
+    .eq('branch_id', branchId)
+    .in('status', ACTIVE_STATUSES)
+    .order('opened_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function aggregateShiftMetrics(shiftId: string, branchId: string, admin: SupabaseClient) {
+  const [{ data: orders, error: orderError }, { data: cashRecords, error: cashError }] = await Promise.all([
+    admin
+      .from('orders')
+      .select('total_amount,payment_method')
+      .eq('branch_id', branchId)
+      .eq('shift_id', shiftId)
+      .eq('payment_status', 'PAID')
+      .neq('status', 'CANCELLED'),
+    admin
+      .from('expense_income_records')
+      .select('record_type,amount')
+      .eq('branch_id', branchId)
+      .eq('shift_id', shiftId),
+  ]);
+  if (orderError) throw orderError;
+  if (cashError) throw cashError;
+
   let grossOmset = 0;
   let cashSales = 0;
   let nonCashSales = 0;
-
-  const { data: orders } = await admin
-    .from('orders')
-    .select('total_amount, payment_method, payment_status, created_at')
-    .eq('branch_id', branchId)
-    .eq('payment_status', 'PAID')
-    .gte('created_at', openedAt);
-
-  if (orders && orders.length > 0) {
-    for (const ord of orders) {
-      const amt = Number(ord.total_amount || 0);
-      grossOmset += amt;
-      if (ord.payment_method === 'CASH') {
-        cashSales += amt;
-      } else {
-        nonCashSales += amt;
-      }
-    }
+  for (const order of orders || []) {
+    const amount = Number(order.total_amount || 0);
+    grossOmset += amount;
+    if (order.payment_method === 'CASH') cashSales += amount;
+    else nonCashSales += amount;
   }
 
-  return { grossOmset, cashSales, nonCashSales };
+  let totalExpense = 0;
+  let totalIncome = 0;
+  for (const record of cashRecords || []) {
+    const amount = Number(record.amount || 0);
+    if (record.record_type === 'EXPENSE') totalExpense += amount;
+    else if (record.record_type === 'INCOME') totalIncome += amount;
+  }
+
+  return { grossOmset, cashSales, nonCashSales, totalExpense, totalIncome };
+}
+
+async function mapShift(row: any, admin: SupabaseClient) {
+  const [{ data: staffProfile }, metrics] = await Promise.all([
+    row.opened_by
+      ? admin.from('user_profiles').select('display_name,role').eq('user_id', row.opened_by).maybeSingle()
+      : Promise.resolve({ data: null }),
+    aggregateShiftMetrics(row.id, row.branch_id, admin),
+  ]);
+
+  return {
+    id: row.id,
+    staffId: row.opened_by || '',
+    staffName: staffProfile?.display_name || 'Kasir',
+    staffRole: staffProfile?.role || 'KASIR',
+    startTime: row.opened_at,
+    endTime: row.closed_at || undefined,
+    initialCash: Number(row.opening_cash || 0),
+    ...metrics,
+    status: row.status === 'CLOSED' ? 'CLOSED' : 'OPEN',
+    notes: row.variance_reason || undefined,
+    branchId: row.branch_id,
+  };
 }
 
 export async function handleShiftRequest(
@@ -63,234 +115,129 @@ export async function handleShiftRequest(
   admin: SupabaseClient,
 ): Promise<ShiftRequestResult> {
   if (method !== 'GET' && method !== 'POST') return fail(405, 'Method not allowed');
-  const branchId = payload.branchId || payload.branch_id;
-  if (!branchId || !UUID_PATTERN.test(branchId)) return fail(400, 'Outlet tidak valid');
+  const branchId = String(payload.branchId || payload.branch_id || '');
+  if (!UUID_PATTERN.test(branchId)) return fail(400, 'Outlet tidak valid');
+
+  const actor = await getActor(accessToken, branchId, admin);
+  if (!actor) return fail(401, 'Sesi telah berakhir. Silakan masuk kembali.');
+
+  const { data: branch, error: branchError } = await admin
+    .from('branches')
+    .select('tenant_id,is_active')
+    .eq('id', branchId)
+    .maybeSingle();
+  if (branchError) return fail(500, 'Gagal memeriksa outlet');
+  if (!branch?.is_active || branch.tenant_id !== actor.tenantId) return fail(403, 'Outlet tidak aktif atau tidak dapat diakses');
 
   if (method === 'GET') {
-    // Search for active OPEN or HANDOVER shift for this branch
-    const { data: shiftRow, error } = await admin
-      .from('cashier_shifts')
-      .select('*')
-      .eq('branch_id', branchId)
-      .in('status', ['OPEN', 'HANDOVER'])
-      .order('opened_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching cashier_shifts:', error);
+    try {
+      const active = await readActiveShift(branchId, admin);
+      return { status: 200, data: { shift: active ? await mapShift(active, admin) : null } };
+    } catch (error) {
+      console.error('Error fetching cashier shift:', error);
       return fail(500, 'Gagal membaca data shift dari server');
     }
-
-    if (!shiftRow) {
-      return { status: 200, data: { shift: null } };
-    }
-
-    // Get staff profile who opened the shift
-    let staffName = payload.staffName || 'Kasir Cloud';
-    let staffRole = 'KASIR';
-    if (shiftRow.opened_by) {
-      const { data: staffProf } = await admin
-        .from('user_profiles')
-        .select('display_name, role')
-        .eq('user_id', shiftRow.opened_by)
-        .maybeSingle();
-      if (staffProf) {
-        staffName = staffProf.display_name || staffName;
-        staffRole = staffProf.role || staffRole;
-      }
-    }
-
-    const metrics = await aggregateShiftOmset(shiftRow.id, shiftRow.opened_at, branchId, admin);
-
-    const activeShift = {
-      id: shiftRow.id,
-      staffId: shiftRow.opened_by || '',
-      staffName,
-      staffRole,
-      startTime: shiftRow.opened_at,
-      initialCash: Number(shiftRow.opening_cash || 0),
-      grossOmset: metrics.grossOmset,
-      cashSales: metrics.cashSales,
-      nonCashSales: metrics.nonCashSales,
-      totalExpense: 0,
-      totalIncome: 0,
-      status: 'OPEN',
-      branchId: shiftRow.branch_id,
-    };
-
-    return { status: 200, data: { shift: activeShift } };
   }
 
-  // POST: Open or Close Shift
-  const action = payload.action || (payload.closingNotes !== undefined || payload.notes !== undefined ? 'CLOSE' : 'OPEN');
+  const action = String(payload.action || '').toUpperCase();
 
   if (action === 'OPEN') {
-    // Single Active Shift Rule: Check if an OPEN shift already exists in DB
-    const { data: existingShift } = await admin
-      .from('cashier_shifts')
-      .select('*')
-      .eq('branch_id', branchId)
-      .in('status', ['OPEN', 'HANDOVER'])
-      .order('opened_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const existing = await readActiveShift(branchId, admin);
+      if (existing) {
+        return { status: 200, data: { shift: await mapShift(existing, admin), alreadyOpen: true } };
+      }
 
-    if (existingShift) {
-      // Return existing open shift to prevent duplication / shift stacking
-      let staffName = payload.staffName || 'Kasir Cloud';
-      let staffRole = payload.staffRole || 'KASIR';
-      if (existingShift.opened_by) {
-        const { data: staffProf } = await admin
-          .from('user_profiles')
-          .select('display_name, role')
-          .eq('user_id', existingShift.opened_by)
-          .maybeSingle();
-        if (staffProf) {
-          staffName = staffProf.display_name || staffName;
-          staffRole = staffProf.role || staffRole;
+      const initialCash = Math.floor(Number(payload.initialCash ?? payload.openingCash ?? 0));
+      if (!Number.isFinite(initialCash) || initialCash < 0) return fail(400, 'Modal awal tidak valid');
+
+      const { data: inserted, error: insertError } = await admin
+        .from('cashier_shifts')
+        .insert({
+          tenant_id: branch.tenant_id,
+          branch_id: branchId,
+          opening_cash: initialCash,
+          status: 'OPEN',
+          opened_by: actor.userId,
+          opened_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+
+      if (insertError) {
+        // Indeks unik per outlet menjadi pagar terakhir bila dua perangkat
+        // menekan Buka Shift pada waktu yang hampir bersamaan.
+        if (insertError.code === '23505') {
+          const concurrentShift = await readActiveShift(branchId, admin);
+          if (concurrentShift) {
+            return { status: 200, data: { shift: await mapShift(concurrentShift, admin), alreadyOpen: true } };
+          }
         }
+        throw insertError;
       }
 
-      const metrics = await aggregateShiftOmset(existingShift.id, existingShift.opened_at, branchId, admin);
-      return {
-        status: 200,
-        data: {
-          shift: {
-            id: existingShift.id,
-            staffId: existingShift.opened_by || '',
-            staffName,
-            staffRole,
-            startTime: existingShift.opened_at,
-            initialCash: Number(existingShift.opening_cash || 0),
-            grossOmset: metrics.grossOmset,
-            cashSales: metrics.cashSales,
-            nonCashSales: metrics.nonCashSales,
-            totalExpense: 0,
-            totalIncome: 0,
-            status: 'OPEN',
-            branchId: existingShift.branch_id,
-          },
-          alreadyOpen: true,
-        },
-      };
+      return { status: 200, data: { shift: await mapShift(inserted, admin), alreadyOpen: false } };
+    } catch (error) {
+      console.error('Error opening cashier shift:', error);
+      return fail(500, 'Gagal membuka shift di server');
     }
-
-    // Get tenant ID from branch
-    const { data: branchRow } = await admin
-      .from('branches')
-      .select('tenant_id')
-      .eq('id', branchId)
-      .maybeSingle();
-
-    if (!branchRow?.tenant_id) {
-      return fail(404, 'Outlet tidak ditemukan di database cloud');
-    }
-
-    const actor = await getActor(accessToken, branchId, admin);
-    const openedBy = actor?.userId || payload.staffId;
-    const staffName = payload.staffName || actor?.name || 'Kasir';
-    const staffRole = payload.staffRole || actor?.role || 'KASIR';
-    const initialCash = Number(payload.initialCash || payload.openingCash || 0);
-
-    // Create new cashier_shifts record in Supabase DB
-    const insertPayload: any = {
-      tenant_id: branchRow.tenant_id,
-      branch_id: branchId,
-      opening_cash: initialCash,
-      status: 'OPEN',
-      opened_at: new Date().toISOString(),
-    };
-    if (openedBy && UUID_PATTERN.test(openedBy)) {
-      insertPayload.opened_by = openedBy;
-    } else if (actor?.userId) {
-      insertPayload.opened_by = actor.userId;
-    }
-
-    // Fallback: If opened_by is required by FK, find an active user for this branch
-    if (!insertPayload.opened_by) {
-      const { data: member } = await admin
-        .from('branch_members')
-        .select('user_id')
-        .eq('branch_id', branchId)
-        .limit(1)
-        .maybeSingle();
-      if (member) {
-        insertPayload.opened_by = member.user_id;
-      } else {
-        return fail(400, 'Memerlukan ID petugas yang terverifikasi untuk membuka shift');
-      }
-    }
-
-    const { data: newShiftRow, error: insertError } = await admin
-      .from('cashier_shifts')
-      .insert([insertPayload])
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Error inserting cashier_shifts:', insertError);
-      return fail(500, `Gagal membuka shift di server: ${insertError.message}`);
-    }
-
-    const newShift = {
-      id: newShiftRow.id,
-      staffId: newShiftRow.opened_by,
-      staffName,
-      staffRole,
-      startTime: newShiftRow.opened_at,
-      initialCash: Number(newShiftRow.opening_cash || 0),
-      grossOmset: 0,
-      cashSales: 0,
-      nonCashSales: 0,
-      totalExpense: 0,
-      totalIncome: 0,
-      status: 'OPEN',
-      branchId,
-    };
-
-    return { status: 200, data: { shift: newShift } };
   }
 
   if (action === 'CLOSE') {
-    const actor = await getActor(accessToken, branchId, admin);
-    const closedBy = actor?.userId;
+    const requestedShiftId = String(payload.shiftId || '');
+    if (requestedShiftId && !UUID_PATTERN.test(requestedShiftId)) return fail(400, 'ID shift tidak valid');
 
-    // Find active shift to close
-    const { data: shiftToClose } = await admin
-      .from('cashier_shifts')
-      .select('*')
-      .eq('branch_id', branchId)
-      .in('status', ['OPEN', 'HANDOVER'])
-      .order('opened_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      let target = requestedShiftId
+        ? (await admin.from('cashier_shifts').select('*').eq('id', requestedShiftId).eq('branch_id', branchId).maybeSingle())
+        : { data: await readActiveShift(branchId, admin), error: null };
 
-    const targetShiftId = payload.shiftId || shiftToClose?.id;
+      if (target.error) throw target.error;
+      if (!target.data) return fail(404, 'Shift tidak ditemukan pada outlet ini');
 
-    if (targetShiftId) {
-      const updateData: any = {
+      if (target.data.status === 'CLOSED') {
+        const active = await readActiveShift(branchId, admin);
+        if (active && active.id !== target.data.id) {
+          return fail(409, 'Shift aktif sudah berubah. Muat ulang status sebelum menutup shift.');
+        }
+        return {
+          status: 200,
+          data: { success: true, closedShiftId: target.data.id, closedAt: target.data.closed_at || null },
+        };
+      }
+
+      const closedAt = new Date().toISOString();
+      const updateData: Record<string, unknown> = {
         status: 'CLOSED',
-        closed_at: new Date().toISOString(),
-        notes: payload.notes || payload.closingNotes || '',
-        variance_reason: payload.notes || payload.closingNotes || '',
+        closed_at: closedAt,
+        closed_by: actor.userId,
+        // Skema cashier_shifts menyimpan catatan penutupan pada variance_reason.
+        variance_reason: String(payload.notes || payload.closingNotes || '').slice(0, 1000),
       };
-      if (payload.actualCash !== undefined) updateData.actual_cash = Number(payload.actualCash);
-      if (payload.expectedCash !== undefined) updateData.expected_cash = Number(payload.expectedCash);
-      if (payload.varianceAmount !== undefined) updateData.variance_amount = Number(payload.varianceAmount);
-      if (closedBy) updateData.closed_by = closedBy;
+      if (payload.actualCash !== undefined) updateData.actual_cash = Math.floor(Number(payload.actualCash));
+      if (payload.expectedCash !== undefined) updateData.expected_cash = Math.floor(Number(payload.expectedCash));
+      if (payload.varianceAmount !== undefined) updateData.variance_amount = Math.floor(Number(payload.varianceAmount));
 
-      await admin.from('cashier_shifts').update(updateData).eq('id', targetShiftId);
+      const { data: closed, error: updateError } = await admin
+        .from('cashier_shifts')
+        .update(updateData)
+        .eq('id', target.data.id)
+        .eq('branch_id', branchId)
+        .in('status', ACTIVE_STATUSES)
+        .select('id,closed_at')
+        .maybeSingle();
+
+      if (updateError) throw updateError;
+      if (!closed) return fail(409, 'Status shift telah berubah di perangkat lain. Silakan sinkronkan ulang.');
+
+      return {
+        status: 200,
+        data: { success: true, closedShiftId: closed.id, closedAt: closed.closed_at || closedAt },
+      };
+    } catch (error) {
+      console.error('Error closing cashier shift:', error);
+      return fail(500, 'Gagal menutup shift di server');
     }
-
-    return {
-      status: 200,
-      data: {
-        success: true,
-        closedShiftId: targetShiftId || 'closed',
-        status: 'CLOSED',
-      },
-    };
   }
 
   return fail(400, 'Aksi shift tidak dikenal');

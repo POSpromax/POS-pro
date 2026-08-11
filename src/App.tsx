@@ -253,7 +253,7 @@ export default function App() {
   const [tables, setTables] = useState<RestaurantTable[]>(() => DBStorage.getTables());
   const [condimentGroups, setCondimentGroups] = useState<CondimentGroup[]>(() => DBStorage.getCondimentGroups());
   const [orders, setOrders] = useState<Order[]>(() => DBStorage.getOrders());
-  const [currentShift, setCurrentShift] = useState<Shift>(() => DBStorage.getCurrentShift());
+  const [currentShift, setCurrentShift] = useState<Shift>(() => DBStorage.getCurrentShift(currentBranch.id));
   const [expenseRecords, setExpenseRecords] = useState<ExpenseIncomeRecord[]>(() => DBStorage.getExpenseRecords());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
@@ -273,7 +273,7 @@ export default function App() {
   // Real-Time Storage & Broadcast Synchronizer across Tabs, Windows, & Cloud
   useEffect(() => {
     const unsubscribe = DBStorage.subscribeToSync((key, value) => {
-      if (key === STORAGE_KEYS.CURRENT_SHIFT && value) {
+      if (key === STORAGE_KEYS.CURRENT_SHIFT && value?.branchId === currentBranch.id) {
         setCurrentShift(value);
       } else if (key === STORAGE_KEYS.ORDERS && value) {
         setOrders(value);
@@ -295,7 +295,7 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [currentBranch.id]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
@@ -392,51 +392,58 @@ export default function App() {
     return () => { active = false; unsubscribe(); };
   }, [isTerminalUnlocked, currentBranch.id]);
 
-  // Real-Time Cloud Shift Synchronizer & Single Open Shift Enforcer across Localhost & Public Cloud
+  // Database adalah sumber tunggal status shift. Realtime memberi respons
+  // cepat; polling/focus menjadi pengaman saat websocket terputus.
   useEffect(() => {
-    if (!cloudReadiness.supabase || !currentBranch?.id) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
     let cancelled = false;
+    let requestSequence = 0;
+    let syncErrorShown = false;
 
-    const syncShiftFromCloud = () => {
-      void getCloudActiveShift(currentBranch.id).then((cloudShift) => {
-        if (cancelled) return;
-        if (cloudShift) {
-          setCurrentShift(cloudShift);
-          localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(cloudShift));
-        } else {
-          // If no shift is open in cloud DB, ensure local state reflects CLOSED if previously OPEN
-          const localShift = DBStorage.getCurrentShift();
-          if (localShift.status === 'OPEN') {
-            const emptyShift: Shift = {
-              id: 'shift-not-opened',
-              staffId: '',
-              staffName: 'Belum ada petugas',
-              staffRole: 'KASIR',
-              startTime: new Date(0).toISOString(),
-              initialCash: 0,
-              grossOmset: 0,
-              cashSales: 0,
-              nonCashSales: 0,
-              totalExpense: 0,
-              totalIncome: 0,
-              status: 'CLOSED',
-            };
-            setCurrentShift(emptyShift);
-            localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(emptyShift));
-          }
-        }
-      });
+    // Jangan percaya cache shift saat sesi/outlet berubah. POS tetap terkunci
+    // sampai server pusat mengonfirmasi apakah ada shift aktif.
+    setCurrentShift(DBStorage.clearCurrentShift(currentBranch.id));
+
+    const syncShiftFromCloud = async () => {
+      const sequence = ++requestSequence;
+      try {
+        const cloudShift = await getCloudActiveShift(currentBranch.id);
+        if (cancelled || sequence !== requestSequence) return;
+        const nextShift = cloudShift
+          ? DBStorage.setCurrentShift(cloudShift)
+          : DBStorage.clearCurrentShift(currentBranch.id);
+        setCurrentShift(nextShift);
+        syncErrorShown = false;
+      } catch (error) {
+        if (cancelled || sequence !== requestSequence || syncErrorShown) return;
+        syncErrorShown = true;
+        showPushToast(
+          'Status Shift Belum Tersinkron',
+          error instanceof Error ? error.message : 'Data shift pusat belum dapat dibaca.',
+        );
+      }
     };
 
-    syncShiftFromCloud();
-    const unsubscribe = subscribeCloudShift(currentBranch.id, syncShiftFromCloud);
+    void syncShiftFromCloud();
+    const unsubscribe = subscribeCloudShift(currentBranch.id, () => { void syncShiftFromCloud(); });
+    const pollTimer = window.setInterval(() => { void syncShiftFromCloud(); }, 5000);
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') void syncShiftFromCloud();
+    };
+    window.addEventListener('focus', syncWhenVisible);
+    window.addEventListener('online', syncWhenVisible);
+    document.addEventListener('visibilitychange', syncWhenVisible);
     return () => {
       cancelled = true;
+      window.clearInterval(pollTimer);
+      window.removeEventListener('focus', syncWhenVisible);
+      window.removeEventListener('online', syncWhenVisible);
+      document.removeEventListener('visibilitychange', syncWhenVisible);
       unsubscribe();
     };
-  }, [currentBranch?.id]);
+  }, [isTerminalUnlocked, currentBranch.id, activeUser.id]);
 
-  // Siaran perubahan stok/menu/meja/shift untuk semua perangkat di cabang yang sama.
+  // Siaran data non-shift untuk semua perangkat di cabang yang sama.
   useEffect(() => {
     if (!currentBranch?.id) {
       DBStorage.disconnectBranchSync();
@@ -1267,35 +1274,46 @@ export default function App() {
                 setExpenseRecords(DBStorage.getExpenseRecords());
                 setCurrentShift(DBStorage.getCurrentShift());
               }}
-              onCloseShift={async (notes) => {
-                const closed = DBStorage.closeShift(notes);
-                setCurrentShift(closed);
-                if (cloudReadiness.supabase && currentBranch.id) {
-                  try {
+              onRefreshShift={async () => {
+                if (!cloudReadiness.supabase) {
+                  setCurrentShift(DBStorage.getCurrentShift(currentBranch.id));
+                  return;
+                }
+                const cloudShift = await getCloudActiveShift(currentBranch.id);
+                const nextShift = cloudShift
+                  ? DBStorage.setCurrentShift(cloudShift)
+                  : DBStorage.clearCurrentShift(currentBranch.id);
+                setCurrentShift(nextShift);
+              }}
+              onCloseShift={async (notes, actualCash, expectedCash) => {
+                const shiftBeingClosed = currentShift;
+                try {
+                  if (cloudReadiness.supabase) {
                     await closeCloudShift({
                       branchId: currentBranch.id,
-                      shiftId: currentShift.id,
+                      shiftId: shiftBeingClosed.id,
                       notes,
+                      actualCash,
+                      expectedCash,
+                      varianceAmount: actualCash - expectedCash,
                     });
-                  } catch (err) {
-                    console.warn('Cloud shift close fallback:', err);
                   }
+                  const closed = DBStorage.closeShift(notes, shiftBeingClosed);
+                  setCurrentShift(closed);
+                  showPushToast('Shift Ditutup', 'Shift telah ditutup dan dikonfirmasi oleh server pusat.');
+                } catch (error) {
+                  showPushToast(
+                    'Shift Belum Ditutup',
+                    error instanceof Error ? error.message : 'Server belum mengonfirmasi penutupan shift.',
+                  );
+                  throw error;
                 }
-                showPushToast('Shift Ditutup', 'Shift kasir telah berhasil ditutup dan dicatat.');
               }}
               onOpenNewShift={async (name, role, cash) => {
                 const matchingStaff = staffAccounts.find((staff) => staff.name === name);
-                let ns = DBStorage.openNewShift(
-                  name,
-                  role,
-                  cash,
-                  currentBranch,
-                  matchingStaff?.id,
-                  matchingStaff?.shiftStart,
-                  matchingStaff?.shiftEnd
-                );
-                if (cloudReadiness.supabase && currentBranch.id) {
-                  try {
+                try {
+                  let nextShift: Shift;
+                  if (cloudReadiness.supabase) {
                     const res = await openCloudShift({
                       branchId: currentBranch.id,
                       staffId: matchingStaff?.id,
@@ -1303,26 +1321,33 @@ export default function App() {
                       staffRole: role,
                       initialCash: cash,
                     });
-                    if (res.shift) {
-                      ns = res.shift;
-                      if (res.alreadyOpen) {
-                        showPushToast(
-                          'Shift Sudah Aktif!',
-                          `Outlet ${currentBranch.name} sudah memiliki shift aktif (${res.shift.staffName}). Terhubung ke shift aktif.`
-                        );
-                      } else {
-                        showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
-                      }
-                    }
-                  } catch (err) {
-                    console.warn('Cloud shift open fallback:', err);
-                    showPushToast('Shift Baru Dibuka (Lokal)', `Shift kasir aktif secara lokal untuk ${name}.`);
+                    nextShift = DBStorage.setCurrentShift(res.shift);
+                    showPushToast(
+                      res.alreadyOpen ? 'Shift Sudah Aktif' : 'Shift Baru Dibuka',
+                      res.alreadyOpen
+                        ? `Terhubung ke shift aktif ${res.shift.staffName} pada outlet ${currentBranch.name}.`
+                        : `Shift kasir aktif untuk ${res.shift.staffName} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`,
+                    );
+                  } else {
+                    nextShift = DBStorage.openNewShift(
+                      name,
+                      role,
+                      cash,
+                      currentBranch,
+                      matchingStaff?.id,
+                      matchingStaff?.shiftStart,
+                      matchingStaff?.shiftEnd,
+                    );
+                    showPushToast('Shift Baru Dibuka', `Shift kasir aktif untuk ${name}.`);
                   }
-                } else {
-                  showPushToast('Shift Baru Dibuka!', `Shift kasir aktif untuk ${name} (Modal Awal: Rp ${cash.toLocaleString('id-ID')}).`);
+                  setCurrentShift(nextShift);
+                } catch (error) {
+                  showPushToast(
+                    'Shift Belum Dibuka',
+                    error instanceof Error ? error.message : 'Server belum mengonfirmasi pembukaan shift.',
+                  );
+                  throw error;
                 }
-                setCurrentShift(ns);
-                localStorage.setItem(STORAGE_KEYS.CURRENT_SHIFT, JSON.stringify(ns));
               }}
             />
           )}

@@ -15,6 +15,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const accessToken = await token();
   const response = await fetch(url, {
     ...init,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -30,13 +31,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export async function getCloudActiveShift(branchId: string): Promise<Shift | null> {
   if (!branchId) return null;
-  try {
-    const res = await request<{ shift: Shift | null }>(`/api/shifts?branchId=${encodeURIComponent(branchId)}`);
-    return res.shift || null;
-  } catch (error) {
-    console.warn('Gagal membaca shift dari cloud:', error);
-    return null;
-  }
+  const res = await request<{ shift: Shift | null }>(`/api/shifts?branchId=${encodeURIComponent(branchId)}`);
+  return res.shift || null;
 }
 
 export async function openCloudShift(params: {
@@ -67,8 +63,8 @@ export async function closeCloudShift(params: {
   actualCash?: number;
   expectedCash?: number;
   varianceAmount?: number;
-}): Promise<void> {
-  await request<void>('/api/shifts', {
+}): Promise<{ success: true; closedShiftId: string | null; closedAt: string | null }> {
+  return request<{ success: true; closedShiftId: string | null; closedAt: string | null }>('/api/shifts', {
     method: 'POST',
     body: JSON.stringify({
       action: 'CLOSE',
