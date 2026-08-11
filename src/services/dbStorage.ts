@@ -263,7 +263,11 @@ export class DBStorage {
       setStoredItem(STORAGE_KEYS.EXPENSES, []);
       setStoredItem(STORAGE_KEYS.ATTENDANCE, []);
       setStoredItem(STORAGE_KEYS.OFFLINE_QUEUE, []);
-      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+      // Preserve active open shift during migration — only reset if no shift exists or shift is already closed
+      const existingShift = getStoredItem<Shift>(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+      if (existingShift.status !== 'OPEN') {
+        setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
+      }
 
       const cleanTables = getStoredItem<RestaurantTable[]>(STORAGE_KEYS.TABLES, INITIAL_TABLES).map((table) => ({
         ...table,
@@ -838,7 +842,11 @@ export class DBStorage {
 
   static syncAllDataWithCloud(): void {
     if (typeof window === 'undefined') return;
-    setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, this.getCurrentShift());
+    // Only broadcast shift if it's an active OPEN shift — never overwrite remote OPEN with local CLOSED
+    const localShift = this.getCurrentShift();
+    if (localShift.status === 'OPEN') {
+      setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, localShift);
+    }
     setStoredItem(STORAGE_KEYS.ORDERS, this.getOrders());
     setStoredItem(STORAGE_KEYS.EXPENSES, this.getExpenseRecords());
     setStoredItem(STORAGE_KEYS.TABLES, this.getTables());

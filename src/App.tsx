@@ -13,7 +13,7 @@ import { PaymentModal } from './components/POS/PaymentModal';
 import { ThermalReceiptModal } from './components/Printer/ThermalReceiptModal';
 import { CustomerTableManagementModal } from './components/SelfOrder/CustomerTableManagementModal';
 import { QuickTableModal } from './components/Tables/QuickTableModal';
-import { playNewOrderSound } from './utils/audioNotification';
+import { playNewOrderSound, playSelfOrderAlertSound } from './utils/audioNotification';
 import { BluetoothPrinterService } from './services/bluetoothPrinter';
 
 import {
@@ -351,10 +351,36 @@ export default function App() {
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
     let active = true;
+    let prevOrderCount = orders.length;
+    let isFirstLoad = true;
     const refresh = () => {
       void listCloudOrders(currentBranch.id)
         .then((cloudOrders) => {
           if (!active) return;
+          const newCount = cloudOrders.length;
+
+          // Detect genuinely new orders arriving from remote (self-order from customer phone)
+          if (!isFirstLoad && newCount > prevOrderCount) {
+            const newOrders = cloudOrders.slice(0, newCount - prevOrderCount);
+            const selfOrders = newOrders.filter((o) => o.source === 'SELF_ORDER' || o.type === 'DINE_IN');
+
+            if (selfOrders.length > 0) {
+              // Play LOUD siren alert for self-order
+              playSelfOrderAlertSound();
+              selfOrders.forEach((o) => {
+                showPushToast(
+                  '🔔 PESANAN MASUK DARI HP CUSTOMER!',
+                  `Meja ${o.tableNumber} — ${o.orderNumber} — ${o.items?.length || 0} item. Segera proses!`
+                );
+              });
+            } else {
+              // Regular new order sound
+              playNewOrderSound();
+            }
+          }
+          isFirstLoad = false;
+          prevOrderCount = newCount;
+
           setOrders(cloudOrders);
           localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
         })
@@ -709,8 +735,8 @@ export default function App() {
         .catch((error) => showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.'));
     }
     
-    // Play cashier audio notification chime for new order arrival!
-    playNewOrderSound();
+    // Play LOUD self-order siren alert for new order arrival from customer!
+    playSelfOrderAlertSound();
 
     showPushToast('Order Baru dari HP Customer!', `Meja ${newOrder.tableNumber} memesan order ${newOrder.orderNumber}. Meja dikunci (RED).`);
   };
