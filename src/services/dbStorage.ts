@@ -79,32 +79,62 @@ const posBroadcastChannel =
     ? new BroadcastChannel('pos_pro_sync_channel')
     : null;
 
+// Siaran perubahan data antar perangkat dalam SATU cabang.
+//
+// Sebelumnya ini satu channel global bernama 'pos_cloud_sync_realtime' yang
+// dipakai semua cabang dan semua tenant sekaligus, tanpa private: true. Stok,
+// menu, meja, shift, dan pengeluaran satu outlet tersiar ke outlet lain dan
+// langsung ditulis ke localStorage penerima tanpa pemeriksaan asal — data
+// Pasirmulya menimpa Pasar Anyar, dan tenant lain ikut mendengar.
 let supabaseSyncChannel: any = null;
+let syncChannelBranchId: string | null = null;
 
-if (typeof window !== 'undefined' && cloudReadiness.supabase) {
+export function disconnectBranchSync(): void {
+  if (!supabaseSyncChannel) return;
+  const channel = supabaseSyncChannel;
+  supabaseSyncChannel = null;
+  syncChannelBranchId = null;
+  import('../lib/supabase')
+    .then(({ getSupabase }) => getSupabase().removeChannel(channel))
+    .catch(() => {});
+}
+
+export function connectBranchSync(branchId: string): void {
+  if (typeof window === 'undefined' || !cloudReadiness.supabase || !branchId) return;
+  if (syncChannelBranchId === branchId) return;
+
+  disconnectBranchSync();
+  syncChannelBranchId = branchId;
+
   import('../lib/supabase')
     .then(({ getSupabase }) => {
+      // Cabang bisa berganti lagi selama import berlangsung.
+      if (syncChannelBranchId !== branchId) return;
       try {
-        const supabase = getSupabase();
-        supabaseSyncChannel = supabase.channel('pos_cloud_sync_realtime');
-        supabaseSyncChannel
-          .on('broadcast', { event: 'pos_sync' }, (payload: any) => {
-            if (payload.payload?.key && payload.payload?.value !== undefined) {
-              const { key, value } = payload.payload;
-              try {
-                localStorage.setItem(key, JSON.stringify(value));
-                window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
-              } catch {
-                // Ignore parse errors
-              }
+        const channel = getSupabase().channel(`branch:${branchId}:sync`, { config: { private: true } });
+        channel
+          .on('broadcast', { event: 'pos_sync' }, (message: any) => {
+            const { key, value, branchId: senderBranchId } = message.payload || {};
+            // Channel sudah per-cabang; ini penjaga kedua supaya siaran nyasar
+            // tidak pernah menimpa data cabang yang sedang dibuka.
+            if (!key || value === undefined || senderBranchId !== syncChannelBranchId) return;
+            try {
+              localStorage.setItem(key, JSON.stringify(value));
+              window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
+            } catch {
+              // Abaikan kegagalan tulis localStorage (kuota penuh / mode privat)
             }
           })
           .subscribe();
+        supabaseSyncChannel = channel;
       } catch {
         // Fallback silently if Supabase client fails to connect
+        syncChannelBranchId = null;
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      syncChannelBranchId = null;
+    });
 }
 
 // Helper to get item from localStorage or default
@@ -148,7 +178,7 @@ function setStoredItem<T>(key: string, value: T): void {
             .send({
               type: 'broadcast',
               event: 'pos_sync',
-              payload: { key, value, timestamp: now }
+              payload: { key, value, timestamp: now, branchId: syncChannelBranchId }
             })
             .catch(() => {});
         }
@@ -160,6 +190,15 @@ function setStoredItem<T>(key: string, value: T): void {
 }
 
 export class DBStorage {
+  /** Dengarkan siaran perubahan data dari perangkat lain di cabang ini. */
+  static connectBranchSync(branchId: string): void {
+    connectBranchSync(branchId);
+  }
+
+  static disconnectBranchSync(): void {
+    disconnectBranchSync();
+  }
+
   // Initialize default data if empty
   static initDefaults(): void {
     if (!localStorage.getItem(STORAGE_KEYS.MENU)) {
