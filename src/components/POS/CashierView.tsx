@@ -217,7 +217,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [selectedTable, setSelectedTable] = useState<string>('-');
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountMode, setDiscountMode] = useState<'PERCENT' | 'IDR'>('PERCENT');
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
 
   // Condiment Selection Modal State
@@ -354,12 +355,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCartItems([]);
     setCustomerName('Guest');
     setSelectedTable('-');
-    setDiscountPercent(0);
+    setDiscountValue(0);
+    setDiscountMode('PERCENT');
     setCurrentEditingOrderId(null);
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discountAmount = Math.round((subtotal * discountPercent) / 100);
+  // Diskon tidak boleh melebihi subtotal, apa pun satuannya.
+  const discountAmount = Math.min(
+    subtotal,
+    Math.max(0, discountMode === 'IDR' ? Math.round(discountValue) : Math.round((subtotal * discountValue) / 100))
+  );
   const total = subtotal - discountAmount;
 
   const buildCurrentOrderDraft = (): Partial<Order> => {
@@ -388,8 +394,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCustomerName(order.customerName);
     setSelectedTable(order.tableNumber || '-');
     setOrderType(order.type);
-    const initialDiscPercent = order.subtotal > 0 ? Math.round((order.discount / order.subtotal) * 100) : 0;
-    setDiscountPercent(initialDiscPercent);
+    // Order menyimpan diskon sebagai nominal. Mengubahnya kembali jadi persen
+    // akan dibulatkan dan menggeser angkanya, jadi muat apa adanya dalam rupiah.
+    setDiscountMode('IDR');
+    setDiscountValue(order.discount || 0);
     setCartItems(order.items);
   };
 
@@ -458,16 +466,21 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 (queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).map((order) => {
                   const isEditingThis = currentEditingOrderId === order.id;
                   const itemCount = order.items.reduce((a, b) => a + b.quantity, 0);
+                  const isVoided = order.status === 'CANCELLED';
                   const orderIsPaid = order.paymentStatus === 'PAID' || order.status === 'COMPLETED';
 
                   return (
                     <div
                       key={order.id}
-                      onClick={() => handleLoadExistingOrder(order)}
-                      className={`p-2 rounded-lg border border-l-[3px] border-l-[#F05A1F] transition-all cursor-pointer relative ${
-                        isEditingThis
-                          ? 'bg-[#FFF7F3] border-[#F05A1F] ring-2 ring-[#F05A1F]/10 shadow-sm'
-                          : 'bg-white border-[#E2E2E2] hover:border-[#F2B59B] hover:bg-[#FFF9F6] hover:shadow-sm'
+                      // Order batal hanya untuk dilihat; memuatnya ke keranjang
+                      // berisiko tertagih ulang.
+                      onClick={() => { if (!isVoided) handleLoadExistingOrder(order); }}
+                      className={`p-2 rounded-lg border border-l-[3px] transition-all relative ${
+                        isVoided
+                          ? 'bg-[#FAFAFA] border-[#E2E2E2] border-l-[#B8B0A8] opacity-75 cursor-default'
+                          : isEditingThis
+                            ? 'bg-[#FFF7F3] border-[#F05A1F] border-l-[#F05A1F] ring-2 ring-[#F05A1F]/10 shadow-sm cursor-pointer'
+                            : 'bg-white border-[#E2E2E2] border-l-[#F05A1F] hover:border-[#F2B59B] hover:bg-[#FFF9F6] hover:shadow-sm cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -479,9 +492,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                         </span>
                         <div className="flex items-center gap-0.5">
                           <span className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-md ${
-                            orderIsPaid ? 'bg-[#F1F1F1] text-[#333333]' : 'bg-[#FFF2EB] text-[#C54515]'
+                            isVoided
+                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                              : orderIsPaid ? 'bg-[#F1F1F1] text-[#333333]' : 'bg-[#FFF2EB] text-[#C54515]'
                           }`}>
-                            {orderIsPaid ? 'PAID' : 'UNPAID'}
+                            {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
                           </span>
                           <span className="text-[7px] bg-[#1A1714] text-white font-semibold px-1.5 py-0.5 rounded-md">
                             {order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
@@ -752,20 +767,26 @@ export const CashierView: React.FC<CashierViewProps> = ({
               <input
                 type="number"
                 disabled={isPaidOrder}
-                placeholder="Disc %"
-                value={discountPercent || ''}
-                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                min="0"
+                max={discountMode === 'PERCENT' ? 100 : undefined}
+                placeholder={discountMode === 'PERCENT' ? 'Diskon %' : 'Diskon Rp'}
+                value={discountValue || ''}
+                onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
                 className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none ${
                   isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] text-[#1A1A1A] focus:border-[#AFAFAF] focus:bg-white'
                 }`}
               />
               <select
                 disabled={isPaidOrder}
+                value={discountMode}
+                onChange={(e) => setDiscountMode(e.target.value as 'PERCENT' | 'IDR')}
+                aria-label="Satuan diskon"
                 className={`w-full border rounded-lg px-2 py-1.5 text-xs font-semibold outline-none ${
                   isPaidOrder ? 'bg-[#FAFAFA] border-[#E2E2E2] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#F5F5F5] border-[#E1E1E1] text-[#1A1A1A] focus:border-[#AFAFAF] focus:bg-white cursor-pointer'
                 }`}
               >
-                <option value="IDR">IDR</option>
+                <option value="PERCENT">Persen (%)</option>
+                <option value="IDR">Rupiah (Rp)</option>
               </select>
             </div>
 
