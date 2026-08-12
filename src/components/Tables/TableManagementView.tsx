@@ -41,7 +41,10 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   onOpenCustomerSelfOrderModal,
   onTableUpdated,
 }) => {
-  const [customBaseUrl, setCustomBaseUrl] = useState(() => typeof window === 'undefined' ? 'https://pos-pro-eight.vercel.app' : window.location.origin);
+  const [customBaseUrl, setCustomBaseUrl] = useState(() => {
+    if (typeof window === 'undefined') return 'https://pos-pro-eight.vercel.app';
+    return localStorage.getItem('pos_custom_qr_domain') || window.location.origin;
+  });
   const [query, setQuery] = useState('');
   const [copiedTableNumber, setCopiedTableNumber] = useState<string | null>(null);
   const [tableTokens, setTableTokens] = useState<Record<string, TableToken>>({});
@@ -152,8 +155,25 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
         </label>
         <label className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Domain QR</span>
-          <input value={customBaseUrl} onChange={(event) => setCustomBaseUrl(event.target.value)} className="ui-input min-w-0 px-3 text-[11px] font-semibold" />
-          <button type="button" onClick={() => setCustomBaseUrl(window.location.origin)} className="ui-button ui-button-secondary px-3 text-[11px]">Reset</button>
+          <input
+            value={customBaseUrl}
+            onChange={(event) => {
+              const val = event.target.value;
+              setCustomBaseUrl(val);
+              localStorage.setItem('pos_custom_qr_domain', val);
+            }}
+            className="ui-input min-w-0 px-3 text-[11px] font-semibold"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setCustomBaseUrl(window.location.origin);
+              localStorage.removeItem('pos_custom_qr_domain');
+            }}
+            className="ui-button ui-button-secondary px-3 text-[11px]"
+          >
+            Reset
+          </button>
         </label>
       </div>
 

@@ -1516,11 +1516,14 @@ export default function App() {
                 }
               }}
               onDeleteRawMaterial={(id) => {
+                DBStorage.deleteRawMaterial(id);
+                setRawMaterials(DBStorage.getRawMaterials());
                 if (cloudReadiness.supabase) {
-                  void deleteCloudRawMaterial(id, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari cloud.')).catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Bahan baku gagal dihapus.'));
+                  void deleteCloudRawMaterial(id, currentBranch.id)
+                    .then(refreshCloudCatalog)
+                    .then(() => showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari cloud.'))
+                    .catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Bahan baku gagal dihapus.'));
                 } else {
-                  DBStorage.deleteRawMaterial(id);
-                  setRawMaterials(DBStorage.getRawMaterials());
                   showPushToast('Bahan Baku Dihapus', 'Bahan baku berhasil dihapus dari sistem.');
                 }
               }}
@@ -1530,16 +1533,19 @@ export default function App() {
                 } else {
                   DBStorage.saveMenuItem(menu);
                   setMenuItems(DBStorage.getMenuItems());
-                  showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} berhasil disimpan ke katalog.`);
+                  showPushToast('Produk Menu Disimpan', `Produk menu ${menu.name} berhasil disimpan.`);
                 }
               }}
               onDeleteMenuItem={(id) => {
+                DBStorage.deleteMenuItem(id);
+                setMenuItems(DBStorage.getMenuItems());
                 if (cloudReadiness.supabase) {
-                  void deleteCloudMenuItem(id, currentBranch.id).then(refreshCloudCatalog).then(() => showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari cloud.')).catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Produk gagal dihapus.'));
+                  void deleteCloudMenuItem(id, currentBranch.id)
+                    .then(refreshCloudCatalog)
+                    .then(() => showPushToast('Produk Dihapus', 'Produk menu berhasil dihapus dari cloud.'))
+                    .catch((error) => showPushToast('Hapus Gagal', error instanceof Error ? error.message : 'Produk menu gagal dihapus.'));
                 } else {
-                  DBStorage.deleteMenuItem(id);
-                  setMenuItems(DBStorage.getMenuItems());
-                  showPushToast('Produk Menu Dihapus', 'Produk menu berhasil dihapus dari katalog.');
+                  showPushToast('Produk Dihapus', 'Produk menu berhasil dihapus dari sistem.');
                 }
               }}
               onResetCatalogDefaults={() => {
