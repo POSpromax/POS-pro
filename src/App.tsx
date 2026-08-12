@@ -1669,13 +1669,15 @@ export default function App() {
 
           {activeTab === 'analytics' && (
             <AnalyticsExportView
-              orders={branchOrders}
+              orders={orders}
               menuItems={menuItems}
               currentShift={currentShift}
               allShifts={shiftHistory}
               attendanceRecords={attendanceRecords}
               expenseRecords={expenseRecords}
               profile={profile}
+              branches={branches}
+              currentBranchId={currentBranch.id}
             />
           )}
 

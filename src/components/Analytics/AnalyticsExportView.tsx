@@ -28,7 +28,7 @@ import {
   ChevronRight,
   ShieldCheck
 } from 'lucide-react';
-import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile } from '../../types/pos';
+import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile, Branch } from '../../types/pos';
 import { DBStorage } from '../../services/dbStorage';
 import { ReportPeriod, REPORT_PERIODS, formatPeriodRange, getPeriodRange, isWithinPeriod } from '../../utils/reportPeriod';
 
@@ -40,6 +40,8 @@ interface AnalyticsExportViewProps {
   attendanceRecords?: AttendanceRecord[];
   expenseRecords?: ExpenseIncomeRecord[];
   profile?: RestaurantProfile;
+  branches?: Branch[];
+  currentBranchId?: string;
 }
 
 type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY';
@@ -51,22 +53,31 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   allShifts: propShifts,
   attendanceRecords: propAttendance,
   expenseRecords: propExpenses,
-  profile: propProfile
+  profile: propProfile,
+  branches = [],
+  currentBranchId
 }) => {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
+  // Filter cabang: default cabang aktif; 'ALL' = gabungan semua cabang.
+  const [branchFilter, setBranchFilter] = useState<string>(currentBranchId || 'ALL');
 
   const allShifts = useMemo(() => propShifts || DBStorage.getShiftHistory(), [propShifts]);
   const allAttendances = useMemo(() => propAttendance || DBStorage.getAttendanceRecords(), [propAttendance]);
   const allExpenses = useMemo(() => propExpenses || DBStorage.getExpenseRecords(), [propExpenses]);
   const profile = useMemo(() => propProfile || DBStorage.getProfile(), [propProfile]);
 
-  // Semua metrik di bawah membaca data yang sudah dipotong rentang waktu terpilih.
+  // Semua metrik di bawah membaca data yang sudah dipotong rentang waktu terpilih
+  // dan cabang terpilih (atau gabungan semua cabang bila 'ALL').
   const periodRange = useMemo(() => getPeriodRange(period), [period]);
-  const scopedOrders = useMemo(() => orders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [orders, periodRange]);
+  const branchScopedOrders = useMemo(
+    () => (branchFilter === 'ALL' ? orders : orders.filter((o) => (o.branchId || currentBranchId) === branchFilter)),
+    [orders, branchFilter, currentBranchId],
+  );
+  const scopedOrders = useMemo(() => branchScopedOrders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [branchScopedOrders, periodRange]);
   const shifts = useMemo(() => allShifts.filter((s) => isWithinPeriod(s.startTime, periodRange)), [allShifts, periodRange]);
   const attendances = useMemo(() => allAttendances.filter((a) => isWithinPeriod(a.timestamp, periodRange)), [allAttendances, periodRange]);
   const expenses = useMemo(() => allExpenses.filter((e) => isWithinPeriod(e.timestamp, periodRange)), [allExpenses, periodRange]);
@@ -162,6 +173,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   }, [paidOrders]);
 
   const maxDailyRevenue = useMemo(() => Math.max(...dailyTrendData.map((d) => d.revenue), 1), [dailyTrendData]);
+
+  // Tren per BULAN — untuk periode Tahun.
+  const monthlyTrendData = useMemo(() => {
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const buckets = new Map<string, { key: string; label: string; revenue: number; count: number }>();
+    paidOrders.forEach((order) => {
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const bucket = buckets.get(key) || { key, label: names[date.getMonth()], revenue: 0, count: 0 };
+      bucket.revenue += order.total;
+      bucket.count += 1;
+      buckets.set(key, bucket);
+    });
+    return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [paidOrders]);
+
+  // Grafik tren utama MENYESUAIKAN periode: Hari ini/Kemarin→per jam,
+  // Minggu/Bulan→per tanggal, Tahun/Semua→per bulan.
+  const trendChart = useMemo(() => {
+    if (period === 'TODAY' || period === 'YESTERDAY') {
+      return { title: 'Tren Omset per Jam', data: hourlyPeakData.map((h) => ({ label: h.hourLabel, revenue: h.revenue, count: h.count })) };
+    }
+    if (period === 'YEAR' || period === 'ALL') {
+      return { title: 'Tren Omset per Bulan', data: monthlyTrendData.map((m) => ({ label: m.label, revenue: m.revenue, count: m.count })) };
+    }
+    return { title: 'Tren Omset per Tanggal', data: dailyTrendData.map((d) => ({ label: d.label, revenue: d.revenue, count: d.count })) };
+  }, [period, hourlyPeakData, dailyTrendData, monthlyTrendData]);
+  const maxTrendRevenue = useMemo(() => Math.max(...trendChart.data.map((d) => d.revenue), 1), [trendChart]);
 
   // Hari apa yang paling laris — dirata-rata supaya periode yang memuat lebih
   // banyak hari Senin daripada Minggu tidak otomatis memenangkan Senin.
@@ -295,6 +335,45 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <span style={{ color: 'var(--text-tertiary)' }}> · {scopedOrders.length} order</span>
           </span>
         </div>
+
+        {/* Filter cabang — memotong seluruh metrik & tabel di halaman ini */}
+        {branches.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
+              style={{ color: 'var(--text-tertiary)' }}>
+              <ShieldCheck className="w-3.5 h-3.5" /> Cabang
+            </span>
+            <div className="flex flex-wrap items-center gap-1 bg-[var(--surface-secondary)] border border-[var(--panel-border)] p-1 rounded-full">
+              <button
+                type="button"
+                onClick={() => setBranchFilter('ALL')}
+                aria-pressed={branchFilter === 'ALL'}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
+                  branchFilter === 'ALL'
+                    ? 'bg-[var(--primary)] text-[var(--text-inverse)] shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Semua Cabang
+              </button>
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBranchFilter(b.id)}
+                  aria-pressed={branchFilter === b.id}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
+                    branchFilter === b.id
+                      ? 'bg-[var(--primary)] text-[var(--text-inverse)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="ui-tabs ui-tabs-orange border-b border-[var(--panel-border)] pb-2">
@@ -486,33 +565,33 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </p>
             </div>
 
-            {/* Tren omset per tanggal */}
+            {/* Tren omset adaptif: per jam / tanggal / bulan mengikuti periode */}
             <div className="ui-card p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
-                  Tren Omset Harian
+                  {trendChart.title}
                 </h2>
                 <span className="text-[11px] font-bold"
                   style={{ color: 'var(--text-tertiary)' }}>{formatPeriodRange(period, periodRange)}</span>
               </div>
 
-              {dailyTrendData.length === 0 ? (
+              {trendChart.data.length === 0 ? (
                 <p className="py-8 text-center text-[12px] font-medium"
                   style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas pada periode ini.</p>
               ) : (
                 <>
                   <div className="overflow-x-auto">
                     <div className="flex items-end gap-1.5 h-40 pt-4 px-1 border-b min-w-full"
-                      style={{ borderColor: 'var(--panel-border-light)', minWidth: `${dailyTrendData.length * 34}px` }}>
-                      {dailyTrendData.map((day) => {
-                        const pct = Math.round((day.revenue / maxDailyRevenue) * 100);
-                        const isBest = day.revenue === maxDailyRevenue;
+                      style={{ borderColor: 'var(--panel-border-light)', minWidth: `${trendChart.data.length * 34}px` }}>
+                      {trendChart.data.map((point, idx) => {
+                        const pct = Math.round((point.revenue / maxTrendRevenue) * 100);
+                        const isBest = point.revenue === maxTrendRevenue && point.revenue > 0;
                         return (
-                          <div key={day.key} className="relative flex min-w-[28px] flex-1 flex-col items-center gap-1 group">
+                          <div key={`${point.label}-${idx}`} className="relative flex min-w-[28px] flex-1 flex-col items-center gap-1 group">
                             <div className="absolute -top-10 pointer-events-none z-10 whitespace-nowrap rounded-lg px-2 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
                               style={{ background: 'var(--primary)' }}>
-                              {day.label}: Rp {day.revenue.toLocaleString('id-ID')} ({day.count} order)
+                              {point.label}: Rp {point.revenue.toLocaleString('id-ID')} ({point.count} order)
                             </div>
                             <div className="flex h-32 w-full items-end overflow-hidden rounded-t-md"
                               style={{ background: 'var(--surface-secondary)' }}>
@@ -525,14 +604,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                               />
                             </div>
                             <span className="whitespace-nowrap text-[10px] font-bold"
-                              style={{ color: 'var(--text-tertiary)' }}>{day.label.split(' ')[0]}</span>
+                              style={{ color: 'var(--text-tertiary)' }}>{point.label.split(' ')[0]}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                   <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.
+                    Batang oranye adalah titik dengan omset tertinggi pada periode ini.
                   </p>
                 </>
               )}
