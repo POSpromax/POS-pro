@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Search, Store, Grid2X2 } from 'lucide-react';
+import { Bell, Grid2X2, Printer, Search, Store, Wifi, WifiOff } from 'lucide-react';
 import { Branch, PrinterConfig, UserAccount, RestaurantTable, Order } from '../../types/pos';
 
 interface HeaderBarProps {
@@ -43,23 +43,23 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeUser,
   searchTerm,
   setSearchTerm,
-  activeTab = 'pos'
+  activeTab = 'pos',
 }) => {
-  const [timeStr, setTimeStr] = useState<string>('');
-  const [dateStr, setDateStr] = useState<string>('');
+  const [timeStr, setTimeStr] = useState('');
+  const [dateStr, setDateStr] = useState('');
 
   useEffect(() => {
-    const updateTime = () => {
+    const update = () => {
       const now = new Date();
       setTimeStr(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-      const dayName = now.toLocaleDateString('id-ID', { weekday: 'short' }).toUpperCase();
-      const dateNum = now.getDate();
-      const monthName = now.toLocaleDateString('id-ID', { month: 'short' }).toUpperCase();
-      setDateStr(`${dayName}, ${dateNum} ${monthName}`);
+      const day  = now.toLocaleDateString('id-ID', { weekday: 'short' }).toUpperCase();
+      const date = now.getDate();
+      const mon  = now.toLocaleDateString('id-ID', { month: 'short' }).toUpperCase();
+      setDateStr(`${day}, ${date} ${mon}`);
     };
-    updateTime();
-    const interval = window.setInterval(updateTime, 30_000);
-    return () => clearInterval(interval);
+    update();
+    const id = window.setInterval(update, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const isOwnerMode = systemPortal === 'OWNER';
@@ -67,89 +67,152 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   return (
     <header
       id="app-header-bar"
-      className="z-20 flex h-12 shrink-0 select-none items-center justify-between gap-3 rounded-2xl border border-[var(--panel-border)] bg-white/95 px-3.5 font-sans text-[var(--text-primary)] shadow-[0_3px_14px_rgba(26,23,20,0.06)] backdrop-blur-xl transition-all duration-300"
+      className="z-20 flex h-12 shrink-0 select-none items-center justify-between gap-3 rounded-2xl border px-3.5 font-sans transition-all duration-200"
+      style={{
+        background: 'rgba(255,255,255,0.96)',
+        borderColor: 'var(--panel-border)',
+        boxShadow: '0 2px 12px rgba(26,23,20,0.055)',
+        backdropFilter: 'blur(16px)',
+        color: 'var(--text-primary)',
+      }}
     >
-      {/* Left: Time & Connection */}
+      {/* ── LEFT: Clock + Connection ─────────────────────── */}
       <div className="flex items-center gap-2.5 shrink-0">
+        {/* Time */}
         <div className="flex items-baseline gap-1.5">
-          <span className="font-mono text-sm font-bold leading-none tracking-tight text-[var(--text-primary)]">
+          <span
+            className="font-mono text-[13px] font-bold leading-none tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {timeStr}
           </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          <span
+            className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             {dateStr}
           </span>
         </div>
 
+        {/* Online / Offline pill */}
         <div
-          id="btn-toggle-online-status"
-          role="status"
-          className={`h-5 px-2 rounded-lg border flex items-center justify-center shrink-0 text-[11px] font-bold tracking-wider ${
+          className="flex h-5 items-center gap-1 rounded-lg border px-2 text-[10px] font-bold tracking-wider shrink-0"
+          style={
             isOnline
-              ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border-[var(--accent-green)]'
-              : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border-strong)]'
-          }`}
+              ? { background: 'var(--success-soft)', color: 'var(--accent-green)', borderColor: '#86efac' }
+              : { background: 'var(--surface-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--panel-border-strong)' }
+          }
+          role="status"
           title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
+          id="btn-toggle-online-status"
         >
-          {isOnline ? 'INTERNET' : 'OFFLINE'}
+          {isOnline
+            ? <Wifi className="h-2.5 w-2.5" />
+            : <WifiOff className="h-2.5 w-2.5" />}
+          <span className="hidden sm:inline">{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
+
+        {/* Pending sync badge */}
+        {pendingSyncCount > 0 && (
+          <button
+            type="button"
+            onClick={onManualSync}
+            className="flex h-5 items-center gap-1 rounded-lg border px-2 text-[10px] font-bold tracking-wider shrink-0 cursor-pointer transition-colors"
+            style={{ background: 'var(--warning-soft)', color: '#b45309', borderColor: '#fde68a' }}
+            title={`${pendingSyncCount} transaksi pending — klik untuk sync`}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+            {pendingSyncCount} pending
+          </button>
+        )}
       </div>
 
-      {/* Middle & Right Controls */}
+      {/* ── MIDDLE / RIGHT: Kasir mode controls ─────────── */}
       {activeTab === 'pos' && !isOwnerMode && (
-        <div className="flex-1 flex items-center justify-end gap-2 overflow-x-auto scrollbar-none pl-2">
+        <div className="flex flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-none pl-2">
+
           {/* Search */}
-          <div className="bg-[var(--surface-secondary)] text-[var(--text-primary)] rounded-lg px-3 py-1.5 flex items-center gap-2 border border-[var(--panel-border)] transition-all w-40 sm:w-52 focus-within:w-56 focus-within:border-[var(--brand-300)] focus-within:bg-white focus-within:ring-2 focus-within:ring-[var(--primary)]/10 shrink-0">
-            <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
+          <div
+            className="flex items-center gap-2 rounded-xl border px-3 py-1.5 transition-all w-36 sm:w-48 focus-within:w-52"
+            style={{
+              background: 'var(--surface-secondary)',
+              borderColor: 'var(--panel-border)',
+              color: 'var(--text-primary)',
+            }}
+            onFocus={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.borderColor = 'var(--brand-400)';
+              el.style.background = 'var(--surface-card)';
+              el.style.boxShadow = '0 0 0 3px rgb(234 88 12 / 10%)';
+            }}
+            onBlur={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.borderColor = 'var(--panel-border)';
+              el.style.background = 'var(--surface-secondary)';
+              el.style.boxShadow = 'none';
+            }}
+          >
+            <Search className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
             <input
               id="input-header-search"
               type="text"
-              placeholder="Cari menu, kode..."
+              placeholder="Cari menu..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent text-[var(--text-primary)] text-xs outline-none placeholder:text-[var(--text-tertiary)] font-semibold"
+              className="w-full bg-transparent text-[12px] font-semibold outline-none"
+              style={{ color: 'var(--text-primary)' }}
             />
           </div>
 
-          {/* Table Button */}
+          {/* Table Management */}
           {onOpenTableManagement && (
             <button
               id="btn-header-meja-customer"
               type="button"
               onClick={onOpenTableManagement}
-              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-[11px] px-3 py-1.5 rounded-lg transition-all shadow-sm shadow-slate-950/10 cursor-pointer active:scale-95 shrink-0"
+              className="ui-button ui-button-primary shrink-0 gap-1.5 text-[11px]"
+              style={{ minHeight: '32px', padding: '0 12px' }}
               title="Konfigurasi Meja Customer Order"
             >
-              <Grid2X2 className="w-3.5 h-3.5" />
-              <span>Meja Customer</span>
+              <Grid2X2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Meja Customer</span>
+              <span className="sm:hidden">Meja</span>
             </button>
           )}
 
           {/* Printer */}
           <button
             id="btn-header-setup-printer"
+            type="button"
             onClick={onOpenPrinterSetup}
-            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
-              printerConfig.isConnected
-                ? 'bg-[var(--surface-secondary)] text-[var(--text-primary)] border-[var(--panel-border-strong)] hover:bg-[var(--primary-soft)]'
-                : 'bg-[var(--surface-card)] text-[var(--primary-hover)] border-[var(--primary-border)] hover:bg-[var(--primary-soft)]'
+            className={`ui-button shrink-0 gap-1.5 text-[11px] ${
+              printerConfig.isConnected ? 'ui-button-secondary' : 'ui-button-soft'
             }`}
+            style={{ minHeight: '32px', padding: '0 12px' }}
           >
-            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[var(--primary-hover)]' : 'text-[var(--accent-red)]'}`} />
-            <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
+            <Printer
+              className="h-3.5 w-3.5 shrink-0"
+              style={{ color: printerConfig.isConnected ? 'var(--primary-hover)' : 'var(--accent-red)' }}
+            />
+            <span className="hidden sm:inline">
+              {printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}
+            </span>
           </button>
         </div>
       )}
 
-      {/* Owner mode right */}
+      {/* ── OWNER mode right ─────────────────────────────── */}
       {isOwnerMode && onSwitchPortal && (
         <div className="flex items-center gap-2 ml-auto">
           <button
             type="button"
             onClick={() => onSwitchPortal('KASIR')}
-            className="flex items-center gap-1.5 bg-[var(--primary-solid)] hover:bg-[var(--primary-pressed)] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+            className="ui-button ui-button-primary gap-1.5 text-[11px]"
+            style={{ minHeight: '32px', padding: '0 14px' }}
           >
-            <Store className="w-3.5 h-3.5" />
+            <Store className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Terminal POS Kasir</span>
+            <span className="sm:hidden">Kasir</span>
           </button>
         </div>
       )}

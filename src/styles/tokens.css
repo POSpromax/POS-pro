@@ -4,86 +4,89 @@
 :root {
   color-scheme: light;
 
-  --brand-50: #fff7ed;
-  --brand-100: #ffedd5;
-  --brand-200: #fed7aa;
-  --brand-300: #fdba74;
-  --brand-400: #fb923c;
-  --brand-500: #f97316;
-  --brand-600: #ea580c;
-  --brand-700: #c2410c;
-  --brand-800: #9a3412;
-  --brand-900: #7c2d12;
+  /* Skala oranye dari mockup referensi: #FF5B22 sebagai aksen utama, dengan
+     turunan gelap untuk teks kecil. Netralnya hangat (bukan abu kebiruan)
+     supaya oranye terasa menyatu, bukan menempel. */
+  --brand-50: #fff5f0;
+  --brand-100: #ffe6da;
+  --brand-200: #ffcdb6;
+  --brand-300: #ffab86;
+  --brand-400: #ff8354;
+  --brand-500: #ff5b22;
+  --brand-600: #eb4f18;
+  --brand-700: #b8431a;
+  --brand-800: #963715;
+  --brand-900: #7a2f12;
 
-  --primary: var(--brand-600);
-  --primary-hover: var(--brand-700);
-  --primary-pressed: var(--brand-800);
-  --primary-light: var(--brand-500);
-  --primary-gradient: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
-  --primary-soft: var(--brand-50);
+  --primary: var(--brand-500);
+  --primary-hover: var(--brand-600);
+  --primary-pressed: var(--brand-700);
+  --primary-light: var(--brand-400);
+  --primary-gradient: linear-gradient(135deg, #ff5b22 0%, #ff8354 100%);
+  --primary-soft: #fff0e9;
   --primary-border: var(--brand-200);
-  /* Teks aksen di atas latar terang: brand-600 hanya 3.6:1, di bawah ambang
-     terbaca. brand-700 mencapai 5.2:1 dan tetap terbaca oranye. */
+  /* Teks aksen di atas latar terang. brand-500 hanya 3.1:1 — cukup untuk
+     angka besar, kurang untuk label 11px. brand-700 mencapai 5.5:1. */
   --primary-text: var(--brand-700);
-  /* Permukaan tombol utama. Sebelumnya brand-700 dan terbaca gelap dibanding
-     referensi; brand-600 lebih cerah dan tetap 3.6:1 untuk label tebal.
-     Teks kecil di atas putih tetap memakai --primary-text, bukan ini. */
-  --primary-solid: var(--brand-600);
+  /* Permukaan tombol utama: 3.1:1 dengan teks putih tebal, sesuai referensi.
+     Label kecil di atas putih tetap memakai --primary-text, bukan ini. */
+  --primary-solid: var(--brand-500);
 
-  --canvas-bg: #f7f7f8;
-  --canvas-bg-start: #fafafa;
-  --canvas-bg-mid: #f5f5f6;
-  --canvas-bg-end: #fafafa;
-  --surface-main: #f7f7f8;
+  /* Warm off-white, bukan abu kebiruan — ini yang membuat referensi terasa
+     hangat dan tidak seperti template admin. */
+  --canvas-bg: #f7f7f5;
+  --canvas-bg-start: #fafaf8;
+  --canvas-bg-mid: #f5f5f3;
+  --canvas-bg-end: #fafaf8;
+  --surface-main: #f7f7f5;
   --surface-card: #ffffff;
-  --surface-secondary: #f4f4f5;
+  --surface-secondary: #fafaf8;
   --surface-selected: var(--brand-50);
-  --surface-inverse: #1c1b19;
+  --surface-inverse: #20201e;
 
   --panel-bg: #ffffff;
-  --panel-border: #eaeaec;
-  --panel-border-light: #f2f2f4;
-  --panel-border-strong: #d8d8dc;
+  --panel-border: #ecece8;
+  --panel-border-light: #f4f4f1;
+  --panel-border-strong: #deded9;
 
-  --text-primary: #1a1714;
-  --text-secondary: #6b6b70;
-  --text-tertiary: #9a9aa0;
+  --text-primary: #20201e;
+  --text-secondary: #6f706b;
+  --text-tertiary: #9a9b96;
   --text-inverse: #ffffff;
 
-  /* Hijau referensi (#16a34a) hanya 3.3:1 di atas putih — dipakai untuk label
-     kecil seperti "Stok Aman" jadi digelapkan sampai terbaca. */
-  --accent-green: #15803d;
-  --accent-amber: #f59e0b;
-  --accent-red: #dc2626;
-  --info-soft: var(--brand-50);
-  --success-soft: #f0fdf4;
-  --warning-soft: #fffbeb;
-  --danger-soft: #fef2f2;
+  /* Warna makna dari referensi, digelapkan seperlunya: hijau #28B87A hanya
+     2.4:1 di atas putih dan dipakai untuk label kecil seperti "Stok Aman". */
+  --accent-green: #1a8f5f;
+  --accent-amber: #b06f0d;
+  --accent-red: #c94141;
+  --info-soft: #eff5ff;
+  --success-soft: #eaf8f1;
+  --warning-soft: #fff6e6;
+  --danger-soft: #fff0f0;
 
-  --shadow-xs: 0 1px 2px rgb(26 23 20 / 4%);
-  --shadow-sm: 0 2px 10px rgb(26 23 20 / 5%);
-  --shadow-md: 0 12px 30px rgb(234 88 12 / 10%);
-  --shadow-lg: 0 20px 48px rgb(26 23 20 / 10%);
+  /* Referensi memakai kedalaman yang sangat halus: garis tipis + bayangan
+     tipis, bukan bayangan berat. */
+  --shadow-xs: 0 1px 2px rgb(32 32 30 / 3%);
+  --shadow-sm: 0 4px 12px rgb(32 32 30 / 3.5%);
+  --shadow-md: 0 8px 24px rgb(255 91 34 / 10%);
+  --shadow-lg: 0 16px 40px rgb(32 32 30 / 8%);
   --card-shadow: var(--shadow-xs), var(--shadow-sm);
   --card-shadow-hover: var(--shadow-md);
 
-  /* Referensi memakai sudut yang jauh lebih bulat daripada bawaan Tailwind:
-     kartu ~20-28px, tombol pill penuh. */
-  /* Tailwind v4 membaca --radius-* ini sebagai nilai tema untuk rounded-*.
-     Sebelumnya hanya sm..xl yang ditulis, jadi rounded-2xl jatuh ke bawaan
-     Tailwind (16px) dan justru lebih tajam daripada rounded-lg (20px) —
-     kartu terlihat lebih runcing daripada chip di dalamnya. Skala di bawah
-     ditulis lengkap dan menaik supaya urutannya benar. */
+  /* Tailwind v4 membaca --radius-* ini sebagai nilai tema untuk rounded-*,
+     jadi skalanya ditulis lengkap dan menaik — kalau ada yang bolong,
+     kelas itu jatuh ke bawaan Tailwind dan urutannya jadi terbalik.
+     Nilainya mengikuti referensi: tombol/input 10–12, kartu 16, modal 20. */
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-2xl: 22px;
-  --radius-3xl: 26px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
   --radius-pill: 999px;
-  --card-radius: 22px;
-  --card-radius-lg: 26px;
-  --card-radius-xl: 30px;
+  --card-radius: 16px;
+  --card-radius-lg: 20px;
+  --card-radius-xl: 22px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -109,6 +112,74 @@
 
   --transition-fast: 140ms ease;
   --transition-smooth: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Tailwind v4 @theme ────────────────────────────────────────────────────
+   Maps CSS custom properties → Tailwind utility classes so that e.g.
+   `rounded-md` resolves to 12px and `rounded-card` resolves to 22px,
+   instead of Tailwind's hardcoded defaults. Typography scale and brand
+   colors are also registered so they work via `text-body`, `bg-brand-50` etc.
+   ─────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Radius */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   14px;
+  --radius-xl:   18px;
+  --radius-2xl:  22px;
+  --radius-3xl:  26px;
+  --radius-pill: 999px;
+
+  /* Brand color palette */
+  --color-brand-50:  #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+
+  /* Surface colors */
+  --color-canvas:          #f7f7f8;
+  --color-surface:         #ffffff;
+  --color-surface-soft:    #f4f4f5;
+  --color-surface-inverse: #1c1b19;
+
+  /* Semantic text */
+  --color-text-primary:   #1a1714;
+  --color-text-secondary: #6b6b70;
+  --color-text-muted:     #9a9aa0;
+
+  /* Accent */
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger:  #dc2626;
+
+  /* Font size scale */
+  --font-size-caption:  11px;
+  --font-size-body:     13px;
+  --font-size-subhead:  15px;
+  --font-size-heading:  20px;
+  --font-size-display:  28px;
+
+  /* Font weight scale */
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --font-weight-heading:  800;
+
+  /* Spacing */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
 }
 
 /* Layar pelanggan: warna merek sama, latarnya dihangatkan sedikit supaya

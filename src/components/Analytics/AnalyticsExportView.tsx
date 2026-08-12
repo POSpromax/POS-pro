@@ -231,14 +231,16 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   return (
     <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none space-y-6 text-[var(--text-primary)]">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4"
+        style={{ borderColor: 'var(--panel-border)' }}>
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-7 h-7 text-[var(--primary-hover)]" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"
+            style={{ color: 'var(--text-primary)' }}>
+            <TrendingUp className="h-7 w-7" style={{ color: 'var(--primary-hover)' }} />
             Dashboard Monitoring & Analitik Laporan
           </h1>
-          <p className="text-xs text-slate-500 font-bold mt-1">
-            Pantau real-time grafik omset, menu terlaris, riwayat void, pajak PB1, histori shift, & presensi karyawan.
+          <p className="mt-1 text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Pantau real-time grafik omset, menu terlaris, riwayat void, pajak PB1, histori shift, &amp; presensi karyawan.
           </p>
         </div>
 
@@ -246,17 +248,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="ui-button ui-button-secondary gap-1.5"
           >
-            <Download className="w-4 h-4" /> Export CSV Transaksi
+            <Download className="h-4 w-4" /> Export CSV Transaksi
           </button>
 
           <button
             type="button"
             onClick={handlePrintPDF}
-            className="px-4 py-2.5 bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="ui-button ui-button-primary gap-1.5"
           >
-            <Printer className="w-4 h-4" /> Cetak Laporan PDF
+            <Printer className="h-4 w-4" /> Cetak Laporan PDF
           </button>
         </div>
       </div>
@@ -264,7 +266,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {/* Rentang waktu — memotong seluruh metrik, tabel, dan export di halaman ini */}
       <div className="flex flex-col gap-2 -mt-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
+            style={{ color: 'var(--text-tertiary)' }}>
             <Calendar className="w-3.5 h-3.5" /> Periode
           </span>
 
@@ -287,14 +290,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             ))}
           </div>
 
-          <span className="text-[11px] font-bold text-slate-500">
+          <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
             {formatPeriodRange(period, periodRange)}
-            <span className="text-slate-400"> · {scopedOrders.length} order</span>
+            <span style={{ color: 'var(--text-tertiary)' }}> · {scopedOrders.length} order</span>
           </span>
         </div>
       </div>
 
-      <div className="ui-tabs border-b border-[var(--panel-border)] pb-2">
+      <div className="ui-tabs ui-tabs-orange border-b border-[var(--panel-border)] pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('OVERVIEW')}
@@ -387,37 +390,56 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <PieChart className="w-4 h-4 text-[var(--primary-text)]" />
                   Distribusi Metode Pembayaran
                 </h2>
-                <span className="text-[11px] font-bold text-slate-400 uppercase">Real-time</span>
+                <span className="text-[11px] font-bold uppercase"
+                  style={{ color: 'var(--text-tertiary)' }}>Real-time</span>
               </div>
 
               <div className="space-y-3 pt-2">
                 <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"/> TUNAI (CASH)</span>
+                  <div className="flex justify-between text-[12px] font-bold mb-1.5"
+                    style={{ color: 'var(--text-primary)' }}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent-green)' }} />
+                      TUNAI (CASH)
+                    </span>
                     <span>Rp {cashTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (cashTotal / grossOmset) * 100 : 0}%` }} />
+                  <div className="h-3 w-full overflow-hidden rounded-full border"
+                    style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${grossOmset > 0 ? (cashTotal / grossOmset) * 100 : 0}%`, background: 'var(--accent-green)' }} />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]"/> QRIS (E-WALLET & M-BANKING)</span>
+                  <div className="flex justify-between text-[12px] font-bold mb-1.5"
+                    style={{ color: 'var(--text-primary)' }}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--primary)' }} />
+                      QRIS (E-WALLET &amp; M-BANKING)
+                    </span>
                     <span>Rp {qrisTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((qrisTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div className="bg-[var(--primary)] h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%` }} />
+                  <div className="h-3 w-full overflow-hidden rounded-full border"
+                    style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${grossOmset > 0 ? (qrisTotal / grossOmset) * 100 : 0}%`, background: 'var(--primary)' }} />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"/> DEBIT / KREDIT EDC</span>
+                  <div className="flex justify-between text-[12px] font-bold mb-1.5"
+                    style={{ color: 'var(--text-primary)' }}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent-amber)' }} />
+                      DEBIT / KREDIT EDC
+                    </span>
                     <span>Rp {debitTotal.toLocaleString('id-ID')} ({grossOmset > 0 ? Math.round((debitTotal / grossOmset) * 100) : 0}%)</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                    <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${grossOmset > 0 ? (debitTotal / grossOmset) * 100 : 0}%` }} />
+                  <div className="h-3 w-full overflow-hidden rounded-full border"
+                    style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${grossOmset > 0 ? (debitTotal / grossOmset) * 100 : 0}%`, background: 'var(--accent-amber)' }} />
                   </div>
                 </div>
               </div>
@@ -429,29 +451,39 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <Clock className="w-4 h-4 text-[var(--primary-text)]" />
                   Grafik Analisis Jam Sibuk Penjualan (Peak Hours)
                 </h2>
-                <span className="text-[11px] font-bold text-slate-400">07:00 - 22:00</span>
+                <span className="text-[11px] font-bold"
+                  style={{ color: 'var(--text-tertiary)' }}>07:00 - 22:00</span>
               </div>
 
-              <div className="flex items-end gap-1.5 h-36 pt-4 px-2 border-b border-slate-100">
+              <div className="flex items-end gap-1.5 h-36 pt-4 px-2 border-b"
+                style={{ borderColor: 'var(--panel-border-light)' }}>
                 {hourlyPeakData.map((item) => {
                   const pct = Math.round((item.revenue / maxHourlyRevenue) * 100);
                   return (
-                    <div key={item.hourLabel} className="flex-1 flex flex-col items-center gap-1 group relative">
-                      <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[11px] font-bold p-1 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                    <div key={item.hourLabel} className="relative flex flex-1 flex-col items-center gap-1 group">
+                      <div className="absolute -top-10 pointer-events-none z-10 whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                        style={{ background: 'var(--primary)' }}>
                         {item.hourLabel}: Rp {item.revenue.toLocaleString('id-ID')} ({item.count} order)
                       </div>
-                      <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-28">
+                      <div className="flex h-28 w-full items-end overflow-hidden rounded-t-md"
+                        style={{ background: 'var(--surface-secondary)' }}>
                         <div
-                          className="w-full bg-gradient-to-t from-[var(--primary-solid)] to-[var(--primary-light)] rounded-t-md transition-all duration-500 group-hover:from-[var(--primary-solid)] group-hover:to-[var(--primary-light)]"
-                          style={{ height: `${pct > 0 ? pct : 4}%` }}
+                          className="w-full rounded-t-md transition-all duration-500"
+                          style={{
+                            height: `${pct > 0 ? pct : 4}%`,
+                            background: 'linear-gradient(to top, var(--primary-solid), var(--primary-light))'
+                          }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-slate-400 transform -rotate-45 origin-top-left mt-1">{item.hourLabel.slice(0, 2)}h</span>
+                      <span className="mt-1 origin-top-left -rotate-45 transform text-[10px] font-bold"
+                        style={{ color: 'var(--text-tertiary)' }}>{item.hourLabel.slice(0, 2)}h</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[11px] font-bold text-slate-400 text-center">Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.</p>
+              <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.
+              </p>
             </div>
 
             {/* Tren omset per tanggal */}
@@ -461,36 +493,47 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
                   Tren Omset Harian
                 </h2>
-                <span className="text-[11px] font-bold text-slate-400">{formatPeriodRange(period, periodRange)}</span>
+                <span className="text-[11px] font-bold"
+                  style={{ color: 'var(--text-tertiary)' }}>{formatPeriodRange(period, periodRange)}</span>
               </div>
 
               {dailyTrendData.length === 0 ? (
-                <p className="py-8 text-center text-xs font-bold text-slate-400">Belum ada transaksi lunas pada periode ini.</p>
+                <p className="py-8 text-center text-[12px] font-medium"
+                  style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas pada periode ini.</p>
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <div className="flex items-end gap-1.5 h-40 pt-4 px-1 border-b border-slate-100 min-w-full" style={{ minWidth: `${dailyTrendData.length * 34}px` }}>
+                    <div className="flex items-end gap-1.5 h-40 pt-4 px-1 border-b min-w-full"
+                      style={{ borderColor: 'var(--panel-border-light)', minWidth: `${dailyTrendData.length * 34}px` }}>
                       {dailyTrendData.map((day) => {
                         const pct = Math.round((day.revenue / maxDailyRevenue) * 100);
                         const isBest = day.revenue === maxDailyRevenue;
                         return (
-                          <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative min-w-[28px]">
-                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[11px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                          <div key={day.key} className="relative flex min-w-[28px] flex-1 flex-col items-center gap-1 group">
+                            <div className="absolute -top-10 pointer-events-none z-10 whitespace-nowrap rounded-lg px-2 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                              style={{ background: 'var(--primary)' }}>
                               {day.label}: Rp {day.revenue.toLocaleString('id-ID')} ({day.count} order)
                             </div>
-                            <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-32">
+                            <div className="flex h-32 w-full items-end overflow-hidden rounded-t-md"
+                              style={{ background: 'var(--surface-secondary)' }}>
                               <div
-                                className={`w-full rounded-t-md transition-all duration-500 ${isBest ? 'bg-[var(--primary-solid)]' : 'bg-[var(--primary-hover)]'}`}
-                                style={{ height: `${pct > 0 ? pct : 4}%` }}
+                                className="w-full rounded-t-md transition-all duration-500"
+                                style={{
+                                  height: `${pct > 0 ? pct : 4}%`,
+                                  background: isBest ? 'var(--primary-solid)' : 'var(--primary-hover)'
+                                }}
                               />
                             </div>
-                            <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
+                            <span className="whitespace-nowrap text-[10px] font-bold"
+                              style={{ color: 'var(--text-tertiary)' }}>{day.label.split(' ')[0]}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                  <p className="text-[11px] font-bold text-slate-400 text-center">Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.</p>
+                  <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                    Batang oranye adalah tanggal dengan omset tertinggi pada periode ini.
+                  </p>
                 </>
               )}
             </div>
@@ -510,7 +553,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </div>
 
               {paidOrders.length === 0 ? (
-                <p className="py-8 text-center text-xs font-bold text-slate-400">Belum ada transaksi lunas pada periode ini.</p>
+                <p className="py-8 text-center text-[12px] font-medium"
+                  style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas pada periode ini.</p>
               ) : (
                 <div className="space-y-2">
                   {weekdayPerformance.map((row) => {
@@ -518,23 +562,30 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     const isBest = bestWeekday && row.name === bestWeekday.name && row.avgRevenue > 0;
                     return (
                       <div key={row.name} className="flex items-center gap-3">
-                        <span className="w-14 shrink-0 text-[11px] font-bold text-slate-500 uppercase">{row.name.slice(0, 3)}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
+                        <span className="w-14 shrink-0 text-[11px] font-bold uppercase"
+                          style={{ color: 'var(--text-secondary)' }}>{row.name.slice(0, 3)}</span>
+                        <div className="flex-1 h-6 overflow-hidden rounded-full"
+                          style={{ background: 'var(--surface-secondary)' }}>
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${isBest ? 'bg-[var(--primary-solid)]' : 'bg-[var(--primary-hover)]'}`}
-                            style={{ width: `${pct > 0 ? Math.max(pct, 2) : 0}%` }}
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${pct > 0 ? Math.max(pct, 2) : 0}%`,
+                              background: isBest ? 'var(--primary-solid)' : 'var(--primary-hover)'
+                            }}
                           />
                         </div>
-                        <span className="w-32 shrink-0 text-right text-[11px] font-bold text-slate-700 tabular-nums">
+                        <span className="w-32 shrink-0 text-right text-[11px] font-bold tabular-nums"
+                          style={{ color: 'var(--text-primary)' }}>
                           Rp {row.avgRevenue.toLocaleString('id-ID')}
                         </span>
-                        <span className="w-16 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">
+                        <span className="w-16 shrink-0 text-right text-[11px] font-medium tabular-nums"
+                          style={{ color: 'var(--text-tertiary)' }}>
                           {row.count} order
                         </span>
                       </div>
                     );
                   })}
-                  <p className="text-[11px] font-bold text-slate-400 pt-1">
+                  <p className="pt-1 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
                     Angka adalah rata-rata omset per hari buka, bukan total — supaya hari yang lebih sering muncul dalam periode tidak otomatis terlihat paling laris.
                   </p>
                 </div>
@@ -552,18 +603,20 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 <Flame className="w-5 h-5 text-amber-500" />
                 Peringkat Menu Terlaris & Margin Profit
               </h2>
-              <p className="text-xs font-bold text-slate-500">Diurutkan berdasarkan jumlah porsi terjual dan kontribusi omset.</p>
+              <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>Diurutkan berdasarkan jumlah porsi terjual dan kontribusi omset.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full text-xs font-bold">
-                <Search className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold"
+                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                <Search className="h-3.5 w-3.5" style={{ color: 'var(--text-tertiary)' }} />
                 <input
                   type="text"
                   placeholder="Cari nama menu..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-transparent outline-none text-xs font-bold text-slate-900 w-32"
+                  className="w-32 bg-transparent text-[12px] font-bold outline-none"
+                  style={{ color: 'var(--text-primary)' }}
                 />
               </div>
 
@@ -573,8 +626,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   type="button"
                   onClick={() => setCategoryFilter(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all ${
-                    categoryFilter === cat ? 'bg-[var(--primary-solid)] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    categoryFilter === cat ? 'bg-[var(--primary-solid)] text-white shadow-sm' : ''
                   }`}
+                  style={categoryFilter !== cat ? { background: 'var(--surface-secondary)', color: 'var(--text-secondary)' } : {}}
                 >
                   {cat === 'ALL' ? 'Semua' : cat}
                 </button>
@@ -585,7 +639,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                  style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                   <th className="py-3 px-3">Peringkat</th>
                   <th className="py-3 px-3">Nama Menu</th>
                   <th className="py-3 px-3">Kategori</th>
@@ -595,10 +650,10 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <th className="py-3 px-3 text-right">Estimasi Profit</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                 {topSellingList.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">Tidak ada data penjualan menu</td>
+                    <td colSpan={7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Tidak ada data penjualan menu</td>
                   </tr>
                 ) : (
                   topSellingList.map((item, idx) => {
@@ -607,22 +662,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     return (
                       <tr key={item.name} className="hover:bg-[var(--brand-100)]/40 transition-colors">
                         <td className="py-3 px-3 font-bold">
-                          <span className={`w-6 h-6 rounded-lg text-white font-bold text-xs inline-flex items-center justify-center ${
-                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : idx === 2 ? 'bg-amber-700' : 'bg-[var(--primary-hover)]'
-                          }`}>
-                            #{idx + 1}
-                          </span>
+                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold text-white ${
+                            idx === 0 ? 'bg-[var(--accent-amber)]'
+                            : idx === 1 ? 'bg-[var(--text-tertiary)]'
+                            : idx === 2 ? 'bg-[var(--primary-hover)]'
+                            : 'bg-[var(--surface-secondary)] !text-[var(--text-secondary)]'
+                          }`}>#{idx + 1}</span>
                         </td>
-                        <td className="py-3 px-3 font-bold text-slate-900">{item.name}</td>
+                        <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
                         <td className="py-3 px-3">
-                          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-bold">{item.category}</span>
+                          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                            style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>{item.category}</span>
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-slate-900">{item.qty} porsi</td>
-                        <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {item.revenue.toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-slate-500">Rp {item.hppCost.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-center font-bold" style={{ color: 'var(--text-primary)' }}>{item.qty} porsi</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {item.revenue.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-secondary)' }}>Rp {item.hppCost.toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right">
                           <span className="font-bold text-[var(--primary-text)] block">Rp {profit.toLocaleString('id-ID')}</span>
-                          <span className="text-[11px] font-bold text-emerald-600">Margin {marginPct}%</span>
+                          <span className="text-[11px] font-bold" style={{ color: 'var(--accent-green)' }}>Margin {marginPct}%</span>
                         </td>
                       </tr>
                     );
@@ -656,14 +713,15 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
           <div className="ui-card p-6 space-y-4">
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
-              <Ban className="w-5 h-5 text-rose-500" />
+              <Ban className="h-5 w-5" style={{ color: 'var(--accent-red)' }} />
               Daftar Rincian Pesanan Dibatalkan (Void)
             </h2>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-bold">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                  <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                    style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                     <th className="py-3 px-3">No Order</th>
                     <th className="py-3 px-3">Tanggal / Waktu</th>
                     <th className="py-3 px-3">Customer / Meja</th>
@@ -672,22 +730,25 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <th className="py-3 px-3 text-right">Nominal Void</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                   {voidOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">Tidak ada catatan pembatalan (Void) hari ini</td>
+                      <td colSpan={6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Tidak ada catatan pembatalan (Void) hari ini</td>
                     </tr>
                   ) : (
                     voidOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-rose-50/30 transition-colors">
-                        <td className="py-3 px-3 font-bold text-rose-600 font-mono">{o.orderNumber}</td>
-                        <td className="py-3 px-3 text-slate-600">{new Date(o.createdAt).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-slate-900">{o.customerName} (Meja {o.tableNumber})</td>
-                        <td className="py-3 px-3 text-slate-600">
+                      <tr key={o.id} className="transition-colors"
+                        style={{ '--hover-bg': 'var(--danger-soft)' } as React.CSSProperties}
+                        onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--danger-soft)'}
+                        onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                        <td className="py-3 px-3 font-bold font-mono" style={{ color: 'var(--accent-red)' }}>{o.orderNumber}</td>
+                        <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(o.createdAt).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3" style={{ color: 'var(--text-primary)' }}>{o.customerName} (Meja {o.tableNumber})</td>
+                        <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>
                           {o.items.map((it) => `${it.quantity}x ${it.menuName}`).join(', ')}
                         </td>
-                        <td className="py-3 px-3 text-slate-700">{o.cashierName || 'Kasir'}</td>
-                        <td className="py-3 px-3 text-right font-bold text-rose-600">Rp {o.total.toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{o.cashierName || 'Kasir'}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {o.total.toLocaleString('id-ID')}</td>
                       </tr>
                     ))
                   )}
@@ -727,7 +788,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-bold">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                  <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                    style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                     <th className="py-3 px-3">No Order</th>
                     <th className="py-3 px-3">Waktu</th>
                     <th className="py-3 px-3 text-right">Subtotal</th>
@@ -736,20 +798,22 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <th className="py-3 px-3 text-right">Total Akhir</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                   {paidOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">Belum ada transaksi lunas</td>
+                      <td colSpan={6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas</td>
                     </tr>
                   ) : (
                     paidOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-3 font-bold font-mono text-slate-900">{o.orderNumber}</td>
-                        <td className="py-3 px-3 text-slate-600">{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {(o.subtotal || o.total).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-rose-600">-Rp {(o.discount || 0).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {o.total.toLocaleString('id-ID')}</td>
+                      <tr key={o.id} className="transition-colors"
+                        onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                        onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                        <td className="py-3 px-3 font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{o.orderNumber}</td>
+                        <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {(o.subtotal || o.total).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>-Rp {(o.discount || 0).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--primary-hover)' }}>+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {o.total.toLocaleString('id-ID')}</td>
                       </tr>
                     ))
                   )}
@@ -768,7 +832,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 <History className="w-5 h-5 text-[var(--primary-hover)]" />
                 Histori Shift Operasional & Rekonsiliasi Kas Laci
               </h2>
-              <p className="text-xs font-bold text-slate-500">Log lengkap modal awal, pemasukan kasir, pengeluaran petty cash, & status shift.</p>
+              <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>Log lengkap modal awal, pemasukan kasir, pengeluaran petty cash, &amp; status shift.</p>
             </div>
             <button
               type="button"
@@ -782,7 +846,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                  style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                   <th className="py-3 px-3">ID Shift</th>
                   <th className="py-3 px-3">Kasir / Staf</th>
                   <th className="py-3 px-3">Mulai Shift</th>
@@ -794,25 +859,29 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <th className="py-3 px-3 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                 {shifts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">Belum ada riwayat shift recorded</td>
+                    <td colSpan={9} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada riwayat shift recorded</td>
                   </tr>
                 ) : (
                   shifts.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-slate-900">{s.id}</td>
-                      <td className="py-3 px-3 font-bold text-slate-900">{s.staffName} <span className="text-[11px] font-bold text-[var(--primary-text)]">({s.staffRole})</span></td>
-                      <td className="py-3 px-3 text-slate-600">{new Date(s.startTime).toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-slate-600">{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-700">Rp {s.initialCash.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-emerald-600">Rp {s.cashSales.toLocaleString('id-ID')}</td>
+                    <tr key={s.id} className="transition-colors"
+                      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                      <td className="py-3 px-3 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{s.id}</td>
+                      <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{s.staffName} <span className="text-[11px] font-bold" style={{ color: 'var(--primary-text)' }}>({s.staffRole})</span></td>
+                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(s.startTime).toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
+                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {s.initialCash.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {s.cashSales.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-rose-600">Rp {s.totalExpense.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {s.totalExpense.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3 text-center">
                         <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          s.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-600'
+                          s.status === 'OPEN'
+                            ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border border-[#bbf7d0]'
+                            : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'
                         }`}>
                           {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
                         </span>
@@ -830,16 +899,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         <div className="ui-card p-6 space-y-4">
           <div>
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-emerald-500" />
+              <UserCheck className="h-5 w-5" style={{ color: 'var(--accent-green)' }} />
               Histori Presensi & Kehadiran Karyawan
             </h2>
-            <p className="text-xs font-bold text-slate-500">Rekapitulasi waktu masuk/keluar kerja, ketepatan waktu, dan validasi lokasi GPS.</p>
+              <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>Rekapitulasi waktu masuk/keluar kerja, ketepatan waktu, dan validasi lokasi GPS.</p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-bold">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                  style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                   <th className="py-3 px-3">Bukti Selfie</th>
                   <th className="py-3 px-3">Nama Karyawan</th>
                   <th className="py-3 px-3">Role / Jabatan</th>
@@ -849,21 +919,27 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <th className="py-3 px-3">Lokasi / GPS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                 {attendances.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">Belum ada catatan presensi karyawan</td>
+                    <td colSpan={7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada catatan presensi karyawan</td>
                   </tr>
                 ) : (
                   attendances.map((att) => (
-                    <tr key={att.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={att.id} className="transition-colors"
+                      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
                       <td className="py-3 px-3">
-                        <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200">
-                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[11px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
+                        <div className="h-9 w-9 overflow-hidden rounded-full border"
+                          style={{ borderColor: 'var(--panel-border)' }}>
+                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-[11px] font-bold text-white" style={{ background: 'var(--primary)' }}>{att.staffName.slice(0, 2).toUpperCase()}</div>}
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-bold text-slate-900">{att.staffName}</td>
-                      <td className="py-3 px-3"><span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[11px] font-bold">{att.role}</span></td>
+                      <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{att.staffName}</td>
+                      <td className="py-3 px-3">
+                        <span className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                          style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>{att.role}</span>
+                      </td>
                       <td className="py-3 px-3">
                         <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                           att.type === 'CLOCK_IN' ? 'bg-[var(--brand-100)] text-[var(--primary-text)] border border-[var(--brand-200)]' : 'bg-[var(--primary-hover)] text-white'
@@ -871,21 +947,23 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                           {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-slate-700 font-mono">{new Date(att.timestamp).toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{new Date(att.timestamp).toLocaleString('id-ID')}</td>
                       <td className="py-3 px-3">
                         {att.status === 'LATE' ? (
-                          <span className="text-rose-600 font-bold text-[11px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                          <span className="rounded-full border px-2 py-0.5 text-[11px] font-bold"
+                            style={{ background: 'var(--danger-soft)', color: 'var(--accent-red)', borderColor: '#fecaca' }}>
                             Terlambat ({att.minutesLate || 0} m)
                           </span>
                         ) : (
-                          <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <span className="rounded-full border px-2 py-0.5 text-[11px] font-bold"
+                            style={{ background: 'var(--success-soft)', color: 'var(--accent-green)', borderColor: '#bbf7d0' }}>
                             Tepat Waktu
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-slate-600 text-[11px]">
+                      <td className="py-3 px-3 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                         {att.location}
-                        {att.gpsValidated && <span className="text-emerald-600 font-bold block text-[11px]">📍 GPS Valid</span>}
+                        {att.gpsValidated && <span className="mt-0.5 block text-[11px] font-bold" style={{ color: 'var(--accent-green)' }}>📍 GPS Valid</span>}
                       </td>
                     </tr>
                   ))

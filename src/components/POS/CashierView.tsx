@@ -70,7 +70,7 @@ const POSMenuItemCard: React.FC<{
       case 'BUNDLING':
         return { bg: 'from-[var(--primary-solid)] to-[var(--primary-light)]', icon: '🎁' };
       default:
-        return { bg: 'from-slate-600 to-slate-800', icon: '🍽️' };
+        return { bg: 'from-zinc-500 to-zinc-700', icon: '🍽️' };
     }
   };
 
@@ -87,14 +87,15 @@ const POSMenuItemCard: React.FC<{
           onAddToCart(item);
         }
       }}
-      className={`bg-[var(--surface-card)] rounded-xl border transition-all duration-200 p-2.5 flex flex-col justify-between group overflow-hidden relative select-none h-full ${
+      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] transition-all duration-200 select-none ${
         isPaidOrder
-          ? 'opacity-60 cursor-not-allowed border-[var(--panel-border)]'
-          : 'border-[var(--panel-border)] hover:border-[var(--primary-border)] cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(234,88,12,0.10)]'
+          ? 'cursor-not-allowed border-[var(--panel-border)] opacity-60'
+          : 'cursor-pointer border-[var(--panel-border)] hover:-translate-y-0.5 hover:border-[var(--primary-border)] hover:shadow-[0_8px_24px_rgba(234,88,12,0.12)]'
       }`}
-      style={{ boxShadow: '0 2px 8px rgba(26,23,20,0.045)' }}
+      style={{ boxShadow: '0 1px 4px rgba(26,23,20,0.06)' }}
     >
-      <div className="relative -mx-2.5 -mt-2.5 mb-2.5 flex h-24 shrink-0 items-center justify-center overflow-hidden bg-[var(--surface-secondary)] sm:h-28 lg:h-32">
+      {/* Image area — taller, aspect-ratio consistent */}
+      <div className="relative flex h-28 shrink-0 items-center justify-center overflow-hidden bg-[var(--surface-secondary)] sm:h-32 lg:h-36">
         {item.image && !imgError ? (
           <img
             src={optimizeCloudinaryImage(item.image, 520)}
@@ -103,31 +104,40 @@ const POSMenuItemCard: React.FC<{
             loading="lazy"
             decoding="async"
             onError={() => setImgError(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${theme.bg} flex flex-col items-center justify-center text-white p-2 text-center`}>
-            <span className="text-2xl mb-0.5">{theme.icon}</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wider opacity-90 line-clamp-1">{item.category}</span>
+          <div className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br p-3 text-center text-white ${theme.bg}`}>
+            <span className="text-3xl">{theme.icon}</span>
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-widest opacity-80 line-clamp-1">{item.category}</span>
           </div>
         )}
 
-        <span className="absolute top-1.5 left-1.5 bg-white/92 text-[var(--text-secondary)] text-[11px] font-semibold uppercase px-1.5 py-0.5 rounded-lg backdrop-blur-sm border border-white/70 tracking-wider">
+        {/* Category badge — top left */}
+        <span className="absolute left-2 top-2 rounded-lg border border-white/60 bg-white/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"
+          style={{ color: 'var(--text-secondary)' }}>
           {item.category}
         </span>
 
-        <span className="absolute top-1.5 right-1.5 bg-white/90 text-[var(--text-primary)] text-[11px] font-bold px-1.5 py-0.5 rounded-lg backdrop-blur-sm border border-white/50">
+        {/* Stock badge — top right */}
+        <span className="absolute right-2 top-2 rounded-lg border border-white/50 bg-white/88 px-1.5 py-0.5 text-[10px] font-bold backdrop-blur-sm"
+          style={{ color: 'var(--text-primary)' }}>
           {item.stockCount !== undefined ? item.stockCount : '∞'}
         </span>
       </div>
 
-      <div className="flex-1 flex flex-col justify-between gap-1.5">
-        <h3 className="font-extrabold text-sm text-[var(--text-primary)] line-clamp-2 leading-tight tracking-tight transition-colors">
+      {/* Body */}
+      <div className="flex flex-1 flex-col justify-between gap-2 p-2.5">
+        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight"
+          style={{ color: 'var(--text-primary)' }}>
           {item.name}
         </h3>
 
-        <div className="flex items-center justify-between pt-1.5 border-t border-[var(--panel-border-light)] shrink-0">
-          <span className="font-bold text-xs sm:text-sm text-[var(--text-primary)] tracking-tight tabular-nums">
+        {/* Price row + Add button */}
+        <div className="flex items-center justify-between gap-1 border-t pt-2"
+          style={{ borderColor: 'var(--panel-border-light)' }}>
+          <span className="tabular-nums text-[13px] font-extrabold"
+            style={{ color: 'var(--primary-solid)' }}>
             Rp {item.price.toLocaleString('id-ID')}
           </span>
 
@@ -143,15 +153,15 @@ const POSMenuItemCard: React.FC<{
                 onAddToCart(item);
               }
             }}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all ${
               isPaidOrder
-                ? 'bg-[var(--panel-border)] text-[var(--text-tertiary)] cursor-not-allowed'
-                : 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] active:scale-95 text-white shadow-[0_5px_12px_rgba(234,88,12,0.22)]'
+                ? 'cursor-not-allowed bg-[var(--panel-border)] text-[var(--text-tertiary)]'
+                : 'cursor-pointer bg-[var(--primary)] text-white shadow-[0_4px_10px_rgba(234,88,12,0.28)] hover:bg-[var(--primary-hover)] active:scale-95'
             }`}
             title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
             aria-label={`${shouldTriggerCondiments ? 'Pilih isian dan topping untuk' : 'Tambah'} ${item.name}`}
           >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Plus className="h-4 w-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -248,8 +258,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   if (!isShiftActiveForCurrentContext) {
     return (
-      <div className="flex-1 bg-[var(--surface-secondary)] flex items-center justify-center font-sans select-none text-slate-700 min-h-0">
-        <p className="font-bold text-xs md:text-sm tracking-widest text-[var(--text-secondary)] uppercase">
+      <div className="flex-1 flex items-center justify-center select-none min-h-0"
+        style={{ background: 'var(--surface-secondary)' }}>
+        <p className="font-bold text-xs md:text-sm tracking-widest uppercase"
+          style={{ color: 'var(--text-secondary)' }}>
           POS TERKUNCI – BUKA SHIFT DULU
         </p>
       </div>
@@ -420,50 +432,61 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
         <div className="flex-1 flex flex-col md:flex-row h-full min-h-0 gap-1.5 md:gap-2 overflow-hidden">
           {/* 1. LEFT PANEL: Queue & Active Orders */}
-          <div className="flex h-full min-h-0 max-h-60 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white p-2 shadow-[0_2px_10px_rgba(26,23,20,0.05)] md:max-h-none md:w-44 lg:w-48 xl:w-52">
+          <div className="flex h-full min-h-0 max-h-60 w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] md:max-h-none md:w-44 lg:w-48 xl:w-52"
+            style={{ borderColor: 'var(--panel-border)', boxShadow: '0 2px 10px rgba(26,23,20,0.05)' }}>
 
             {/* Queue Header */}
-            <div className="flex items-center justify-between bg-[var(--surface-secondary)] p-1.5 rounded-lg mb-1.5 border border-[var(--panel-border)]">
-              <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center font-bold text-[11px]">
-                  Q
+            <div className="shrink-0 border-b px-3 py-2.5" style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-secondary)' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold text-white"
+                    style={{ background: 'var(--primary)' }}>
+                    Q
+                  </div>
+                  <span className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>Antrean POS</span>
                 </div>
-                <span className="text-[11px] font-bold text-[var(--text-primary)]">Antrean POS</span>
+                <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--accent-green)' }} />
               </div>
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--accent-green)]" />
             </div>
 
             {/* Tab Switcher */}
-            <div className="grid grid-cols-2 bg-[var(--surface-secondary)] p-0.5 rounded-lg mb-1.5 text-[11px] font-semibold border border-[var(--panel-border)]">
-              <button
-                onClick={() => setQueueTab('ACTIVE')}
-                className={`py-1 rounded-lg transition-all ${
-                  queueTab === 'ACTIVE'
-                    ? 'bg-white text-[var(--primary-hover)] font-bold shadow-sm ring-1 ring-[var(--primary-border)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                Aktif ({activeOrdersList.length})
-              </button>
-              <button
-                onClick={() => setQueueTab('HISTORY')}
-                className={`py-1 rounded-lg transition-all ${
-                  queueTab === 'HISTORY'
-                    ? 'bg-white text-[var(--primary-hover)] font-bold shadow-sm ring-1 ring-[var(--primary-border)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                Shift Ini ({historyOrdersList.length})
-              </button>
+            <div className="shrink-0 border-b p-2" style={{ borderColor: 'var(--panel-border-light)' }}>
+              <div className="flex items-center gap-1 rounded-full border p-0.5 text-[11px] font-bold"
+                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                <button
+                  onClick={() => setQueueTab('ACTIVE')}
+                  className={`flex-1 rounded-full py-1.5 text-center transition-all ${
+                    queueTab === 'ACTIVE'
+                      ? 'bg-[var(--surface-card)] font-bold shadow-sm'
+                      : 'hover:text-[var(--text-primary)]'
+                  }`}
+                  style={{ color: queueTab === 'ACTIVE' ? 'var(--primary-hover)' : 'var(--text-secondary)' }}
+                >
+                  Aktif ({activeOrdersList.length})
+                </button>
+                <button
+                  onClick={() => setQueueTab('HISTORY')}
+                  className={`flex-1 rounded-full py-1.5 text-center transition-all ${
+                    queueTab === 'HISTORY'
+                      ? 'bg-[var(--surface-card)] font-bold shadow-sm'
+                      : 'hover:text-[var(--text-primary)]'
+                  }`}
+                  style={{ color: queueTab === 'HISTORY' ? 'var(--primary-hover)' : 'var(--text-secondary)' }}
+                >
+                  Shift ({historyOrdersList.length})
+                </button>
+              </div>
             </div>
 
             {/* Order Cards Scroll List */}
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin">
               {(queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).length === 0 ? (
-                <div className="py-12 px-3 text-center text-[var(--text-tertiary)] text-xs font-medium leading-relaxed">
-                  {queueTab === 'ACTIVE'
-                    ? 'Tidak ada order antrean'
-                    : 'Belum ada order selesai di shift ini. Riwayat per tanggal, minggu, atau bulan ada di menu Laporan.'}
+                <div className="px-3 py-10 text-center">
+                  <p className="text-[11px] font-medium leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                    {queueTab === 'ACTIVE'
+                      ? 'Tidak ada order antrean'
+                      : 'Belum ada order selesai di shift ini.'}
+                  </p>
                 </div>
               ) : (
                 (queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).map((order) => {
@@ -475,64 +498,63 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   return (
                     <div
                       key={order.id}
-                      // Order batal hanya untuk dilihat; memuatnya ke keranjang
-                      // berisiko tertagih ulang.
                       onClick={() => { if (!isVoided) handleLoadExistingOrder(order); }}
-                      className={`p-2 rounded-lg border border-l-[3px] transition-all relative ${
+                      className={`rounded-xl border-l-[3px] border p-2 transition-all relative ${
                         isVoided
-                          ? 'bg-[var(--surface-main)] border-[var(--panel-border)] border-l-[var(--text-tertiary)] opacity-75 cursor-default'
+                          ? 'cursor-default opacity-70'
                           : isEditingThis
-                            ? 'bg-[var(--primary-soft)] border-[var(--primary)] border-l-[var(--primary-solid)] ring-2 ring-[var(--primary)]/10 shadow-sm cursor-pointer'
-                            : 'bg-white border-[var(--panel-border)] border-l-[var(--primary-solid)] hover:border-[var(--primary-border)] hover:bg-[var(--surface-secondary)] hover:shadow-sm cursor-pointer'
+                            ? 'cursor-pointer shadow-sm'
+                            : 'cursor-pointer hover:shadow-sm'
                       }`}
+                      style={{
+                        borderLeftColor: isVoided ? 'var(--text-tertiary)' : 'var(--primary-solid)',
+                        borderColor: isEditingThis ? 'var(--primary)' : 'var(--panel-border)',
+                        background: isEditingThis ? 'var(--primary-soft)' : isVoided ? 'var(--surface-secondary)' : 'var(--surface-card)',
+                        boxShadow: isEditingThis ? '0 0 0 2px rgb(234 88 12 / 10%)' : undefined,
+                      }}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span
-                          className="font-bold text-sm text-[var(--primary-hover)] tracking-tight tabular-nums"
-                          title={order.orderNumber}
-                        >
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="tabular-nums text-[13px] font-bold" style={{ color: 'var(--primary-hover)' }}
+                          title={order.orderNumber}>
                           {formatOrderLabel(order)}
                         </span>
                         <div className="flex items-center gap-0.5">
-                          <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-lg ${
-                            isVoided
-                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                              : orderIsPaid ? 'bg-[var(--success-soft)] text-[var(--accent-green)]' : 'bg-[var(--primary-soft)] text-[var(--primary-hover)]'
+                          <span className={`rounded-lg px-1.5 py-0.5 text-[10px] font-bold ${
+                            isVoided ? 'bg-[var(--danger-soft)] text-[var(--accent-red)]'
+                              : orderIsPaid ? 'bg-[var(--success-soft)] text-[var(--accent-green)]'
+                              : 'bg-[var(--primary-soft)] text-[var(--primary-hover)]'
                           }`}>
                             {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
-                          </span>
-                          <span className="text-[11px] bg-[var(--primary)] text-white font-semibold px-1.5 py-0.5 rounded-lg">
-                            {order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-[11px] space-y-0.5">
-                        <div className="flex justify-between items-baseline gap-2">
-                          <span className="font-bold text-[11px] text-[var(--text-primary)] truncate max-w-[90px]">
+                      <div className="space-y-0.5 text-[11px]">
+                        <div className="flex items-baseline justify-between gap-1">
+                          <span className="truncate max-w-[80px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                             {order.customerName}
                           </span>
-                          <span className="text-[11px] text-[var(--text-secondary)] font-bold whitespace-nowrap">Meja: {order.tableNumber || '-'}</span>
+                          <span className="shrink-0 font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                            M:{order.tableNumber || '-'}
+                          </span>
                         </div>
 
-                        <div className="pt-0.5 flex items-center justify-between border-t border-[var(--panel-border-light)]">
-                          <span className="font-medium text-[var(--text-tertiary)] text-[11px]">{itemCount} menu</span>
-                          <span className="font-bold text-[11px] text-[var(--text-primary)]">
+                        <div className="flex items-center justify-between border-t pt-1" style={{ borderColor: 'var(--panel-border-light)' }}>
+                          <span className="font-medium" style={{ color: 'var(--text-tertiary)' }}>{itemCount} menu</span>
+                          <span className="tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
                             Rp {order.total.toLocaleString('id-ID')}
                           </span>
                         </div>
 
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onPrintPreBill(order);
-                          }}
-                          className="mt-1 p-1 text-[var(--primary-hover)] bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] rounded-lg border border-[var(--primary-border)] transition-all self-end"
+                          onClick={(e) => { e.stopPropagation(); onPrintPreBill(order); }}
+                          className="mt-1 flex items-center justify-center rounded-lg border p-1 transition-colors"
+                          style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-hover)' }}
                           title="Cetak Struk"
                           aria-label={`Cetak struk ${formatOrderLabel(order)}`}
                         >
-                          <Printer className="w-3 h-3" />
+                          <Printer className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
@@ -543,22 +565,20 @@ export const CashierView: React.FC<CashierViewProps> = ({
           </div>
 
           {/* 2. CENTER PANEL: Category Pills & Product Grid */}
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white p-2 shadow-[0_2px_10px_rgba(26,23,20,0.05)] md:p-2.5">
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] p-3"
+            style={{ borderColor: 'var(--panel-border)', boxShadow: '0 2px 10px rgba(26,23,20,0.05)' }}>
 
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-[var(--panel-border-light)] scrollbar-none shrink-0">
               {categories.map((cat) => {
                 const isSelected = selectedCategory === cat.id;
-
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`min-h-11 min-w-[94px] cursor-pointer whitespace-nowrap rounded-xl px-3 py-2 text-left text-[11px] font-semibold transition-all ${
+                    className={`shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[11px] font-bold tracking-wide transition-all active:scale-95 ${
                       isSelected
-                        ? cat.id === 'ALL'
-                          ? 'bg-[var(--primary)] text-white shadow-sm'
-                          : 'bg-[var(--primary)] text-white shadow-sm'
-                        : 'bg-white hover:bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--panel-border)] hover:border-[var(--primary-border)]'
+                        ? 'bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(234,88,12,0.25)]'
+                        : 'border border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary-text)]'
                     }`}
                   >
                     {cat.label}
@@ -598,179 +618,214 @@ export const CashierView: React.FC<CashierViewProps> = ({
       </div>
 
       {/* 3. RIGHT PANEL: ORDER CART */}
-      <div className="flex min-h-[54vh] w-full shrink-0 flex-col justify-between overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white p-3 shadow-[0_3px_16px_rgba(26,23,20,0.06)] md:h-full md:min-h-0 md:w-80 md:p-3.5 lg:w-88 xl:w-96">
-        <div className="flex flex-col h-full overflow-hidden">
-          {/* Cart Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--panel-border-light)] shrink-0">
-            <div className="flex items-center gap-1.5">
-              <h3 className="font-bold text-xs text-[var(--text-primary)]">
-                Ringkasan Order
-              </h3>
+      <div className="flex min-h-[54vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] md:h-full md:min-h-0 md:w-80 lg:w-[340px] xl:w-96"
+        style={{ borderColor: 'var(--panel-border)', boxShadow: '0 4px 20px rgba(26,23,20,0.07)' }}>
+        <div className="flex h-full flex-col overflow-hidden">
+
+          {/* ── Cart Header ───────────────────────────────────── */}
+          {/* Satu baris: nomor order, pilihan tipe, dan tombol kosongkan.
+              Judul "Order Baru" dibuang — keranjang kosong sudah menyatakannya,
+              dan barisnya dipakai untuk menambah ruang daftar belanja. */}
+          <div className="shrink-0 border-b px-3 py-2" style={{ borderColor: 'var(--panel-border-light)' }}>
+            <div className="flex items-center gap-2">
               {currentEditingOrder && (
                 <span
-                  className="text-[11px] font-bold text-[var(--primary-hover)] bg-[var(--primary-soft)] px-1.5 py-0.5 rounded-lg border border-[var(--primary-border)] tabular-nums"
+                  className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold tabular-nums"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}
                   title={currentEditingOrder.orderNumber}
                 >
                   {formatOrderLabel(currentEditingOrder)}
                 </span>
               )}
 
-            </div>
-
-            <div className="flex items-center gap-1">
-              <div className="flex items-center bg-[var(--surface-secondary)] border border-[var(--panel-border)] p-0.5 rounded-lg text-[11px] font-semibold">
+              <div className="flex flex-1 items-center gap-0.5 rounded-full border p-0.5 text-[11px] font-bold"
+                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
                 <button
                   type="button"
                   disabled={isPaidOrder}
                   onClick={() => setOrderType('DINE_IN')}
-                  className={`px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 ${
-                    orderType === 'DINE_IN' ? 'bg-[var(--primary)] text-white font-bold shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  } ${isPaidOrder ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1 transition-all ${
+                    orderType === 'DINE_IN'
+                      ? 'bg-[var(--primary)] text-white'
+                      : 'text-[var(--text-secondary)]'
+                  } ${isPaidOrder ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                 >
-                  <Utensils className="w-3 h-3" />
-                  <span>Makan di Tempat</span>
+                  <Utensils className="h-3 w-3" />
+                  Dine In
                 </button>
                 <button
                   type="button"
                   disabled={isPaidOrder}
                   onClick={() => setOrderType('TAKE_AWAY')}
-                  className={`px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 ${
-                    orderType === 'TAKE_AWAY' ? 'bg-[var(--primary)] text-white font-bold shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  } ${isPaidOrder ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1 transition-all ${
+                    orderType === 'TAKE_AWAY'
+                      ? 'bg-[var(--primary)] text-white'
+                      : 'text-[var(--text-secondary)]'
+                  } ${isPaidOrder ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                 >
-                  <ShoppingBag className="w-3 h-3" />
-                  <span>Bawa Pulang</span>
+                  <ShoppingBag className="h-3 w-3" />
+                  Take Away
                 </button>
               </div>
 
               <button
                 onClick={handleClearCart}
-                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-red)] transition-colors"
-                title={isPaidOrder ? 'Tutup View Order' : 'Kosongkan'}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors"
+                style={{ borderColor: 'var(--panel-border)', color: 'var(--text-tertiary)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-red)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)'; }}
+                title={isPaidOrder ? 'Tutup View Order' : 'Kosongkan keranjang'}
                 aria-label={isPaidOrder ? 'Tutup tampilan order' : 'Kosongkan keranjang'}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
+          {/* ── Status banners ────────────────────────────────── */}
           {isPaidOrder && (
-            <div className="bg-[var(--primary-soft)] border border-[var(--brand-200)] rounded-lg p-2 mb-2 flex items-center justify-between text-[var(--primary-text)] shrink-0">
-              <div className="flex items-center gap-1.5 font-semibold text-xs">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary-hover)] shrink-0" />
-                <span>LUNAS (PAID)</span>
+            <div className="mx-4 mt-3 shrink-0 flex items-center justify-between rounded-xl border px-3 py-2"
+              style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-text)' }}>
+              <div className="flex items-center gap-1.5 text-[12px] font-bold">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--primary-hover)' }} />
+                LUNAS (PAID)
               </div>
-              <span className="text-[11px] font-semibold bg-[var(--brand-100)] text-[var(--primary-pressed)] px-1.5 py-0.5 rounded-lg uppercase tracking-wider">
+              <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: 'var(--brand-100)', color: 'var(--primary-pressed)' }}>
                 DIKUNCI
               </span>
             </div>
           )}
 
           {!isShiftActiveForCurrentContext && (
-            <div className="mb-2 rounded-xl border border-[var(--brand-200)] bg-[var(--primary-soft)] p-3 text-[var(--primary-pressed)] shrink-0">
+            <div className="mx-4 mt-3 shrink-0 rounded-xl border px-3 py-2"
+              style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-pressed)' }}>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em]">Shift wajib aktif</p>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed">
-                Buka shift untuk outlet {currentBranch.name} sebelum menyimpan order atau menerima pembayaran.
+              <p className="mt-0.5 text-[11px] font-medium leading-relaxed">
+                Buka shift untuk outlet {currentBranch.name} sebelum menyimpan order.
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-1.5 mb-2 shrink-0">
-            <div className="col-span-2">
-              <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase block mb-1 tracking-wider">
-                NAMA
-              </label>
-              <input
-                type="text"
-                disabled={isPaidOrder}
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className={`w-full border rounded-lg px-2.5 py-1.5 text-sm font-bold text-[var(--text-primary)] outline-none ${
-                  isPaidOrder ? 'bg-[var(--surface-main)] border-[var(--panel-border)] text-[var(--text-tertiary)] cursor-not-allowed' : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] focus:border-[var(--brand-300)] focus:bg-white focus:ring-2 focus:ring-[var(--primary)]/10'
-                }`}
-                placeholder="Nama pelanggan"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase block mb-1 tracking-wider">
-                MEJA
-              </label>
-              <select
-                disabled={isPaidOrder}
-                value={selectedTable}
-                onChange={(e) => setSelectedTable(e.target.value)}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm font-bold text-[var(--text-primary)] outline-none ${
-                  isPaidOrder ? 'bg-[var(--surface-main)] border-[var(--panel-border)] text-[var(--text-tertiary)] cursor-not-allowed' : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] focus:border-[var(--brand-300)] focus:bg-white focus:ring-2 focus:ring-[var(--primary)]/10 cursor-pointer'
-                }`}
-              >
-                <option value="-">Pilih meja</option>
-                {tables.map((t) => (
-                  <option key={t.id} value={t.number}>
-                    {t.number}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Label "Nama" dan "Meja" dibuang: placeholder sudah menjelaskan
+              isinya, dan dua baris label itu memakan ruang daftar belanja. */}
+          <div className="shrink-0 grid grid-cols-3 gap-2 px-3 pt-2">
+            <input
+              type="text"
+              disabled={isPaidOrder}
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              aria-label="Nama pelanggan"
+              className={`col-span-2 w-full rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold outline-none transition-all ${
+                isPaidOrder
+                  ? 'cursor-not-allowed text-[var(--text-tertiary)]'
+                  : 'focus:ring-2 focus:ring-[var(--primary)]/10'
+              }`}
+              style={{
+                background: 'var(--surface-secondary)',
+                borderColor: 'var(--panel-border)',
+                color: 'var(--text-primary)',
+              }}
+              placeholder="Nama pelanggan"
+            />
+            <select
+              disabled={isPaidOrder}
+              value={selectedTable}
+              onChange={(e) => setSelectedTable(e.target.value)}
+              aria-label="Nomor meja"
+              className={`w-full rounded-lg border px-2 py-1.5 text-[12px] font-semibold outline-none transition-all ${
+                isPaidOrder
+                  ? 'cursor-not-allowed text-[var(--text-tertiary)]'
+                  : 'cursor-pointer focus:ring-2 focus:ring-[var(--primary)]/10'
+              }`}
+              style={{
+                background: 'var(--surface-secondary)',
+                borderColor: 'var(--panel-border)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              <option value="-">Meja</option>
+              {tables.map((t) => (
+                <option key={t.id} value={t.number}>{t.number}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5 border-t border-[var(--panel-border-light)] pt-2 scrollbar-thin">
+          {/* ── Cart Items ────────────────────────────────────── */}
+          <div className="mx-3 mt-2 flex-1 min-h-0 overflow-y-auto space-y-1 scrollbar-thin border-t pt-1.5"
+            style={{ borderColor: 'var(--panel-border-light)' }}>
             {cartItems.length === 0 ? (
-              <div className="py-16 text-center space-y-2">
-                <div className="w-11 h-11 rounded-xl bg-[var(--primary-soft)] border border-[var(--primary-border)] flex items-center justify-center mx-auto text-[var(--primary-hover)]">
-                  <ShoppingBag className="w-5 h-5" />
+              <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border"
+                  style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-hover)' }}>
+                  <ShoppingBag className="h-5 w-5" />
                 </div>
-                <p className="text-xs font-semibold text-[var(--text-secondary)]">Keranjang Kosong</p>
-                <p className="text-[11px] text-[var(--text-tertiary)] font-medium">Pilih menu di sebelah kiri</p>
+                <p className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Keranjang Kosong</p>
+                <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Pilih menu di sebelah kiri</p>
               </div>
             ) : (
               cartItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-2 rounded-lg bg-[var(--surface-main)] border border-[var(--panel-border)] space-y-1"
-                >
+                <div key={item.id} className="rounded-lg border p-2 space-y-1"
+                  style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-xs text-[var(--text-primary)] leading-snug">
+                    <span className="text-[12px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
                       {item.menuName}
                     </span>
-                    <span className="font-bold text-xs text-[var(--text-primary)] shrink-0">
+                    <span className="shrink-0 tabular-nums text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>
                       Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] font-medium text-[var(--text-tertiary)]">
-                      Rp {item.price.toLocaleString('id-ID')} x {item.quantity}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      Rp {item.price.toLocaleString('id-ID')} × {item.quantity}
                     </span>
 
                     {!isPaidOrder && (
-                      <div className="flex items-center gap-0.5 bg-white border border-[var(--panel-border)] rounded-lg p-0.5">
+                      <div className="flex items-center gap-0.5 rounded-lg border p-0.5"
+                        style={{ background: 'var(--surface-card)', borderColor: 'var(--panel-border)' }}>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="w-5 h-5 rounded-lg bg-[var(--surface-secondary)] hover:bg-[var(--primary-soft)] text-[var(--text-secondary)] flex items-center justify-center transition-colors"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition-colors"
+                          style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}
                           aria-label={`Kurangi ${item.menuName}`}
                         >
-                          <Minus className="w-2.5 h-2.5" />
+                          <Minus className="h-2.5 w-2.5" />
                         </button>
-                        <span className="font-bold text-[11px] px-1.5 text-[var(--text-primary)]">
+                        <span className="min-w-[20px] text-center text-[11px] font-bold px-1" style={{ color: 'var(--text-primary)' }}>
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="w-5 h-5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white flex items-center justify-center transition-all"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition-all"
+                          style={{ background: 'var(--primary)', color: '#fff' }}
                           aria-label={`Tambah ${item.menuName}`}
                         >
-                          <Plus className="w-2.5 h-2.5" />
+                          <Plus className="h-2.5 w-2.5" />
                         </button>
                       </div>
                     )}
                   </div>
+
+                  {item.notes && (
+                    <p className="text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>📝 {item.notes}</p>
+                  )}
+                  {item.selectedCondiments && item.selectedCondiments.length > 0 && (
+                    <p className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      {item.selectedCondiments.flatMap((g) => g.options).join(', ')}
+                    </p>
+                  )}
                 </div>
               ))
             )}
           </div>
 
-          <div className="pt-2.5 border-t border-[var(--panel-border-light)] shrink-0 space-y-2 mt-auto">
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
+          {/* ── Summary + Checkout Footer ─────────────────────── */}
+          <div className="shrink-0 border-t px-4 pb-4 pt-3 space-y-3 mt-auto"
+            style={{ borderColor: 'var(--panel-border-light)' }}>
+
+            {/* Discount row */}
+            <div className="grid grid-cols-2 gap-2">
               <input
                 type="number"
                 disabled={isPaidOrder}
@@ -779,126 +834,136 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 placeholder={discountMode === 'PERCENT' ? 'Diskon %' : 'Diskon Rp'}
                 value={discountValue || ''}
                 onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
-                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none ${
-                  isPaidOrder ? 'bg-[var(--surface-main)] border-[var(--panel-border)] text-[var(--text-tertiary)] cursor-not-allowed' : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-primary)] focus:border-[var(--brand-300)] focus:bg-white'
+                className={`w-full rounded-xl border px-3 py-2 text-[12px] font-semibold outline-none transition-all ${
+                  isPaidOrder ? 'cursor-not-allowed' : ''
                 }`}
+                style={{
+                  background: 'var(--surface-secondary)',
+                  borderColor: 'var(--panel-border)',
+                  color: isPaidOrder ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                }}
               />
               <select
                 disabled={isPaidOrder}
                 value={discountMode}
                 onChange={(e) => setDiscountMode(e.target.value as 'PERCENT' | 'IDR')}
                 aria-label="Satuan diskon"
-                className={`w-full border rounded-lg px-2 py-1.5 text-xs font-semibold outline-none ${
-                  isPaidOrder ? 'bg-[var(--surface-main)] border-[var(--panel-border)] text-[var(--text-tertiary)] cursor-not-allowed' : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-primary)] focus:border-[var(--brand-300)] focus:bg-white cursor-pointer'
+                className={`w-full rounded-xl border px-2 py-2 text-[12px] font-semibold outline-none transition-all ${
+                  isPaidOrder ? 'cursor-not-allowed' : 'cursor-pointer'
                 }`}
+                style={{
+                  background: 'var(--surface-secondary)',
+                  borderColor: 'var(--panel-border)',
+                  color: isPaidOrder ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                }}
               >
                 <option value="PERCENT">Persen (%)</option>
                 <option value="IDR">Rupiah (Rp)</option>
               </select>
             </div>
 
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between text-[var(--text-tertiary)] uppercase tracking-wider text-[11px]">
-                <span>SUBTOTAL</span>
-                <span className="text-[var(--text-primary)] font-semibold text-xs">
+            {/* Totals */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>Subtotal</span>
+                <span className="tabular-nums text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                   Rp {subtotal.toLocaleString('id-ID')}
                 </span>
               </div>
 
               {discountAmount > 0 && (
-                <div className="flex justify-between text-[var(--text-tertiary)] uppercase tracking-wider text-[11px]">
-                  <span>DISCOUNT</span>
-                  <span className="text-rose-500 font-semibold text-xs">
-                    - Rp {discountAmount.toLocaleString('id-ID')}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>Diskon</span>
+                  <span className="tabular-nums text-[13px] font-semibold" style={{ color: 'var(--accent-red)' }}>
+                    − Rp {discountAmount.toLocaleString('id-ID')}
                   </span>
                 </div>
               )}
 
-              <div className="flex justify-between text-sm font-bold text-[var(--text-primary)] pt-0.5">
-                <span>TOTAL</span>
-                <span className="text-base font-bold text-[var(--primary-hover)]">
+              {/* Total — big and prominent */}
+              <div className="flex items-center justify-between rounded-xl border px-3 py-2.5"
+                style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)' }}>
+                <span className="text-[13px] font-bold" style={{ color: 'var(--primary-text)' }}>Total</span>
+                <span className="tabular-nums text-[20px] font-extrabold" style={{ color: 'var(--primary-solid)' }}>
                   Rp {total.toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-2 pt-1">
-              {isPaidOrder ? (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => onPrintPreBill(currentEditingOrder || (buildCurrentOrderDraft() as Order))}
-                    className="ui-button ui-button-soft w-full cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5" /> CETAK STRUK LUNAS
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (currentEditingOrder && currentEditingOrder.status !== 'COMPLETED') {
-                        onSaveHoldOrder({ ...currentEditingOrder, status: 'COMPLETED' });
-                      }
-                      handleClearCart();
-                    }}
-                    className="ui-button ui-button-primary w-full cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> SELESAI ORDER
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <button
-                    disabled={cartItems.length === 0}
-                    onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                    className="ui-button ui-button-secondary w-full cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5" /> CETAK TAGIHAN
-                  </button>
+            {/* Action buttons */}
+            {isPaidOrder ? (
+              <div className="grid grid-cols-[auto_1fr] gap-1.5">
+                <button
+                  onClick={() => onPrintPreBill(currentEditingOrder || (buildCurrentOrderDraft() as Order))}
+                  className="ui-button ui-button-soft px-2.5"
+                  style={{ minHeight: '34px' }}
+                  title="Cetak struk lunas"
+                  aria-label="Cetak struk lunas"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentEditingOrder && currentEditingOrder.status !== 'COMPLETED') {
+                      onSaveHoldOrder({ ...currentEditingOrder, status: 'COMPLETED' });
+                    }
+                    handleClearCart();
+                  }}
+                  className="ui-button ui-button-primary w-full gap-1 px-2"
+                  style={{ minHeight: '34px', fontSize: '12px' }}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Selesai Order
+                </button>
+              </div>
+            ) : (
+              /* Tiga aksi dirapatkan ke satu baris supaya sisa tinggi panel
+                 jatuh ke daftar belanja, bukan ke tombol. */
+              <div className="grid grid-cols-[auto_1fr_1.2fr] gap-1.5">
+                <button
+                  disabled={cartItems.length === 0}
+                  onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
+                  className="ui-button ui-button-secondary px-2.5"
+                  style={{ minHeight: '34px' }}
+                  title="Cetak tagihan"
+                  aria-label="Cetak tagihan"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                </button>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
-                      onClick={() => {
-                        if (confirmBeforeSaveOrder && pendingConfirm !== 'SAVE') {
-                          setPendingConfirm('SAVE');
-                          return;
-                        }
-                        setPendingConfirm(null);
-                        const draft = buildCurrentOrderDraft() as Order;
-                        onSaveHoldOrder(draft);
-                        handleClearCart();
-                      }}
-                      className={`ui-button w-full cursor-pointer ${
-                        pendingConfirm === 'SAVE' ? 'ui-button-primary' : 'ui-button-secondary'
-                      }`}
-                    >
-                      {pendingConfirm === 'SAVE' ? (
-                        <><CheckCircle2 className="w-3.5 h-3.5" /> YAKIN SIMPAN?</>
-                      ) : (
-                        <><Save className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /> SIMPAN</>
-                      )}
-                    </button>
+                <button
+                  disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
+                  onClick={() => {
+                    if (confirmBeforeSaveOrder && pendingConfirm !== 'SAVE') { setPendingConfirm('SAVE'); return; }
+                    setPendingConfirm(null);
+                    const draft = buildCurrentOrderDraft() as Order;
+                    onSaveHoldOrder(draft);
+                    handleClearCart();
+                  }}
+                  className={`ui-button w-full gap-1 px-2 ${pendingConfirm === 'SAVE' ? 'ui-button-primary' : 'ui-button-secondary'}`}
+                  style={{ minHeight: '34px', fontSize: '12px' }}
+                >
+                  {pendingConfirm === 'SAVE'
+                    ? <><CheckCircle2 className="h-3.5 w-3.5" />Yakin?</>
+                    : <><Save className="h-3.5 w-3.5" />Simpan</>}
+                </button>
 
-                    <button
-                      disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
-                      onClick={() => {
-                        if (confirmBeforePayment && pendingConfirm !== 'PAY') {
-                          setPendingConfirm('PAY');
-                          return;
-                        }
-                        setPendingConfirm(null);
-                        onOpenCheckoutModal(buildCurrentOrderDraft());
-                      }}
-                      className="ui-button ui-button-primary w-full cursor-pointer"
-                    >
-                      {pendingConfirm === 'PAY' ? (
-                        <><CheckCircle2 className="w-3.5 h-3.5" /> YAKIN BAYAR?</>
-                      ) : (
-                        <><CreditCard className="w-3.5 h-3.5" /> BAYAR</>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                <button
+                  disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
+                  onClick={() => {
+                    if (confirmBeforePayment && pendingConfirm !== 'PAY') { setPendingConfirm('PAY'); return; }
+                    setPendingConfirm(null);
+                    onOpenCheckoutModal(buildCurrentOrderDraft());
+                  }}
+                  className="ui-button ui-button-primary w-full gap-1 px-2"
+                  style={{ minHeight: '34px', fontSize: '12px' }}
+                >
+                  {pendingConfirm === 'PAY'
+                    ? <><CheckCircle2 className="h-3.5 w-3.5" />Yakin?</>
+                    : <><CreditCard className="h-3.5 w-3.5" />Bayar</>}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -930,18 +995,58 @@ export const CashierView: React.FC<CashierViewProps> = ({
       />
 
       {manualItemSource && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-600/30 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white shadow-xl">
-            <div className="flex items-center justify-between bg-[var(--primary)] px-5 py-4 text-white">
-              <div><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--primary-text)]">Item manual non-stok</p><h3 className="text-lg font-bold">Lainnya</h3></div>
-              <button type="button" onClick={() => setManualItemSource(null)} className="rounded-full bg-white/10 p-2 hover:bg-white/20"><Trash2 className="h-4 w-4" /></button>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ background: 'rgba(24,24,27,0.35)' }}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-white shadow-2xl"
+            style={{ borderColor: 'var(--panel-border)' }}>
+            <div className="flex items-center justify-between px-5 py-4 text-white"
+              style={{ background: 'var(--primary)' }}>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70">Item manual non-stok</p>
+                <h3 className="text-[16px] font-bold">Tambah Item Lainnya</h3>
+              </div>
+              <button type="button" onClick={() => setManualItemSource(null)}
+                className="rounded-full p-2 transition-colors hover:bg-white/20">
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
             <div className="space-y-4 p-5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Nama item / penjualan<input autoFocus value={manualItemDraft.name} onChange={(event) => setManualItemDraft({ ...manualItemDraft, name: event.target.value })} placeholder="Contoh: Alpukat tambahan" className="mt-1.5 w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] p-3 text-sm font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white" /></label>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Harga jual<input type="number" min="1" inputMode="numeric" value={manualItemDraft.price} onChange={(event) => setManualItemDraft({ ...manualItemDraft, price: event.target.value })} placeholder="Rp 0" className="mt-1.5 w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] p-3 text-sm font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white" /></label>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Keterangan <span className="normal-case text-slate-400">(opsional)</span><textarea value={manualItemDraft.notes} onChange={(event) => setManualItemDraft({ ...manualItemDraft, notes: event.target.value })} placeholder="Catatan untuk struk / dapur" className="mt-1.5 min-h-20 w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] p-3 text-xs font-semibold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white" /></label>
+              <label className="ui-form-group">
+                <span className="ui-form-label">Nama item / penjualan</span>
+                <input autoFocus value={manualItemDraft.name}
+                  onChange={(e) => setManualItemDraft({ ...manualItemDraft, name: e.target.value })}
+                  placeholder="Contoh: Alpukat tambahan"
+                  className="ui-input" />
+              </label>
+              <label className="ui-form-group">
+                <span className="ui-form-label">Harga jual</span>
+                <input type="number" min="1" inputMode="numeric" value={manualItemDraft.price}
+                  onChange={(e) => setManualItemDraft({ ...manualItemDraft, price: e.target.value })}
+                  placeholder="Rp 0"
+                  className="ui-input" />
+              </label>
+              <label className="ui-form-group">
+                <span className="ui-form-label">Keterangan <span className="normal-case font-normal" style={{ color: 'var(--text-tertiary)' }}>(opsional)</span></span>
+                <textarea value={manualItemDraft.notes}
+                  onChange={(e) => setManualItemDraft({ ...manualItemDraft, notes: e.target.value })}
+                  placeholder="Catatan untuk struk / dapur"
+                  className="ui-input resize-none"
+                  style={{ minHeight: '80px', paddingTop: '10px', paddingBottom: '10px' }} />
+              </label>
             </div>
-            <div className="flex justify-end gap-2 border-t border-[var(--panel-border)] bg-[var(--surface-card)] p-4"><button type="button" onClick={() => setManualItemSource(null)} className="rounded-xl border border-[var(--panel-border)] bg-white px-4 py-2.5 text-xs font-bold text-slate-600">BATAL</button><button type="button" disabled={!manualItemDraft.name.trim() || Number(manualItemDraft.price) <= 0} onClick={handleConfirmManualItem} className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40">TAMBAH KE ORDER</button></div>
+            <div className="flex justify-end gap-2 border-t p-4"
+              style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+              <button type="button" onClick={() => setManualItemSource(null)}
+                className="ui-button ui-button-secondary">
+                Batal
+              </button>
+              <button type="button"
+                disabled={!manualItemDraft.name.trim() || Number(manualItemDraft.price) <= 0}
+                onClick={handleConfirmManualItem}
+                className="ui-button ui-button-primary">
+                Tambah ke Order
+              </button>
+            </div>
           </div>
         </div>
       )}

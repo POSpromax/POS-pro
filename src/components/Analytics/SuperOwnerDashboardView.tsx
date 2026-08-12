@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart3,
   BookOpen,
   Building2,
   CheckCircle2,
@@ -9,6 +10,7 @@ import {
   DollarSign,
   ExternalLink,
   Grid2X2,
+  Layers,
   MapPin,
   Phone,
   Plus,
@@ -16,10 +18,8 @@ import {
   Search,
   Settings,
   Store,
-  Users,
+  TrendingUp,
   X,
-  BarChart3,
-  Layers,
 } from 'lucide-react';
 import { Branch, Order, RestaurantTable, RawMaterial } from '../../types/pos';
 
@@ -44,7 +44,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   onSelectBranch,
   onAddBranch,
   onNavigateTab,
-  onShowToast
+  onShowToast,
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,14 +61,16 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
       branches.filter(
         (b) =>
           b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          b.address.toLowerCase().includes(searchTerm.toLowerCase())
+          b.address.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     [branches, searchTerm],
   );
 
   const getOrdersForScope = (branchId?: string) => {
     if (!branchId) return orders;
-    return orders.filter((o) => o.branchId === branchId || (!o.branchId && branches.find(b => b.id === branchId)?.isMainBranch));
+    return orders.filter(
+      (o) => o.branchId === branchId || (!o.branchId && branches.find((b) => b.id === branchId)?.isMainBranch),
+    );
   };
 
   const getTablesForScope = (branchId?: string) => {
@@ -81,77 +83,38 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
     return rawMaterials.filter((m) => !m.branchId || m.branchId === branchId);
   };
 
-  const scopeBranchId = viewMode === 'PER_OUTLET' ? (selectedOutletId || currentBranch.id) : undefined;
+  const scopeBranchId =
+    viewMode === 'PER_OUTLET' ? selectedOutletId || currentBranch.id : undefined;
   const scopeOrders = getOrdersForScope(scopeBranchId);
   const scopeTables = getTablesForScope(scopeBranchId);
   const scopeMaterials = getMaterialsForScope(scopeBranchId);
 
-  const totalOmset = scopeOrders.filter((o) => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.total, 0);
+  const totalOmset = scopeOrders.filter((o) => o.paymentStatus === 'PAID').reduce((s, o) => s + o.total, 0);
   const totalOrdersCount = scopeOrders.length;
   const occupiedTablesCount = scopeTables.filter((t) => t.status === 'OCCUPIED').length;
   const totalTablesCount = scopeTables.length;
   const lowStockItemsCount = scopeMaterials.filter((m) => m.stockQuantity <= m.minStockThreshold).length;
 
-  const activeScopeBranch = viewMode === 'PER_OUTLET'
-    ? branches.find(b => b.id === (selectedOutletId || currentBranch.id)) || currentBranch
-    : null;
-
-  const summaryCards = [
-    {
-      title: 'Omset Terkonfirmasi',
-      value: `Rp ${totalOmset.toLocaleString('id-ID')}`,
-      note: viewMode === 'COMBINED' ? 'Akumulasi seluruh outlet' : `Outlet: ${activeScopeBranch?.name || ''}`,
-      icon: DollarSign,
-      tone: 'accent',
-    },
-    {
-      title: 'Total Transaksi',
-      value: `${totalOrdersCount} order`,
-      note: 'Semua transaksi tersimpan hari ini',
-      icon: Receipt,
-      tone: 'neutral',
-    },
-    {
-      title: 'Okupansi Meja',
-      value: `${occupiedTablesCount} / ${totalTablesCount || 0}`,
-      note: totalTablesCount > 0 ? `${Math.round((occupiedTablesCount / totalTablesCount) * 100)}% meja aktif` : 'Belum ada data meja',
-      icon: Grid2X2,
-      tone: 'neutral',
-    },
-    {
-      title: 'Stok Kritis',
-      value: `${lowStockItemsCount} item`,
-      note: lowStockItemsCount > 0 ? 'Butuh restock atau koreksi stok minimum' : 'Belum ada bahan di ambang minimum',
-      icon: AlertTriangle,
-      tone: lowStockItemsCount > 0 ? 'warning' : 'neutral',
-    },
-  ] as const;
-
-  const actionCards = [
-    { title: 'Konfigurasi Operasional', description: 'Pajak, katalog, staff, hak akses, dan pengaturan outlet', icon: Settings, onClick: () => onNavigateTab('settings') },
-    { title: 'Rancang Bangun Workflow', description: 'Audit workflow, denah, blueprint implementasi, dan checklist', icon: Compass, onClick: () => onNavigateTab('blueprint') },
-    { title: 'Laporan Dan Ringkasan', description: 'Ekspor omzet, histori transaksi, dan status readiness outlet', icon: BookOpen, onClick: () => onNavigateTab('analytics') },
-    { title: 'Tambah Outlet Baru', description: 'Daftarkan cabang baru dengan identitas dan kontak operasional', icon: Building2, onClick: () => setIsAddModalOpen(true) },
-  ] as const;
+  const activeScopeBranch =
+    viewMode === 'PER_OUTLET'
+      ? branches.find((b) => b.id === (selectedOutletId || currentBranch.id)) || currentBranch
+      : null;
 
   const handleCreateBranchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranchName.trim()) {
-      if (onShowToast) onShowToast('Validasi', 'Mohon isi nama outlet / cabang!');
+      onShowToast?.('Validasi', 'Mohon isi nama outlet / cabang!');
       return;
     }
-
     const created: Branch = {
       id: 'br-' + Date.now().toString().slice(-4),
       name: newBranchName.trim(),
       address: newBranchAddress.trim() || 'Jl. Raya Utama No. 12',
       phone: newBranchPhone.trim() || '08123456789',
-      isMainBranch: isMainBranchCheck
+      isMainBranch: isMainBranchCheck,
     };
-
     onAddBranch(created);
     setIsAddModalOpen(false);
-
     setNewBranchName('');
     setNewBranchAddress('');
     setNewBranchPhone('');
@@ -159,186 +122,208 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   };
 
   return (
-    <div className="ui-surface flex-1 overflow-y-auto px-3 py-4 text-[var(--text-primary)] md:px-6 md:py-5 font-sans select-none">
-      {/* Hero Section */}
-      <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--primary-hover)]">
-                <Store className="h-3.5 w-3.5" />
-                Portal Multi-Cabang Owner
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--primary-hover)]" />
-                {branches.length} Outlet
+    <div className="ui-surface flex-1 overflow-y-auto font-sans select-none" style={{ padding: '20px 20px 32px' }}>
+
+      {/* ── PAGE HEADER ─────────────────────────────────────── */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="ui-stat-label mb-1">Dashboard Overview</p>
+          <h1 className="ui-page-header">Ringkasan Operasional</h1>
+          <p className="mt-1 text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Pantau omzet, kesiapan outlet, dan navigasi kontrol owner dalam satu layar.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => onNavigateTab('analytics')}
+            className="ui-button ui-button-secondary gap-1.5 text-[12px]"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Laporan
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="ui-button ui-button-primary gap-1.5 text-[12px]"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Tambah Outlet
+          </button>
+        </div>
+      </div>
+
+      {/* ── TOP KPI ROW ─────────────────────────────────────── */}
+      {/* Hero card (orange gradient) + 3 white stat cards, Salesify-style  */}
+      <div className="mb-5 grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Hero: Total Omset */}
+        <div className="ui-card-feature sm:col-span-2 xl:col-span-1 flex flex-col justify-between gap-3" style={{ padding: '20px 22px', minHeight: '130px' }}>
+          <div className="flex items-center justify-between">
+            <p className="ui-stat-label">Total Omset</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20">
+              <DollarSign className="h-4 w-4 text-white" />
+            </div>
+          </div>
+          <div>
+            <p className="ui-stat-value" style={{ fontSize: '26px' }}>
+              Rp {totalOmset.toLocaleString('id-ID')}
+            </p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white">
+                <TrendingUp className="h-3 w-3" />
+                {viewMode === 'COMBINED' ? 'Semua Outlet' : activeScopeBranch?.name?.replace('Bakso Ujo - ', '') ?? ''}
               </span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[var(--text-primary)] xl:text-[28px]">
-              Ringkasan Kesiapan & Operasional
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-[11px] md:text-xs font-bold leading-relaxed text-slate-500">
-              Pantau omzet, kesiapan outlet, dan navigasi kontrol owner dalam satu layar.
+          </div>
+        </div>
+
+        {/* Stat: Total Transaksi */}
+        <div className="ui-card flex flex-col justify-between gap-3" style={{ padding: '18px 20px', minHeight: '130px' }}>
+          <div className="flex items-center justify-between">
+            <p className="ui-stat-label">Total Transaksi</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
+              <Receipt className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <p className="ui-stat-value">{totalOrdersCount}</p>
+            <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Order tersimpan hari ini
             </p>
           </div>
-
-          <div className="grid gap-2 grid-cols-3 sm:flex sm:flex-wrap">
-            <button
-              type="button"
-              onClick={() => onNavigateTab('blueprint')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white transition shadow-sm cursor-pointer active:scale-95"
-            >
-              <Compass className="h-3 w-3 md:h-3.5 md:w-3.5 text-[var(--primary-text)]" />
-              <span className="hidden sm:inline">Studio</span> Workflow
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateTab('settings')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] hover:bg-white px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-slate-800 transition cursor-pointer active:scale-95"
-            >
-              <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 text-[var(--primary-hover)]" />
-              Pengaturan
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] px-3 md:px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold text-white shadow-md shadow-orange-500/20 transition cursor-pointer active:scale-95"
-            >
-              <Plus className="h-3 w-3 md:h-3.5 md:w-3.5" />
-              <span className="hidden sm:inline">Tambah</span> Outlet
-            </button>
-          </div>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="bg-slate-100 border border-slate-200/80 p-1 rounded-full flex items-center gap-0.5 shadow-sm">
-            <button
-              onClick={() => setViewMode('COMBINED')}
-              className={`px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === 'COMBINED'
-                  ? 'bg-[var(--primary)] text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Layers className="w-3 h-3 md:w-3.5 md:h-3.5" /> Gabungan
-            </button>
-            <button
-              onClick={() => { setViewMode('PER_OUTLET'); if (!selectedOutletId) setSelectedOutletId(currentBranch.id); }}
-              className={`px-3 md:px-4 py-1.5 rounded-full text-[11px] md:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === 'PER_OUTLET'
-                  ? 'bg-[var(--primary)] text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <BarChart3 className="w-3 h-3 md:w-3.5 md:h-3.5" /> Per Outlet
-            </button>
-          </div>
-
-          {viewMode === 'PER_OUTLET' && (
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-1 px-1">
-              {branches.map((b) => (
-                <button
-                  key={b.id}
-                  onClick={() => setSelectedOutletId(b.id)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] md:text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer border ${
-                    selectedOutletId === b.id
-                      ? 'bg-[var(--primary-soft)] border-[var(--primary-border)] text-[var(--primary-hover)]'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                  }`}
-                >
-                  {b.name.replace('Bakso Ujo - ', '')}
-                </button>
-              ))}
+        {/* Stat: Meja Terisi */}
+        <div className="ui-card flex flex-col justify-between gap-3" style={{ padding: '18px 20px', minHeight: '130px' }}>
+          <div className="flex items-center justify-between">
+            <p className="ui-stat-label">Meja Terisi</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
+              <Grid2X2 className="h-4 w-4" />
             </div>
-          )}
+          </div>
+          <div>
+            <p className="ui-stat-value">{occupiedTablesCount}<span className="text-[18px] font-semibold" style={{ color: 'var(--text-secondary)' }}>/{totalTablesCount}</span></p>
+            <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              {totalTablesCount > 0 ? `${Math.round((occupiedTablesCount / totalTablesCount) * 100)}% meja aktif` : 'Belum ada data meja'}
+            </p>
+          </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="mt-4 md:mt-5 grid gap-2.5 md:gap-3 grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map((card) => {
-            const Icon = card.icon;
-            const toneClass =
-              card.tone === 'accent'
-                ? 'border-[var(--brand-200)] bg-[var(--brand-50)]'
-                : card.tone === 'warning'
-                  ? 'border-amber-200 bg-amber-50'
-                  : 'border-slate-200 bg-slate-50';
-            const iconClass =
-              card.tone === 'accent'
-                ? 'bg-[var(--primary-solid)] text-white shadow-sm'
-                : card.tone === 'warning'
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-[var(--primary)] text-white';
-
-            return (
-              <div key={card.title} className={`rounded-xl md:rounded-2xl border p-3 md:p-4 shadow-sm ${toneClass}`}>
-                <div className="mb-2 md:mb-3 flex items-center justify-between">
-                  <span className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">{card.title}</span>
-                  <div className={`flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-lg md:rounded-xl ${iconClass}`}>
-                    <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  </div>
-                </div>
-                <p className="text-base md:text-xl font-bold tracking-tight text-slate-900">{card.value}</p>
-                <p className="mt-0.5 md:mt-1 text-[11px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.note}</p>
-              </div>
-            );
-          })}
+        {/* Stat: Stok Kritis */}
+        <div className="ui-card flex flex-col justify-between gap-3" style={{ padding: '18px 20px', minHeight: '130px', borderColor: lowStockItemsCount > 0 ? '#fde68a' : undefined, background: lowStockItemsCount > 0 ? 'var(--warning-soft)' : undefined }}>
+          <div className="flex items-center justify-between">
+            <p className="ui-stat-label">Stok Kritis</p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: lowStockItemsCount > 0 ? '#fef3c7' : 'var(--success-soft)', color: lowStockItemsCount > 0 ? '#b45309' : 'var(--accent-green)' }}>
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+          </div>
+          <div>
+            <p className="ui-stat-value" style={{ color: lowStockItemsCount > 0 ? '#b45309' : undefined }}>{lowStockItemsCount}</p>
+            <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              {lowStockItemsCount > 0 ? 'Butuh restock segera' : 'Semua stok aman'}
+            </p>
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Per-Outlet Comparison Table (PER_OUTLET mode) */}
+      {/* ── VIEW MODE TOGGLE + OUTLET FILTER ────────────────── */}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Segmented tabs — orange variant for dashboard */}
+        <div className="ui-tabs ui-tabs-orange">
+          <button
+            onClick={() => setViewMode('COMBINED')}
+            className={`ui-tab flex items-center gap-1.5${viewMode === 'COMBINED' ? ' ui-tab-active' : ''}`}
+          >
+            <Layers className="h-3 w-3" />
+            Gabungan
+          </button>
+          <button
+            onClick={() => { setViewMode('PER_OUTLET'); if (!selectedOutletId) setSelectedOutletId(currentBranch.id); }}
+            className={`ui-tab flex items-center gap-1.5${viewMode === 'PER_OUTLET' ? ' ui-tab-active' : ''}`}
+          >
+            <BarChart3 className="h-3 w-3" />
+            Per Outlet
+          </button>
+        </div>
+
+        {/* Outlet chips — only in PER_OUTLET mode */}
+        {viewMode === 'PER_OUTLET' && (
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setSelectedOutletId(b.id)}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-bold transition cursor-pointer ${
+                  selectedOutletId === b.id
+                    ? 'border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-text)]'
+                    : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:border-[var(--panel-border-strong)]'
+                }`}
+              >
+                {b.name.replace('Bakso Ujo - ', '')}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── PER-OUTLET COMPARISON TABLE ─────────────────────── */}
       {viewMode === 'PER_OUTLET' && (
-        <section className="mb-5 md:mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
-          <h2 className="text-sm md:text-base font-bold text-[var(--text-primary)] mb-3">Perbandingan Outlet</h2>
+        <div className="ui-card mb-5" style={{ padding: '20px 22px' }}>
+          <p className="ui-section-title mb-4">Perbandingan Outlet</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full" style={{ fontSize: '12px', borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 px-2 text-[11px] font-bold text-slate-400 uppercase">Outlet</th>
-                  <th className="text-right py-2 px-2 text-[11px] font-bold text-slate-400 uppercase">Omset</th>
-                  <th className="text-right py-2 px-2 text-[11px] font-bold text-slate-400 uppercase">Order</th>
-                  <th className="text-right py-2 px-2 text-[11px] font-bold text-slate-400 uppercase">Meja</th>
-                  <th className="text-right py-2 px-2 text-[11px] font-bold text-slate-400 uppercase">Stok Kritis</th>
+                <tr style={{ borderBottom: '1px solid var(--panel-border)' }}>
+                  {['Outlet', 'Omset', 'Order', 'Meja', 'Stok Kritis'].map((h, i) => (
+                    <th
+                      key={h}
+                      className="ui-stat-label py-2 px-2"
+                      style={{ textAlign: i === 0 ? 'left' : 'right' }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {branches.map((branch) => {
                   const bOrders = getOrdersForScope(branch.id);
-                  const bOmset = bOrders.filter((o) => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.total, 0);
+                  const bOmset = bOrders.filter((o) => o.paymentStatus === 'PAID').reduce((s, o) => s + o.total, 0);
                   const bTables = getTablesForScope(branch.id);
                   const bOccupied = bTables.filter((t) => t.status === 'OCCUPIED').length;
                   const bLowStock = getMaterialsForScope(branch.id).filter((m) => m.stockQuantity <= m.minStockThreshold).length;
                   const isActive = selectedOutletId === branch.id;
-
                   return (
                     <tr
                       key={branch.id}
                       onClick={() => setSelectedOutletId(branch.id)}
-                      className={`border-b border-slate-100 cursor-pointer transition-colors ${
-                        isActive ? 'bg-[var(--brand-50)]' : 'hover:bg-slate-50'
-                      }`}
+                      style={{
+                        borderBottom: '1px solid var(--panel-border-light)',
+                        cursor: 'pointer',
+                        background: isActive ? 'var(--primary-soft)' : undefined,
+                      }}
+                      className="transition-colors hover:bg-[var(--surface-secondary)]"
                     >
                       <td className="py-2.5 px-2">
                         <div className="flex items-center gap-2">
-                          {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />}
-                          <span className="font-bold text-[11px] text-[var(--text-primary)]">{branch.name.replace('Bakso Ujo - ', '')}</span>
+                          {isActive && <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />}
+                          <span className="font-bold text-[12px]" style={{ color: 'var(--text-primary)' }}>
+                            {branch.name.replace('Bakso Ujo - ', '')}
+                          </span>
                           {branch.isMainBranch && (
-                            <span className="text-[11px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">PUSAT</span>
+                            <span className="ui-badge ui-badge-warning text-[10px] px-1.5 py-0">PUSAT</span>
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 px-2 text-right font-bold text-[11px] text-slate-700">
+                      <td className="py-2.5 px-2 text-right font-bold text-[12px]" style={{ color: 'var(--text-primary)' }}>
                         Rp {bOmset.toLocaleString('id-ID')}
                       </td>
-                      <td className="py-2.5 px-2 text-right font-bold text-[11px] text-slate-700">
-                        {bOrders.length}
-                      </td>
-                      <td className="py-2.5 px-2 text-right font-bold text-[11px] text-slate-700">
+                      <td className="py-2.5 px-2 text-right font-bold text-[12px]" style={{ color: 'var(--text-primary)' }}>{bOrders.length}</td>
+                      <td className="py-2.5 px-2 text-right font-bold text-[12px]" style={{ color: 'var(--text-primary)' }}>
                         {bOccupied}/{bTables.length}
                       </td>
                       <td className="py-2.5 px-2 text-right">
-                        <span className={`font-bold text-[11px] ${bLowStock > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        <span className={`font-bold text-[12px] ${bLowStock > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                           {bLowStock}
                         </span>
                       </td>
@@ -348,314 +333,349 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               </tbody>
             </table>
           </div>
-        </section>
+        </div>
       )}
 
-      {/* Action Cards + Filter Section */}
-      <section className="mb-5 md:mb-6 grid gap-4 xl:grid-cols-[1fr_1.3fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
-          <div className="mb-3 md:mb-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kontrol Utama</p>
-              <h2 className="mt-1 text-base md:text-lg font-bold text-slate-900">Navigasi Owner</h2>
-            </div>
-            <span className="rounded-full border border-[var(--brand-200)] bg-[var(--brand-50)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--primary-text)]">
-              Super-App
-            </span>
-          </div>
+      {/* ── MAIN CONTENT GRID: Navigation + Branch Status ───── */}
+      <div className="mb-5 grid gap-4 xl:grid-cols-[1fr_1.3fr]">
 
-          <div className="space-y-2 md:space-y-2.5">
-            {actionCards.map((card) => {
+        {/* LEFT: Owner Navigation */}
+        <div className="ui-card" style={{ padding: '20px 22px' }}>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="ui-stat-label mb-1">Navigasi Owner</p>
+              <h2 className="ui-section-title">Kontrol Utama</h2>
+            </div>
+            <span className="ui-badge ui-badge-info">Super-App</span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { title: 'Konfigurasi Operasional', desc: 'Pajak, katalog, staff, hak akses, dan pengaturan outlet', icon: Settings, tab: 'settings' },
+              { title: 'Rancang Bangun Workflow', desc: 'Audit workflow, denah, blueprint implementasi, dan checklist', icon: Compass, tab: 'blueprint' },
+              { title: 'Laporan Dan Ringkasan', desc: 'Ekspor omzet, histori transaksi, dan status readiness outlet', icon: BookOpen, tab: 'analytics' },
+              { title: 'Tambah Outlet Baru', desc: 'Daftarkan cabang baru dengan identitas dan kontak operasional', icon: Building2, tab: '__add' },
+            ].map((card) => {
               const Icon = card.icon;
               return (
                 <button
                   key={card.title}
                   type="button"
-                  onClick={card.onClick}
-                  className="group flex w-full items-start gap-2.5 md:gap-3 rounded-xl md:rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 text-left transition hover:border-[var(--primary)] hover:bg-white shadow-sm cursor-pointer"
+                  onClick={() => card.tab === '__add' ? setIsAddModalOpen(true) : onNavigateTab(card.tab)}
+                  className="group flex w-full items-start gap-3 rounded-xl border text-left transition cursor-pointer active:scale-[0.99]"
+                  style={{ padding: '12px 14px', borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--primary)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface-card)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--panel-border)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'; }}
                 >
-                  <div className="flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-lg md:rounded-xl bg-[var(--primary)] text-white shadow-sm">
-                    <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--primary)', color: '#fff' }}>
+                    <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] md:text-xs font-bold text-slate-900">{card.title}</p>
-                    <p className="mt-0.5 text-[11px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.description}</p>
+                    <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>{card.title}</p>
+                    <p className="mt-0.5 text-[11px] font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
                   </div>
-                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:text-slate-900" />
+                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-30 transition-opacity group-hover:opacity-80" style={{ color: 'var(--text-primary)' }} />
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-4 md:p-5 shadow-sm">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        {/* RIGHT: Branch Status + Search */}
+        <div className="ui-card" style={{ padding: '20px 22px' }}>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Filter & Status Cabang</p>
-              <h2 className="mt-1 text-base md:text-lg font-bold text-[var(--text-primary)]">Status Kesiapan Outlet</h2>
+              <p className="ui-stat-label mb-1">Filter & Status Cabang</p>
+              <h2 className="ui-section-title">Status Kesiapan Outlet</h2>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3 py-1.5 text-[11px] md:text-[11px] font-bold text-slate-800">
-              <Store className="h-3 w-3 md:h-3.5 md:w-3.5 text-[var(--primary-hover)]" />
-              Aktif: {currentBranch.name.replace('Bakso Ujo - ', '')}
-            </div>
+            <span className="ui-badge text-[11px] gap-1.5">
+              <Store className="h-3 w-3" style={{ color: 'var(--primary-hover)' }} />
+              {currentBranch.name.replace('Bakso Ujo - ', '')}
+            </span>
           </div>
 
-          <div className="relative mt-3 md:mt-4">
-            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <div className="relative mb-4">
+            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
             <input
               type="text"
               placeholder="Cari outlet..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] py-2.5 md:py-3 pl-9 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)] focus:bg-white"
+              className="ui-input pl-9"
             />
           </div>
 
-          <div className="mt-3 md:mt-4 grid gap-3 grid-cols-2">
-            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
-              <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Outlet</p>
-              <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{branches.length}</p>
-              <p className="mt-0.5 text-[11px] md:text-[11px] font-bold text-slate-500">Cabang terdaftar.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+              <p className="ui-stat-label">Total Outlet</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none" style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{branches.length}</p>
+              <p className="mt-1 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Cabang terdaftar</p>
             </div>
-            <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
-              <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Hasil Filter</p>
-              <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{filteredBranches.length}</p>
-              <p className="mt-0.5 text-[11px] md:text-[11px] font-bold text-slate-500">Outlet sesuai pencarian.</p>
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+              <p className="ui-stat-label">Hasil Filter</p>
+              <p className="mt-2 text-[24px] font-extrabold leading-none" style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{filteredBranches.length}</p>
+              <p className="mt-1 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Sesuai pencarian</p>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Branch Cards Grid */}
-      <section className="grid grid-cols-1 gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {/* ── BRANCH CARDS GRID ───────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filteredBranches.map((branch) => {
           const isSelected = branch.id === currentBranch.id;
-          const branchOrders = orders.filter((o) => o.branchId === branch.id || (!o.branchId && branch.isMainBranch));
-          const branchOmset = branchOrders.filter((o) => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.total, 0);
-          const branchOccupied = tables.filter((table) => (!table.branchId || table.branchId === branch.id) && table.status === 'OCCUPIED').length;
-          const branchTotalTables = tables.filter((table) => !table.branchId || table.branchId === branch.id).length;
-          const branchSelfOrderTables = tables.filter((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled).length;
+          const branchOrders = orders.filter(
+            (o) => o.branchId === branch.id || (!o.branchId && branch.isMainBranch),
+          );
+          const branchOmset = branchOrders.filter((o) => o.paymentStatus === 'PAID').reduce((s, o) => s + o.total, 0);
+          const branchOccupied = tables.filter(
+            (t) => (!t.branchId || t.branchId === branch.id) && t.status === 'OCCUPIED',
+          ).length;
+          const branchTotalTables = tables.filter((t) => !t.branchId || t.branchId === branch.id).length;
+          const branchSelfOrderTables = tables.filter(
+            (t) => (!t.branchId || t.branchId === branch.id) && t.isSelfOrderEnabled,
+          ).length;
 
           return (
             <div
               key={branch.id}
-              className={`flex flex-col justify-between rounded-xl md:rounded-2xl border p-4 md:p-5 transition shadow-sm ${
-                isSelected
-                  ? 'border-[var(--primary)] bg-[var(--primary-soft)] ring-2 ring-[var(--primary)]/10'
-                  : 'border-[var(--panel-border)] bg-white hover:border-[var(--primary)]'
-              }`}
+              className="flex flex-col justify-between rounded-2xl border p-4 transition"
+              style={{
+                borderColor: isSelected ? 'var(--primary)' : 'var(--panel-border)',
+                background: isSelected ? 'var(--primary-soft)' : 'var(--surface-card)',
+                boxShadow: isSelected ? '0 0 0 3px rgb(234 88 12 / 8%)' : 'var(--card-shadow)',
+              }}
             >
-              <div>
-                <div className="mb-3 md:mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="mb-1.5 md:mb-2 flex flex-wrap items-center gap-1.5">
-                      {branch.isMainBranch ? (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                          Pusat
-                        </span>
-                      ) : (
-                        <span className="rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                          Cabang
-                        </span>
-                      )}
-                      {isSelected && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--primary-hover)]">
-                          <CheckCircle2 className="h-2.5 w-2.5" />
-                          Aktif
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-base md:text-lg font-bold leading-tight text-[var(--text-primary)]">{branch.name}</h3>
-                    <p className="mt-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      {branch.code || 'OUTLET'}
-                    </p>
+              {/* Card header */}
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                    {branch.isMainBranch ? (
+                      <span className="ui-badge ui-badge-warning text-[10px]">Pusat</span>
+                    ) : (
+                      <span className="ui-badge text-[10px]">Cabang</span>
+                    )}
+                    {isSelected && (
+                      <span className="ui-badge ui-badge-info text-[10px] gap-1">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
+                        Aktif
+                      </span>
+                    )}
                   </div>
-                  <div className="flex h-9 w-9 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm">
-                    <Store className="h-4 w-4 md:h-5 md:w-5" />
-                  </div>
-                </div>
-
-                <div className="mb-3 md:mb-4 space-y-1.5 text-[11px] md:text-xs font-bold text-slate-600">
-                  <p className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[var(--primary-hover)]" />
-                    <span className="line-clamp-2">{branch.address}</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Phone className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0 text-[var(--primary-hover)]" />
-                    <span>{branch.phone}</span>
+                  <h3 className="text-[15px] font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{branch.name}</h3>
+                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                    {branch.code || 'OUTLET'}
                   </p>
                 </div>
-
-                {/* Readiness Checklist */}
-                <div className="mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 md:p-3 text-[11px] md:text-[11px] font-bold space-y-1">
-                  <p className="font-bold text-slate-800 uppercase tracking-wider text-[11px] md:text-[11px] border-b border-slate-200 pb-1">
-                    Checklist Readiness:
-                  </p>
-                  <div className="grid grid-cols-2 gap-1">
-                    <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                      ✓ {branchTotalTables} Meja ({branchSelfOrderTables} QR)
-                    </span>
-                    <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                      ✓ GPS: {branch.gpsLatitude ? 'Valid' : 'Standard'}
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-700 font-bold">
-                      • Printer: Ready
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-700 font-bold">
-                      • Pay: Cash/QRIS
-                    </span>
-                  </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4">
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Omset</p>
-                    <p className="text-sm md:text-base font-bold text-[var(--text-primary)]">Rp {branchOmset.toLocaleString('id-ID')}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Order</p>
-                    <p className="text-sm md:text-base font-bold text-[var(--text-primary)]">{branchOrders.length}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Meja Terisi</p>
-                    <p className="text-[11px] md:text-xs font-bold text-slate-700">{branchOccupied} / {branchTotalTables || 0}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Monitor</p>
-                    <p className="text-[11px] md:text-xs font-bold text-slate-700">{isSelected ? 'Dipantau' : 'Tersedia'}</p>
-                  </div>
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+                  style={{ background: 'var(--primary-gradient)' }}
+                >
+                  <Store className="h-5 w-5" />
                 </div>
               </div>
 
-              <div className="mt-3 md:mt-4 space-y-2 border-t border-slate-100 pt-3 md:pt-4">
+              {/* Address & Phone */}
+              <div className="mb-3 space-y-1" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <p className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: 'var(--primary-hover)' }} />
+                  <span className="line-clamp-2">{branch.address}</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--primary-hover)' }} />
+                  <span>{branch.phone}</span>
+                </p>
+              </div>
+
+              {/* Readiness checklist */}
+              <div
+                className="mb-3 rounded-xl border p-3"
+                style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', fontSize: '11px' }}
+              >
+                <p className="mb-1.5 font-bold uppercase tracking-wider pb-1 border-b" style={{ color: 'var(--text-primary)', borderColor: 'var(--panel-border)' }}>
+                  Checklist Readiness
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  <span className="flex items-center gap-1 font-bold text-emerald-700">✓ {branchTotalTables} Meja ({branchSelfOrderTables} QR)</span>
+                  <span className="flex items-center gap-1 font-bold text-emerald-700">✓ GPS: {branch.gpsLatitude ? 'Valid' : 'Standard'}</span>
+                  <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>• Printer: Ready</span>
+                  <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--text-secondary)' }}>• Pay: Cash/QRIS</span>
+                </div>
+              </div>
+
+              {/* Stats grid */}
+              <div
+                className="mb-3 grid grid-cols-2 gap-2 rounded-xl border p-3"
+                style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}
+              >
+                {[
+                  { label: 'Omset', value: `Rp ${branchOmset.toLocaleString('id-ID')}` },
+                  { label: 'Order', value: String(branchOrders.length) },
+                  { label: 'Meja Terisi', value: `${branchOccupied}/${branchTotalTables}` },
+                  { label: 'Monitor', value: isSelected ? 'Dipantau' : 'Tersedia' },
+                ].map((s) => (
+                  <div key={s.label} className="space-y-0.5">
+                    <p className="ui-stat-label">{s.label}</p>
+                    <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTAs */}
+              <div className="space-y-2 border-t pt-3" style={{ borderColor: 'var(--panel-border-light)' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    onSelectBranch(branch);
-                    onNavigateTab('pos');
-                  }}
-                  className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 md:py-3 text-[11px] md:text-[11px] font-bold transition cursor-pointer active:scale-95 ${
+                  onClick={() => { onSelectBranch(branch); onNavigateTab('pos'); }}
+                  className={`flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-bold transition cursor-pointer active:scale-95 ${
                     isSelected
-                      ? 'bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] text-white shadow-md shadow-orange-500/20 hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)]'
-                      : 'border border-[var(--panel-border)] bg-[var(--surface-secondary)] text-slate-800 hover:bg-white'
+                      ? 'text-white'
+                      : 'border text-slate-800'
                   }`}
+                  style={isSelected
+                    ? { background: 'var(--primary-gradient)', boxShadow: '0 4px 14px rgb(234 88 12 / 20%)' }
+                    : { borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }
+                  }
                 >
-                  <span>{isSelected ? 'Buka Terminal POS' : 'Pilih & Buka POS'}</span>
-                  <ArrowRight className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                  {isSelected ? 'Buka Terminal POS' : 'Pilih & Buka POS'}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
 
                 <a
-                  href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '1')}`}
+                  href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((t) => (!t.branchId || t.branchId === branch.id) && t.isSelfOrderEnabled)?.number || '1')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-3 py-2 md:py-2.5 text-[11px] md:text-[11px] font-bold text-[var(--primary-hover)] transition hover:bg-[var(--brand-100)] cursor-pointer"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold transition cursor-pointer"
+                  style={{ borderColor: 'var(--primary-border)', background: 'var(--primary-soft)', color: 'var(--primary-text)' }}
                 >
-                  <ExternalLink className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                  <span>Pratinjau Self-Order</span>
+                  <ExternalLink className="h-3 w-3" />
+                  Pratinjau Self-Order
                 </a>
               </div>
             </div>
           );
         })}
-      </section>
+      </div>
 
+      {/* Empty state */}
       {filteredBranches.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[var(--panel-border)] bg-white p-8 md:p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-2xl bg-[var(--primary-soft)] text-[var(--primary-hover)]">
+        <div className="ui-empty-state flex-col gap-3">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-2xl"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary-hover)' }}
+          >
             <Search className="h-5 w-5" />
           </div>
-          <h3 className="mt-3 md:mt-4 text-base md:text-lg font-bold text-[var(--text-primary)]">Outlet tidak ditemukan</h3>
-          <p className="mt-1.5 md:mt-2 text-xs md:text-sm font-medium text-[var(--text-secondary)]">
-            Ubah kata kunci pencarian atau tambahkan outlet baru.
-          </p>
+          <div>
+            <h3 className="text-[15px] font-bold" style={{ color: 'var(--text-primary)' }}>Outlet tidak ditemukan</h3>
+            <p className="mt-1 text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+              Ubah kata kunci pencarian atau tambahkan outlet baru.
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Add Outlet Modal */}
+      {/* ── ADD OUTLET MODAL ────────────────────────────────── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4 animate-fadeIn">
-          <div className="bg-white border border-[var(--panel-border)] w-full max-w-lg rounded-2xl p-4 md:p-5 relative overflow-hidden" style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)' }}>
-            <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3 md:pb-4 mb-3 md:mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[var(--primary-soft)] border border-[var(--brand-200)] flex items-center justify-center text-[var(--primary-hover)]">
-                  <Building2 className="w-4 h-4" />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
+          style={{ background: 'rgba(26,23,20,0.35)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border bg-white relative overflow-hidden"
+            style={{ borderColor: 'var(--panel-border)', boxShadow: '0 24px 60px rgba(0,0,0,0.14)' }}
+          >
+            {/* Modal header */}
+            <div
+              className="flex items-center justify-between border-b px-5 py-4"
+              style={{ borderColor: 'var(--panel-border-light)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border"
+                  style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-hover)' }}
+                >
+                  <Building2 className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm md:text-base font-bold text-[var(--text-primary)]">Tambah Outlet Baru</h3>
-                  <p className="text-[11px] md:text-[11px] text-[var(--text-tertiary)] font-medium">Daftarkan cabang baru ke sistem</p>
+                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Tambah Outlet Baru</h3>
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Daftarkan cabang baru ke sistem</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[var(--surface-card)] hover:bg-[var(--panel-border-light)] text-[var(--text-tertiary)] flex items-center justify-center transition-colors cursor-pointer border border-[var(--panel-border)]"
+                className="ui-icon-button h-8 w-8"
+                aria-label="Tutup modal"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateBranchSubmit} className="space-y-3">
+            {/* Modal body */}
+            <form onSubmit={handleCreateBranchSubmit} className="space-y-3 p-5">
               <div>
-                <label className="block text-[11px] md:text-[11px] font-semibold text-[var(--text-secondary)] mb-1">Nama Outlet / Cabang *</label>
+                <label className="mb-1 block text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Nama Outlet / Cabang *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Contoh: Bakso Ujo - Cabang Depok"
                   value={newBranchName}
                   onChange={(e) => setNewBranchName(e.target.value)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2.5 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20 transition-all font-medium"
+                  className="ui-input"
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] md:text-[11px] font-semibold text-[var(--text-secondary)] mb-1">Alamat Lengkap</label>
+                <label className="mb-1 block text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Alamat Lengkap
+                </label>
                 <textarea
                   rows={2}
                   placeholder="Contoh: Jl. Margonda Raya No. 120, Depok"
                   value={newBranchAddress}
                   onChange={(e) => setNewBranchAddress(e.target.value)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2.5 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20 transition-all font-medium resize-none"
+                  className="ui-input resize-none"
+                  style={{ paddingTop: '10px', paddingBottom: '10px', height: 'auto' }}
                 />
               </div>
-
               <div>
-                <label className="block text-[11px] md:text-[11px] font-semibold text-[var(--text-secondary)] mb-1">Nomor Telepon / WhatsApp</label>
+                <label className="mb-1 block text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Nomor Telepon / WhatsApp
+                </label>
                 <input
                   type="text"
                   placeholder="Contoh: 081298765432"
                   value={newBranchPhone}
                   onChange={(e) => setNewBranchPhone(e.target.value)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2.5 text-[var(--text-primary)] text-xs outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20 transition-all font-medium"
+                  className="ui-input"
                 />
               </div>
-
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
                   id="chk-main-branch"
                   checked={isMainBranchCheck}
                   onChange={(e) => setIsMainBranchCheck(e.target.checked)}
-                  className="w-4 h-4 rounded bg-[var(--surface-card)] border-[var(--panel-border)] text-[var(--primary-hover)] focus:ring-0 cursor-pointer accent-[var(--primary-solid)]"
+                  className="h-4 w-4 cursor-pointer rounded"
+                  style={{ accentColor: 'var(--primary)' }}
                 />
-                <label htmlFor="chk-main-branch" className="text-xs text-[var(--text-secondary)] font-medium cursor-pointer">
+                <label htmlFor="chk-main-branch" className="cursor-pointer text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
                   Jadikan Cabang Utama / Pusat
                 </label>
               </div>
 
-              <div className="pt-2 md:pt-3 flex items-center justify-end gap-2.5 border-t border-[var(--panel-border-light)]">
+              <div
+                className="flex items-center justify-end gap-2.5 border-t pt-4"
+                style={{ borderColor: 'var(--panel-border-light)' }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-[var(--surface-card)] hover:bg-[var(--panel-border-light)] text-[var(--text-secondary)] text-xs font-semibold transition-all cursor-pointer border border-[var(--panel-border)]"
+                  className="ui-button ui-button-secondary"
                 >
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white text-xs font-semibold transition-all cursor-pointer"
-                  style={{ boxShadow: '0 2px 8px rgba(234,88,12,0.25)' }}
-                >
+                <button type="submit" className="ui-button ui-button-primary">
                   Simpan Outlet
                 </button>
               </div>

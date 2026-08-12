@@ -1,6 +1,7 @@
 .app-shell, .ui-surface { background: var(--surface-main); color: var(--text-primary); }
 .ui-page { min-height: 100%; background: var(--surface-main); }
 
+/* ── Cards ──────────────────────────────────────────────────────────────── */
 .ui-card, .ui-panel, .glass-panel, .ios-card {
   border: 1px solid var(--panel-border);
   background: var(--surface-card);
@@ -9,6 +10,7 @@
 .ui-card, .ios-card { border-radius: var(--card-radius); }
 .ui-panel, .glass-panel { border-radius: var(--card-radius-lg); }
 .ui-card-interactive, .ios-card {
+  cursor: pointer;
   transition: border-color var(--transition-fast), box-shadow var(--transition-smooth), transform var(--transition-smooth);
 }
 .ui-card-interactive:hover, .ios-card:hover {
@@ -17,8 +19,7 @@
   transform: translateY(-1px);
 }
 
-/* Kartu sorotan: satu angka penting di atas oranye penuh, sisanya tetap putih.
-   Efeknya hilang kalau dipakai di banyak kartu sekaligus. */
+/* Hero card: gradient orange — use sparingly, one per screen */
 .ui-card-feature {
   border: 1px solid var(--brand-600);
   border-radius: var(--card-radius);
@@ -29,7 +30,17 @@
 .ui-card-feature .ui-stat-label { color: rgb(255 255 255 / 78%); }
 .ui-card-feature .ui-stat-value { color: var(--text-inverse); }
 
-/* Label kecil di atas, angka besar di bawah — urutan baca dari referensi. */
+/* Compact card — tighter padding for dense UIs like POS */
+.ui-card-compact {
+  border: 1px solid var(--panel-border);
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── KPI Stats ───────────────────────────────────────────────────────────── */
+/* Label kecil di atas, angka besar di bawah */
 .ui-stat-label {
   color: var(--text-secondary);
   font-size: 11px;
@@ -46,34 +57,67 @@
   line-height: 1.1;
 }
 
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
 .ui-button {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   padding: 0 18px;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 .ui-button:hover:not(:disabled) { transform: translateY(-1px); }
 .ui-button:active:not(:disabled) { transform: translateY(0) scale(0.985); }
-.ui-button:disabled { cursor: not-allowed; opacity: 0.48; }
+.ui-button:disabled { cursor: not-allowed; opacity: 0.46; }
+
 .ui-button-primary {
   border-color: var(--primary-solid);
   background: var(--primary-solid);
   color: var(--text-inverse);
-  box-shadow: 0 7px 18px rgb(234 88 12 / 22%);
+  box-shadow: 0 6px 16px rgb(255 91 34 / 20%);
 }
-.ui-button-primary:hover:not(:disabled) { border-color: var(--primary-pressed); background: var(--primary-pressed); }
-.ui-button-secondary { border-color: var(--panel-border); background: var(--surface-card); color: var(--text-primary); }
-.ui-button-secondary:hover:not(:disabled) { border-color: var(--brand-200); background: var(--brand-50); color: var(--primary-text); }
-.ui-button-soft { border-color: var(--primary-border); background: var(--primary-soft); color: var(--primary-text); }
-.ui-button-danger { border-color: #fecaca; background: var(--danger-soft); color: #b91c1c; }
+.ui-button-primary:hover:not(:disabled) {
+  border-color: var(--primary-pressed);
+  background: var(--primary-pressed);
+  box-shadow: 0 8px 20px rgb(255 91 34 / 28%);
+}
+.ui-button-secondary {
+  border-color: var(--panel-border);
+  background: var(--surface-card);
+  /* Hitam pekat berdiri terlalu keras di sebelah tombol oranye.
+     Abu hangat ini 5.0:1 — masih di atas ambang, jauh lebih menyatu. */
+  color: var(--text-secondary);
+}
+.ui-button-secondary:hover:not(:disabled) {
+  border-color: var(--brand-200);
+  background: var(--brand-50);
+  color: var(--primary-text);
+}
+.ui-button-soft {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+.ui-button-soft:hover:not(:disabled) {
+  background: var(--brand-100);
+}
+.ui-button-danger {
+  border-color: #fecaca;
+  background: var(--danger-soft);
+  color: #b91c1c;
+}
+.ui-button-danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
 
 .ui-icon-button {
   display: inline-flex;
@@ -86,10 +130,17 @@
   border-radius: var(--radius-pill);
   background: var(--surface-card);
   color: var(--text-secondary);
+  cursor: pointer;
   transition: var(--transition-fast);
 }
 .ui-icon-button:hover { border-color: var(--brand-200); background: var(--brand-50); color: var(--primary-text); }
 
+@media (max-width: 767px) {
+  .ui-button { min-height: 44px; }
+  .ui-icon-button { width: 44px; height: 44px; }
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
 .ui-input {
   min-height: 40px;
   width: 100%;
@@ -102,10 +153,15 @@
   transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .ui-input:hover { border-color: var(--panel-border-strong); }
-.ui-input:focus { border-color: var(--brand-400); background: var(--surface-card); box-shadow: 0 0 0 3px rgb(234 88 12 / 12%); outline: none; }
+.ui-input:focus {
+  border-color: var(--brand-400);
+  background: var(--surface-card);
+  box-shadow: 0 0 0 3px rgb(255 91 34 / 12%);
+  outline: none;
+}
 .ui-input::placeholder { color: var(--text-tertiary); }
 
-/* Filter periode dan sejenisnya: deretan pill, yang aktif berlatar gelap. */
+/* ── Tabs / Segmented ────────────────────────────────────────────────────── */
 .ui-tabs, .ios-segmented {
   display: inline-flex;
   align-items: center;
@@ -115,23 +171,40 @@
   background: var(--surface-secondary);
   padding: 4px;
 }
-.ui-tab, .ios-segmented-item-active {
-  min-height: 34px;
+
+/* Default tab active = dark/inverse (for cashier queue, etc.) */
+.ui-tab, .ios-segmented-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
   border-radius: var(--radius-pill);
   padding: 0 14px;
   font-size: 12px;
   font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
+.ui-tab:hover:not(.ui-tab-active) { color: var(--text-primary); }
 .ui-tab-active, .ios-segmented-item-active {
   background: var(--surface-inverse);
   color: var(--text-inverse);
   box-shadow: var(--shadow-sm);
 }
 
+/* Orange variant — use on dashboard/analytics where orange is primary CTA */
+.ui-tabs-orange .ui-tab-active {
+  background: var(--primary-solid);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px rgb(255 91 34 / 22%);
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
 .ui-badge {
   display: inline-flex;
-  min-height: 24px;
+  min-height: 22px;
   align-items: center;
   gap: 5px;
   border: 1px solid var(--panel-border);
@@ -142,36 +215,65 @@
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+  white-space: nowrap;
 }
-.ui-badge-info { border-color: var(--primary-border); background: var(--info-soft); color: var(--primary-text); }
-.ui-badge-success { border-color: #bbf7d0; background: var(--success-soft); color: var(--accent-green); }
-.ui-badge-warning { border-color: #fde68a; background: var(--warning-soft); color: #b45309; }
-.ui-badge-danger { border-color: #fecaca; background: var(--danger-soft); color: #b91c1c; }
+.ui-badge-info    { border-color: var(--primary-border);  background: var(--info-soft);    color: var(--primary-text); }
+.ui-badge-success { border-color: #bbf7d0;                background: var(--success-soft); color: var(--accent-green); }
+.ui-badge-warning { border-color: #fde68a;                background: var(--warning-soft); color: #b45309; }
+.ui-badge-danger  { border-color: #fecaca;                background: var(--danger-soft);  color: #b91c1c; }
 
+/* ── Chip — horizontal filter pill ──────────────────────────────────────── */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+.ui-chip:hover      { border-color: var(--primary-border); background: var(--primary-soft); color: var(--primary-text); }
+.ui-chip-active     { border-color: var(--primary);        background: var(--primary);       color: var(--text-inverse); box-shadow: 0 4px 10px rgb(255 91 34 / 22%); }
+
+/* ── Loading / Empty / Feedback ─────────────────────────────────────────── */
 .ui-skeleton {
   background: linear-gradient(90deg, #eeeef0 25%, #f8f8f9 50%, #eeeef0 75%);
   background-size: 200% 100%;
   animation: skeletonShimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
 }
+
 .ui-empty-state {
   display: flex;
   min-height: 180px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   border: 1px dashed var(--panel-border-strong);
   border-radius: var(--card-radius-lg);
   background: var(--surface-card);
   color: var(--text-secondary);
   text-align: center;
-}
-.active-indicator { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; }
-
-@media (max-width: 767px) {
-  .ui-button { min-height: 44px; }
-  .ui-icon-button { width: 44px; height: 44px; }
+  padding: 32px 24px;
 }
 
-/* Page-level heading — each view's top title bar */
+/* Inline active-state dot indicator */
+.active-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+/* ── Typography helpers ──────────────────────────────────────────────────── */
+/* Page-level heading */
 .ui-page-header {
   font-size: var(--font-heading);
   font-weight: var(--weight-heading);
@@ -189,16 +291,15 @@
   line-height: 1.3;
 }
 
-/* Compact card variant — tighter padding for dense UIs like POS */
-.ui-card-compact {
-  border: 1px solid var(--panel-border);
-  background: var(--surface-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  box-shadow: var(--shadow-xs);
+/* Muted meta / caption text */
+.ui-text-meta {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
 }
 
-/* Data table — striped, hover rows, clean borders */
+/* ── Data Table ──────────────────────────────────────────────────────────── */
 .ui-table {
   width: 100%;
   border-collapse: separate;
@@ -217,37 +318,40 @@
   border-bottom: 1px solid var(--panel-border);
 }
 .ui-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
-.ui-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+.ui-table th:last-child  { border-radius: 0 var(--radius-sm) 0 0; }
 .ui-table td {
   padding: 10px 14px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--panel-border-light);
   vertical-align: middle;
 }
-.ui-table tbody tr:hover { background: var(--surface-selected); }
+.ui-table tbody tr:hover td { background: var(--surface-selected); }
 .ui-table tbody tr:last-child td { border-bottom: none; }
 
-/* Form group — label + input wrapper */
-.ui-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+/* Numeric / currency column — right-align */
+.ui-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Form ────────────────────────────────────────────────────────────────── */
+.ui-form-group { display: flex; flex-direction: column; gap: 6px; }
 .ui-form-label {
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   color: var(--text-secondary);
   letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
-.ui-form-hint {
-  font-size: var(--font-caption);
-  color: var(--text-tertiary);
-}
+.ui-form-hint { font-size: var(--font-caption); color: var(--text-tertiary); }
 
-/* Divider line */
+/* ── Dividers ────────────────────────────────────────────────────────────── */
 .ui-divider {
   height: 1px;
   background: var(--panel-border-light);
   border: none;
   margin: var(--space-4) 0;
+}
+.ui-section-divider {
+  height: 1px;
+  background: var(--panel-border);
+  border: none;
+  margin: var(--space-6) 0;
 }

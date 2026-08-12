@@ -215,7 +215,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           }
         }}
         className={`p-1 rounded-lg cursor-pointer transition-colors ${
-          confirmingDeleteId === raw.id ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-rose-50'
+          confirmingDeleteId === raw.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
         }`}
         title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus item'}
       >
@@ -228,7 +228,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     <div className="flex items-center gap-0.5 md:gap-1">
       <button
         onClick={() => handleAdjustStock(raw, -1)}
-        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+        className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border transition-colors hover:bg-[var(--panel-border-strong)] md:h-6 md:w-6"
+          style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)', color: 'var(--text-secondary)' }}
         title="Kurangi stok"
       >
         <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
@@ -575,7 +576,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             })}
           </div>
         ) : (
-          <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]/90 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          <div className="divide-y overflow-hidden rounded-2xl border shadow-sm"
+            style={{ background: 'var(--surface-card)', borderColor: 'var(--panel-border)', borderTopColor: 'var(--panel-border)' }}>
             {filteredRawList.map((raw) => {
               const isLow = raw.stockQuantity <= raw.minStockThreshold;
 
@@ -648,14 +650,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   <div className="flex items-center gap-2 md:gap-3">
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" />}
                     <h3 className="font-bold text-xs md:text-sm text-[var(--text-primary)] uppercase">{cat}</h3>
-                    <span className="text-[11px] md:text-[11px] font-bold bg-slate-200/80 text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold md:text-[11px]"
+                      style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
                       {categoryItems.length}
                     </span>
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                     {categoryItems.map((item) => (
                       <div
                         key={item.id}
@@ -711,7 +714,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                                 }
                               }}
                               className={`p-1 md:p-1.5 rounded-lg cursor-pointer ${
-                                confirmingDeleteId === item.id ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-rose-50'
+          confirmingDeleteId === item.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
                               }`}
                               title={confirmingDeleteId === item.id ? 'Klik lagi untuk hapus' : 'Hapus Menu'}
                             >
@@ -745,7 +748,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             <div className="p-3 md:p-4 bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]">
               <p className="text-[11px] md:text-xs font-bold text-[var(--text-tertiary)]">Total Nilai Bahan Baku:</p>
-              <p className="text-lg md:text-xl font-bold text-emerald-600 mt-1">
+              <p className="mt-1 text-lg font-bold md:text-xl" style={{ color: 'var(--accent-green)' }}>
                 Rp {rawMaterials.reduce((acc, curr) => acc + (curr.stockQuantity * curr.costPerUnit), 0).toLocaleString('id-ID')}
               </p>
             </div>
@@ -761,7 +764,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
             <div className="p-3 md:p-4 bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]">
               <p className="text-[11px] md:text-xs font-bold text-[var(--text-tertiary)]">Bahan Baku Perlu Restock:</p>
-              <p className="text-lg md:text-xl font-bold text-rose-600 mt-1">{restockNeedCount} Item</p>
+              <p className="mt-1 text-lg font-bold md:text-xl" style={{ color: 'var(--accent-red)' }}>{restockNeedCount} Item</p>
             </div>
           </div>
         </div>
@@ -769,8 +772,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* EDIT MENU Modal */}
       {isEditMenuModalOpen && editingMenu && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
-          <form
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 backdrop-blur-md md:p-4"
+          style={{ background: 'rgba(24,24,27,0.38)' }}>          <form
             onSubmit={handleSaveMenuForm}
             className="bg-[var(--surface-card)] w-full max-w-3xl rounded-2xl p-4 md:p-6 shadow-[var(--shadow-md)] space-y-4 md:space-y-5 font-sans text-[var(--text-primary)] border border-[var(--panel-border)] max-h-[90vh] overflow-y-auto"
           >
@@ -779,7 +782,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEditMenuModalOpen(false)}
-                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-slate-200 rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-secondary)]"
+                style={{ color: 'var(--text-secondary)' }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -933,7 +937,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveIngredientFromRecipe(ing.rawMaterialId)}
-                            className="p-1 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
+            className="p-1 cursor-pointer rounded transition-colors"
+                          style={{ color: 'var(--accent-red)' }}
+                          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--danger-soft)'}
+                          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}
                           >
                             <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
                           </button>
@@ -963,8 +970,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* RIWAYAT PERGERAKAN STOK */}
       {ledgerMaterial && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
-          <div className="bg-[var(--surface-card)] w-full max-w-2xl rounded-2xl p-4 md:p-6 shadow-[var(--shadow-md)] font-sans text-[var(--text-primary)] border border-[var(--panel-border)] max-h-[88vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 backdrop-blur-md md:p-4"
+          style={{ background: 'rgba(24,24,27,0.38)' }}>          <div className="bg-[var(--surface-card)] w-full max-w-2xl rounded-2xl p-4 md:p-6 shadow-[var(--shadow-md)] font-sans text-[var(--text-primary)] border border-[var(--panel-border)] max-h-[88vh] flex flex-col">
             <div className="flex items-start justify-between border-b border-[var(--panel-border-light)] pb-3 gap-3">
               <div className="min-w-0">
                 <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight truncate">
@@ -990,7 +997,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               )}
 
               {ledgerState === 'ERROR' && (
-                <p className="py-10 text-center text-xs font-bold text-rose-500">{ledgerError}</p>
+                <p className="py-10 text-center text-[12px] font-bold" style={{ color: 'var(--accent-red)' }}>{ledgerError}</p>
               )}
 
               {ledgerState === 'IDLE' && ledgerRows.length === 0 && (
@@ -1001,7 +1008,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               )}
 
               {ledgerState === 'IDLE' && ledgerRows.length > 0 && (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                   {ledgerRows.map((row) => {
                     const isIn = row.quantity > 0;
                     return (
@@ -1016,7 +1023,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                           </p>
                         </div>
 
-                        <span className={`text-xs md:text-sm font-bold tabular-nums shrink-0 ${isIn ? 'text-emerald-600' : 'text-rose-600'}`}>
+        <span className={`shrink-0 text-[12px] font-bold tabular-nums md:text-sm ${isIn ? '' : ''}`}
+          style={{ color: isIn ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                           {isIn ? '+' : ''}{row.quantity.toLocaleString('id-ID')}
                         </span>
 
@@ -1035,8 +1043,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
       {/* EDIT / TAMBAH BAHAN BAKU Modal */}
       {isRawModalOpen && editingRaw && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-3 md:p-4">
-          <form
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 backdrop-blur-md md:p-4"
+          style={{ background: 'rgba(24,24,27,0.38)' }}>          <form
             onSubmit={handleSaveRawForm}
             className="bg-[var(--surface-card)] w-full max-w-md rounded-2xl p-4 md:p-6 shadow-[var(--shadow-md)] space-y-3 md:space-y-4 font-sans text-[var(--text-primary)] border border-[var(--panel-border)]"
           >
