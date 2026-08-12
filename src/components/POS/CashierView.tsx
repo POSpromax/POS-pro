@@ -114,32 +114,31 @@ const POSMenuItemCard: React.FC<{
           </div>
         )}
 
-        {/* Category badge — top left */}
-        <span className="absolute left-2 top-2 rounded-lg border border-white/60 bg-white/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"
-          style={{ color: 'var(--text-secondary)' }}>
-          {item.category}
-        </span>
-
-        {/* Stock badge — top right */}
-        <span className="absolute right-2 top-2 rounded-lg border border-white/50 bg-white/88 px-1.5 py-0.5 text-[10px] font-bold backdrop-blur-sm"
-          style={{ color: 'var(--text-primary)' }}>
-          {item.stockCount !== undefined ? item.stockCount : '∞'}
-        </span>
+        {/* Referensi membiarkan foto bersih tanpa badge menumpuk; kategori
+            sudah terbaca dari filter di atas dan stok pindah ke baris aksi. */}
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col justify-between gap-2 p-2.5">
-        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight"
-          style={{ color: 'var(--text-primary)' }}>
-          {item.name}
-        </h3>
-
-        {/* Price row + Add button */}
-        <div className="flex items-center justify-between gap-1 border-t pt-2"
-          style={{ borderColor: 'var(--panel-border-light)' }}>
-          <span className="tabular-nums text-[13px] font-extrabold"
+      {/* Body — mengikuti susunan referensi: nama di kiri dan harga di kanan
+          pada baris yang sama, lalu baris aksi di bawahnya. */}
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight"
             style={{ color: 'var(--text-primary)' }}>
+            {item.name}
+          </h3>
+          <span className="shrink-0 tabular-nums text-[13px] font-bold"
+            style={{ color: 'var(--primary)' }}>
             Rp {item.price.toLocaleString('id-ID')}
+          </span>
+        </div>
+
+        <p className="line-clamp-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+          {item.description || item.category}
+        </p>
+
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
+          <span className="tabular-nums text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            Stok {item.stockCount !== undefined ? item.stockCount : '∞'}
           </span>
 
           <button
@@ -154,7 +153,7 @@ const POSMenuItemCard: React.FC<{
                 onAddToCart(item);
               }
             }}
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all ${
+            className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all ${
               isPaidOrder
                 ? 'cursor-not-allowed bg-[var(--panel-border)] text-[var(--text-tertiary)]'
                 : 'cursor-pointer bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] active:scale-95'
@@ -162,7 +161,8 @@ const POSMenuItemCard: React.FC<{
             title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
             aria-label={`${shouldTriggerCondiments ? 'Pilih isian dan topping untuk' : 'Tambah'} ${item.name}`}
           >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <Plus className="h-3 w-3 stroke-[3]" />
+            Tambah
           </button>
         </div>
       </div>
@@ -766,53 +766,54 @@ export const CashierView: React.FC<CashierViewProps> = ({
               </div>
             ) : (
               cartItems.map((item) => (
-                <div key={item.id} className="rounded-lg border p-2 space-y-1"
-                  style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[12px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                      {item.menuName}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                      Rp {(item.price * item.quantity).toLocaleString('id-ID')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                      Rp {item.price.toLocaleString('id-ID')} × {item.quantity}
-                    </span>
+                /* Susunan referensi: nama di kiri dengan harga oranye di
+                   bawahnya, stepper di kanan — tanpa kotak berlatar. */
+                <div key={item.id} className="border-b pb-2" style={{ borderColor: 'var(--panel-border-light)' }}>
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                        {item.menuName}
+                      </p>
+                      <p className="tabular-nums text-[11px] font-bold" style={{ color: 'var(--primary)' }}>
+                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                        {item.quantity > 1 && (
+                          <span className="ml-1 font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                            ({item.quantity}×)
+                          </span>
+                        )}
+                      </p>
+                    </div>
 
                     {!isPaidOrder && (
-                      <div className="flex items-center gap-0.5 rounded-lg border p-0.5"
-                        style={{ background: 'var(--surface-card)', borderColor: 'var(--panel-border)' }}>
+                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg transition-colors"
-                          style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}
+                          className="flex h-6 w-6 items-center justify-center rounded-lg border transition-colors"
+                          style={{ borderColor: 'var(--panel-border)', color: 'var(--text-secondary)' }}
                           aria-label={`Kurangi ${item.menuName}`}
                         >
-                          <Minus className="h-2.5 w-2.5" />
+                          <Minus className="h-3 w-3" />
                         </button>
-                        <span className="min-w-[20px] text-center text-[11px] font-bold px-1" style={{ color: 'var(--text-primary)' }}>
+                        <span className="min-w-[18px] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg transition-all"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
                           style={{ background: 'var(--primary)', color: '#fff' }}
                           aria-label={`Tambah ${item.menuName}`}
                         >
-                          <Plus className="h-2.5 w-2.5" />
+                          <Plus className="h-3 w-3" />
                         </button>
                       </div>
                     )}
                   </div>
 
                   {item.notes && (
-                    <p className="text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>📝 {item.notes}</p>
+                    <p className="mt-0.5 text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>📝 {item.notes}</p>
                   )}
                   {item.selectedCondiments && item.selectedCondiments.length > 0 && (
-                    <p className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
                       {item.selectedCondiments.flatMap((g) => g.options).join(', ')}
                     </p>
                   )}
