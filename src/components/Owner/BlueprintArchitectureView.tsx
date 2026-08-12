@@ -197,7 +197,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
         </div>
 
         {/* OUTLET SELECTOR ROW */}
-        <div className="mt-6 pt-5 border-t border-[#F0E8E0]">
+        <div className="mt-6 pt-5 border-t border-[var(--panel-border-light)]">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-[var(--primary-hover)]" />
@@ -235,7 +235,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-[var(--text-primary)]">{br.name}</span>
                         {br.isHeadquarters && (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded border border-amber-300">
+                          <span className="bg-amber-100 text-amber-800 text-[11px] font-bold px-1.5 py-0.2 rounded border border-amber-300">
                             Pusat
                           </span>
                         )}
@@ -269,7 +269,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
         )}
 
         {/* Navigation Tabs for Sub-Blueprints */}
-        <div className="flex items-center gap-2 mt-6 pt-5 border-t border-[#F0E8E0] overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 mt-6 pt-5 border-t border-[var(--panel-border-light)] overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveSubBlueprint('PROFILE')}
@@ -354,7 +354,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {activeSubBlueprint === 'PROFILE' && (
         <div className="space-y-6">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#F0E8E0]">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-[var(--panel-border-light)]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-[var(--primary-hover)]" /> Pengaturan Identitas Resto & Cetak Struk
@@ -446,7 +446,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {activeSubBlueprint === 'LAYOUT' && (
         <div className="space-y-6">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[var(--panel-border-light)]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <Grid2X2 className="w-5 h-5 text-amber-500" /> Daftar & Status Meja Resto
@@ -504,11 +504,11 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                       </div>
 
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-[var(--panel-border)] flex flex-col items-center justify-center font-bold text-[var(--text-primary)]">
-                        <span className="text-[10px] text-[var(--text-tertiary)] uppercase">MEJA</span>
+                        <span className="text-[11px] text-[var(--text-tertiary)] uppercase">MEJA</span>
                         <span className="text-lg leading-none text-[var(--primary-hover)]">{cleanNumber}</span>
                       </div>
 
-                      <div className="w-full pt-2 border-t border-[#F0E8E0] flex items-center justify-between text-[11px] font-bold">
+                      <div className="w-full pt-2 border-t border-[var(--panel-border-light)] flex items-center justify-between text-[11px] font-bold">
                         <span className={isOccupied ? 'text-rose-700' : 'text-emerald-700'}>
                           {isOccupied ? 'Terisi' : 'Kosong'}
                         </span>
@@ -533,7 +533,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {activeSubBlueprint === 'MENU_TREE' && (
         <div className="space-y-6">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#F0E8E0]">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-[var(--panel-border-light)]">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <UtensilsCrossed className="w-5 h-5 text-[var(--primary-hover)]" /> Katalog Menu & Auto-Markup Online
@@ -649,7 +649,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {activeSubBlueprint === 'ACCESS_MATRIX' && (
         <div className="space-y-6">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
-            <div className="pb-4 mb-5 border-b border-[#F0E8E0]">
+            <div className="pb-4 mb-5 border-b border-[var(--panel-border-light)]">
               <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-rose-500" /> Matriks Otoritas & Hak Akses PIN Staff
               </h2>
@@ -723,7 +723,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {activeSubBlueprint === 'PAYMENT_GATEWAY' && (
         <div className="space-y-6">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm">
-            <div className="pb-4 mb-5 border-b border-[#F0E8E0]">
+            <div className="pb-4 mb-5 border-b border-[var(--panel-border-light)]">
               <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-teal-600" /> Metode Pembayaran & Pajak PB1
               </h2>
@@ -827,7 +827,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 </div>
                 <p className="text-xs text-[#8A8580]">Checklist ini mengarahkan urutan konfigurasi sebelum outlet menerima transaksi nyata.</p>
               </div>
-              <span className="rounded-full border border-[#F1C7B5] bg-[var(--primary-soft)] px-3 py-1.5 text-[11px] font-bold text-[var(--primary-hover)]">BLUEPRINT P0 / P1</span>
+              <span className="rounded-full border border-[var(--brand-200)] bg-[var(--primary-soft)] px-3 py-1.5 text-[11px] font-bold text-[var(--primary-hover)]">BLUEPRINT P0 / P1</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -846,7 +846,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">{item.title}</p>
                     <p className="text-[11px] leading-relaxed text-[#8A8580] mt-1">{item.detail}</p>
-                    <p className={`text-[10px] font-bold uppercase mt-2 ${item.ready ? 'text-[#55504C]' : 'text-[var(--primary-hover)]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
+                    <p className={`text-[11px] font-bold uppercase mt-2 ${item.ready ? 'text-[#55504C]' : 'text-[var(--primary-hover)]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
                   </div>
                 </div>
               ))}
@@ -879,7 +879,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-[#F1C7B5] bg-[var(--primary-soft)] p-4 flex items-start gap-3">
+          <div className="rounded-2xl border border-[var(--brand-200)] bg-[var(--primary-soft)] p-4 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[var(--primary-hover)] shrink-0" />
             <p className="text-xs leading-relaxed text-[#5F514A]"><strong>Batas keamanan:</strong> kontrol PIN dan lockout pada UI saat ini hanya untuk demonstrasi. Jangan memproses data biometrik atau pembayaran nyata sebelum seluruh P0 pada dokumen blueprint repository selesai.</p>
           </div>
@@ -890,7 +890,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       {isAddBranchModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-600/30 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-6 max-w-md w-full shadow-xl relative animate-fade-in">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#F0E8E0]">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--panel-border-light)]">
               <div className="flex items-center gap-2">
                 <Store className="w-5 h-5 text-[var(--primary-hover)]" />
                 <h3 className="text-base font-bold text-[var(--text-primary)]">Tambah Outlet / Cabang Baru</h3>
@@ -951,7 +951,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 />
               </div>
 
-              <div className="pt-4 border-t border-[#F0E8E0] flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-[var(--panel-border-light)] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddBranchModalOpen(false)}

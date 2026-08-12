@@ -75,7 +75,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
               </button>
               <span
                 className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-lg tracking-wider ${
-                  isSelfOrderSystemEnabled ? 'bg-[#FFF4EE] text-[#C94716]' : 'bg-slate-200 text-slate-600'
+                  isSelfOrderSystemEnabled ? 'bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'bg-slate-200 text-slate-600'
                 }`}
               >
                 {isSelfOrderSystemEnabled ? 'ON' : 'OFF'}
@@ -122,7 +122,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                     onClick={() => onToggleTableSelfOrder(tbl.id, !isEnabled)}
                     className={`py-2 px-1 rounded-2xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 select-none ${
                       isEnabled
-                        ? 'bg-[#FFF4EE] text-[#C94716] border-[#F1C7B5] hover:border-[#EA580C] shadow-sm'
+                        ? 'bg-[var(--primary-soft)] text-[var(--primary-text)] border-[var(--brand-200)] hover:border-[#EA580C] shadow-sm'
                         : 'bg-white text-slate-400 border-slate-200 opacity-60 hover:opacity-100'
                     }`}
                   >

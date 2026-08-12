@@ -274,13 +274,13 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
             return (
               <div key={card.title} className={`rounded-xl md:rounded-2xl border p-3 md:p-4 shadow-sm ${toneClass}`}>
                 <div className="mb-2 md:mb-3 flex items-center justify-between">
-                  <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">{card.title}</span>
+                  <span className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">{card.title}</span>
                   <div className={`flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-lg md:rounded-xl ${iconClass}`}>
                     <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   </div>
                 </div>
                 <p className="text-base md:text-xl font-bold tracking-tight text-slate-900">{card.value}</p>
-                <p className="mt-0.5 md:mt-1 text-[10px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.note}</p>
+                <p className="mt-0.5 md:mt-1 text-[11px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.note}</p>
               </div>
             );
           })}
@@ -324,7 +324,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                           {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />}
                           <span className="font-bold text-[11px] text-[var(--text-primary)]">{branch.name.replace('Bakso Ujo - ', '')}</span>
                           {branch.isMainBranch && (
-                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">PUSAT</span>
+                            <span className="text-[11px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">PUSAT</span>
                           )}
                         </div>
                       </td>
@@ -359,7 +359,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kontrol Utama</p>
               <h2 className="mt-1 text-base md:text-lg font-bold text-slate-900">Navigasi Owner</h2>
             </div>
-            <span className="rounded-full border border-[var(--brand-200)] bg-[var(--brand-50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary-text)]">
+            <span className="rounded-full border border-[var(--brand-200)] bg-[var(--brand-50)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--primary-text)]">
               Super-App
             </span>
           </div>
@@ -379,7 +379,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] md:text-xs font-bold text-slate-900">{card.title}</p>
-                    <p className="mt-0.5 text-[10px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.description}</p>
+                    <p className="mt-0.5 text-[11px] md:text-[11px] font-bold leading-relaxed text-slate-500">{card.description}</p>
                   </div>
                   <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:text-slate-900" />
                 </button>
@@ -413,14 +413,14 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
           <div className="mt-3 md:mt-4 grid gap-3 grid-cols-2">
             <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
-              <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Outlet</p>
+              <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Outlet</p>
               <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{branches.length}</p>
-              <p className="mt-0.5 text-[10px] md:text-[11px] font-bold text-slate-500">Cabang terdaftar.</p>
+              <p className="mt-0.5 text-[11px] md:text-[11px] font-bold text-slate-500">Cabang terdaftar.</p>
             </div>
             <div className="rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4 shadow-sm">
-              <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Hasil Filter</p>
+              <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Hasil Filter</p>
               <p className="mt-1.5 md:mt-2 text-xl md:text-2xl font-bold text-[var(--text-primary)]">{filteredBranches.length}</p>
-              <p className="mt-0.5 text-[10px] md:text-[11px] font-bold text-slate-500">Outlet sesuai pencarian.</p>
+              <p className="mt-0.5 text-[11px] md:text-[11px] font-bold text-slate-500">Outlet sesuai pencarian.</p>
             </div>
           </div>
         </div>
@@ -450,23 +450,23 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   <div>
                     <div className="mb-1.5 md:mb-2 flex flex-wrap items-center gap-1.5">
                       {branch.isMainBranch ? (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] md:text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-amber-800">
                           Pusat
                         </span>
                       ) : (
-                        <span className="rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-2 py-0.5 text-[10px] md:text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <span className="rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-600">
                           Cabang
                         </span>
                       )}
                       {isSelected && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] md:text-[10px] font-bold uppercase tracking-wider text-[var(--primary-hover)]">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--primary-hover)]">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           Aktif
                         </span>
                       )}
                     </div>
                     <h3 className="text-base md:text-lg font-bold leading-tight text-[var(--text-primary)]">{branch.name}</h3>
-                    <p className="mt-0.5 text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <p className="mt-0.5 text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       {branch.code || 'OUTLET'}
                     </p>
                   </div>
@@ -487,8 +487,8 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 </div>
 
                 {/* Readiness Checklist */}
-                <div className="mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 md:p-3 text-[10px] md:text-[11px] font-bold space-y-1">
-                  <p className="font-bold text-slate-800 uppercase tracking-wider text-[10px] md:text-[10px] border-b border-slate-200 pb-1">
+                <div className="mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 md:p-3 text-[11px] md:text-[11px] font-bold space-y-1">
+                  <p className="font-bold text-slate-800 uppercase tracking-wider text-[11px] md:text-[11px] border-b border-slate-200 pb-1">
                     Checklist Readiness:
                   </p>
                   <div className="grid grid-cols-2 gap-1">
@@ -510,19 +510,19 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3 md:p-4">
                   <div className="space-y-0.5">
-                    <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Omset</p>
+                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Omset</p>
                     <p className="text-sm md:text-base font-bold text-[var(--text-primary)]">Rp {branchOmset.toLocaleString('id-ID')}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Order</p>
+                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Order</p>
                     <p className="text-sm md:text-base font-bold text-[var(--text-primary)]">{branchOrders.length}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Meja Terisi</p>
+                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Meja Terisi</p>
                     <p className="text-[11px] md:text-xs font-bold text-slate-700">{branchOccupied} / {branchTotalTables || 0}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Monitor</p>
+                    <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-slate-400">Monitor</p>
                     <p className="text-[11px] md:text-xs font-bold text-slate-700">{isSelected ? 'Dipantau' : 'Tersedia'}</p>
                   </div>
                 </div>
@@ -549,7 +549,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                   href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((table) => (!table.branchId || table.branchId === branch.id) && table.isSelfOrderEnabled)?.number || '1')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-3 py-2 md:py-2.5 text-[10px] md:text-[11px] font-bold text-[var(--primary-hover)] transition hover:bg-[#FFE9DE] cursor-pointer"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--primary-border)] bg-[var(--primary-soft)] px-3 py-2 md:py-2.5 text-[11px] md:text-[11px] font-bold text-[var(--primary-hover)] transition hover:bg-[var(--brand-100)] cursor-pointer"
                 >
                   <ExternalLink className="h-2.5 w-2.5 md:h-3 md:w-3" />
                   <span>Pratinjau Self-Order</span>
@@ -561,12 +561,12 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
       </section>
 
       {filteredBranches.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[#D8D2CC] bg-white p-8 md:p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-2xl bg-[#FFF4EE] text-[var(--primary-hover)]">
+        <div className="rounded-2xl border border-dashed border-[var(--panel-border)] bg-white p-8 md:p-12 text-center">
+          <div className="mx-auto flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl md:rounded-2xl bg-[var(--primary-soft)] text-[var(--primary-hover)]">
             <Search className="h-5 w-5" />
           </div>
           <h3 className="mt-3 md:mt-4 text-base md:text-lg font-bold text-[var(--text-primary)]">Outlet tidak ditemukan</h3>
-          <p className="mt-1.5 md:mt-2 text-xs md:text-sm font-medium text-[#7A746F]">
+          <p className="mt-1.5 md:mt-2 text-xs md:text-sm font-medium text-[var(--text-secondary)]">
             Ubah kata kunci pencarian atau tambahkan outlet baru.
           </p>
         </div>
@@ -576,20 +576,20 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4 animate-fadeIn">
           <div className="bg-white border border-[var(--panel-border)] w-full max-w-lg rounded-2xl p-4 md:p-5 relative overflow-hidden" style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.12)' }}>
-            <div className="flex items-center justify-between border-b border-[#F0E8E0] pb-3 md:pb-4 mb-3 md:mb-4">
+            <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3 md:pb-4 mb-3 md:mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[#FFF4EE] border border-[#F1C7B5] flex items-center justify-center text-[var(--primary-hover)]">
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[var(--primary-soft)] border border-[var(--brand-200)] flex items-center justify-center text-[var(--primary-hover)]">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm md:text-base font-bold text-[var(--text-primary)]">Tambah Outlet Baru</h3>
-                  <p className="text-[10px] md:text-[11px] text-[var(--text-tertiary)] font-medium">Daftarkan cabang baru ke sistem</p>
+                  <p className="text-[11px] md:text-[11px] text-[var(--text-tertiary)] font-medium">Daftarkan cabang baru ke sistem</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[var(--surface-card)] hover:bg-[#F0E8E0] text-[var(--text-tertiary)] flex items-center justify-center transition-colors cursor-pointer border border-[var(--panel-border)]"
+                className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[var(--surface-card)] hover:bg-[var(--panel-border-light)] text-[var(--text-tertiary)] flex items-center justify-center transition-colors cursor-pointer border border-[var(--panel-border)]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -643,11 +643,11 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 </label>
               </div>
 
-              <div className="pt-2 md:pt-3 flex items-center justify-end gap-2.5 border-t border-[#F0E8E0]">
+              <div className="pt-2 md:pt-3 flex items-center justify-end gap-2.5 border-t border-[var(--panel-border-light)]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-[var(--surface-card)] hover:bg-[#F0E8E0] text-[var(--text-secondary)] text-xs font-semibold transition-all cursor-pointer border border-[var(--panel-border)]"
+                  className="px-4 py-2 rounded-xl bg-[var(--surface-card)] hover:bg-[var(--panel-border-light)] text-[var(--text-secondary)] text-xs font-semibold transition-all cursor-pointer border border-[var(--panel-border)]"
                 >
                   Batal
                 </button>

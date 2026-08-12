@@ -313,9 +313,9 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                   key={table.id}
                   className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-md ${
                     isOccupied
-                      ? 'bg-[#FFF0F1] border-[#F3CBD0] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
+                      ? 'bg-[var(--danger-soft)] border-[var(--accent-red)] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
                       : isArmed
-                        ? 'bg-[#EAF8F1] border-[#CCEBDC] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
+                        ? 'bg-[var(--success-soft)] border-[var(--accent-green)] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
                         : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-primary)] hover:border-[var(--panel-border-strong)]'
                   }`}
                 >
@@ -334,7 +334,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
                     {/* Status Pill Indicator */}
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm ${
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm ${
                         isOccupied
                           ? 'bg-rose-600 text-white'
                           : isArmed
@@ -358,7 +358,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         <p className="mt-0.5 truncate font-bold text-[var(--text-primary)]">
                           {activeOrderOnTable?.customerName || 'Tamu Resto'}
                         </p>
-                        <p className="text-[10px] text-[var(--text-tertiary)] font-medium">
+                        <p className="text-[11px] text-[var(--text-tertiary)] font-medium">
                           Total: Rp {(activeOrderOnTable?.total || 0).toLocaleString('id-ID')}
                         </p>
                       </div>
@@ -367,7 +367,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         <p className={`text-xs font-bold ${isArmed ? 'text-emerald-700' : 'text-[var(--text-secondary)]'}`}>
                           {isArmed ? 'Siap digunakan' : 'Belum diaktifkan'}
                         </p>
-                        <p className="text-[10px] text-[var(--text-tertiary)]">
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
                           {isArmed ? 'QR meja aktif, pelanggan bisa memesan' : 'Aktifkan dulu agar QR bisa dipakai'}
                         </p>
                       </div>

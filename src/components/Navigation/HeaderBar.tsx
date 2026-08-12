@@ -75,7 +75,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <span className="font-mono text-sm font-bold leading-none tracking-tight text-[var(--text-primary)]">
             {timeStr}
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
             {dateStr}
           </span>
         </div>
@@ -83,9 +83,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         <div
           id="btn-toggle-online-status"
           role="status"
-          className={`h-5 px-2 rounded-lg border flex items-center justify-center shrink-0 text-[10px] font-bold tracking-wider ${
+          className={`h-5 px-2 rounded-lg border flex items-center justify-center shrink-0 text-[11px] font-bold tracking-wider ${
             isOnline
-              ? 'bg-[#EAF8F1] text-[#168253] border-[#CCEBDC]'
+              ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border-[var(--accent-green)]'
               : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border-strong)]'
           }`}
           title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
@@ -130,11 +130,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             onClick={onOpenPrinterSetup}
             className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0 ${
               printerConfig.isConnected
-                ? 'bg-[var(--surface-secondary)] text-[var(--text-primary)] border-[var(--panel-border-strong)] hover:bg-[#E6EEFF]'
+                ? 'bg-[var(--surface-secondary)] text-[var(--text-primary)] border-[var(--panel-border-strong)] hover:bg-[var(--primary-soft)]'
                 : 'bg-[var(--surface-card)] text-[var(--primary-hover)] border-[var(--primary-border)] hover:bg-[var(--primary-soft)]'
             }`}
           >
-            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[var(--primary-hover)]' : 'text-[#E5484D]'}`} />
+            <Printer className={`w-3.5 h-3.5 ${printerConfig.isConnected ? 'text-[var(--primary-hover)]' : 'text-[var(--accent-red)]'}`} />
             <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
           </button>
         </div>

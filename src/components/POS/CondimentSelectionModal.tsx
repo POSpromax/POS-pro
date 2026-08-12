@@ -180,7 +180,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                         {group.name}
                       </h3>
                       {isRequired && (
-                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
+                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
                           *WAJIB
                         </span>
                       )}

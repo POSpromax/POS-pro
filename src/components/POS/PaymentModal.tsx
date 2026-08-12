@@ -192,8 +192,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="space-y-2">
               <div className="text-center pb-2 border-b border-dashed border-slate-300">
                 <p className="font-bold text-sm text-[var(--text-primary)]">{profile.name}</p>
-                <p className="text-[10px] text-slate-500 font-sans">{profile.address}</p>
-                <p className="text-[10px] text-slate-500 font-sans">{profile.phone}</p>
+                <p className="text-[11px] text-slate-500 font-sans">{profile.address}</p>
+                <p className="text-[11px] text-slate-500 font-sans">{profile.phone}</p>
               </div>
 
               <div className="py-1 border-b border-dashed border-slate-300 space-y-0.5">
@@ -237,7 +237,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
-            <div className="text-center pt-4 border-t border-dashed border-slate-300 text-[10px] text-slate-400 font-sans font-bold">
+            <div className="text-center pt-4 border-t border-dashed border-slate-300 text-[11px] text-slate-400 font-sans font-bold">
               TERIMA KASIH ATAS KUNJUNGAN ANDA
             </div>
           </div>

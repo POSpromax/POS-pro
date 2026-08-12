@@ -374,7 +374,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     📍 {currentBranch.address || profile.address || 'Jl. Re. Abdullah No.7-9, RT.01/RW.07, Pasirmulya BOGOR BARAT'}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
+                    <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
                       OPEN NOW
                     </span>
                   </div>
@@ -391,7 +391,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
               {/* Featured Promo Card */}
               <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/70 border border-amber-200/80 rounded-2xl p-5 space-y-1.5 relative overflow-hidden shadow-sm">
-                <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
                   <Sparkles className="w-3 h-3 text-orange-600" />
                   <span>FEATURED</span>
                 </div>
@@ -683,7 +683,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-amber-500 to-orange-600 flex flex-col items-center justify-center text-white p-2 text-center">
                                 <span className="text-2xl mb-0.5">🍲</span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.category}</span>
+                                <span className="text-[11px] font-bold uppercase tracking-wider">{item.category}</span>
                               </div>
                             )}
 
@@ -797,7 +797,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         {item.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
                           <span
                             key={i}
-                            className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-lg uppercase"
+                            className="text-[11px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-lg uppercase"
                           >
                             + {opt.name}
                           </span>
@@ -812,7 +812,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     )}
 
                     {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
-                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[10px] font-bold text-[#C55600]">
+                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[11px] font-bold text-[#C55600]">
                         {item.quantity > 1 ? 'Atur per porsi' : 'Ubah porsi ini'}
                       </button>
                     )}
@@ -931,7 +931,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                         {it.selectedCondiments && it.selectedCondiments.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-0.5">
                             {it.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
-                              <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-lg uppercase">
+                              <span key={i} className="text-[11px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-lg uppercase">
                                 {opt.name}
                               </span>
                             ))}

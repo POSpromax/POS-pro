@@ -139,8 +139,8 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] font-bold">
           <span className="ui-badge bg-[var(--surface-secondary)] text-[var(--text-secondary)]"><span className="h-2 w-2 rounded-full bg-[var(--text-tertiary)]" />Nonaktif</span>
-          <span className="ui-badge border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]"><span className="h-2 w-2 rounded-full bg-[#22A559]" />Siap</span>
-          <span className="ui-badge border-[#F4C6C8] bg-[#FDECEC] text-[#B4232A]"><span className="h-2 w-2 rounded-full bg-[#E5484D]" />Terisi</span>
+          <span className="ui-badge border-[var(--accent-green)] bg-[var(--success-soft)] text-[var(--accent-green)]"><span className="h-2 w-2 rounded-full bg-[var(--accent-green)]" />Siap</span>
+          <span className="ui-badge border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]"><span className="h-2 w-2 rounded-full bg-[var(--accent-red)]" />Terisi</span>
         </div>
       </div>
 
@@ -157,7 +157,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
         </label>
       </div>
 
-      {errorMessage && <div role="alert" className="mb-4 rounded-xl border border-[#F4C6C8] bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#B4232A]">{errorMessage}</div>}
+      {errorMessage && <div role="alert" className="mb-4 rounded-xl border border-[var(--accent-red)] bg-[var(--danger-soft)] px-4 py-3 text-xs font-bold text-[var(--accent-red)]">{errorMessage}</div>}
 
       {filteredTables.length === 0 ? (
         <div className="ui-card py-16 text-center"><Search className="mx-auto mb-2 h-8 w-8 text-[var(--text-tertiary)]" /><p className="text-sm font-bold">Nomor meja tidak ditemukan</p><p className="mt-1 text-xs text-[var(--text-secondary)]">Nomor meja boleh acak dan tidak harus berurutan.</p></div>
@@ -172,9 +172,9 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
             const tokenData = tableTokens[tableNumber];
             const busy = busyTable === table.id;
             const statusStyle = occupied
-              ? 'border-[#F4C6C8] bg-[#FDECEC] text-[#B4232A]'
+              ? 'border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]'
               : ready
-                ? 'border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]'
+                ? 'border-[var(--accent-green)] bg-[var(--success-soft)] text-[var(--accent-green)]'
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             return (
@@ -187,7 +187,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 <div className="p-3">
                   <div className="flex min-h-[168px] flex-col items-center justify-center rounded-xl border border-[var(--panel-border)] bg-[var(--surface-main)] p-3">
                     {tokenData ? (
-                      <><QrCodeCanvas value={tokenData.url} size={132} className="rounded-lg" /><p className="mt-2 flex items-center gap-1 text-[10px] font-bold text-[#187A42]"><ShieldCheck className="h-3 w-3" />Sesi generasi {table.qrGeneration || '-'}</p></>
+                      <><QrCodeCanvas value={tokenData.url} size={132} className="rounded-lg" /><p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-[var(--accent-green)]"><ShieldCheck className="h-3 w-3" />Sesi generasi {table.qrGeneration || '-'}</p></>
                     ) : (
                       <><ShieldCheck className="h-9 w-9 text-[var(--text-tertiary)]" /><p className="mt-2 text-center text-[11px] font-bold text-[var(--text-secondary)]">{ready || occupied ? 'QR tidak disimpan di browser. Rotasi untuk menampilkan lagi.' : 'Aktifkan meja untuk membuat QR sesi baru.'}</p></>
                     )}
@@ -200,7 +200,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
 
                   {tokenData && (
                     <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2">
-                      <button type="button" onClick={() => void copyLink(tableNumber, tokenData.url)} className="ui-button ui-button-secondary flex items-center justify-center gap-1 px-2 text-[11px]">{copiedTableNumber === tableNumber ? <Check className="h-3.5 w-3.5 text-[#22A559]" /> : <Copy className="h-3.5 w-3.5" />}{copiedTableNumber === tableNumber ? 'Tersalin' : 'Salin link'}</button>
+                      <button type="button" onClick={() => void copyLink(tableNumber, tokenData.url)} className="ui-button ui-button-secondary flex items-center justify-center gap-1 px-2 text-[11px]">{copiedTableNumber === tableNumber ? <Check className="h-3.5 w-3.5 text-[var(--accent-green)]" /> : <Copy className="h-3.5 w-3.5" />}{copiedTableNumber === tableNumber ? 'Tersalin' : 'Salin link'}</button>
                       <a href={tokenData.url} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--panel-border)] bg-white text-[var(--text-secondary)]" aria-label={`Buka Self-order Meja ${tableNumber}`} title="Buka self-order"><ExternalLink className="h-4 w-4" /></a>
                       <button type="button" onClick={() => onOpenCustomerSelfOrderModal(tableNumber, tokenData.token)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-hover)]" aria-label={`Simulasikan Self-order Meja ${tableNumber}`} title="Simulator self-order"><Smartphone className="h-4 w-4" /></button>
                     </div>
@@ -211,7 +211,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     <button type="button" onClick={() => void toggleSelfOrder(table)} disabled={busy} className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:opacity-50 ${table.isSelfOrderEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`} aria-label={`${table.isSelfOrderEnabled ? 'Matikan' : 'Aktifkan'} Self-order Meja ${tableNumber}`}>{table.isSelfOrderEnabled ? 'ON' : 'OFF'}</button>
                   </div>
 
-                  {(ready || occupied) && <button type="button" onClick={() => void deactivateTable(table)} disabled={busy} className="mt-2 min-h-9 w-full rounded-xl text-[11px] font-bold text-[#B4232A] hover:bg-[#FDECEC]">Nonaktifkan / revoke QR</button>}
+                  {(ready || occupied) && <button type="button" onClick={() => void deactivateTable(table)} disabled={busy} className="mt-2 min-h-9 w-full rounded-xl text-[11px] font-bold text-[var(--accent-red)] hover:bg-[var(--danger-soft)]">Nonaktifkan / revoke QR</button>}
                   {occupied && <button type="button" onClick={() => onClearTableStatus(tableNumber)} className="mt-1 min-h-9 w-full rounded-xl text-[11px] font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]">Perbaiki status lokal meja</button>}
                 </div>
               </article>
