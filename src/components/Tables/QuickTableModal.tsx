@@ -13,7 +13,8 @@ import {
   Lock,
   Unlock,
   Check,
-  RefreshCw
+  RefreshCw,
+  QrCode
 } from 'lucide-react';
 import { RestaurantTable, Order } from '../../types/pos';
 import { updateCloudTableSession } from '../../services/tableService';
@@ -32,6 +33,7 @@ interface QuickTableModalProps {
   onToggleAllSelfOrder?: (enabled: boolean) => void;
   onResetAllTablesToFree?: () => void;
   onAddNewTable?: (tableNumber: string, capacity: number) => void;
+  onOpenQrPrint?: () => void;
   onShowToast?: (title: string, message: string) => void;
 }
 
@@ -49,6 +51,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   onToggleAllSelfOrder,
   onResetAllTablesToFree,
   onAddNewTable,
+  onOpenQrPrint,
   onShowToast
 }) => {
   const [busyTable, setBusyTable] = useState<string | null>(null);
@@ -276,6 +279,18 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               <Smartphone className="w-3.5 h-3.5" />
               <span>Matikan Semua</span>
             </button>
+
+            {onOpenQrPrint && (
+              <button
+                type="button"
+                onClick={onOpenQrPrint}
+                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                title="Cetak label QR untuk ditempel di meja"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Cetak QR</span>
+              </button>
+            )}
 
             <button
               type="button"

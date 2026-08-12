@@ -63,6 +63,17 @@ export async function verifyQrToken(token: string, secret?: string): Promise<{ v
   }
 }
 
+// URL self-order STATIS untuk dicetak jadi label QR dan ditempel di meja.
+// Tidak membawa token berputar, jadi QR yang dicetak sekali tetap berlaku
+// selamanya — cukup branch + nomor meja. Terpisah dari manajemen/aktivasi meja.
+export function buildStaticSelfOrderUrl(baseUrl: string, branchId: string, tableNumber: string): string {
+  const url = new URL('/', baseUrl);
+  url.searchParams.set('selforder', 'true');
+  url.searchParams.set('branch', branchId);
+  url.searchParams.set('table', tableNumber);
+  return url.toString();
+}
+
 export function buildSelfOrderUrl(baseUrl: string, branchId: string, tableNumber: string, token: string): string {
   const url = new URL('/', baseUrl);
   url.searchParams.set('selforder', 'true');

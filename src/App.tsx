@@ -13,6 +13,7 @@ import { PaymentModal } from './components/POS/PaymentModal';
 import { ThermalReceiptModal } from './components/Printer/ThermalReceiptModal';
 import { CustomerTableManagementModal } from './components/SelfOrder/CustomerTableManagementModal';
 import { QuickTableModal } from './components/Tables/QuickTableModal';
+import { QrLabelPrintModal } from './components/Tables/QrLabelPrintModal';
 import { playNewOrderSound, playSelfOrderAlertSound } from './utils/audioNotification';
 import { BluetoothPrinterService } from './services/bluetoothPrinter';
 
@@ -733,6 +734,7 @@ export default function App() {
   const [isSelfOrderModalOpen, setIsSelfOrderModalOpen] = useState<boolean>(false);
   const [isTableManagementOpen, setIsTableManagementOpen] = useState<boolean>(false);
   const [isQuickTableModalOpen, setIsQuickTableModalOpen] = useState<boolean>(false);
+  const [isQrPrintOpen, setIsQrPrintOpen] = useState<boolean>(false);
   const [selectedSelfOrderTable, setSelectedSelfOrderTable] = useState<string>('1');
   const [selectedSelfOrderToken, setSelectedSelfOrderToken] = useState<string>('');
 
@@ -1783,7 +1785,16 @@ export default function App() {
         onToggleAllSelfOrder={handleToggleAllTables}
         onResetAllTablesToFree={handleResetAllTablesToFree}
         onAddNewTable={handleAddNewTable}
+        onOpenQrPrint={() => setIsQrPrintOpen(true)}
         onShowToast={showPushToast}
+      />
+
+      <QrLabelPrintModal
+        isOpen={isQrPrintOpen}
+        onClose={() => setIsQrPrintOpen(false)}
+        tables={branchTables}
+        currentBranch={currentBranch}
+        profile={profile}
       />
 
       <ThermalReceiptModal
