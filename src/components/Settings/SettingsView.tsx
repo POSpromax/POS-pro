@@ -452,7 +452,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               type="button"
               onClick={handleSaveAll}
-              className="w-full py-3.5 bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] text-white rounded-full font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer mt-4"
+              className="ui-button ui-button-primary w-full cursor-pointer mt-4"
             >
               <Save className="w-4 h-4" />
               <span>SIMPAN PERUBAHAN</span>
@@ -460,7 +460,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Right Main Form Content Panel */}
-          <div className="lg:col-span-3 bg-white border border-[var(--panel-border)] rounded-2xl p-6 shadow-sm min-h-[600px]">
+          <div className="ui-card lg:col-span-3 p-6 min-h-[600px]">
             {/* 1. PROFIL & BRAND (Matching Image 1) */}
             {activeTab === 'PROFILE' && (
               <div className="space-y-6">
@@ -1134,12 +1134,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div>
                       <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">MULAI SHIFT</span>
-                      <input type="time" value={newStaffShift} onChange={(e) => setNewStaffShift(e.target.value)} className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold" />
+                      <input type="time" value={newStaffShift} onChange={(e) => setNewStaffShift(e.target.value)} className="ui-input" />
                     </div>
 
                     <div>
                       <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">SELESAI SHIFT</span>
-                      <input type="time" value={newStaffShiftEnd} onChange={(e) => setNewStaffShiftEnd(e.target.value)} className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold" />
+                      <input type="time" value={newStaffShiftEnd} onChange={(e) => setNewStaffShiftEnd(e.target.value)} className="ui-input" />
                     </div>
 
                     <div>
@@ -2066,7 +2066,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-bold cursor-pointer shadow-md"
+                  className="ui-button ui-button-primary cursor-pointer"
                 >
                   Simpan Grup
                 </button>
@@ -2194,7 +2194,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-2xl font-bold text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 cursor-pointer"
+                className="ui-button ui-button-primary cursor-pointer"
               >
                 Simpan Perubahan
               </button>
@@ -2274,7 +2274,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowCondimentTips(false)}
-                className="px-5 py-2.5 bg-[var(--primary)] text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md cursor-pointer"
+                className="ui-button ui-button-primary cursor-pointer"
               >
                 Paham & Tutup
               </button>
