@@ -32,22 +32,23 @@
      Label kecil di atas putih tetap memakai --primary-text, bukan ini. */
   --primary-solid: var(--brand-500);
 
-  /* Warm off-white, bukan abu kebiruan — ini yang membuat referensi terasa
-     hangat dan tidak seperti template admin. */
-  --canvas-bg: #f7f7f5;
-  --canvas-bg-start: #fafaf8;
-  --canvas-bg-mid: #f5f5f3;
-  --canvas-bg-end: #fafaf8;
-  --surface-main: #f7f7f5;
+  /* Referensi hampir seluruhnya putih: latar halaman, kartu, dan sidebar
+     sama-sama putih, dipisahkan garis tipis — bukan oleh beda warna latar.
+     Latar krem sebelumnya yang membuat layar terasa kusam. */
+  --canvas-bg: #ffffff;
+  --canvas-bg-start: #ffffff;
+  --canvas-bg-mid: #fcfcfd;
+  --canvas-bg-end: #ffffff;
+  --surface-main: #fcfcfd;
   --surface-card: #ffffff;
-  --surface-secondary: #fafaf8;
+  --surface-secondary: #f6f6f7;
   --surface-selected: var(--brand-50);
   --surface-inverse: #20201e;
 
   --panel-bg: #ffffff;
-  --panel-border: #ecece8;
-  --panel-border-light: #f4f4f1;
-  --panel-border-strong: #deded9;
+  --panel-border: #ededee;
+  --panel-border-light: #f4f4f5;
+  --panel-border-strong: #dcdcde;
 
   --text-primary: #20201e;
   --text-secondary: #6f706b;

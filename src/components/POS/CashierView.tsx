@@ -87,12 +87,13 @@ const POSMenuItemCard: React.FC<{
           onAddToCart(item);
         }
       }}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] transition-all duration-200 select-none ${
+      // Kartu dipisahkan garis tipis, bukan bayangan — itu yang membuatnya
+      // terbaca bersih di atas latar putih, seperti pada referensi.
+      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border bg-[var(--surface-card)] transition-all duration-200 select-none ${
         isPaidOrder
           ? 'cursor-not-allowed border-[var(--panel-border)] opacity-60'
-          : 'cursor-pointer border-[var(--panel-border)] hover:-translate-y-0.5 hover:border-[var(--primary-border)] hover:shadow-[0_8px_24px_rgba(234,88,12,0.12)]'
+          : 'cursor-pointer border-[var(--panel-border)] hover:border-[var(--primary-border)] hover:shadow-[var(--shadow-sm)]'
       }`}
-      style={{ boxShadow: '0 1px 4px rgba(26,23,20,0.06)' }}
     >
       {/* Image area — taller, aspect-ratio consistent */}
       <div className="relative flex h-28 shrink-0 items-center justify-center overflow-hidden bg-[var(--surface-secondary)] sm:h-32 lg:h-36">
@@ -153,10 +154,10 @@ const POSMenuItemCard: React.FC<{
                 onAddToCart(item);
               }
             }}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all ${
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all ${
               isPaidOrder
                 ? 'cursor-not-allowed bg-[var(--panel-border)] text-[var(--text-tertiary)]'
-                : 'cursor-pointer bg-[var(--primary)] text-white shadow-[0_4px_10px_rgba(234,88,12,0.28)] hover:bg-[var(--primary-hover)] active:scale-95'
+                : 'cursor-pointer bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] active:scale-95'
             }`}
             title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
             aria-label={`${shouldTriggerCondiments ? 'Pilih isian dan topping untuk' : 'Tambah'} ${item.name}`}
