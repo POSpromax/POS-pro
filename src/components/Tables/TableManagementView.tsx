@@ -86,12 +86,15 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
     }
   };
 
+  const [confirmingDeactivateId, setConfirmingDeactivateId] = useState<string | null>(null);
+
   const deactivateTable = async (table: RestaurantTable) => {
+    if (confirmingDeactivateId !== table.id) {
+      setConfirmingDeactivateId(table.id);
+      return;
+    }
+    setConfirmingDeactivateId(null);
     const occupied = table.status === 'OCCUPIED';
-    const confirmed = window.confirm(occupied
-      ? `Meja ${table.number} masih memiliki bill aktif. Nonaktifkan QR secara paksa tanpa menghapus bill?`
-      : `Nonaktifkan sesi QR Meja ${table.number}? Foto QR sesi ini tidak akan berlaku lagi.`);
-    if (!confirmed) return;
     setBusyTable(table.id);
     setErrorMessage(null);
     try {
@@ -231,7 +234,20 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     <button type="button" onClick={() => void toggleSelfOrder(table)} disabled={busy} className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:opacity-50 ${table.isSelfOrderEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`} aria-label={`${table.isSelfOrderEnabled ? 'Matikan' : 'Aktifkan'} Self-order Meja ${tableNumber}`}>{table.isSelfOrderEnabled ? 'ON' : 'OFF'}</button>
                   </div>
 
-                  {(ready || occupied) && <button type="button" onClick={() => void deactivateTable(table)} disabled={busy} className="mt-2 min-h-9 w-full rounded-xl text-[11px] font-bold text-[var(--accent-red)] hover:bg-[var(--danger-soft)]">Nonaktifkan / revoke QR</button>}
+                  {(ready || occupied) && (
+                    <button
+                      type="button"
+                      onClick={() => void deactivateTable(table)}
+                      disabled={busy}
+                      className={`mt-2 min-h-9 w-full rounded-xl text-[11px] font-bold transition-all ${
+                        confirmingDeactivateId === table.id
+                          ? 'bg-[var(--accent-red)] text-white shadow-sm'
+                          : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
+                      }`}
+                    >
+                      {confirmingDeactivateId === table.id ? 'YAKIN NONAKTIFKAN QR?' : 'Nonaktifkan / revoke QR'}
+                    </button>
+                  )}
                   {occupied && <button type="button" onClick={() => onClearTableStatus(tableNumber)} className="mt-1 min-h-9 w-full rounded-xl text-[11px] font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]">Perbaiki status lokal meja</button>}
                 </div>
               </article>
