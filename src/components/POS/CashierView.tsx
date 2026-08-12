@@ -251,10 +251,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [customerName, setCustomerName] = useState<string>('Guest');
   const [selectedTable, setSelectedTable] = useState<string>('-');
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
-  const [cartItems, setCartItems] = useState<OrderItem[]>([
-    { id: 'sample-1', menuId: 'm1', menuName: 'Bakso Keju Komplit', price: 28000, quantity: 1, category: 'BAKSO' },
-    { id: 'sample-2', menuId: 'm2', menuName: 'Nasi', price: 7000, quantity: 1, category: 'TAMBAHAN' },
-  ]);
+  const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [taxValue, setTaxValue] = useState<number>(0);
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
@@ -277,7 +274,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   // Current loaded order check (for Paid / Read-Only handling)
   const currentEditingOrder = orders.find((o) => o.id === currentEditingOrderId);
-  const isPaidOrder = Boolean(currentEditingOrderId && (currentEditingOrder?.paymentStatus === 'PAID' || currentEditingOrder?.status === 'COMPLETED'));
+  const loadedStatus = String(currentEditingOrder?.status || '').toUpperCase();
+  const isLoadedClosed = loadedStatus === 'COMPLETED' || loadedStatus === 'CANCELLED'; // sudah selesai/batal
+  const isLoadedPaidActive = currentEditingOrder?.paymentStatus === 'PAID' && !isLoadedClosed; // LUNAS, menunggu diselesaikan
+  // Order terkunci (tidak bisa diedit/bayar ulang) bila sudah dibayar atau selesai.
+  const isPaidOrder = Boolean(currentEditingOrder && (isLoadedPaidActive || isLoadedClosed));
   const isShiftActiveForCurrentContext = currentShift.status === 'OPEN';
 
   if (!isShiftActiveForCurrentContext) {
@@ -416,87 +417,31 @@ export const CashierView: React.FC<CashierViewProps> = ({
   };
   const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
 
+  // Hanya order asli (berid cloud UUID atau order lokal yang sah). Kartu demo
+  // dihapus total karena berbenturan id dengan order lama di localStorage dan
+  // memicu 400 saat coba disinkron.
   const activeHoldOrders = orders.filter((o) => !isOrderClosed(o));
   const historyShiftOrders = orders.filter((o) => isOrderClosed(o));
   const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
 
-  // Demo fallback cards if orders list is empty — Unique Table Numbers (5 & 3)
-  const demoActiveCards: Order[] = [
-    {
-      id: 'ord-005',
-      orderNumber: 'POS-001',
-      dailyNumber: 1,
-      branchId: currentBranch.id,
-      branchName: currentBranch.name,
-      shiftId: currentShift.id,
-      customerName: 'ggn',
-      tableNumber: '5',
-      type: 'DINE_IN',
-      status: 'PENDING',
-      paymentStatus: 'UNPAID',
-      items: [
-        { id: 's1', menuId: 'm1', menuName: 'Bakso Keju Komplit', price: 28000, quantity: 1, category: 'BAKSO' },
-        { id: 's2', menuId: 'm2', menuName: 'Nasi', price: 7000, quantity: 1, category: 'TAMBAHAN' }
-      ],
-      subtotal: 35000,
-      discount: 0,
-      tax: 0,
-      serviceCharge: 0,
-      total: 35000,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      cashierId: activeUser.id,
-      cashierName: activeUser.name
-    },
-    {
-      id: 'ord-003',
-      orderNumber: 'POS-002',
-      dailyNumber: 2,
-      branchId: currentBranch.id,
-      branchName: currentBranch.name,
-      shiftId: currentShift.id,
-      customerName: 'green',
-      tableNumber: '3',
-      type: 'DINE_IN',
-      status: 'PENDING',
-      paymentStatus: 'UNPAID',
-      items: [
-        { id: 's3-1', menuId: 'm5', menuName: 'Bakso Komplit + TTLN & T.RANGU', price: 35000, quantity: 2, category: 'BAKSO' }
-      ],
-      subtotal: 70000,
-      discount: 0,
-      tax: 0,
-      serviceCharge: 0,
-      total: 70000,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      cashierId: activeUser.id,
-      cashierName: activeUser.name
-    }
-  ];
-
-  const queueListToRender = displayedOrders.length > 0 ? displayedOrders : demoActiveCards;
+  const queueListToRender = displayedOrders;
 
   const buildCurrentOrderDraft = (): Partial<Order> => ({
     id: currentEditingOrderId || `ord-${Date.now().toString().slice(-6)}`,
     orderNumber: currentEditingOrder?.orderNumber || `POS-${Date.now().toString().slice(-4)}`,
     branchId: currentBranch.id,
-    branchName: currentBranch.name,
     shiftId: currentShift.id,
     customerName,
     tableNumber: selectedTable !== '-' && selectedTable.trim() !== '' ? selectedTable.trim() : undefined,
     type: orderType,
-    status: currentEditingOrder?.status || 'PENDING',
+    status: currentEditingOrder?.status || 'NEW',
     paymentStatus: currentEditingOrder?.paymentStatus || 'UNPAID',
     items: cartItems,
     subtotal,
     discount: discountAmount,
     tax: taxAmount,
-    serviceCharge: 0,
     total,
     createdAt: currentEditingOrder?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    cashierId: activeUser.id,
     cashierName: activeUser.name
   });
 
@@ -553,7 +498,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     : { color: '#64748B' }
                 }
               >
-                Aktif ({activeHoldOrders.length || 2})
+                Aktif ({activeHoldOrders.length})
               </button>
               <button
                 type="button"
@@ -565,12 +510,23 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     : { color: '#64748B' }
                 }
               >
-                Riwayat ({historyShiftOrders.length || 3})
+                Riwayat ({historyShiftOrders.length})
               </button>
             </div>
 
             {/* Order Cards List — Ultra Compact & High-Density Sleek Queue Cards */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
+              {queueListToRender.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-1.5 select-none">
+                  <Receipt className="w-7 h-7 text-slate-300" />
+                  <p className="text-[11px] font-bold">
+                    {queueTab === 'ACTIVE' ? 'Belum ada pesanan aktif' : 'Belum ada riwayat pesanan'}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {queueTab === 'ACTIVE' ? 'Pesanan baru akan muncul di sini' : 'Pesanan selesai/batal muncul di sini'}
+                  </p>
+                </div>
+              )}
               {queueListToRender.map((order, idx) => {
                 const isSelected = currentEditingOrderId === order.id;
                 const paid = isOrderPaid(order);
@@ -955,7 +911,13 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <span>Simpan</span>
                 </button>
 
-                {isPaidOrder ? (
+                {isLoadedClosed ? (
+                  /* Order sudah selesai/batal: hanya penanda, tidak ada aksi. */
+                  <div className="flex-1 flex items-center justify-center gap-2 font-extrabold text-xs py-3 px-4 rounded-2xl bg-slate-100 text-slate-500 select-none">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{loadedStatus === 'CANCELLED' ? 'Pesanan Dibatalkan' : 'Pesanan Selesai'}</span>
+                  </div>
+                ) : isLoadedPaidActive ? (
                   /* Order yang dimuat sudah LUNAS: ganti tombol Bayar dengan
                      "Selesai Pesanan" agar tidak terjadi pembayaran ganda. */
                   <button

@@ -900,25 +900,17 @@ export default function App() {
     setOrders(localOrders);
     const found = localOrders.find((o) => o.id === orderId);
     const label = found ? formatOrderLabel(found, localOrders) : orderId;
-    if (cloudReadiness.supabase && isOnline) {
-      if (isCloudOrderId(orderId)) {
-        void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
-          .catch((error) => showPushToast('Update Dapur Tertunda', error instanceof Error ? error.message : 'Status tersimpan lokal.'));
-      } else {
-        // Order belum punya id cloud (POST sebelumnya gagal / dibuat offline).
-        // Kirim ulang sebagai order sehingga mendapat UUID cloud, lalu tukar id
-        // lokalnya. Tanpa ini, PATCH ke id lokal selalu ditolak 400 dan status
-        // tidak pernah tersiar realtime ke terminal lain.
-        const local = localOrders.find((o) => o.id === orderId);
-        if (local && local.source !== 'SELF_ORDER') {
-          void submitCloudOrder({ ...local, status: newStatus })
-            .then((saved) => {
-              DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((o) => o.id !== orderId && o.id !== saved.id)]);
-              setOrders(DBStorage.getOrders());
-            })
-            .catch((error) => showPushToast('Sinkronisasi Tertunda', error instanceof Error ? error.message : 'Order tersimpan lokal, menunggu koneksi stabil.'));
-        }
-      }
+    if (cloudReadiness.supabase && isOnline && isCloudOrderId(orderId)) {
+      // Hanya order berid cloud (UUID) yang bisa di-PATCH. Perubahannya tersiar
+      // realtime ke semua terminal lewat trigger database.
+      void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
+        .catch((error) => showPushToast('Update Dapur Tertunda', error instanceof Error ? error.message : 'Status tersimpan lokal.'));
+    } else if (isOnline && found && !isCloudOrderId(orderId) && found.source !== 'SELF_ORDER') {
+      // Order berid lokal belum ada di cloud — tidak bisa di-PATCH (pasti 400).
+      // Antrekan untuk dikirim ulang lewat Sinkronisasi, bukan POST langsung
+      // supaya tidak membanjiri error saat order belum valid.
+      DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: found, timestamp: Date.now() });
+      setPendingSyncCount(DBStorage.getOfflineQueue().length);
     }
     showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`);
   };
