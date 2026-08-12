@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { hashQrToken, verifyQrToken } from '../utils/qrToken';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
@@ -150,24 +149,23 @@ export async function handleOrderRequest(
   }
   if (source === 'SELF_ORDER' && (!table || !table.self_order_enabled)) return fail(403, 'Self-order tidak tersedia pada meja ini');
 
-  if (source === 'SELF_ORDER') {
-    const qrToken = String(input.qrToken || payload.qrToken || '');
-    if (!['READY', 'OCCUPIED'].includes(table.status)) return fail(403, 'Meja belum diaktifkan oleh kasir');
-    if (!qrToken) return fail(403, 'Sesi QR meja tidak ditemukan. Minta kasir mengaktifkan ulang meja.');
-    const secret = typeof process !== 'undefined' ? (process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '') : '';
-    const tokenResult = await verifyQrToken(qrToken, secret);
-    if (tokenResult.valid === false) return fail(403, tokenResult.error);
-    if (tokenResult.payload.branchId !== branchId || tokenResult.payload.tableNumber !== String(input.tableNumber))
-      return fail(403, 'Token tidak sesuai dengan meja ini');
-    if (tokenResult.payload.generation !== Number(table.qr_generation || 0)) return fail(403, 'Sesi QR meja sudah diganti oleh kasir');
-    if (await hashQrToken(qrToken) !== table.qr_token_hash) return fail(403, 'Sesi QR meja sudah dicabut');
-    if (table.status === 'OCCUPIED' && !table.active_order_id) return fail(409, 'Bill aktif meja perlu diperiksa oleh kasir');
-  }
+  // QR statis (cetak sekali, tempel di meja) tidak lagi membawa token berputar.
+  // Gerbang self-order cukup: meja mengaktifkan self-order (self_order_enabled,
+  // dikendalikan kasir per-meja/semua) dan cabang aktif — dicek di atas. Meja
+  // yang dinonaktifkan kasir otomatis punya self_order_enabled=false → ditolak.
 
+  // Self-order tidak punya konteks shift dari klien. Stempel dengan shift yang
+  // sedang OPEN di cabang supaya order muncul di antrean kasir & KDS (yang kini
+  // di-scope per shift). Bila tak ada shift terbuka, biarkan kosong.
+  let selfOrderShiftId = '';
   if (source === 'SELF_ORDER') {
     const since = new Date(Date.now() - 60_000).toISOString();
-    const { count } = await admin.from('orders').select('id', { count: 'exact', head: true }).eq('branch_id', branchId).eq('table_id', table.id).eq('source', 'SELF_ORDER').gte('created_at', since);
+    const [{ count }, { data: activeShift }] = await Promise.all([
+      admin.from('orders').select('id', { count: 'exact', head: true }).eq('branch_id', branchId).eq('table_id', table.id).eq('source', 'SELF_ORDER').gte('created_at', since),
+      admin.from('cashier_shifts').select('id').eq('branch_id', branchId).in('status', ['OPEN', 'HANDOVER']).order('opened_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
     if ((count || 0) >= 5) return fail(429, 'Terlalu banyak pesanan. Tunggu sebentar lalu coba lagi.');
+    selfOrderShiftId = activeShift?.id ? String(activeShift.id) : '';
   }
 
   const menuIds = [...new Set(input.items.map((item: any) => String(item.menuId || '')).filter((id: string) => UUID_PATTERN.test(id)))];
@@ -313,11 +311,11 @@ export async function handleOrderRequest(
     discount_amount: discount,
     tax_amount: tax,
     total_amount: total,
-    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || '', paymentMethod, cashPaid, change, tableNumber: tableNumStr }),
+    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || selfOrderShiftId || '', paymentMethod, cashPaid, change, tableNumber: tableNumStr }),
     payment_method: paymentMethod,
     paid_amount: cashPaid,
     change_amount: change,
-    shift_id: input.shiftId ? String(input.shiftId).slice(0, 100) : null,
+    shift_id: input.shiftId ? String(input.shiftId).slice(0, 100) : (selfOrderShiftId || null),
     cashier_name: actor?.name || 'Self Order',
   };
 

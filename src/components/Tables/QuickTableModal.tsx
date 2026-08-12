@@ -55,9 +55,12 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
   // Aktivasi harus lewat server: tombol yang hanya mengubah localStorage
   // membuat kasir mengira QR menyala padahal pelanggan tetap ditolak.
+  const [bulkBusy, setBulkBusy] = useState<boolean>(false);
+
   const runSession = async (
     table: RestaurantTable,
-    action: 'ACTIVATE' | 'ROTATE' | 'DEACTIVATE',
+    action: 'DEACTIVATE' | 'SET_ENABLED',
+    enabled = true,
     force = false,
   ) => {
     setBusyTable(table.id);
@@ -66,14 +69,18 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         action,
         branchId,
         tableNumber: table.number.replace(/^0+(?=\d)/, ''),
+        enabled,
         force,
       });
-      onTableUpdated(result.table);
+      if (result.table) onTableUpdated(result.table);
       if (onShowToast) {
-        const pesan = action === 'DEACTIVATE'
-          ? `QR Meja ${table.number} dicabut. Foto QR lama tidak berlaku lagi.`
-          : `Meja ${table.number} siap menerima pesanan dari HP pelanggan.`;
-        onShowToast(action === 'DEACTIVATE' ? 'Meja Dinonaktifkan' : 'Meja Diaktifkan', pesan);
+        const off = action === 'DEACTIVATE' || !enabled;
+        onShowToast(
+          off ? 'Self-Order Meja Dimatikan' : 'Self-Order Meja Aktif',
+          off
+            ? `Meja ${table.number} tidak menerima pesanan dari HP pelanggan.`
+            : `Meja ${table.number} siap menerima pesanan dari HP pelanggan.`,
+        );
       }
     } catch (error) {
       if (onShowToast) {
@@ -81,6 +88,25 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
       }
     } finally {
       setBusyTable(null);
+    }
+  };
+
+  // Aktifkan / nonaktifkan self-order untuk SEMUA meja cabang sekaligus.
+  const runBulk = async (enabled: boolean) => {
+    setBulkBusy(true);
+    try {
+      const result = await updateCloudTableSession({ action: 'SET_ENABLED_ALL', branchId, tableNumber: '', enabled });
+      (result.tables || []).forEach((t) => onTableUpdated(t));
+      if (onShowToast) {
+        onShowToast(
+          enabled ? 'Semua Meja Aktif' : 'Semua Meja Dimatikan',
+          enabled ? 'Semua meja kini menerima pesanan dari HP pelanggan.' : 'Self-order semua meja dimatikan.',
+        );
+      }
+    } catch (error) {
+      if (onShowToast) onShowToast('Gagal', error instanceof Error ? error.message : 'Status meja gagal diperbarui.');
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -229,16 +255,27 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               </button>
             )}
 
-            {onToggleAllSelfOrder && (
-              <button
-                type="button"
-                onClick={() => onToggleAllSelfOrder(true)}
-                className="bg-[var(--primary)]/30 hover:bg-[var(--primary-hover)]/50 text-[var(--primary-text)] border border-[var(--primary)]/40 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-[var(--primary-text)]" />
-                <span>Self-Order ON Semua</span>
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => void runBulk(true)}
+              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Aktifkan self-order untuk semua meja"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{bulkBusy ? '…' : 'Aktifkan Semua'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => void runBulk(false)}
+              className="bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Matikan self-order untuk semua meja"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Matikan Semua</span>
+            </button>
 
             <button
               type="button"
@@ -305,7 +342,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
               // Server menolak meja yang belum diaktifkan kasir, jadi status itu
               // harus terlihat berbeda — bukan ikut hijau seperti meja siap.
               const isArmed = table.status === 'READY';
-              const isIdle = !isOccupied && !isArmed;
+              const selfOrderOn = table.isSelfOrderEnabled !== false && table.status !== 'DISABLED';
               const isBusy = busyTable === table.id;
 
               return (
@@ -374,43 +411,32 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                     )}
                   </div>
 
-                  {/* Aktivasi QR meja — menembus ke server, bukan hanya menandai lokal */}
+                  {/* Aktivasi self-order per meja — menembus ke server */}
                   <div className="flex items-center justify-between border-t border-white/80 pt-1 text-[11px] font-bold gap-2">
                     <span className="text-[var(--text-tertiary)] flex items-center gap-1 shrink-0">
-                      <Smartphone className="w-3 h-3 text-[var(--primary-text)]" /> HP QR:
+                      <Smartphone className="w-3 h-3 text-[var(--primary-text)]" /> Self-Order:
                     </span>
                     <div className="flex items-center gap-1">
-                      {isIdle ? (
+                      {selfOrderOn ? (
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={() => void runSession(table, 'ACTIVATE')}
+                          onClick={() => void runSession(table, 'DEACTIVATE', false, isOccupied)}
+                          className="px-2.5 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+                          title="Matikan self-order untuk meja ini"
+                        >
+                          {isBusy ? '…' : 'MATIKAN'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void runSession(table, 'SET_ENABLED', true)}
                           className="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-all cursor-pointer"
-                          title="Aktifkan QR meja ini agar bisa dipakai memesan"
+                          title="Aktifkan self-order agar bisa dipesan dari HP pelanggan"
                         >
                           {isBusy ? '…' : 'AKTIFKAN'}
                         </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => void runSession(table, 'ROTATE')}
-                            className="px-2 py-1 rounded-lg font-bold bg-[var(--surface-secondary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 text-[var(--text-secondary)] transition-all cursor-pointer"
-                            title="Ganti QR dengan yang baru — foto QR lama langsung tidak berlaku"
-                          >
-                            {isBusy ? '…' : 'GANTI QR'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => void runSession(table, 'DEACTIVATE', isOccupied)}
-                            className="px-2 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
-                            title="Cabut QR meja ini"
-                          >
-                            CABUT
-                          </button>
-                        </>
                       )}
                     </div>
                   </div>

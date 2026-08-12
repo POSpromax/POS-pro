@@ -297,8 +297,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Keranjang Kosong', 'Keranjang belanja masih kosong!');
       return;
     }
-    if (!qrToken) {
-      toast('QR Belum Aktif', 'Minta kasir mengaktifkan meja dan scan QR sesi terbaru.');
+    if (!selectedTable || !selectedTable.trim()) {
+      toast('Pilih Meja', 'Silakan pilih nomor meja Anda terlebih dahulu.');
+      return;
+    }
+    if (selectedTableObj && selectedTableObj.isSelfOrderEnabled === false) {
+      toast('Meja Belum Aktif', 'Self-order untuk meja ini belum diaktifkan kasir. Silakan hubungi kasir.');
       return;
     }
 

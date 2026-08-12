@@ -30,20 +30,41 @@ export async function handleTableSessionRequest(
   const branchId = String(payload.branchId || '');
   const tableNumber = String(payload.tableNumber || '').trim();
   const action = String(payload.action || 'ACTIVATE').toUpperCase();
-  if (!UUID_PATTERN.test(branchId) || !tableNumber) return { status: 400, data: { error: 'Outlet atau nomor meja tidak valid' } };
+  if (!UUID_PATTERN.test(branchId) || (!tableNumber && action !== 'SET_ENABLED_ALL')) {
+    return { status: 400, data: { error: 'Outlet atau nomor meja tidak valid' } };
+  }
 
   const { data: member } = await admin.from('branch_members').select('role,is_active').eq('user_id', user.id).eq('branch_id', branchId).maybeSingle();
   if (!member?.is_active || !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'].includes(member.role)) {
     return { status: 403, data: { error: 'Akun tidak memiliki izin mengelola meja outlet ini' } };
   }
 
+  // Aktifkan / nonaktifkan self-order untuk SEMUA meja cabang sekaligus.
+  if (action === 'SET_ENABLED_ALL') {
+    const enabled = payload.enabled === true;
+    if (enabled) {
+      await admin.from('restaurant_tables').update({ self_order_enabled: true }).eq('branch_id', branchId);
+      await admin.from('restaurant_tables').update({ status: 'READY' }).eq('branch_id', branchId).eq('status', 'DISABLED');
+    } else {
+      // Jangan ganggu meja yang sedang terisi bill aktif.
+      await admin.from('restaurant_tables').update({
+        self_order_enabled: false, status: 'DISABLED', qr_token_hash: null, qr_revoked_at: new Date().toISOString(), active_order_id: null,
+      }).eq('branch_id', branchId).neq('status', 'OCCUPIED');
+    }
+    const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+    if (error) return { status: 500, data: { error: 'Pengaturan self-order semua meja gagal disimpan' } };
+    return { status: 200, data: { tables: (rows || []).map(mapTable) } };
+  }
+
   const { data: table } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
   if (!table) return { status: 404, data: { error: `Meja ${tableNumber} tidak ditemukan` } };
 
+  // Aktivasi self-order = flag self_order_enabled. Mengaktifkan meja yang
+  // sebelumnya DISABLED juga mengangkat statusnya kembali ke READY.
   if (action === 'SET_ENABLED') {
     const enabled = payload.enabled === true;
     const changes = enabled
-      ? { self_order_enabled: true }
+      ? { self_order_enabled: true, ...(table.status === 'DISABLED' ? { status: 'READY' } : {}) }
       : { self_order_enabled: false, status: 'DISABLED', qr_token_hash: null, qr_revoked_at: new Date().toISOString(), active_order_id: null };
     const { data: updated, error } = await admin.from('restaurant_tables').update(changes).eq('id', table.id).select('*').single();
     if (error) return { status: 500, data: { error: 'Pengaturan self-order meja gagal disimpan' } };
@@ -54,8 +75,11 @@ export async function handleTableSessionRequest(
     if (table.status === 'OCCUPIED' && payload.force !== true) {
       return { status: 409, data: { error: 'Meja masih memiliki bill aktif. Gunakan override terkonfirmasi untuk menonaktifkan.' } };
     }
+    // Menonaktifkan juga mematikan self-order supaya pelanggan tidak bisa
+    // memesan ke meja ini (gerbang order kini bergantung self_order_enabled).
     const { data: updated, error } = await admin.from('restaurant_tables').update({
       status: 'DISABLED',
+      self_order_enabled: false,
       qr_token_hash: null,
       qr_revoked_at: new Date().toISOString(),
       active_order_id: null,

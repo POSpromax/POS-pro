@@ -6,10 +6,11 @@ async function accessToken(): Promise<string> {
   return data.session?.access_token || '';
 }
 
-export type TableSessionAction = 'ACTIVATE' | 'ROTATE' | 'DEACTIVATE' | 'SET_ENABLED';
+export type TableSessionAction = 'ACTIVATE' | 'ROTATE' | 'DEACTIVATE' | 'SET_ENABLED' | 'SET_ENABLED_ALL';
 
 export interface TableSessionResponse {
-  table: RestaurantTable;
+  table?: RestaurantTable;
+  tables?: RestaurantTable[];
   token?: string;
   url?: string;
   expiresInHours?: number;
