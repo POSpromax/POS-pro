@@ -268,7 +268,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <Calendar className="w-3.5 h-3.5" /> Periode
           </span>
 
-          <div className="flex flex-wrap items-center gap-1 bg-slate-100 border border-slate-200/80 p-1 rounded-full">
+          <div className="flex flex-wrap items-center gap-1 bg-[var(--surface-secondary)] border border-[var(--panel-border)] p-1 rounded-full">
             {REPORT_PERIODS.map(({ key, label, hint }) => (
               <button
                 key={key}
@@ -278,8 +278,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 aria-pressed={period === key}
                 className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
                   period === key
-                    ? 'bg-[var(--primary)] text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[var(--primary)] text-[var(--text-inverse)] shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 {label}
@@ -294,82 +294,58 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="ui-tabs border-b border-[var(--panel-border)] pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('OVERVIEW')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'OVERVIEW'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'OVERVIEW' ? 'ui-tab-active' : ''}`}
         >
-          <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
+          <BarChart3 className="w-4 h-4" />
           Ringkasan & Grafik
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('TOP_ITEMS')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'TOP_ITEMS'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'TOP_ITEMS' ? 'ui-tab-active' : ''}`}
         >
-          <Flame className="w-4 h-4 text-[var(--brand-300)]" />
+          <Flame className="w-4 h-4" />
           Menu Terlaris ({topSellingList.length})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('VOID')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'VOID'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'VOID' ? 'ui-tab-active' : ''}`}
         >
-          <Ban className="w-4 h-4 text-rose-500" />
+          <Ban className="w-4 h-4" />
           Riwayat Void ({voidCount})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('TAX_DISCOUNT')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'TAX_DISCOUNT'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'TAX_DISCOUNT' ? 'ui-tab-active' : ''}`}
         >
-          <Receipt className="w-4 h-4 text-[var(--primary-text)]" />
+          <Receipt className="w-4 h-4" />
           Pajak & Diskon
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('SHIFT_HISTORY')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'SHIFT_HISTORY'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'SHIFT_HISTORY' ? 'ui-tab-active' : ''}`}
         >
-          <History className="w-4 h-4 text-[var(--primary-text)]" />
+          <History className="w-4 h-4" />
           Histori Shift ({shifts.length})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('ATTENDANCE_HISTORY')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'ATTENDANCE_HISTORY'
-              ? 'bg-[var(--primary)] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className={`ui-tab ${activeTab === 'ATTENDANCE_HISTORY' ? 'ui-tab-active' : ''}`}
         >
-          <UserCheck className="w-4 h-4 text-emerald-400" />
+          <UserCheck className="w-4 h-4" />
           Histori Presensi ({attendances.length})
         </button>
       </div>
@@ -377,35 +353,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TOTAL OMSET HARI INI</p>
-              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {grossOmset.toLocaleString('id-ID')}</p>
-              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-0.5">
+            <div className="ui-card ui-card-feature p-5 space-y-1">
+              <p className="ui-stat-label text-[var(--primary-soft)] opacity-90">TOTAL OMSET HARI INI</p>
+              <p className="ui-stat-value text-white">Rp {grossOmset.toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-white/80 flex items-center gap-0.5">
                 <ArrowUpRight className="w-3 h-3" /> Bersih (ex. tax): Rp {netOmset.toLocaleString('id-ID')}
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">STRUK TRANSAKSI LUNAS</p>
-              <p className="text-2xl font-bold text-slate-900">{totalTransactions} <span className="text-xs font-bold text-slate-400">Order</span></p>
-              <span className="text-[11px] font-bold text-[var(--primary-hover)] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">STRUK TRANSAKSI LUNAS</p>
+              <p className="ui-stat-value text-[var(--text-primary)]">{totalTransactions} <span className="text-xs font-bold text-[var(--text-tertiary)]">Order</span></p>
+              <span className="text-[11px] font-bold text-[var(--primary-text)] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE TUNAI (CASH)</p>
-              <p className="text-2xl font-bold text-emerald-600">Rp {cashTotal.toLocaleString('id-ID')}</p>
-              <span className="text-[11px] font-bold text-slate-400 block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">METODE TUNAI (CASH)</p>
+              <p className="ui-stat-value text-[var(--accent-green)]">Rp {cashTotal.toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">METODE NON-TUNAI (QRIS/DEBIT)</p>
-              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
-              <span className="text-[11px] font-bold text-slate-400 block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">METODE NON-TUNAI (QRIS/DEBIT)</p>
+              <p className="ui-stat-value text-[var(--primary-text)]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+            <div className="ui-card p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-[var(--primary-text)]" />
@@ -447,7 +423,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+            <div className="ui-card p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[var(--primary-text)]" />
@@ -461,7 +437,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   const pct = Math.round((item.revenue / maxHourlyRevenue) * 100);
                   return (
                     <div key={item.hourLabel} className="flex-1 flex flex-col items-center gap-1 group relative">
-                      <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[10px] font-bold p-1 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                      <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[11px] font-bold p-1 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
                         {item.hourLabel}: Rp {item.revenue.toLocaleString('id-ID')} ({item.count} order)
                       </div>
                       <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-28">
@@ -470,7 +446,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                           style={{ height: `${pct > 0 ? pct : 4}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 transform -rotate-45 origin-top-left mt-1">{item.hourLabel.slice(0, 2)}h</span>
+                      <span className="text-[11px] font-bold text-slate-400 transform -rotate-45 origin-top-left mt-1">{item.hourLabel.slice(0, 2)}h</span>
                     </div>
                   );
                 })}
@@ -479,7 +455,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
 
             {/* Tren omset per tanggal */}
-            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+            <div className="ui-card p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
@@ -499,7 +475,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         const isBest = day.revenue === maxDailyRevenue;
                         return (
                           <div key={day.key} className="flex-1 flex flex-col items-center gap-1 group relative min-w-[28px]">
-                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[10px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
+                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--primary)] text-white text-[11px] font-bold p-1.5 rounded-lg pointer-events-none whitespace-nowrap shadow-md z-10">
                               {day.label}: Rp {day.revenue.toLocaleString('id-ID')} ({day.count} order)
                             </div>
                             <div className="w-full bg-slate-100 rounded-t-md overflow-hidden flex items-end h-32">
@@ -508,7 +484,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                                 style={{ height: `${pct > 0 ? pct : 4}%` }}
                               />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
+                            <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap">{day.label.split(' ')[0]}</span>
                           </div>
                         );
                       })}
@@ -520,7 +496,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
 
             {/* Hari paling laris dalam seminggu */}
-            <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+            <div className="ui-card p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
@@ -552,7 +528,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         <span className="w-32 shrink-0 text-right text-[11px] font-bold text-slate-700 tabular-nums">
                           Rp {row.avgRevenue.toLocaleString('id-ID')}
                         </span>
-                        <span className="w-16 shrink-0 text-right text-[10px] font-bold text-slate-400 tabular-nums">
+                        <span className="w-16 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">
                           {row.count} order
                         </span>
                       </div>
@@ -569,7 +545,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'TOP_ITEMS' && (
-        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+        <div className="ui-card p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
@@ -646,7 +622,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         <td className="py-3 px-3 text-right font-bold text-slate-500">Rp {item.hppCost.toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right">
                           <span className="font-bold text-[var(--primary-text)] block">Rp {profit.toLocaleString('id-ID')}</span>
-                          <span className="text-[10px] font-bold text-emerald-600">Margin {marginPct}%</span>
+                          <span className="text-[11px] font-bold text-emerald-600">Margin {marginPct}%</span>
                         </td>
                       </tr>
                     );
@@ -661,24 +637,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'VOID' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-rose-200 bg-rose-50/40 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">TOTAL NOMINAL VOID</p>
-              <p className="text-2xl font-bold text-rose-600">Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-slate-400">Total nilai pesanan yang dibatalkan</p>
+            <div className="ui-card bg-[var(--danger-soft)] border-[var(--accent-red)] p-5 space-y-1">
+              <p className="ui-stat-label text-[var(--accent-red)]">TOTAL NOMINAL VOID</p>
+              <p className="ui-stat-value text-[var(--accent-red)]">Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-[var(--accent-red)] opacity-80">Total nilai pesanan yang dibatalkan</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">JUMLAH TRANSAKSI VOID</p>
-              <p className="text-2xl font-bold text-slate-900">{voidCount} <span className="text-xs text-slate-400 font-bold">Struk</span></p>
-              <p className="text-[11px] font-bold text-slate-400">Frekuensi pembatalan pesanan</p>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">JUMLAH TRANSAKSI VOID</p>
+              <p className="ui-stat-value">{voidCount} <span className="text-xs text-[var(--text-tertiary)] font-bold">Struk</span></p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Frekuensi pembatalan pesanan</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RASIO VOID vs TOTAL OMSET</p>
-              <p className="text-2xl font-bold text-amber-600">{grossOmset > 0 ? ((totalVoidNominal / grossOmset) * 100).toFixed(1) : 0}%</p>
-              <p className="text-[11px] font-bold text-slate-400">Toleransi VOID ideal &lt; 2%</p>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">RASIO VOID vs TOTAL OMSET</p>
+              <p className="ui-stat-value text-[var(--accent-amber)]">{grossOmset > 0 ? ((totalVoidNominal / grossOmset) * 100).toFixed(1) : 0}%</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Toleransi VOID ideal &lt; 2%</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+          <div className="ui-card p-6 space-y-4">
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <Ban className="w-5 h-5 text-rose-500" />
               Daftar Rincian Pesanan Dibatalkan (Void)
@@ -725,24 +701,24 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       {activeTab === 'TAX_DISCOUNT' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-[var(--brand-200)] bg-[var(--brand-50)]/40 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-[var(--primary-hover)] uppercase tracking-wider">TOTAL PAJAK RESTO (PB1)</p>
-              <p className="text-2xl font-bold text-[var(--primary-hover)]">Rp {totalTax.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-slate-400">Pajak restoran yang terkumpul</p>
+            <div className="ui-card bg-[var(--primary-soft)] border-[var(--primary-border)] p-5 space-y-1">
+              <p className="ui-stat-label text-[var(--primary-text)]">TOTAL PAJAK RESTO (PB1)</p>
+              <p className="ui-stat-value text-[var(--primary-text)]">Rp {totalTax.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-[var(--primary-text)] opacity-80">Pajak restoran yang terkumpul</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">TOTAL DISKON DIBERIKAN</p>
-              <p className="text-2xl font-bold text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-slate-400">Potongan harga promo & voucher</p>
+            <div className="ui-card bg-[var(--warning-soft)] border-amber-200 p-5 space-y-1">
+              <p className="ui-stat-label text-amber-700">TOTAL DISKON DIBERIKAN</p>
+              <p className="ui-stat-value text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-amber-700 opacity-80">Potongan harga promo & voucher</p>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SUBTOTAL KOTOR (GROSS)</p>
-              <p className="text-2xl font-bold text-slate-900">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-slate-400">Subtotal murni sebelum diskon & pajak</p>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">SUBTOTAL KOTOR (GROSS)</p>
+              <p className="ui-stat-value text-[var(--text-primary)]">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Subtotal murni sebelum diskon & pajak</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+          <div className="ui-card p-6 space-y-4">
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
               Audit Rincian Pajak & Diskon Per Struk
@@ -785,7 +761,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'SHIFT_HISTORY' && (
-        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+        <div className="ui-card p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
@@ -851,7 +827,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       )}
 
       {activeTab === 'ATTENDANCE_HISTORY' && (
-        <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)] shadow-sm space-y-4">
+        <div className="ui-card p-6 space-y-4">
           <div>
             <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-emerald-500" />
@@ -883,7 +859,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <tr key={att.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-3">
                         <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200">
-                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[10px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
+                          {att.photoUrl ? <img src={att.photoUrl} alt={att.staffName} className="w-full h-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-[var(--primary)] text-[11px] font-bold text-white">{att.staffName.slice(0, 2).toUpperCase()}</div>}
                         </div>
                       </td>
                       <td className="py-3 px-3 font-bold text-slate-900">{att.staffName}</td>
@@ -909,7 +885,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                       </td>
                       <td className="py-3 px-3 text-slate-600 text-[11px]">
                         {att.location}
-                        {att.gpsValidated && <span className="text-emerald-600 font-bold block text-[10px]">📍 GPS Valid</span>}
+                        {att.gpsValidated && <span className="text-emerald-600 font-bold block text-[11px]">📍 GPS Valid</span>}
                       </td>
                     </tr>
                   ))

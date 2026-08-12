@@ -107,6 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setMenuOpen(false);
   };
 
+
+
   const BubbleLabel = ({ children }: { children: React.ReactNode }) => (
     <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 z-[90] hidden -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-xl border border-[var(--panel-border)] bg-white px-3 py-2 text-[11px] font-semibold tracking-normal text-[var(--text-primary)] opacity-0 shadow-[0_10px_28px_rgba(26,23,20,0.12)] transition-all group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 md:block">
       {children}
@@ -126,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           type="button"
           onClick={onLogout}
           tabIndex={menuOpen ? 0 : -1}
-          className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F3C8CB] bg-[#FFF8F8] text-[#D93D43] transition hover:-translate-y-0.5 hover:bg-[#FDECEC] focus-visible:-translate-y-0.5"
+          className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--brand-200)] bg-[var(--danger-soft)] text-[var(--accent-red)] transition hover:-translate-y-0.5 hover:bg-[var(--danger-soft)] focus-visible:-translate-y-0.5"
           aria-label="Logout dan akhiri sesi petugas"
         >
           <LogOut className="h-[18px] w-[18px] stroke-[1.9]" />
@@ -151,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={() => onSwitchPortal(isOwnerMode ? 'KASIR' : 'OWNER')}
             tabIndex={menuOpen ? 0 : -1}
-            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-hover)] transition hover:-translate-y-0.5 hover:bg-[#E6EEFF] focus-visible:-translate-y-0.5"
+            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-hover)] transition hover:-translate-y-0.5 hover:bg-[var(--primary-soft)] focus-visible:-translate-y-0.5"
             aria-label={isOwnerMode ? 'Beralih ke Kasir' : 'Beralih ke portal Owner'}
           >
             {isOwnerMode ? <Store className="h-[18px] w-[18px] stroke-[1.9]" /> : <Crown className="h-[18px] w-[18px] stroke-[1.9]" />}
@@ -174,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition hover:-translate-y-0.5 focus-visible:-translate-y-0.5 ${
                 active
                   ? 'border-[var(--primary)] bg-[var(--primary)] text-white shadow-[0_8px_20px_rgba(234,88,12,0.22)]'
-                  : 'border-transparent bg-white text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[#F2F6FF] hover:text-[var(--primary-hover)]'
+                  : 'border-transparent bg-white text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary-hover)]'
               }`}
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
@@ -201,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {menuOpen ? <X className="h-5 w-5 stroke-[2]" /> : <CurrentIcon className="h-5 w-5 stroke-[1.9]" />}
         {!menuOpen && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-[var(--primary)]" />}
         {pendingSyncCount > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[10px] font-bold text-white ring-2 ring-[#F3F6FB]">
+          <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent-amber)] px-1 text-[11px] font-bold text-white ring-2 ring-[var(--surface-secondary)]">
             {pendingSyncCount}
           </span>
         )}

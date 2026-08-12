@@ -188,7 +188,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const TabIcon = cfg.icon;
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_#FFFFFF_0%,_#F2F2F1_48%,_#E8E8E6_100%)] p-4 font-sans select-none animate-fadeIn">
+    <main className="flex min-h-screen w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_var(--surface-card)_0%,_var(--surface-main)_48%,_var(--surface-secondary)_100%)] p-4 font-sans select-none animate-fadeIn">
       <div className="grid w-full max-w-[760px] overflow-hidden rounded-2xl border border-white/10 bg-white shadow-xl md:grid-cols-[0.9fr_1.1fr]">
         {/* Left Panel */}
         <section className="flex flex-col justify-between bg-[var(--primary)] p-7 text-white">
@@ -222,7 +222,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 <TabIcon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#F7A47D]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--brand-300)]">
                   {activeTab === 'ATTENDANCE' ? 'Attendance kiosk' : 'Secure terminal'}
                 </p>
                 <h2 className="text-lg font-bold tracking-tight">{cfg.subtitle}</h2>
@@ -280,11 +280,11 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
         {/* Right Panel — PIN Entry */}
         <section className="p-7 md:p-8">
           <div className="mb-6 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#99928C]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
               {activeBranch.code || 'OUTLET'}
             </p>
-            <h3 className="mt-1 text-xl font-bold text-[var(--text-primary)]">{cfg.description}</h3>
-            <p className="mt-1 text-[11px] font-medium text-[#918A84]">{cfg.hint}</p>
+            <h3 className="mt-1 text-xl font-extrabold text-[var(--text-primary)]">{cfg.description}</h3>
+            <p className="mt-1 text-[11px] font-medium text-[var(--text-tertiary)]">{cfg.hint}</p>
           </div>
 
           {/* Hidden input for physical keyboard / numpad */}
@@ -323,7 +323,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 className={`h-3.5 w-3.5 rounded-full border-2 transition-all ${
                   i < pinInput.length
                     ? 'scale-110 border-[var(--primary)] bg-[var(--primary)]'
-                    : 'border-[#D8D4D0] bg-[#F5F3F1]'
+                    : 'border-[var(--panel-border-strong)] bg-[var(--surface-secondary)]'
                 }`}
               />
             ))}
@@ -339,12 +339,12 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             ) : errorMessage ? (
               <p
                 role="alert"
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-[#F4C7B4] bg-[#FFF3ED] px-3 py-2 text-center text-[11px] font-bold text-[#C84412]"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--primary-border)] bg-[var(--primary-soft)] px-3 py-2 text-center text-[11px] font-bold text-[var(--primary-text)]"
               >
                 <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {errorMessage}
               </p>
             ) : (
-              <p className="text-center text-[11px] font-semibold text-[#AAA39D]">
+              <p className="text-center text-[11px] font-semibold text-[var(--text-tertiary)]">
                 Masukkan 6 digit PIN untuk masuk.
               </p>
             )}
@@ -358,7 +358,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 type="button"
                 onClick={() => handleKeyPress(digit)}
                 disabled={isVerifying}
-                className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[var(--primary)] active:text-white disabled:opacity-50"
+                className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] active:bg-[var(--primary)] active:text-white disabled:opacity-50"
               >
                 {digit}
               </button>
@@ -367,7 +367,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
               type="button"
               onClick={() => { resetEntry(); setErrorMessage(''); }}
               disabled={isVerifying}
-              className="h-12 rounded-2xl bg-[#F2F0EE] text-[10px] font-bold text-[#77706A] disabled:opacity-50"
+              className="h-12 rounded-2xl bg-[var(--surface-secondary)] text-[11px] font-bold text-[var(--text-tertiary)] disabled:opacity-50"
             >
               BERSIHKAN
             </button>
@@ -375,7 +375,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
               type="button"
               onClick={() => handleKeyPress('0')}
               disabled={isVerifying}
-              className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[#F3B393] hover:bg-[#FFF4EE] active:bg-[var(--primary)] active:text-white disabled:opacity-50"
+              className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] active:bg-[var(--primary)] active:text-white disabled:opacity-50"
             >
               0
             </button>
@@ -396,7 +396,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
           {/* Cloud indicator */}
           <div className="mt-4 text-center">
-            <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+            <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-wider ${
               useCloud
                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                 : 'bg-amber-50 text-amber-600 border border-amber-200'
@@ -410,7 +410,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 w-full py-2 text-[11px] font-bold text-[#918A84] hover:text-[var(--text-primary)]"
+              className="mt-4 w-full py-2 text-[11px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             >
               Batal dan kembali
             </button>

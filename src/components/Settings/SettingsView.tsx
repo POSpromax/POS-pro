@@ -279,7 +279,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Pengaturan Operasional</h1>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">CONTROL CENTER TOKO</p>
+              <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-widest">CONTROL CENTER TOKO</p>
             </div>
           </div>
 
@@ -296,22 +296,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="space-y-5">
             {/* UMUM */}
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2">UMUM</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">UMUM</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('PROFILE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'PROFILE'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Store className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Profil & Brand</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Identitas, Logo, Sosmed</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Identitas, Logo, Sosmed</p>
                   </div>
                 </button>
 
@@ -320,15 +320,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'LANDING'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Landing Self-Order</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Tampilan App Pelanggan</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Tampilan App Pelanggan</p>
                   </div>
                 </button>
               </div>
@@ -336,22 +336,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* OPERASIONAL */}
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2">OPERASIONAL</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">OPERASIONAL</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('KDS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'KDS'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Volume2 className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Dapur & KDS</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Timer, Alarm, Running Text</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Timer, Alarm, Running Text</p>
                   </div>
                 </button>
 
@@ -360,15 +360,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'STAFF'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Karyawan & Shift</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Absensi, GPS, Shift Staff</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Absensi, GPS, Shift Staff</p>
                   </div>
                 </button>
 
@@ -377,15 +377,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'CONDIMENTS'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Grid className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Daftar Isian / Topping</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Opsi Kuah, Isian, Paket</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Opsi Kuah, Isian, Paket</p>
                   </div>
                 </button>
               </div>
@@ -393,22 +393,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* SYSTEM */}
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2">SYSTEM</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">SYSTEM</p>
               <div className="space-y-2">
                 <button
                   onClick={() => setActiveTab('FINANCE')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'FINANCE'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Keuangan & Pajak</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Pajak, Service, Diskon</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Pajak, Service, Diskon</p>
                   </div>
                 </button>
 
@@ -417,15 +417,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'ACCESS'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Hak Akses</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Role & Permissions</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Role & Permissions</p>
                   </div>
                 </button>
 
@@ -434,15 +434,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'DATABASE'
                       ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-slate-600 hover:bg-white'
+                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-slate-200 text-slate-700'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
                     <Database className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Database & Reset</p>
-                    <p className="text-[11px] text-slate-500 font-bold">Reset & Maintenance</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Reset & Maintenance</p>
                   </div>
                 </button>
               </div>
@@ -490,7 +490,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Brand Fields */}
                   <div className="md:col-span-2 space-y-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+                      <label className="block text-[13px]-bold-1">
                         NAMA BRAND / RESTO
                       </label>
                       <input
@@ -502,33 +502,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+                      <label className="block text-[13px]-bold-1">
                         SLOGAN / TAGLINE
                       </label>
                       <input
                         type="text"
                         value={formProfile.tagline}
                         onChange={(e) => setFormProfile({ ...formProfile, tagline: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)] transition-all"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+                      <label className="block text-[13px]-bold-1">
                         ALAMAT LENGKAP
                       </label>
                       <textarea
                         rows={3}
                         value={formProfile.address}
                         onChange={(e) => setFormProfile({ ...formProfile, address: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)] transition-all resize-none"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] transition-all resize-none"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Social Media & Contact (Matching Image 1) */}
-                <div className="border-t border-[#F0E8E0] pt-6">
+                <div className="border-t border-[var(--panel-border)] pt-6">
                   <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-[var(--primary-hover)]" />
                     <span>KONTAK & SOSMED</span>
@@ -541,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="text"
                         value={formProfile.phone}
                         onChange={(e) => setFormProfile({ ...formProfile, phone: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)]"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                       />
                     </div>
 
@@ -551,7 +551,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="text"
                         value={formProfile.instagram}
                         onChange={(e) => setFormProfile({ ...formProfile, instagram: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)]"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                       />
                     </div>
 
@@ -561,7 +561,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="text"
                         value={formProfile.tiktok}
                         onChange={(e) => setFormProfile({ ...formProfile, tiktok: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)]"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                       />
                     </div>
                   </div>
@@ -577,10 +577,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Konfigurasi tampilan banner, wallpaper, dan review Google HP pelanggan.</p>
                 </div>
 
-                <div className="bg-white border border-[#E2E2E2] rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Aktifkan Customer Self-Order</p>
-                    <p className="text-[11px] text-[#8E8E8E] mt-0.5">Kontrol utama untuk seluruh QR meja di outlet aktif.</p>
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Kontrol utama untuk seluruh QR meja di outlet aktif.</p>
                   </div>
                   <button
                     type="button"
@@ -588,7 +588,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     className={`px-4 py-2 rounded-xl text-[11px] font-bold border ${
                       formProfile.isSelfOrderEnabled !== false
                         ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                        : 'bg-[#F5F5F5] text-[#666666] border-[#DDDDDD]'
+                        : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border)]'
                     }`}
                   >
                     {formProfile.isSelfOrderEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
@@ -602,7 +602,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[var(--primary-text)] uppercase mb-1">JUDUL PROMO</label>
+                    <label className="block text-[13px]-bold-1">JUDUL PROMO</label>
                     <input
                       type="text"
                       value={formProfile.promoBannerTitle || ''}
@@ -612,7 +612,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[var(--primary-text)] uppercase mb-1">DESKRIPSI</label>
+                    <label className="block text-[13px]-bold-1">DESKRIPSI</label>
                     <input
                       type="text"
                       value={formProfile.promoBannerDescription || ''}
@@ -640,7 +640,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       placeholder="URL Gambar Background..."
                       value={formProfile.wallpaperBackgroundUrl || ''}
                       onChange={(e) => setFormProfile({ ...formProfile, wallpaperBackgroundUrl: e.target.value })}
-                      className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none"
+                      className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none"
                     />
                   </div>
 
@@ -650,22 +650,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </h3>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase mb-1">URL MAPS</label>
+                      <label className="block text-[13px]-bold-1">URL MAPS</label>
                       <input
                         type="text"
                         value={formProfile.googleReviewUrl || ''}
                         onChange={(e) => setFormProfile({ ...formProfile, googleReviewUrl: e.target.value })}
-                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none"
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase mb-1">TEKS AJAKAN</label>
+                      <label className="block text-[13px]-bold-1">TEKS AJAKAN</label>
                       <input
                         type="text"
                         value={formProfile.googleReviewText || ''}
                         onChange={(e) => setFormProfile({ ...formProfile, googleReviewText: e.target.value })}
-                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none"
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none"
                       />
                     </div>
                   </div>
@@ -685,7 +685,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Batas Waktu Order */}
                   <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)] space-y-4">
                     <div className="flex items-center gap-2 text-[var(--text-secondary)] font-bold text-xs">
-                      <Clock className="w-4 h-4 text-amber-500" />
+                      <Clock className="w-4 h-4 text-[var(--accent-amber)]" />
                       <span>BATAS WAKTU ORDER</span>
                     </div>
 
@@ -696,10 +696,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         max={60}
                         value={formProfile.orderTimeLimitMinutes || 5}
                         onChange={(e) => setFormProfile({ ...formProfile, orderTimeLimitMinutes: Number(e.target.value) })}
-                        className="w-20 bg-white border border-slate-300 rounded-2xl p-3 text-2xl font-bold text-center text-[var(--text-primary)] outline-none"
+                        className="w-20 bg-white border border-[var(--panel-border)] rounded-2xl p-3 text-2xl font-bold text-center text-[var(--text-primary)] outline-none"
                       />
                       <div>
-                        <p className="text-xs font-bold text-slate-800 uppercase">MENIT SEBELUM</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)] uppercase">MENIT SEBELUM</p>
                         <p className="text-[11px] text-[var(--text-tertiary)] font-semibold">ALARM BERBUNYI</p>
                       </div>
                     </div>
@@ -725,7 +725,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           })
                         }
                         className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.soundNotificationsEnabled ? 'bg-[var(--primary)]' : 'bg-slate-300'
+                          formProfile.soundNotificationsEnabled ? 'bg-[var(--primary)]' : 'bg-[var(--panel-border)]'
                         }`}
                       >
                         <div
@@ -752,7 +752,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <select
                           value={formProfile.soundOrderBaru || 'High Alarm (Siren)'}
                           onChange={(e) => setFormProfile({ ...formProfile, soundOrderBaru: e.target.value })}
-                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                         >
                           <option value="High Alarm (Siren)">High Alarm (Siren)</option>
                           <option value="Kitchen Order">Kitchen Order</option>
@@ -774,7 +774,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <select
                           value={formProfile.soundPesananMasuk || 'Kitchen Order'}
                           onChange={(e) => setFormProfile({ ...formProfile, soundPesananMasuk: e.target.value })}
-                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                         >
                           <option value="Kitchen Order">Kitchen Order</option>
                           <option value="Success Chime">Success Chime</option>
@@ -795,7 +795,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <select
                           value={formProfile.soundPembayaranSukses || 'Success Chime'}
                           onChange={(e) => setFormProfile({ ...formProfile, soundPembayaranSukses: e.target.value })}
-                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                         >
                           <option value="Success Chime">Success Chime</option>
                           <option value="Cash Register Chime">Cash Register Chime</option>
@@ -816,7 +816,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <select
                           value={formProfile.soundCustomerOrder || 'Customer Order'}
                           onChange={(e) => setFormProfile({ ...formProfile, soundCustomerOrder: e.target.value })}
-                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                         >
                           <option value="Customer Order">Customer Order Bell</option>
                           <option value="Warning Beep">Warning Beep</option>
@@ -849,16 +849,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Manajemen staff, akses PIN, dan jadwal shift.</p>
                 </div>
 
-                <div className="bg-white border border-[#E2E2E2] rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">Aktifkan Absensi Outlet</p>
-                    <p className="text-[11px] text-[#8E8E8E] mt-0.5">Jika nonaktif, staff tidak dapat melakukan clock-in atau clock-out.</p>
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Jika nonaktif, staff tidak dapat melakukan clock-in atau clock-out.</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => window.open(`/attendance?branch=${encodeURIComponent(currentBranch.id)}`, '_blank', 'noopener,noreferrer')}
-                      className="flex items-center gap-1.5 rounded-xl border border-[#E2E2E2] bg-white px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] hover:bg-[#F5F5F5]"
+                      className="flex items-center gap-1.5 rounded-xl border border-[var(--panel-border)] bg-white px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" /> Buka Terminal
                     </button>
@@ -868,7 +868,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className={`px-4 py-2 rounded-xl text-[11px] font-bold border ${
                         formProfile.isAttendanceEnabled !== false
                           ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                          : 'bg-[#F5F5F5] text-[#666666] border-[#DDDDDD]'
+                          : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border)]'
                       }`}
                     >
                       {formProfile.isAttendanceEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
@@ -878,8 +878,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* Jadwal Shift & Toleransi Card (Matching Image 5) */}
                 <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                    <Clock className="w-4 h-4 text-amber-500" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
+                    <Clock className="w-4 h-4 text-[var(--accent-amber)]" />
                     <span>JADWAL SHIFT & TOLERANSI</span>
                   </div>
 
@@ -948,7 +948,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* Lokasi & GPS Absensi (Matching Image 6) */}
                 <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
                     <Compass className="w-4 h-4 text-[var(--primary-hover)]" />
                     <span>LOKASI & GPS ABSENSI</span>
                   </div>
@@ -960,7 +960,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="text"
                         value={formProfile.gpsLatitude || -6.609013171412514}
                         onChange={(e) => setFormProfile({ ...formProfile, gpsLatitude: Number(e.target.value) })}
-                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-slate-800"
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-[var(--text-primary)]"
                       />
                     </div>
 
@@ -971,7 +971,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           type="number"
                           value={formProfile.gpsRadiusMeters || 20}
                           onChange={(e) => setFormProfile({ ...formProfile, gpsRadiusMeters: Number(e.target.value) })}
-                          className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-800"
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-[var(--text-primary)]"
                         />
                         <span className="text-xs font-semibold text-[var(--text-tertiary)]">Meter</span>
                       </div>
@@ -983,13 +983,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="text"
                         value={formProfile.gpsLongitude || 106.78293233420759}
                         onChange={(e) => setFormProfile({ ...formProfile, gpsLongitude: Number(e.target.value) })}
-                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-slate-800"
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-[var(--text-primary)]"
                       />
                     </div>
 
                     <div className="flex flex-col justify-center space-y-2 pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-800">Wajib Foto Selfie</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">Wajib Foto Selfie</span>
                         <input
                           type="checkbox"
                           checked={formProfile.requireSelfiePhoto ?? true}
@@ -999,7 +999,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-800">Wajib GPS Aktif</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">Wajib GPS Aktif</span>
                         <input
                           type="checkbox"
                           checked={formProfile.requireGpsActive ?? true}
@@ -1024,9 +1024,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       href={`https://www.google.com/maps?q=${formProfile.gpsLatitude || -6.609013171412514},${formProfile.gpsLongitude || 106.78293233420759}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 border border-slate-200 px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                      className="text-xs font-bold text-[var(--text-primary)] hover:text-slate-900 bg-[var(--surface-secondary)] border border-[var(--panel-border)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                     >
-                      <ExternalLink className="w-4 h-4 text-slate-500" />
+                      <ExternalLink className="w-4 h-4 text-[var(--text-secondary)]" />
                       <span>🗺️ Lihat Titik di Google Maps</span>
                     </a>
                   </div>
@@ -1041,7 +1041,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 font-semibold">
+                  <p className="text-xs text-[var(--text-secondary)] font-semibold">
                     Tentukan hari libur rutin operasional outlet. Jika staf melakukan absensi pada hari libur, absensi akan dicatat sebagai Lembur / Ekstra Shift.
                   </p>
 
@@ -1068,11 +1068,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                             isOff
                               ? 'bg-rose-600 text-white shadow-md'
-                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                              : 'bg-white border border-[var(--panel-border)] text-[var(--text-primary)] hover:bg-[var(--surface-secondary)]'
                           }`}
                         >
                           <span>{d.label}</span>
-                          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-lg ${isOff ? 'bg-rose-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded-lg ${isOff ? 'bg-rose-700 text-white' : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`}>
                             {isOff ? 'LIBUR' : 'KERJA'}
                           </span>
                         </button>
@@ -1084,18 +1084,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {/* Daftar Staff & PIN (Matching Image 6) */}
                 <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
                       <Users className="w-4 h-4 text-[var(--primary-hover)]" />
                       <span>DAFTAR STAFF & PIN</span>
                     </div>
 
-                    <span className="rounded-full border border-[#E2E2E2] bg-white px-3 py-1.5 text-[11px] font-bold text-[#5A5A5A]">
+                    <span className="rounded-full border border-[var(--panel-border)] bg-white px-3 py-1.5 text-[11px] font-bold text-[var(--text-secondary)]">
                       {staffAccounts.length} akun terdaftar
                     </span>
                   </div>
 
                   {/* Form Tambah Staff */}
-                  <form onSubmit={handleAddStaff} className="bg-[var(--primary-soft)] border border-[#F1C7B5] rounded-2xl p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                  <form onSubmit={handleAddStaff} className="bg-[var(--primary-soft)] border border-[var(--brand-200)] rounded-2xl p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                     <div>
                       <span className="block text-[11px] font-semibold text-[var(--primary-hover)] uppercase mb-1">NAMA STAFF</span>
                       <input
@@ -1108,11 +1108,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-semibold text-[#5A5A5A] uppercase mb-1">OUTLET PENUGASAN</span>
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">OUTLET PENUGASAN</span>
                       <select
                         value={newStaffBranchId}
                         onChange={(e) => setNewStaffBranchId(e.target.value)}
-                        className="w-full bg-white border border-[#E2E2E2] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                       >
                         {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
                       </select>
@@ -1133,13 +1133,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-semibold text-[#5A5A5A] uppercase mb-1">MULAI SHIFT</span>
-                      <input type="time" value={newStaffShift} onChange={(e) => setNewStaffShift(e.target.value)} className="w-full bg-white border border-[#E2E2E2] rounded-xl px-3 py-2 text-xs font-bold" />
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">MULAI SHIFT</span>
+                      <input type="time" value={newStaffShift} onChange={(e) => setNewStaffShift(e.target.value)} className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold" />
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-semibold text-[#5A5A5A] uppercase mb-1">SELESAI SHIFT</span>
-                      <input type="time" value={newStaffShiftEnd} onChange={(e) => setNewStaffShiftEnd(e.target.value)} className="w-full bg-white border border-[#E2E2E2] rounded-xl px-3 py-2 text-xs font-bold" />
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">SELESAI SHIFT</span>
+                      <input type="time" value={newStaffShiftEnd} onChange={(e) => setNewStaffShiftEnd(e.target.value)} className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold" />
                     </div>
 
                     <div>
@@ -1169,7 +1169,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
                           <div className="flex items-center gap-3 min-w-0">
                             {stf.avatar ? (
-                              <img src={stf.avatar} alt={stf.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
+                              <img src={stf.avatar} alt={stf.name} className="w-10 h-10 rounded-xl object-cover border border-[var(--panel-border)]" />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--brand-200)] bg-[var(--brand-50)] text-xs font-bold text-[var(--primary-text)]">
                                 {stf.name.slice(0, 2).toUpperCase()}
@@ -1178,11 +1178,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-xs font-bold text-[var(--text-primary)] truncate">{stf.name}</p>
-                                <span className="px-1.5 py-0.5 rounded bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-hover)] font-mono text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-hover)] font-mono text-[11px] font-bold">
                                   {stf.role}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-slate-500 font-bold">{stf.shiftStart || '-'} – {stf.shiftEnd || '-'}</p>
+                              <p className="text-[11px] text-[var(--text-secondary)] font-bold">{stf.shiftStart || '-'} – {stf.shiftEnd || '-'}</p>
                             </div>
                           </div>
 
@@ -1208,7 +1208,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 }
                               }}
                               className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                                confirmingDeleteId === stf.id ? 'bg-rose-600 text-white' : 'text-rose-500 hover:bg-rose-50'
+                                confirmingDeleteId === stf.id ? 'bg-rose-600 text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
                               }`}
                               title={confirmingDeleteId === stf.id ? 'Klik lagi untuk hapus' : 'Hapus Staff'}
                             >
@@ -1218,14 +1218,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <button
                               type="button"
                               onClick={() => void Promise.resolve(onSaveStaff({ ...stf, isActive: stf.isActive === false })).catch(() => undefined)}
-                              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase cursor-pointer ${stf.isActive === false ? 'border-slate-300 text-slate-500 bg-slate-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50'}`}
+                              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase cursor-pointer ${stf.isActive === false ? 'border-[var(--panel-border)] text-[var(--text-secondary)] bg-[var(--surface-secondary)]' : 'border-emerald-200 text-[var(--accent-green)] bg-[var(--success-soft)]'}`}
                             >
                               {stf.isActive === false ? 'Nonaktif' : 'Aktif'}
                             </button>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-bold text-slate-500">
+                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-bold text-[var(--text-secondary)]">
                           <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2">Shift: {stf.shiftStart || '-'}–{stf.shiftEnd || '-'}</div>
                           <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2">PIN: ••••••</div>
                         </div>
@@ -1303,59 +1303,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {/* Group Header */}
                         <div
                           onClick={() => toggleAccordion(group.id)}
-                          className="p-4 flex items-center justify-between bg-[var(--surface-card)]/80 hover:bg-slate-100/80 cursor-pointer transition-colors"
+                          className="p-4 flex items-center justify-between bg-[var(--surface-card)]/80 hover:bg-[var(--surface-secondary)]/80 cursor-pointer transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-3.5 h-3.5 rounded-full bg-[var(--primary-solid)] shrink-0" />
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-sm font-bold text-[var(--text-primary)]">{group.name}</h3>
-                                <span className="bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-lg uppercase">
+                                <span className="bg-[var(--surface-secondary)] border border-[var(--panel-border)] text-[var(--text-secondary)] text-[11px] font-bold px-2 py-0.5 rounded-lg uppercase">
                                   MODE {group.mode}
                                 </span>
-                                <span className="text-xs text-slate-400 font-bold">• {group.options.length} Opsi</span>
+                                <span className="text-xs text-[var(--text-tertiary)] font-bold">• {group.options.length} Opsi</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <span className="bg-[var(--success-soft)] text-[var(--accent-green)] border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                               <span>🏷️</span>
                               <span>{targetCount} Target</span>
                             </span>
-                            {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-5 h-5 text-[var(--text-tertiary)]" />}
                           </div>
                         </div>
 
                         {/* Group Options Content matching Screenshot 5 */}
                         {isExpanded && (
-                          <div className="p-5 border-t border-[#F0E8E0] bg-white space-y-5 font-sans">
+                          <div className="p-5 border-t border-[var(--panel-border)] bg-white space-y-5 font-sans">
                             {/* Form Fields Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">NAMA GRUP</label>
+                                <label className="text-[13px]-bold-1">NAMA GRUP</label>
                                 <input
                                   type="text"
                                   value={group.name}
                                   onChange={(e) => onSaveCondimentGroup({ ...group, name: e.target.value })}
-                                  className="w-full bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                                  className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                                 />
                               </div>
 
                               <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">TIPE PILIHAN</label>
+                                <label className="text-[13px]-bold-1">TIPE PILIHAN</label>
                                 <div className="flex items-center gap-2 bg-[var(--surface-secondary)] p-1 rounded-2xl border border-[var(--panel-border)]">
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
                                   >
                                     Pilih 1 (Wajib)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-slate-500'}`}
+                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
                                   >
                                     Pilih Banyak (Opsi)
                                   </button>
@@ -1366,19 +1366,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             {/* Mode Pilihan & Berlaku Untuk */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">MODE PILIHAN</label>
+                                <label className="text-[13px]-bold-1">MODE PILIHAN</label>
                                 <div className="flex items-center gap-2 bg-[var(--surface-secondary)] p-1 rounded-2xl border border-[var(--panel-border)]">
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, isRequired: true })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[#FF5A1F] text-white shadow-md shadow-orange-500/20' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[var(--primary)] text-white shadow-md shadow-orange-500/20' : 'text-[var(--text-secondary)]'}`}
                                   >
                                     Wajib Pilih (Harus Ada)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, isRequired: false })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-sm' : 'text-[var(--text-secondary)]'}`}
                                   >
                                     Opsional (Boleh Kosong)
                                   </button>
@@ -1386,8 +1386,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               </div>
 
                               <div>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">TARGET KATEGORI (BISA LEBIH DARI 1)</label>
-                                <div className="flex min-h-11 flex-wrap gap-1.5 rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-1.5">
+                                <label className="text-[13px]-bold-1">TARGET KATEGORI (BISA LEBIH DARI 1)</label>
+                                <div className="flex min-h-11 flex-wrap gap-1.5 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1.5">
                                   {(['ALL', 'BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'MINUMAN', 'BUNDLING'] as CategoryType[]).map((category) => {
                                     const selected = selectedCategories.includes(category);
                                     return (
@@ -1402,7 +1402,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                               : [...selectedCategories.filter((item) => item !== 'ALL'), category];
                                           onSaveCondimentGroup({ ...group, targetCategory: undefined, targetCategories: next });
                                         }}
-                                        className={`rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-colors ${selected ? 'bg-[var(--primary)] text-white' : 'bg-white text-slate-500 hover:text-[var(--primary-hover)]'}`}
+                                        className={`rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-colors ${selected ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--text-secondary)] hover:text-[var(--primary-hover)]'}`}
                                       >
                                         {category === 'ALL' ? 'SEMUA' : category}
                                       </button>
@@ -1413,21 +1413,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
 
                             <div>
-                              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">LABEL RINGKAS DI DAPUR</label>
+                              <label className="text-[13px]-bold-1">LABEL RINGKAS DI DAPUR</label>
                               <input
                                 type="text"
                                 placeholder="Contoh: CAMPUR (kosongkan untuk tampilkan daftar penuh)"
                                 value={group.allSelectedLabel || ''}
                                 onChange={(event) => onSaveCondimentGroup({ ...group, allSelectedLabel: event.target.value.toUpperCase() })}
-                                className="w-full rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                                className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                               />
-                              <p className="mt-1 text-[11px] font-bold text-slate-400">
+                              <p className="mt-1 text-[11px] font-bold text-[var(--text-tertiary)]">
                                 Saat kasir memilih semua opsi grup ini, tiket dapur hanya menampilkan label tersebut.
                               </p>
                             </div>
 
                             <div>
-                              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">TARGET MENU ITEM (BISA LEBIH DARI 1)</label>
+                              <label className="text-[13px]-bold-1">TARGET MENU ITEM (BISA LEBIH DARI 1)</label>
                               <select
                                 value=""
                                 onChange={(event) => {
@@ -1435,7 +1435,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   if (!productId || selectedProductIds.includes(productId)) return;
                                   onSaveCondimentGroup({ ...group, targetProductIds: [...selectedProductIds, productId] });
                                 }}
-                                className="w-full rounded-2xl border border-[#E7E5E4] bg-[#F5F5F4] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#FF5A1F] focus:bg-white"
+                                className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                               >
                                 <option value="">+ Pilih menu item...</option>
                                 {menuItems.filter((item) => item.isAvailable && !item.isManualPrice && !selectedProductIds.includes(item.id)).map((item) => (
@@ -1453,18 +1453,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     );
                                   })}
                                   {selectedProductNames.map((productName) => (
-                                    <button key={`legacy-${productName}`} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductNames: selectedProductNames.filter((name) => name !== productName) })} className="flex items-center gap-1 rounded-full border border-[var(--panel-border)] bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                                    <button key={`legacy-${productName}`} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductNames: selectedProductNames.filter((name) => name !== productName) })} className="flex items-center gap-1 rounded-full border border-[var(--panel-border)] bg-white px-2.5 py-1 text-[11px] font-bold text-[var(--text-secondary)]">
                                       {productName} <X className="h-3 w-3" />
                                     </button>
                                   ))}
                                 </div>
                               )}
-                              <p className="mt-1.5 text-[11px] font-semibold text-slate-400">Kategori dan menu item digabungkan. Grup muncul jika salah satu target cocok.</p>
+                              <p className="mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">Kategori dan menu item digabungkan. Grup muncul jika salah satu target cocok.</p>
                             </div>
 
                             {/* Options List Tags */}
                             <div>
-                              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">DAFTAR OPSI / PILIHAN</label>
+                              <label className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-2">DAFTAR OPSI / PILIHAN</label>
 
                               <div className="flex items-center gap-2 mb-3">
                                 <input
@@ -1472,14 +1472,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   placeholder="Ketik nama pilihan (misal: Bakso Halus)..."
                                   value={newOptionNames[group.id] || ''}
                                   onChange={(e) => setNewOptionNames({ ...newOptionNames, [group.id]: e.target.value })}
-                                  className="flex-1 bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[#FF5A1F] focus:bg-white"
+                                  className="flex-1 bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white"
                                 />
                                 <input
                                   type="number"
                                   placeholder="Harga (+Rp)"
                                   value={newOptionPrices[group.id] || ''}
                                   onChange={(e) => setNewOptionPrices({ ...newOptionPrices, [group.id]: Number(e.target.value) })}
-                                  className="w-28 bg-[#F5F5F4] border border-[#E7E5E4] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-[#FF5A1F] focus:bg-white"
+                                  className="w-28 bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white"
                                 />
                                 <button
                                   type="button"
@@ -1497,7 +1497,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     className={`border rounded-full text-xs font-bold flex items-center gap-1.5 transition-all ${
                                       editingOptionId === opt.id
                                         ? 'bg-white border-[var(--primary)] px-2 py-0.5 shadow-sm'
-                                        : 'bg-slate-100 border-slate-200 px-3 py-1 text-slate-800'
+                                        : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] px-3 py-1 text-[var(--text-primary)]'
                                     }`}
                                   >
                                     {editingOptionId === opt.id ? (
@@ -1539,7 +1539,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <button
                                           type="button"
                                           onClick={() => setEditingOptionId(null)}
-                                          className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                          className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] cursor-pointer"
                                           title="Batal"
                                         >
                                           <X className="w-3.5 h-3.5" />
@@ -1557,7 +1557,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                           title="Klik untuk edit nama"
                                         >
                                           <span>{opt.name.toUpperCase()}</span>
-                                          <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100" />
+                                          <Edit2 className="w-3 h-3 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100" />
                                         </button>
                                         {opt.price > 0 && <span className="text-[var(--primary-hover)] font-mono">+Rp{opt.price.toLocaleString('id-ID')}</span>}
                                         <button
@@ -1566,7 +1566,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             const updatedOpts = group.options.filter((o) => o.id !== opt.id);
                                             onSaveCondimentGroup({ ...group, options: updatedOpts });
                                           }}
-                                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                          className="text-[var(--text-tertiary)] hover:text-[var(--accent-red)] cursor-pointer"
                                           title="Hapus opsi"
                                         >
                                           <X className="w-3.5 h-3.5" />
@@ -1594,7 +1594,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 className={`px-4 py-2 border font-bold text-xs rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors ${
                                   confirmingDeleteId === group.id
                                     ? 'bg-rose-600 border-rose-700 text-white'
-                                    : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600'
+                                    : 'bg-[var(--danger-soft)] hover:bg-rose-100 border-rose-200 text-[var(--accent-red)]'
                                 }`}
                               >
                                 <Trash2 className="w-4 h-4" /> {confirmingDeleteId === group.id ? 'Yakin Hapus?' : 'Hapus Grup'}
@@ -1626,7 +1626,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-2xl px-3 py-1.5">
+                      <div className="flex items-center gap-1 bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5">
                         <input
                           type="number"
                           value={formProfile.taxRatePercent}
@@ -1640,7 +1640,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="button"
                         onClick={() => setFormProfile({ ...formProfile, isTaxEnabled: !formProfile.isTaxEnabled })}
                         className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isTaxEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                          formProfile.isTaxEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
                         }`}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isTaxEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -1656,7 +1656,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-2xl px-3 py-1.5">
+                      <div className="flex items-center gap-1 bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5">
                         <input
                           type="number"
                           value={formProfile.serviceChargePercent}
@@ -1670,7 +1670,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="button"
                         onClick={() => setFormProfile({ ...formProfile, isServiceChargeEnabled: !formProfile.isServiceChargeEnabled })}
                         className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isServiceChargeEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                          formProfile.isServiceChargeEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
                         }`}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isServiceChargeEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -1686,12 +1686,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-emerald-600">AKTIF</span>
+                      <span className="text-xs font-bold text-[var(--accent-green)]">AKTIF</span>
                       <button
                         type="button"
                         onClick={() => setFormProfile({ ...formProfile, isManualDiscountEnabled: !formProfile.isManualDiscountEnabled })}
                         className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isManualDiscountEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                          formProfile.isManualDiscountEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
                         }`}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isManualDiscountEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -1714,21 +1714,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     ]).map(({ key, label, hint }) => {
                       const isOn = formProfile[key] === true;
                       return (
-                        <div key={key} className="flex items-center justify-between gap-3 border-t border-[#EFE9E2] pt-3">
+                        <div key={key} className="flex items-center justify-between gap-3 border-t border-[var(--panel-border)] pt-3">
                           <div className="min-w-0">
                             <p className="text-xs font-bold text-[var(--text-primary)]">{label}</p>
                             <p className="text-[11px] text-[var(--text-tertiary)] font-medium">{hint}</p>
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0">
-                            <span className={`text-xs font-bold ${isOn ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <span className={`text-xs font-bold ${isOn ? 'text-[var(--accent-green)]' : 'text-[var(--text-tertiary)]'}`}>
                               {isOn ? 'AKTIF' : 'NONAKTIF'}
                             </span>
                             <button
                               type="button"
                               aria-pressed={isOn}
                               onClick={() => setFormProfile({ ...formProfile, [key]: !isOn })}
-                              className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${isOn ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                              className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${isOn ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'}`}
                             >
                               <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isOn ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
@@ -1749,7 +1749,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <select
                         value={formProfile.roundingMode || 'TERDEKAT'}
                         onChange={(e) => setFormProfile({ ...formProfile, roundingMode: e.target.value as 'TERDEKAT' | 'KEATAS' | 'KEBAWAH' })}
-                        className="bg-white border border-slate-300 rounded-2xl px-3 py-1.5 text-xs font-semibold text-slate-800"
+                        className="bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]"
                       >
                         <option value="TERDEKAT">Terdekat</option>
                         <option value="KEATAS">Ke Atas</option>
@@ -1760,7 +1760,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         type="button"
                         onClick={() => setFormProfile({ ...formProfile, isRoundingEnabled: !formProfile.isRoundingEnabled })}
                         className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isRoundingEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                          formProfile.isRoundingEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
                         }`}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isRoundingEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -1775,14 +1775,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {activeTab === 'ACCESS' && (
               <div className="space-y-6">
                 {/* Section 1: Hak Akses & Role Header & Feature Cards Grid */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-5">
+                <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)]/80 shadow-sm space-y-5">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center shadow-md">
                       <Shield className="w-6 h-6" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-slate-900 tracking-tight">Hak Akses & Role</h2>
-                      <p className="text-xs font-semibold text-slate-500">Kontrol fitur apa saja yang bisa diakses setiap role.</p>
+                      <p className="text-xs font-semibold text-[var(--text-secondary)]">Kontrol fitur apa saja yang bisa diakses setiap role.</p>
                     </div>
                     <button
                       type="button"
@@ -1817,18 +1817,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       { key: 'canGiveDiscount', label: 'BERI DISKON', icon: CreditCard },
                       { key: 'canOpenDrawer', label: 'BUKA LACI', icon: LogIn }
                     ].map((feature) => (
-                      <div key={feature.key} className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+                      <div key={feature.key} className="bg-[var(--surface-secondary)]/90 rounded-2xl p-4 border border-[var(--panel-border)]/80 space-y-3">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-lg bg-[var(--brand-50)] text-[var(--primary-hover)] flex items-center justify-center shrink-0">
                             <feature.icon className="w-4 h-4" />
                           </div>
-                          <span className="text-[11px] font-bold text-slate-800 tracking-wide uppercase truncate">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] tracking-wide uppercase truncate">
                             {feature.label}
                           </span>
                         </div>
 
                         {/* 4 Roles Sub-Labels & Toggles: CAS, KIT, STA, ADM */}
-                        <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-slate-200/60">
+                        <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-[var(--panel-border)]/60">
                           {(['KASIR', 'KITCHEN', 'MANAGER', 'ADMIN'] as UserRole[]).map((role) => {
                             const roleAbbr = role === 'KASIR' ? 'CAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'STA' : 'ADM';
                             const rule = accessDraft.find((r) => r.role === role);
@@ -1836,7 +1836,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                             return (
                               <div key={role} className="flex flex-col items-center space-y-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">{roleAbbr}</span>
+                                <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase">{roleAbbr}</span>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1846,7 +1846,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     setAccessDraft(updated);
                                   }}
                                   className={`w-7 h-4 rounded-full transition-colors relative p-0.5 cursor-pointer ${
-                                    isChecked ? 'bg-[var(--primary)]' : 'bg-slate-300'
+                                    isChecked ? 'bg-[var(--primary)]' : 'bg-[var(--panel-border)]'
                                   }`}
                                 >
                                   <div className={`w-3 h-3 bg-white rounded-full transition-transform ${isChecked ? 'translate-x-3' : 'translate-x-0'}`} />
@@ -1861,7 +1861,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* Section 3: Meja untuk Customer Order Card matching Screenshot 2 & 3 */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)]/80 shadow-sm space-y-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -1869,14 +1869,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-slate-900">Meja untuk Customer Order</h3>
-                        <p className="text-xs font-semibold text-slate-500">
+                        <p className="text-xs font-semibold text-[var(--text-secondary)]">
                           Hanya nomor meja di daftar ini yang bisa melakukan order dari halaman pelanggan.
                         </p>
                       </div>
                     </div>
 
                     <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <span className="text-xs font-bold text-slate-600 uppercase">AKTIFKAN</span>
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase">AKTIFKAN</span>
                       <input
                         type="checkbox"
                         checked={isSelfOrderSystemEnabled ?? (formProfile.isSelfOrderEnabled !== false)}
@@ -1895,9 +1895,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       value={formProfile.allowedSelfOrderTables || '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15'}
                       onChange={(e) => setFormProfile({ ...formProfile, allowedSelfOrderTables: e.target.value })}
                       placeholder="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-[var(--primary)] transition-all font-mono tracking-wider"
+                      className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:bg-white focus:border-[var(--primary)] transition-all font-mono tracking-wider"
                     />
-                    <p className="text-[11px] font-semibold text-slate-400">
+                    <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">
                       Pisahkan dengan koma. Kosongkan jika semua meja boleh menggunakan customer order.
                     </p>
                   </div>
@@ -1958,14 +1958,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                   </div>
 
-                  <div className="border border-rose-200 rounded-2xl p-5 bg-rose-50/40 space-y-3">
+                  <div className="border border-rose-200 rounded-2xl p-5 bg-[var(--danger-soft)]/40 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
                         <Trash2 className="w-5 h-5" />
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-rose-900">Factory Reset</h3>
-                        <p className="text-[11px] text-rose-600 font-medium">Hapus SEMUA data & kembali ke awal.</p>
+                        <p className="text-[11px] text-[var(--accent-red)] font-medium">Hapus SEMUA data & kembali ke awal.</p>
                       </div>
                     </div>
 
@@ -2026,7 +2026,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   required
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-[var(--primary)]"
+                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -2035,7 +2035,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <select
                   value={newGroupMode}
                   onChange={(e) => setNewGroupMode(e.target.value as 'ADD_ON' | 'PAKET')}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800"
+                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)]"
                 >
                   <option value="ADD_ON">ADD_ON (Bisa pilih beberapa)</option>
                   <option value="PAKET">PAKET (Pilih salah satu)</option>
@@ -2047,7 +2047,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <select
                   value={newGroupCategory}
                   onChange={(e) => setNewGroupCategory(e.target.value as CategoryType)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800"
+                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)]"
                 >
                   <option value="ALL">Semua Kategori (ALL)</option>
                   <option value="BAKSO">Bakso</option>
@@ -2060,7 +2060,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setNewGroupModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[var(--text-secondary)] rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] text-[var(--text-secondary)] rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Batal
                 </button>
@@ -2095,14 +2095,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
               }
             }}
-            className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 font-sans text-slate-900"
+            className="bg-white border border-[var(--panel-border)] w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 font-sans text-slate-900"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase">Edit Detail Staff & PIN</h3>
               <button
                 type="button"
                 onClick={() => setEditingStaff(null)}
-                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2110,7 +2110,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">NAMA STAFF</label>
+                <label className="text-[13px]-bold-1">NAMA STAFF</label>
                 <input
                   type="text"
                   required
@@ -2122,7 +2122,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">ROLE</label>
+                  <label className="text-[13px]-bold-1">ROLE</label>
                   <select
                     value={editingStaff.role || 'KASIR'}
                     onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as any })}
@@ -2136,7 +2136,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PIN 6-ANGKA</label>
+                  <label className="text-[13px]-bold-1">PIN 6-ANGKA</label>
                   <input
                     type="password"
                     maxLength={6}
@@ -2151,7 +2151,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">MULAI SHIFT</label>
+                  <label className="text-[13px]-bold-1">MULAI SHIFT</label>
                   <input
                     type="time"
                     value={editingStaff.shiftStart || '08:00'}
@@ -2161,7 +2161,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">SELESAI SHIFT</label>
+                  <label className="text-[13px]-bold-1">SELESAI SHIFT</label>
                   <input
                     type="time"
                     value={editingStaff.shiftEnd || '16:00'}
@@ -2172,7 +2172,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">OUTLET PENUGASAN</label>
+                <label className="text-[13px]-bold-1">OUTLET PENUGASAN</label>
                 <select
                   value={editingStaff.branchIds?.length === branches.length ? '' : editingStaff.branchIds?.[0] || ''}
                   onChange={(e) => setEditingStaff({ ...editingStaff, branchIds: e.target.value ? [e.target.value] : branches.map((b) => b.id) })}
@@ -2188,7 +2188,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setEditingStaff(null)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-bold cursor-pointer"
+                className="px-4 py-2.5 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] text-[var(--text-secondary)] rounded-2xl text-xs font-bold cursor-pointer"
               >
                 Batal
               </button>
@@ -2206,7 +2206,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Modal Panduan Konfigurasi Menu & Tips (Matching Screenshot 4) */}
       {showCondimentTips && (
         <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white border border-[var(--panel-border)] w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-[var(--primary-hover)] font-bold text-sm">
                 <Info className="w-5 h-5 text-[var(--primary-hover)]" />
@@ -2215,7 +2215,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowCondimentTips(false)}
-                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 cursor-pointer"
+                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2227,20 +2227,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Layers className="w-4 h-4 text-[var(--primary-hover)]" />
                   <span>Apa Fungsi Grup?</span>
                 </h4>
-                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">
                   Grup adalah wadah untuk mengelompokkan opsi tambahan pada menu. Anda bisa membuat banyak grup sesuai kebutuhan.
                 </p>
                 <div className="space-y-2 mt-3">
                   <div className="bg-amber-50/60 border border-amber-200/80 p-3 rounded-2xl">
-                    <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">SINGLE</span>
+                    <span className="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">SINGLE</span>
                     <strong className="text-xs font-bold text-slate-900">Pilih 1 (Wajib)</strong>
-                    <p className="text-[11px] text-slate-600 font-medium mt-1">Pelanggan HARUS memilih satu opsi. Cocok untuk varian rasa, level pedas, atau jenis kuah.</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Pelanggan HARUS memilih satu opsi. Cocok untuk varian rasa, level pedas, atau jenis kuah.</p>
                   </div>
 
                   <div className="bg-[var(--brand-50)]/60 border border-[var(--brand-200)]/80 p-3 rounded-2xl">
-                    <span className="bg-[var(--primary)] text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">MULTIPLE</span>
+                    <span className="bg-[var(--primary)] text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">MULTIPLE</span>
                     <strong className="text-xs font-bold text-slate-900">Pilih Banyak (Opsional)</strong>
-                    <p className="text-[11px] text-slate-600 font-medium mt-1">Pelanggan bisa memilih lebih dari satu atau tidak sama sekali. Cocok untuk topping atau isian.</p>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Pelanggan bisa memilih lebih dari satu atau tidak sama sekali. Cocok untuk topping atau isian.</p>
                   </div>
                 </div>
               </div>
@@ -2250,7 +2250,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Sparkles className="w-4 h-4 text-amber-600" />
                   <span>Apa Fungsi Preset?</span>
                 </h4>
-                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">
                   Preset adalah template konfigurasi siap pakai. Gunakan tombol <strong className="text-amber-700">"Preset Standar"</strong> untuk membuat struktur grup umum (seperti Varian + Topping) secara otomatis tanpa perlu mengetik manual.
                 </p>
               </div>
@@ -2260,8 +2260,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Info className="w-4 h-4 text-[var(--primary-hover)]" />
                   <span>Tips Konfigurasi Kuah</span>
                 </h4>
-                <p className="text-[11px] text-slate-600 font-bold">Untuk menu dengan varian kuah (misal: Bakso):</p>
-                <ol className="text-xs text-slate-700 space-y-1 list-decimal pl-5 font-medium">
+                <p className="text-[11px] text-[var(--text-secondary)] font-bold">Untuk menu dengan varian kuah (misal: Bakso):</p>
+                <ol className="text-xs text-[var(--text-primary)] space-y-1 list-decimal pl-5 font-medium">
                   <li>Buat Grup tipe <strong>SINGLE</strong> (misal: "Pilihan Kuah").</li>
                   <li>Isi opsi kuah (misal: Original, Mercon).</li>
                   <li>Targetkan ke kategori menu yang sesuai.</li>

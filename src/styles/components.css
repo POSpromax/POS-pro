@@ -170,3 +170,84 @@
   .ui-button { min-height: 44px; }
   .ui-icon-button { width: 44px; height: 44px; }
 }
+
+/* Page-level heading — each view's top title bar */
+.ui-page-header {
+  font-size: var(--font-heading);
+  font-weight: var(--weight-heading);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* Section subheading within a page */
+.ui-section-title {
+  font-size: var(--font-subhead);
+  font-weight: var(--weight-heading);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* Compact card variant — tighter padding for dense UIs like POS */
+.ui-card-compact {
+  border: 1px solid var(--panel-border);
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Data table — striped, hover rows, clean borders */
+.ui-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-body);
+}
+.ui-table th {
+  padding: 10px 14px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+}
+.ui-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+.ui-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+.ui-table td {
+  padding: 10px 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--panel-border-light);
+  vertical-align: middle;
+}
+.ui-table tbody tr:hover { background: var(--surface-selected); }
+.ui-table tbody tr:last-child td { border-bottom: none; }
+
+/* Form group — label + input wrapper */
+.ui-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ui-form-label {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.ui-form-hint {
+  font-size: var(--font-caption);
+  color: var(--text-tertiary);
+}
+
+/* Divider line */
+.ui-divider {
+  height: 1px;
+  background: var(--panel-border-light);
+  border: none;
+  margin: var(--space-4) 0;
+}

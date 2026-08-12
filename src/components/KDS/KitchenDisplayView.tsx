@@ -43,10 +43,10 @@ const LiveClock = () => {
 };
 
 const timeTone = (minutes: number) => {
-  if (minutes > 15) return { accent: 'bg-[#E5484D]', badge: 'border-[#F4C6C8] bg-[#FDECEC] text-[#B4232A]', label: 'Terlambat' };
-  if (minutes >= 10) return { accent: 'bg-[#F59E0B]', badge: 'border-[#F4D79A] bg-[#FFF5DF] text-[#A15C00]', label: 'Perhatian' };
-  if (minutes >= 5) return { accent: 'bg-[#22A559]', badge: 'border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]', label: 'Berjalan' };
-  return { accent: 'bg-[var(--primary)]', badge: 'border-[var(--brand-200)] bg-[var(--brand-50)] text-[var(--primary-text)]', label: 'Baru' };
+  if (minutes > 15) return { accent: 'bg-[var(--accent-red)]', badge: 'ui-badge-danger', label: 'Terlambat' };
+  if (minutes >= 10) return { accent: 'bg-[var(--accent-amber)]', badge: 'ui-badge-warning', label: 'Perhatian' };
+  if (minutes >= 5) return { accent: 'bg-[var(--accent-green)]', badge: 'ui-badge-success', label: 'Berjalan' };
+  return { accent: 'bg-[var(--primary)]', badge: 'border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-text)]', label: 'Baru' };
 };
 
 export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
@@ -127,7 +127,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
             <div>
               <h1 className="text-base font-bold tracking-tight">Kitchen Display</h1>
               <p className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)]">
-                <span className={`h-2 w-2 rounded-full ${connectionState === 'HEALTHY' ? 'bg-[#22A559]' : connectionState === 'DEGRADED' ? 'bg-[#F59E0B]' : 'bg-[var(--text-tertiary)]'}`} />
+                <span className={`h-2 w-2 rounded-full ${connectionState === 'HEALTHY' ? 'bg-[var(--accent-green)]' : connectionState === 'DEGRADED' ? 'bg-[var(--accent-amber)]' : 'bg-[var(--text-tertiary)]'}`} />
                 {kitchenOrders.length} antrean · {connectionState === 'HEALTHY' ? 'realtime' : connectionState === 'DEGRADED' ? 'sinkronisasi cadangan' : 'menghubungkan'}
               </p>
             </div>
@@ -151,7 +151,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                 <option value="DRINK">Minuman</option>
               </select>
             </label>
-            <button type="button" onClick={() => { setSoundEnabled((enabled) => !enabled); if (!soundEnabled) playNewOrderSound(); }} className={`flex min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold ${soundEnabled ? 'border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]' : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`} aria-label={soundEnabled ? 'Matikan suara Kitchen' : 'Aktifkan suara Kitchen'}>
+            <button type="button" onClick={() => { setSoundEnabled((enabled) => !enabled); if (!soundEnabled) playNewOrderSound(); }} className={`flex min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold ${soundEnabled ? 'border-[var(--accent-green)] bg-[var(--success-soft)] text-[var(--accent-green)]' : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`} aria-label={soundEnabled ? 'Matikan suara Kitchen' : 'Aktifkan suara Kitchen'}>
               {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
               {soundEnabled ? 'Suara aktif' : 'Suara mati'}
             </button>
@@ -184,7 +184,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               const isReady = order.status === 'READY';
 
               return (
-                <article key={order.id} className="relative overflow-hidden rounded-xl border border-[#DDE1E6] bg-[var(--surface-card)] shadow-sm">
+                <article key={order.id} className="ui-card relative overflow-hidden">
                   <div className={`absolute inset-x-0 top-0 h-1 ${tone.accent}`} />
                   <div className="p-3 pb-2">
                     <div className="flex items-start justify-between gap-2 border-b border-[var(--panel-border-light)] pb-2">
@@ -203,7 +203,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
 
                     <div className="mt-2 flex items-center justify-between">
                       <span className={`ui-badge ${tone.badge}`}>{elapsed > 15 && <AlertTriangle className="h-3 w-3" />}{tone.label}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{isNew ? 'Pesanan baru' : isReady ? 'Siap saji' : 'Sedang dimasak'}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{isNew ? 'Pesanan baru' : isReady ? 'Siap saji' : 'Sedang dimasak'}</span>
                     </div>
 
                     <div className="mt-2.5 space-y-2">
@@ -211,7 +211,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                         <section key={product.key} className="rounded-xl border border-[var(--panel-border-light)] bg-white p-2.5">
                           <div className="flex items-start justify-between gap-2">
                             <h2 className="text-[12px] font-bold leading-snug text-[var(--text-primary)]">{product.menuName}</h2>
-                            <span className="shrink-0 rounded-lg bg-[var(--primary)] px-2 py-0.5 text-[11px] font-bold text-white">×{product.totalQuantity}</span>
+                            <span className="shrink-0 rounded-lg bg-[var(--primary)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-inverse)]">×{product.totalQuantity}</span>
                           </div>
                           <div className="mt-1.5 space-y-1.5">
                             {product.modifierGroups.map((subgroup, index) => {
@@ -223,7 +223,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                                     {subgroup.selectedCondiments.map((group) => (
                                       <p key={`${subgroup.key}-${group.groupName}`} className="font-semibold leading-snug text-[var(--text-secondary)]"><span className="text-[var(--text-tertiary)]">{group.groupName}:</span> {summarizeCondimentOptions(group, condimentGroups)}</p>
                                     ))}
-                                    {subgroup.note && <p className="mt-0.5 font-bold leading-snug text-[#B4232A]">Catatan: {subgroup.note}</p>}
+                                    {subgroup.note && <p className="mt-0.5 font-bold leading-snug text-[var(--accent-red)]">Catatan: {subgroup.note}</p>}
                                     {!hasDetails && <p className="font-semibold text-[var(--text-tertiary)]">Standar</p>}
                                   </div>
                                 </div>
@@ -236,7 +236,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                   </div>
 
                   <div className="border-t border-[var(--panel-border)] bg-[var(--surface-main)] p-2">
-                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, isNew ? 'COOKING' : 'COMPLETED')} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-white transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[#22A559] hover:bg-[#187A42]'}`}>
+                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, isNew ? 'COOKING' : 'COMPLETED')} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-[var(--text-inverse)] transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--accent-green)] hover:opacity-90'}`}>
                       {isNew ? <><Flame className="h-3.5 w-3.5" /> Mulai masak</> : <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai & sajikan</>}
                     </button>
                   </div>
@@ -250,18 +250,18 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
       {viewMode === 'HISTORY' && (
         <div className="space-y-3">
           <div className="ui-card flex items-center justify-between p-4">
-            <div><h2 className="flex items-center gap-2 text-sm font-bold"><History className="h-4 w-4 text-[#22A559]" />Riwayat selesai</h2><p className="mt-1 text-[11px] text-[var(--text-secondary)]">Pesanan dapat dikembalikan ke dapur jika salah ditandai.</p></div>
-            <span className="ui-badge border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]">{completedOrders.length} selesai</span>
+            <div><h2 className="flex items-center gap-2 text-sm font-bold"><History className="h-4 w-4 text-[var(--accent-green)]" />Riwayat selesai</h2><p className="mt-1 text-[11px] text-[var(--text-secondary)]">Pesanan dapat dikembalikan ke dapur jika salah ditandai.</p></div>
+            <span className="ui-badge ui-badge-success">{completedOrders.length} selesai</span>
           </div>
           {completedOrders.length === 0 ? <div className="ui-card py-20 text-center text-xs font-bold text-[var(--text-secondary)]">Belum ada pesanan selesai.</div> : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
               {completedOrders.map((order) => (
                 <article key={order.id} className="ui-card p-3">
-                  <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-2"><span className="font-mono text-base font-bold">{formatOrderLabel(order)}</span><span className="ui-badge border-[#BEE6CC] bg-[#EAF8EF] text-[#187A42]"><Check className="h-3 w-3" />Selesai</span></div>
+                  <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-2"><span className="font-mono text-base font-bold">{formatOrderLabel(order)}</span><span className="ui-badge ui-badge-success"><Check className="h-3 w-3" />Selesai</span></div>
                   <p className="my-2 text-[11px] font-bold text-[var(--text-secondary)]">{order.customerName} · Meja {order.tableNumber || '-'}</p>
                   <div className="space-y-1">{groupKitchenItems(order.items).map((item) => <div key={item.key} className="flex justify-between text-[11px] font-bold"><span>{item.menuName}</span><span>×{item.totalQuantity}</span></div>)}</div>
                   <div className="mt-3 flex gap-2 border-t border-[var(--panel-border-light)] pt-2">
-                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, 'COOKING')} className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-[#FFF5DF] px-2 text-[11px] font-bold text-[#A15C00]"><RotateCcw className="h-3.5 w-3.5" />Kembalikan</button>
+                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, 'COOKING')} className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-[var(--warning-soft)] px-2 text-[11px] font-bold text-[var(--accent-amber)]"><RotateCcw className="h-3.5 w-3.5" />Kembalikan</button>
                     <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--panel-border)]" aria-label={`Cetak ulang ${formatOrderLabel(order)}`} title="Cetak ulang"><Printer className="h-3.5 w-3.5" /></button>
                   </div>
                 </article>

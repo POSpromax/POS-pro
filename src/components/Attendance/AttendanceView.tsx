@@ -347,15 +347,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     <div className="ui-surface flex flex-1 flex-col overflow-y-auto p-4 font-sans select-none md:p-6 text-[var(--text-primary)]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+          <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
             <UserCheck className="h-7 w-7 text-[var(--primary-hover)]" />
             Presensi Karyawan
           </h1>
-          <p className="mt-1 text-xs font-bold text-slate-500">
+          <p className="mt-1 text-xs font-bold text-[var(--text-secondary)]">
             {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
           <Clock className="w-3.5 h-3.5" />
           {currentBranch.name}
         </div>
@@ -367,9 +367,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           {step === 'PIN' && (
             <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Verifikasi Identitas</p>
-                <h2 className="text-base font-bold text-slate-900">Masukkan PIN Anda</h2>
-                <p className="text-[11px] font-medium text-slate-500">PIN unik per karyawan — otomatis teridentifikasi</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">Verifikasi Identitas</p>
+                <h2 className="text-base font-extrabold text-[var(--text-primary)]">Masukkan PIN Anda</h2>
+                <p className="text-[11px] font-medium text-[var(--text-secondary)]">PIN unik per karyawan — otomatis teridentifikasi</p>
               </div>
 
               <div className="flex items-center justify-center gap-3 py-2">
@@ -377,17 +377,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <span
                     key={i}
                     className={`h-4 w-4 rounded-full border-2 transition-all ${
-                      i < pinInput.length ? 'border-[var(--primary)] bg-[var(--primary)] scale-110' : 'border-slate-300 bg-slate-100'
+                      i < pinInput.length ? 'border-[var(--primary)] bg-[var(--primary)] scale-110' : 'border-[var(--panel-border-strong)] bg-[var(--surface-secondary)]'
                     }`}
                   />
                 ))}
               </div>
 
               {pinError && (
-                <p className="text-center text-xs font-bold text-rose-600 bg-rose-50 rounded-2xl py-2 px-3 border border-rose-200">{pinError}</p>
+                <p className="text-center text-xs font-bold text-[var(--accent-red)] bg-[var(--danger-soft)] rounded-2xl py-2 px-3 border border-[var(--danger-soft)]">{pinError}</p>
               )}
               {isVerifying && (
-                <p className="text-center text-xs font-bold text-[var(--primary-hover)] bg-[var(--brand-50)] rounded-2xl py-2 px-3 border border-[var(--brand-200)]">Memverifikasi PIN...</p>
+                <p className="text-center text-xs font-bold text-[var(--primary)] bg-[var(--primary-soft)] rounded-2xl py-2 px-3 border border-[var(--primary-border)]">Memverifikasi PIN...</p>
               )}
 
               <div className="grid grid-cols-3 gap-2">
@@ -397,25 +397,25 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     type="button"
                     onClick={() => handlePinKey(d)}
                     disabled={isVerifying}
-                    className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer"
+                    className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer"
                   >{d}</button>
                 ))}
                 <button type="button" onClick={() => { setPinInput(''); setPinError(''); }} disabled={isVerifying}
-                  className="h-12 rounded-2xl bg-slate-100 text-[10px] font-bold text-slate-500 disabled:opacity-40 cursor-pointer hover:bg-slate-200">HAPUS</button>
+                  className="h-12 rounded-2xl bg-[var(--surface-secondary)] text-[11px] font-bold text-[var(--text-tertiary)] disabled:opacity-40 cursor-pointer hover:bg-[var(--panel-border)]">HAPUS</button>
                 <button type="button" onClick={() => handlePinKey('0')} disabled={isVerifying}
-                  className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer">0</button>
+                  className="h-12 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-main)] text-lg font-bold text-[var(--text-primary)] transition hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] active:bg-[var(--primary)] active:text-white disabled:opacity-40 cursor-pointer">0</button>
                 <button type="button" onClick={() => { setPinInput((v) => v.slice(0, -1)); setPinError(''); }} disabled={isVerifying}
                   className="h-12 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer hover:bg-[var(--primary-pressed)]">
                   <Delete className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-center text-[10px] font-bold text-slate-400">PIN bersifat unik per karyawan</p>
+              <p className="text-center text-[11px] font-bold text-[var(--text-tertiary)]">PIN bersifat unik per karyawan</p>
             </div>
           )}
 
           {step === 'SELFIE_GPS' && (
             <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-[var(--brand-200)] bg-[var(--brand-50)] p-3.5">
+              <div className="flex items-center gap-3 rounded-2xl border border-[var(--primary-border)] bg-[var(--primary-soft)] p-3.5">
                 <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-[var(--primary)] shrink-0">
                   {selfiePreview || selectedStaff.avatar ? (
                     <img src={selfiePreview || selectedStaff.avatar} alt={selectedStaff.name} className="h-full w-full object-cover" />
@@ -424,20 +424,20 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-slate-900 truncate">{selectedStaff.name}</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{selectedStaff.name}</p>
                   <p className="text-[11px] font-bold text-[var(--primary-text)]">{selectedStaff.role} - {currentBranch.code}</p>
-                  <p className="text-[11px] font-bold text-slate-400">Jadwal {getScheduledStart()}--{selectedStaff.shiftEnd || '-'}</p>
+                  <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Jadwal {getScheduledStart()}--{selectedStaff.shiftEnd || '-'}</p>
                 </div>
                 {!terminalMode && (
                   <button type="button" onClick={() => { stopCameraStream(); setStep('PIN'); setPinInput(''); setPinError(''); }}
-                    className="ml-auto text-[11px] font-bold text-slate-400 hover:text-slate-700 shrink-0 cursor-pointer">Ganti</button>
+                    className="ml-auto text-[11px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer">Ganti</button>
                 )}
               </div>
 
-              <div className={`rounded-2xl border p-3.5 ${profile.isAttendanceEnabled !== false ? 'border-[var(--brand-200)] bg-[var(--brand-50)]/50' : 'border-slate-200 bg-slate-50'}`}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Aksi Berikutnya</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{clockType === 'CLOCK_IN' ? 'CLOCK IN - Masuk Kerja' : 'CLOCK OUT - Selesai Kerja'}</p>
-                <p className="mt-0.5 text-[11px] font-bold text-slate-500">Toleransi {profile.latenessToleranceMinutes || 0} menit keterlambatan</p>
+              <div className={`rounded-2xl border p-3.5 ${profile.isAttendanceEnabled !== false ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : 'border-[var(--panel-border)] bg-[var(--surface-secondary)]'}`}>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Aksi Berikutnya</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{clockType === 'CLOCK_IN' ? 'CLOCK IN - Masuk Kerja' : 'CLOCK OUT - Selesai Kerja'}</p>
+                <p className="mt-0.5 text-[11px] font-bold text-[var(--text-secondary)]">Toleransi {profile.latenessToleranceMinutes || 0} menit keterlambatan</p>
               </div>
 
               {(() => {
@@ -505,12 +505,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
                 </div>
 
-                <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-tertiary)]">
                   <ShieldCheck className="h-3.5 w-3.5 text-[var(--primary-text)]" />
                   Bukti presensi hanya dapat diambil langsung dari kamera perangkat.
                 </p>
 
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)]">
                   <MapPin className="w-3.5 h-3.5 text-[var(--primary-text)]" />
                   <span>{gpsMessage}</span>
                 </div>
@@ -519,7 +519,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     Verifikasi Lokasi GPS
                   </button>
                 )}
-                {uploadMessage && <p className="text-[10px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
+                {uploadMessage && <p className="text-[11px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
               </div>
 
               <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
@@ -576,15 +576,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">{att.staffName} <span className="text-[11px] font-bold text-[var(--primary-hover)]">({att.role})</span></p>
-                        <p className="text-[11px] font-bold text-slate-400">{att.location} - Jadwal {att.scheduledStart || '-'}</p>
-                        {att.gpsValidated && <p className="text-[10px] font-bold text-emerald-600">GPS Terverifikasi</p>}
+                        <p className="text-[11px] font-bold text-[var(--text-tertiary)]">{att.location} - Jadwal {att.scheduledStart || '-'}</p>
+                        {att.gpsValidated && <p className="text-[11px] font-bold text-[var(--accent-green)]">GPS Terverifikasi</p>}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${att.type === 'CLOCK_IN' ? 'bg-[var(--primary-soft)] text-[var(--primary-hover)] border border-[var(--primary-border)]' : 'bg-[var(--primary)] text-white'}`}>
                         {att.type === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'}
                       </span>
-                      <p className="mt-1 text-xs font-mono font-bold text-slate-800">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>
+                      <p className="mt-1 text-xs font-mono font-bold text-[var(--text-primary)]">{new Date(att.timestamp).toLocaleTimeString('id-ID')}</p>
                     </div>
                   </div>
                 ))
