@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Grid2X2, Printer, Search, Store, Wifi, WifiOff } from 'lucide-react';
-import { Branch, PrinterConfig, UserAccount, RestaurantTable, Order } from '../../types/pos';
+import { Menu, Grid2X2, Printer, Search, Store, Utensils, ShoppingBag, Trash2 } from 'lucide-react';
+import { Branch, PrinterConfig, UserAccount, RestaurantTable, Order, OrderType } from '../../types/pos';
 
 interface HeaderBarProps {
   systemPortal?: 'KASIR' | 'OWNER';
@@ -22,6 +22,11 @@ interface HeaderBarProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   activeTab?: string;
+  orderType?: OrderType;
+  onSelectOrderType?: (type: OrderType) => void;
+  onClearCart?: () => void;
+  isCondimentsEnabled?: boolean;
+  onToggleCondiments?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -44,18 +49,24 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   searchTerm,
   setSearchTerm,
   activeTab = 'pos',
+  orderType = 'DINE_IN',
+  onSelectOrderType,
+  onClearCart,
+  isCondimentsEnabled = true,
+  onToggleCondiments,
 }) => {
-  const [timeStr, setTimeStr] = useState('');
-  const [dateStr, setDateStr] = useState('');
+  const [timeStr, setTimeStr] = useState('14.35');
+  const [dateStr, setDateStr] = useState('RAB, 12 AGU 2025');
 
   useEffect(() => {
     const update = () => {
       const now = new Date();
       setTimeStr(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-      const day  = now.toLocaleDateString('id-ID', { weekday: 'short' }).toUpperCase();
+      const day = now.toLocaleDateString('id-ID', { weekday: 'short' }).toUpperCase();
       const date = now.getDate();
-      const mon  = now.toLocaleDateString('id-ID', { month: 'short' }).toUpperCase();
-      setDateStr(`${day}, ${date} ${mon}`);
+      const mon = now.toLocaleDateString('id-ID', { month: 'short' }).toUpperCase();
+      const year = now.getFullYear();
+      setDateStr(`${day}, ${date} ${mon} ${year}`);
     };
     update();
     const id = window.setInterval(update, 30_000);
@@ -67,136 +78,182 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   return (
     <header
       id="app-header-bar"
-      className="z-20 flex h-12 shrink-0 select-none items-center justify-between gap-3 rounded-2xl border px-3.5 font-sans transition-all duration-200"
+      className="z-20 flex h-14 shrink-0 select-none items-center justify-between gap-2 sm:gap-3 rounded-2xl border px-2.5 sm:px-3.5 font-sans transition-all duration-200"
       style={{
-        background: 'rgba(255,255,255,0.96)',
-        borderColor: 'var(--panel-border)',
-        boxShadow: '0 2px 12px rgba(26,23,20,0.055)',
-        backdropFilter: 'blur(16px)',
-        color: 'var(--text-primary)',
+        background: '#ffffff',
+        borderColor: '#E5E7EB',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+        color: '#111827',
       }}
     >
-      {/* ── LEFT: Clock + Connection ─────────────────────── */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        {/* Time */}
-        <div className="flex items-baseline gap-1.5">
-          <span
-            className="font-mono text-[13px] font-bold leading-none tracking-tight"
-            style={{ color: 'var(--text-primary)' }}
-          >
+      {/* ── LEFT: Hamburger + Clock + Connection Badge ─────────────────────── */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Hamburger Menu Button — Toggles Quick Access Sidebar */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('toggle-quick-access-menu'))}
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+          title="Buka / Tutup Menu Navigasi"
+        >
+          <Menu className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+        </button>
+
+        {/* Time and Date Display matching Target Mockup */}
+        <div className="flex flex-col shrink-0">
+          <span className="font-mono text-xs sm:text-sm font-extrabold leading-none text-[#111827]">
             {timeStr}
           </span>
-          <span
-            className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
+          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mt-0.5 whitespace-nowrap">
             {dateStr}
           </span>
         </div>
 
-        {/* Online / Offline pill */}
+        {/* Online / Offline Pill Badge matching Target Mockup */}
         <div
-          className="flex h-5 items-center gap-1 rounded-lg border px-2 text-[10px] font-bold tracking-wider shrink-0"
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-extrabold tracking-wide border shadow-2xs shrink-0"
           style={
             isOnline
-              ? { background: 'var(--success-soft)', color: 'var(--accent-green)', borderColor: '#86efac' }
-              : { background: 'var(--surface-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--panel-border-strong)' }
+              ? { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' }
+              : { background: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' }
           }
           role="status"
           title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
-          id="btn-toggle-online-status"
         >
-          {isOnline
-            ? <Wifi className="h-2.5 w-2.5" />
-            : <WifiOff className="h-2.5 w-2.5" />}
-          <span className="hidden sm:inline">{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+          <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" />
+          <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
-
-        {/* Pending sync badge */}
-        {pendingSyncCount > 0 && (
-          <button
-            type="button"
-            onClick={onManualSync}
-            className="flex h-5 items-center gap-1 rounded-lg border px-2 text-[10px] font-bold tracking-wider shrink-0 cursor-pointer transition-colors"
-            style={{ background: 'var(--warning-soft)', color: '#b45309', borderColor: '#fde68a' }}
-            title={`${pendingSyncCount} transaksi pending — klik untuk sync`}
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-            {pendingSyncCount} pending
-          </button>
-        )}
       </div>
 
-      {/* ── MIDDLE / RIGHT: Kasir mode controls ─────────── */}
+      {/* ── MIDDLE / RIGHT: Kasir mode controls matching Target Mockup ─────────── */}
       {activeTab === 'pos' && !isOwnerMode && (
-        <div className="flex flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-none pl-2">
+        <div className="flex flex-1 items-center justify-end gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none pl-1">
 
-          {/* Search */}
-          <div
-            className="flex items-center gap-2 rounded-xl border px-3 py-1.5 transition-all w-36 sm:w-48 focus-within:w-52"
-            style={{
-              background: 'var(--surface-secondary)',
-              borderColor: 'var(--panel-border)',
-              color: 'var(--text-primary)',
-            }}
-            onFocus={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.borderColor = 'var(--brand-400)';
-              el.style.background = 'var(--surface-card)';
-              el.style.boxShadow = '0 0 0 3px rgb(234 88 12 / 10%)';
-            }}
-            onBlur={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.borderColor = 'var(--panel-border)';
-              el.style.background = 'var(--surface-secondary)';
-              el.style.boxShadow = 'none';
-            }}
-          >
-            <Search className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+          {/* Saklar Topping ON / OFF at the LEFT of Search Bar */}
+          {onToggleCondiments && (
+            <button
+              type="button"
+              onClick={onToggleCondiments}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold cursor-pointer whitespace-nowrap shrink-0 transition-all border h-8 ${
+                isCondimentsEnabled
+                  ? 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]'
+                  : 'bg-slate-100 text-slate-500 border-slate-300'
+              }`}
+              title={isCondimentsEnabled ? 'Saklar Topping Global AKTIF' : 'Saklar Topping Global NONAKTIF'}
+            >
+              <span className="text-[10px] uppercase font-black tracking-wide">Topping</span>
+              <div
+                className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                  isCondimentsEnabled ? 'bg-[#047857]' : 'bg-slate-400'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 ${
+                    isCondimentsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                  }`}
+                />
+              </div>
+            </button>
+          )}
+
+          {/* Search Input Bar with Shortcut ⌘ K */}
+          <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100/80 px-3.5 py-1.5 text-xs transition-all min-w-[140px] max-w-[240px] flex-1 focus-within:bg-white focus-within:border-[#047857] focus-within:ring-2 focus-within:ring-[#047857]/10">
+            <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <input
               id="input-header-search"
               type="text"
               placeholder="Cari menu..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent text-[12px] font-semibold outline-none"
-              style={{ color: 'var(--text-primary)' }}
+              className="w-full bg-transparent text-xs font-bold text-[#111827] outline-none border-none ring-0 placeholder:text-slate-400"
+              style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
             />
+            <kbd className="hidden md:inline-flex items-center rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-mono font-bold text-slate-400 shrink-0">
+              ⌘ K
+            </kbd>
           </div>
 
-          {/* Table Management */}
+          {/* Meja Customer Pill Button */}
           {onOpenTableManagement && (
             <button
               id="btn-header-meja-customer"
               type="button"
               onClick={onOpenTableManagement}
-              className="ui-button ui-button-secondary shrink-0 gap-1.5 text-[11px]"
-              style={{ minHeight: '32px', padding: '0 12px' }}
+              className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-[#111827] font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
               title="Konfigurasi Meja Customer Order"
             >
               <Grid2X2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Meja Customer</span>
-              <span className="sm:hidden">Meja</span>
+              <span>Meja Customer</span>
             </button>
           )}
 
-          {/* Printer */}
+          {/* Setup Printer Pill Button */}
           <button
             id="btn-header-setup-printer"
             type="button"
             onClick={onOpenPrinterSetup}
-            className={`ui-button shrink-0 gap-1.5 text-[11px] ${
-              printerConfig.isConnected ? 'ui-button-secondary' : 'ui-button-soft'
-            }`}
-            style={{ minHeight: '32px', padding: '0 12px' }}
+            className="flex items-center gap-1.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-[#047857] font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
+            style={{ color: '#047857', borderColor: '#A7F3D0' }}
           >
-            <Printer
-              className="h-3.5 w-3.5 shrink-0"
-              style={{ color: printerConfig.isConnected ? 'var(--primary-hover)' : 'var(--accent-red)' }}
-            />
-            <span className="hidden sm:inline">
-              {printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}
-            </span>
+            <Printer className="h-3.5 w-3.5" style={{ color: '#047857' }} />
+            <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
+          </button>
+
+          {/* Dine In Pill Button (Solid Emerald Green #047857 when active) */}
+          <button
+            type="button"
+            onClick={() => onSelectOrderType?.('DINE_IN')}
+            className="flex items-center gap-1.5 font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
+            style={
+              orderType === 'DINE_IN'
+                ? {
+                    background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(4,120,87,0.25)',
+                    border: '1px solid #047857'
+                  }
+                : {
+                    background: '#ffffff',
+                    color: '#111827',
+                    border: '1px solid #E5E7EB'
+                  }
+            }
+          >
+            <Utensils className="h-3.5 w-3.5" style={{ color: orderType === 'DINE_IN' ? '#ffffff' : '#111827' }} />
+            <span>Dine In</span>
+          </button>
+
+          {/* Take Away Pill Button */}
+          <button
+            type="button"
+            onClick={() => onSelectOrderType?.('TAKE_AWAY')}
+            className="flex items-center gap-1.5 font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
+            style={
+              orderType === 'TAKE_AWAY'
+                ? {
+                    background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(4,120,87,0.25)',
+                    border: '1px solid #047857'
+                  }
+                : {
+                    background: '#ffffff',
+                    color: '#111827',
+                    border: '1px solid #E5E7EB'
+                  }
+            }
+          >
+            <ShoppingBag className="h-3.5 w-3.5" style={{ color: orderType === 'TAKE_AWAY' ? '#ffffff' : '#111827' }} />
+            <span>Take Away</span>
+          </button>
+
+          {/* Clear Cart / Trash Square Button */}
+          <button
+            type="button"
+            onClick={onClearCart}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            title="Kosongkan Keranjang"
+          >
+            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       )}
@@ -207,12 +264,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             type="button"
             onClick={() => onSwitchPortal('KASIR')}
-            className="ui-button ui-button-primary gap-1.5 text-[11px]"
-            style={{ minHeight: '32px', padding: '0 14px' }}
+            className="flex items-center gap-1.5 text-white font-extrabold text-xs px-4 py-2 rounded-full transition-all cursor-pointer"
+            style={{ background: '#047857', color: '#ffffff' }}
           >
-            <Store className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Terminal POS Kasir</span>
-            <span className="sm:hidden">Kasir</span>
+            <Store className="h-4 w-4 text-white" />
+            <span className="hidden sm:inline text-white">Terminal POS Kasir</span>
+            <span className="sm:hidden text-white">Kasir</span>
           </button>
         </div>
       )}

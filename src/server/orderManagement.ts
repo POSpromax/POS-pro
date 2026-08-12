@@ -16,7 +16,7 @@ const mapOrder = (row: any, items: any[] = []) => {
   orderNumber: row.order_number,
   dailyNumber: row.daily_number ?? undefined,
   customerName: row.customer_name || 'Guest',
-  tableNumber: row.restaurant_tables?.number || row.table_number || '',
+  tableNumber: row.restaurant_tables?.number || row.table_number || metadata.tableNumber || '',
   type: row.order_type,
   items: items.map((item) => ({
     id: item.id,
@@ -187,7 +187,14 @@ export async function handleOrderRequest(
 
   const normalizedItems: any[] = [];
   for (const item of input.items) {
-    const menu: any = menuMap.get(String(item.menuId || ''));
+    const dbMenu: any = menuMap.get(String(item.menuId || ''));
+    const menu: any = dbMenu || {
+      id: String(item.menuId || 'custom'),
+      name: String(item.menuName || 'Item').trim(),
+      category: String(item.category || 'MAKANAN'),
+      price: Number(item.price || 0),
+      is_available: true
+    };
     if (!menu?.is_available) return fail(400, `Menu ${item.menuName || ''} tidak tersedia`);
     const isManual = /^(menu tambahan )?lain(ya|nya)$/i.test(String(menu.name).trim());
     if (isManual && source === 'SELF_ORDER') return fail(403, 'Item manual hanya tersedia di terminal kasir');
@@ -286,11 +293,14 @@ export async function handleOrderRequest(
   // Kembalian dihitung ulang di server; angka dari browser tidak dipercaya.
   const change = cashPaid !== null && cashPaid >= total ? cashPaid - total : null;
 
+  const tableNumStr = input.tableNumber && input.tableNumber !== '-' ? String(input.tableNumber).trim() : null;
+
   const orderPayload = {
     order_id: existingOrderId || null,
     tenant_id: branch.tenant_id,
     branch_id: branchId,
     table_id: table?.id || null,
+    table_number: tableNumStr,
     cashier_user_id: actor?.id || null,
     client_request_id: clientRequestId,
     order_number: orderNumber,
@@ -303,7 +313,7 @@ export async function handleOrderRequest(
     discount_amount: discount,
     tax_amount: tax,
     total_amount: total,
-    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || '', paymentMethod, cashPaid, change }),
+    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || '', paymentMethod, cashPaid, change, tableNumber: tableNumStr }),
     payment_method: paymentMethod,
     paid_amount: cashPaid,
     change_amount: change,

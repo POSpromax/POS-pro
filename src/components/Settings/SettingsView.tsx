@@ -1319,6 +1319,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </div>
 
                           <div className="flex items-center gap-3">
+                            {/* Saklar ON / OFF Toggle Switch Condiment Group */}
+                            <div
+                              className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-2xs"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span className={`text-[10px] font-extrabold uppercase tracking-wide ${group.isActive !== false ? 'text-[#047857]' : 'text-slate-400'}`}>
+                                {group.isActive !== false ? 'AKTIF' : 'NONAKTIF'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => onSaveCondimentGroup({ ...group, isActive: group.isActive === false ? true : false })}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  group.isActive !== false ? 'bg-[#047857]' : 'bg-slate-300'
+                                }`}
+                                title={group.isActive !== false ? 'Saklar Condiment AKTIF (Klik untuk nonaktifkan)' : 'Saklar Condiment NONAKTIF (Klik untuk aktifkan)'}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    group.isActive !== false ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+
                             <span className="bg-[var(--success-soft)] text-[var(--accent-green)] border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                               <span>🏷️</span>
                               <span>{targetCount} Target</span>
@@ -1547,13 +1571,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                       </>
                                     ) : (
                                       <>
+                                        {/* Saklar ON / OFF Toggle Switch Item Opsi / Topping */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedOpts = group.options.map((o) =>
+                                              o.id === opt.id ? { ...o, isAvailable: o.isAvailable === false ? true : false } : o
+                                            );
+                                            onSaveCondimentGroup({ ...group, options: updatedOpts });
+                                          }}
+                                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase transition-all cursor-pointer ${
+                                            opt.isAvailable !== false
+                                              ? 'bg-emerald-100 text-[#047857] border border-emerald-300'
+                                              : 'bg-slate-200 text-slate-500 border border-slate-300'
+                                          }`}
+                                          title={opt.isAvailable !== false ? 'Saklar Option AKTIF (Klik untuk nonaktifkan)' : 'Saklar Option NONAKTIF (Klik untuk aktifkan)'}
+                                        >
+                                          {opt.isAvailable !== false ? 'ON' : 'OFF'}
+                                        </button>
+
                                         <button
                                           type="button"
                                           onClick={() => {
                                             setEditingOptionId(opt.id);
                                             setEditingOptionValue(opt.name);
                                           }}
-                                          className="flex items-center gap-1 hover:text-[var(--primary-hover)] cursor-pointer transition-colors"
+                                          className={`flex items-center gap-1 hover:text-[var(--primary-hover)] cursor-pointer transition-colors ${
+                                            opt.isAvailable === false ? 'line-through opacity-50' : ''
+                                          }`}
                                           title="Klik untuk edit nama"
                                         >
                                           <span>{opt.name.toUpperCase()}</span>
@@ -1566,7 +1611,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             const updatedOpts = group.options.filter((o) => o.id !== opt.id);
                                             onSaveCondimentGroup({ ...group, options: updatedOpts });
                                           }}
-                                          className="text-[var(--text-tertiary)] hover:text-[var(--accent-red)] cursor-pointer"
+                                          className="text-[var(--text-tertiary)] hover:text-rose-600 transition-colors p-0.5"
                                           title="Hapus opsi"
                                         >
                                           <X className="w-3.5 h-3.5" />

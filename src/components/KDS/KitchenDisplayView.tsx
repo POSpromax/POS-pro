@@ -142,6 +142,14 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
             </button>
           </div>
 
+          {/* Running Ticker / Info Announcement Ticker Bar ONLY on Kitchen Display */}
+          <div className="hidden lg:flex items-center gap-2 overflow-hidden rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-3.5 py-1.5 text-xs font-extrabold text-[#047857] max-w-[240px] xl:max-w-[340px] shrink-0 shadow-2xs">
+            <span className="flex h-2 w-2 rounded-full bg-[#047857] shrink-0 animate-ping" />
+            <marquee className="whitespace-nowrap overflow-hidden text-xs font-extrabold text-[#047857] select-none" scrollamount={4}>
+              📢 POS-PRO KDS System • Pesanan Dapur Realtime Active • Outlet Utama • Siap Memasak!
+            </marquee>
+          </div>
+
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <label className="flex min-h-9 items-center gap-2 rounded-xl border border-[var(--panel-border)] bg-white px-2.5 text-[11px] font-bold text-[var(--text-secondary)]">
               <Filter className="h-3.5 w-3.5 text-[var(--primary)]" />
@@ -191,19 +199,16 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-xl font-bold tabular-nums" title={order.orderNumber}>{formatOrderLabel(order)}</span>
-                          <span className="ui-badge bg-[var(--surface-secondary)] text-[var(--text-secondary)]">{order.type === 'DINE_IN' ? 'Dine in' : 'Take away'}</span>
+                          <span className="ui-badge bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] font-extrabold text-[10px]">{order.type === 'DINE_IN' ? 'Dine in' : 'Take away'}</span>
                         </div>
-                        <p className="mt-1 truncate text-[11px] font-bold text-[var(--text-secondary)]">{order.customerName} · <span className="text-[var(--text-primary)]">Meja {order.tableNumber || '-'}</span></p>
+                        <p className="mt-1 truncate text-xs font-extrabold text-[#111827]">
+                          {order.customerName || 'Guest'} · <span className="text-[#047857] font-black">Meja {order.tableNumber || '-'}</span>
+                        </p>
                       </div>
                       <div className="flex items-center gap-1">
                         <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]" aria-label={`Cetak tiket ${formatOrderLabel(order)}`} title="Cetak tiket dapur"><Printer className="h-3.5 w-3.5" /></button>
                         <span className={`ui-badge ${tone.badge}`}><Clock className="h-3 w-3" />{elapsed}m</span>
                       </div>
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className={`ui-badge ${tone.badge}`}>{elapsed > 15 && <AlertTriangle className="h-3 w-3" />}{tone.label}</span>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{isNew ? 'Pesanan baru' : isReady ? 'Siap saji' : 'Sedang dimasak'}</span>
                     </div>
 
                     <div className="mt-2.5 space-y-2">

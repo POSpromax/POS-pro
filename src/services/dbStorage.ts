@@ -89,6 +89,7 @@ const posBroadcastChannel =
 // Pasirmulya menimpa Pasar Anyar, dan tenant lain ikut mendengar.
 let supabaseSyncChannel: any = null;
 let syncChannelBranchId: string | null = null;
+let isSyncChannelJoined = false;
 
 export function disconnectBranchSync(): void {
   if (!supabaseSyncChannel) return;
@@ -100,45 +101,52 @@ export function disconnectBranchSync(): void {
     .catch(() => {});
 }
 
-export function connectBranchSync(branchId: string): void {
-  if (typeof window === 'undefined' || !cloudReadiness.supabase || !branchId) return;
-  if (syncChannelBranchId === branchId) return;
+function connectBranchSync(branchId: string): void {
+  if (!branchId || !cloudReadiness.supabase) return;
+  if (syncChannelBranchId === branchId && supabaseSyncChannel) return;
 
-  disconnectBranchSync();
+  if (supabaseSyncChannel) {
+    const oldChannel = supabaseSyncChannel;
+    supabaseSyncChannel = null;
+    isSyncChannelJoined = false;
+    void import('../lib/supabase').then(({ getSupabase }) => getSupabase().removeChannel(oldChannel));
+  }
+
   syncChannelBranchId = branchId;
-
   import('../lib/supabase')
     .then(({ getSupabase }) => {
-      // Cabang bisa berganti lagi selama import berlangsung.
       if (syncChannelBranchId !== branchId) return;
       try {
         const channel = getSupabase().channel(`branch:${branchId}:sync`, { config: { private: true } });
         channel
           .on('broadcast', { event: 'pos_sync' }, (message: any) => {
             const { key, value, branchId: senderBranchId } = message.payload || {};
-            // Channel sudah per-cabang; ini penjaga kedua supaya siaran nyasar
-            // tidak pernah menimpa data cabang yang sedang dibuka.
             if (!key || value === undefined || senderBranchId !== syncChannelBranchId) return;
-            // Status shift lintas perangkat hanya boleh berasal dari database/API.
             if (key === STORAGE_KEYS.CURRENT_SHIFT) return;
             try {
               localStorage.setItem(key, JSON.stringify(value));
               window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
             } catch {
-              // Abaikan kegagalan tulis localStorage (kuota penuh / mode privat)
+              // Ignore failure
             }
           })
           .subscribe((status: string) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') syncChannelBranchId = null;
+            if (status === 'SUBSCRIBED') {
+              isSyncChannelJoined = true;
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              isSyncChannelJoined = false;
+              syncChannelBranchId = null;
+            }
           });
         supabaseSyncChannel = channel;
       } catch {
-        // Fallback silently if Supabase client fails to connect
         syncChannelBranchId = null;
+        isSyncChannelJoined = false;
       }
     })
     .catch(() => {
       syncChannelBranchId = null;
+      isSyncChannelJoined = false;
     });
 }
 
@@ -172,8 +180,8 @@ function setStoredItem<T>(key: string, value: T): void {
       window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
       posBroadcastChannel?.postMessage({ key, value, timestamp: Date.now() });
 
-      // 2. Selective Cloud Broadcast (Shift changes are sent instantly without 1.5s throttle)
-      if (supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
+      // 2. Selective Cloud Broadcast (Only when WebSocket channel is actively joined)
+      if (isSyncChannelJoined && supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
         const lastSent = cloudBroadcastDebounceMap.get(key) || 0;
         const now = Date.now();
         if (now - lastSent > 1500) {
@@ -473,7 +481,9 @@ export class DBStorage {
 
   static saveOrder(newOrder: Order, isOnline: boolean = true): Order {
     const orders = this.getOrders();
-    const existingIndex = orders.findIndex((o) => o.id === newOrder.id);
+    const existingIndex = orders.findIndex(
+      (o) => o.id === newOrder.id || (o.orderNumber && newOrder.orderNumber && o.orderNumber === newOrder.orderNumber)
+    );
 
     // Deduct once only when an order crosses from unpaid to paid.
     if (newOrder.paymentStatus === 'PAID' && orders[existingIndex]?.paymentStatus !== 'PAID') {

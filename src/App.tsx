@@ -71,6 +71,12 @@ const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
 const TERMINAL_MODE_KEY = 'omnipos_terminal_mode';
 const condimentCloudSaveTimers = new Map<string, number>();
 
+// Server hanya menerima id order berupa UUID cloud. Order yang masih memakai id
+// lokal (mis. `ord-123456`) belum pernah sampai ke database, sehingga PATCH
+// status ke cloud pasti ditolak 400. Guard ini memisahkan keduanya.
+const CLOUD_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isCloudOrderId = (id: string): boolean => CLOUD_ID_PATTERN.test(String(id || ''));
+
 interface SyncHealth {
   connectionState: RealtimeConnectionState;
   lastSuccessfulSync: number | null;
@@ -405,11 +411,30 @@ export default function App() {
               playNewOrderSound();
             }
           }
-          isFirstLoad = false;
-          knownItemQuantities = nextItemQuantities;
+          // Synchronize cloud orders with local storage, preserving tableNumber & local pending orders
+          const localOrders = DBStorage.getOrders();
+          const mergedOrders = cloudOrders.map((cloudOrder) => {
+            const localMatch = localOrders.find((lo) => lo.id === cloudOrder.id);
+            const effectiveTableNumber =
+              (cloudOrder.tableNumber && cloudOrder.tableNumber !== '-' && cloudOrder.tableNumber !== '')
+                ? cloudOrder.tableNumber
+                : (localMatch?.tableNumber && localMatch.tableNumber !== '-' && localMatch.tableNumber !== '')
+                ? localMatch.tableNumber
+                : '-';
 
-          setOrders(cloudOrders);
-          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+            return {
+              ...cloudOrder,
+              tableNumber: effectiveTableNumber
+            };
+          });
+
+          // Include any local-only hold orders not yet present in cloud response
+          const cloudIds = new Set(cloudOrders.map((o) => o.id));
+          const localOnlyOrders = localOrders.filter((lo) => !cloudIds.has(lo.id));
+          const finalOrders = [...mergedOrders, ...localOnlyOrders];
+
+          setOrders(finalOrders);
+          DBStorage.saveOrders(finalOrders);
           setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         })
         .catch((error) => showPushToast('Sinkronisasi Order Tertunda', error instanceof Error ? error.message : 'Order cloud belum dapat dimuat.'))
@@ -784,6 +809,10 @@ export default function App() {
         saved = await submitCloudOrder(draftOrder);
         DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== draftOrder.id && order.id !== saved.id)]);
       } catch (error) {
+        // POST gagal saat online: jangan tinggalkan order yatim yang tak pernah
+        // tersinkron. Masukkan ke antrean supaya dicoba ulang lewat Sinkronisasi.
+        DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: saved, timestamp: Date.now() });
+        setPendingSyncCount(DBStorage.getOfflineQueue().length);
         showPushToast('Order Masuk Antrean Offline', error instanceof Error ? error.message : 'Akan disinkronkan saat koneksi pulih.');
       }
     }
@@ -821,6 +850,10 @@ export default function App() {
         saved = await submitCloudOrder(fullOrder);
         DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
       } catch (error) {
+        // Pembayaran gagal terkirim: antrekan untuk retry agar order lunas ini
+        // tetap sampai ke cloud dan tersiar ke terminal lain.
+        DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: saved, timestamp: Date.now() });
+        setPendingSyncCount(DBStorage.getOfflineQueue().length);
         showPushToast('Pembayaran Tersimpan Lokal', error instanceof Error ? error.message : 'Order akan disinkronkan saat koneksi pulih.');
       }
     }
@@ -863,12 +896,31 @@ export default function App() {
   // Kitchen Status Update
   const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
     DBStorage.updateOrderStatus(orderId, newStatus);
-    setOrders(DBStorage.getOrders());
+    const localOrders = DBStorage.getOrders();
+    setOrders(localOrders);
+    const found = localOrders.find((o) => o.id === orderId);
+    const label = found ? formatOrderLabel(found, localOrders) : orderId;
     if (cloudReadiness.supabase && isOnline) {
-      void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
-        .catch((error) => showPushToast('Update Dapur Tertunda', error instanceof Error ? error.message : 'Status tersimpan lokal.'));
+      if (isCloudOrderId(orderId)) {
+        void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
+          .catch((error) => showPushToast('Update Dapur Tertunda', error instanceof Error ? error.message : 'Status tersimpan lokal.'));
+      } else {
+        // Order belum punya id cloud (POST sebelumnya gagal / dibuat offline).
+        // Kirim ulang sebagai order sehingga mendapat UUID cloud, lalu tukar id
+        // lokalnya. Tanpa ini, PATCH ke id lokal selalu ditolak 400 dan status
+        // tidak pernah tersiar realtime ke terminal lain.
+        const local = localOrders.find((o) => o.id === orderId);
+        if (local && local.source !== 'SELF_ORDER') {
+          void submitCloudOrder({ ...local, status: newStatus })
+            .then((saved) => {
+              DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((o) => o.id !== orderId && o.id !== saved.id)]);
+              setOrders(DBStorage.getOrders());
+            })
+            .catch((error) => showPushToast('Sinkronisasi Tertunda', error instanceof Error ? error.message : 'Order tersimpan lokal, menunggu koneksi stabil.'));
+        }
+      }
     }
-    showPushToast('Update Status Dapur', `Status order ${orderId} diperbarui menjadi ${newStatus}.`);
+    showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`);
   };
 
   // Customer Self-Order Submission from Meja QR Code
@@ -1267,6 +1319,7 @@ export default function App() {
               condimentGroups={condimentGroups}
               onOpenCheckoutModal={handleOpenCheckoutModal}
               onSaveHoldOrder={handleSaveHoldOrder}
+              onCompleteOrder={(orderId) => handleUpdateOrderStatus(orderId, 'COMPLETED')}
               onPrintPreBill={handlePrintPreBill}
               onSelectExistingOrderToEdit={(ord) => {
                 showPushToast('Order Dimuat', `Order ${formatOrderLabel(ord)} dibuka di Kasir.`);

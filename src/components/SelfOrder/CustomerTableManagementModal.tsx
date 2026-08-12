@@ -96,7 +96,8 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 <button
                   type="button"
                   onClick={() => onToggleAllTables(true)}
-                  className="cursor-pointer rounded-full bg-orange-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-orange-700"
+                  className="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
+                  style={{ background: 'linear-gradient(180deg, #059669 0%, #047857 100%)', color: '#ffffff' }}
                 >
                   Aktifkan semua
                 </button>

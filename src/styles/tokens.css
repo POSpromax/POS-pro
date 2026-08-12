@@ -1,83 +1,65 @@
-/* Bahasa desain: oranye tunggal di atas putih.
-   Aksen dipakai hemat — tombol utama, angka penting, item aktif. Hijau/merah
-   hanya untuk makna (stok aman, batal, naik-turun), bukan hiasan. */
+/* Bahasa desain: Emerald Green POS UI Kit
+   Aksen utama Emerald Green (#047857 / #059669) - presisi sesuai referensi mockup. */
 :root {
   color-scheme: light;
 
-  /* Skala oranye dari mockup referensi: #FF5B22 sebagai aksen utama, dengan
-     turunan gelap untuk teks kecil. Netralnya hangat (bukan abu kebiruan)
-     supaya oranye terasa menyatu, bukan menempel. */
-  --brand-50: #fff5f0;
-  --brand-100: #ffe6da;
-  --brand-200: #ffcdb6;
-  --brand-300: #ffab86;
-  --brand-400: #ff8354;
-  --brand-500: #ff5b22;
-  --brand-600: #eb4f18;
-  --brand-700: #b8431a;
-  --brand-800: #963715;
-  --brand-900: #7a2f12;
+  /* Skala Emerald Green dari mockup referensi terbaru */
+  --brand-50: #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #059669;
+  --brand-600: #047857;
+  --brand-700: #065f46;
+  --brand-800: #064e3b;
+  --brand-900: #022c22;
 
-  --primary: var(--brand-500);
-  --primary-hover: var(--brand-600);
-  --primary-pressed: var(--brand-700);
-  --primary-light: var(--brand-400);
-  --primary-gradient: linear-gradient(135deg, #ff5b22 0%, #ff8354 100%);
-  --primary-soft: #fff0e9;
+  --primary: var(--brand-600);
+  --primary-hover: #065f46;
+  --primary-pressed: #064e3b;
+  --primary-light: var(--brand-500);
+  --primary-gradient: linear-gradient(135deg, #047857 0%, #059669 100%);
+  --primary-soft: #ecfdf5;
   --primary-border: var(--brand-200);
-  /* Teks aksen di atas latar terang. brand-500 hanya 3.1:1 — cukup untuk
-     angka besar, kurang untuk label 11px. brand-700 mencapai 5.5:1. */
   --primary-text: var(--brand-700);
-  /* Permukaan tombol utama: 3.1:1 dengan teks putih tebal, sesuai referensi.
-     Label kecil di atas putih tetap memakai --primary-text, bukan ini. */
-  --primary-solid: var(--brand-500);
+  --primary-solid: var(--brand-600);
 
-  /* Referensi hampir seluruhnya putih: latar halaman, kartu, dan sidebar
-     sama-sama putih, dipisahkan garis tipis — bukan oleh beda warna latar.
-     Latar krem sebelumnya yang membuat layar terasa kusam. */
-  --canvas-bg: #ffffff;
-  --canvas-bg-start: #ffffff;
-  --canvas-bg-mid: #fcfcfd;
-  --canvas-bg-end: #ffffff;
-  --surface-main: #fcfcfd;
+  --canvas-bg: #f8fafc;
+  --canvas-bg-start: #f8fafc;
+  --canvas-bg-mid: #f1f5f9;
+  --canvas-bg-end: #f8fafc;
+  --surface-main: #f8fafc;
   --surface-card: #ffffff;
-  --surface-secondary: #f6f6f7;
+  --surface-secondary: #f1f5f9;
   --surface-selected: var(--brand-50);
-  --surface-inverse: #20201e;
+  --surface-inverse: #0f172a;
 
   --panel-bg: #ffffff;
-  --panel-border: #ededee;
-  --panel-border-light: #f4f4f5;
-  --panel-border-strong: #dcdcde;
+  --panel-border: #e2e8f0;
+  --panel-border-light: #f1f5f9;
+  --panel-border-strong: #cbd5e1;
 
-  --text-primary: #20201e;
-  --text-secondary: #6f706b;
-  --text-tertiary: #9a9b96;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
   --text-inverse: #ffffff;
 
-  /* Warna makna dari referensi, digelapkan seperlunya: hijau #28B87A hanya
-     2.4:1 di atas putih dan dipakai untuk label kecil seperti "Stok Aman". */
-  --accent-green: #1a8f5f;
-  --accent-amber: #b06f0d;
-  --accent-red: #c94141;
-  --info-soft: #eff5ff;
-  --success-soft: #eaf8f1;
-  --warning-soft: #fff6e6;
-  --danger-soft: #fff0f0;
+  --accent-green: #047857;
+  --accent-amber: #b45309;
+  --accent-red: #dc2626;
+  --info-soft: #f0f9ff;
+  --success-soft: #ecfdf5;
+  --warning-soft: #fffbeb;
+  --danger-soft: #fef2f2;
 
-  /* Referensi memakai kedalaman yang sangat halus: garis tipis + bayangan
-     tipis, bukan bayangan berat. */
-  --shadow-xs: 0 1px 2px rgb(32 32 30 / 3%);
-  --shadow-sm: 0 4px 12px rgb(32 32 30 / 3.5%);
-  --shadow-md: 0 8px 24px rgb(255 91 34 / 10%);
-  --shadow-lg: 0 16px 40px rgb(32 32 30 / 8%);
+  --shadow-xs: 0 1px 2px rgb(15 23 42 / 3%);
+  --shadow-sm: 0 4px 12px rgb(15 23 42 / 3.5%);
+  --shadow-md: 0 8px 24px rgb(4 120 87 / 12%);
+  --shadow-lg: 0 16px 40px rgb(15 23 42 / 8%);
   --card-shadow: var(--shadow-xs), var(--shadow-sm);
   --card-shadow-hover: var(--shadow-md);
 
-  /* Tailwind v4 membaca --radius-* ini sebagai nilai tema untuk rounded-*,
-     jadi skalanya ditulis lengkap dan menaik — kalau ada yang bolong,
-     kelas itu jatuh ke bawaan Tailwind dan urutannya jadi terbalik.
-     Nilainya mengikuti referensi: tombol/input 10–12, kartu 16, modal 20. */
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
@@ -97,102 +79,15 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  /* Typography Scale — enforces consistent sizing across all views */
-  --font-caption: 11px;    /* badges, timestamps, metadata */
-  --font-body: 13px;       /* default body, table cells, form labels */
-  --font-subhead: 15px;    /* section sub-headings, card titles */
-  --font-heading: 20px;    /* page headings */
-  --font-display: 28px;    /* KPI stat values */
+  --font-caption: 11px;
+  --font-body: 13px;
+  --font-subhead: 15px;
+  --font-heading: 18px;
+  --font-display: 24px;
 
-  /* Weight Hierarchy — replaces random font-black everywhere */
   --weight-normal: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
   --weight-heading: 800;
-
-  --transition-fast: 140ms ease;
-  --transition-smooth: 200ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* ── Tailwind v4 @theme ────────────────────────────────────────────────────
-   Maps CSS custom properties → Tailwind utility classes so that e.g.
-   `rounded-md` resolves to 12px and `rounded-card` resolves to 22px,
-   instead of Tailwind's hardcoded defaults. Typography scale and brand
-   colors are also registered so they work via `text-body`, `bg-brand-50` etc.
-   ─────────────────────────────────────────────────────────────────────── */
-@theme {
-  /* Radius */
-  --radius-sm:   8px;
-  --radius-md:   12px;
-  --radius-lg:   14px;
-  --radius-xl:   18px;
-  --radius-2xl:  22px;
-  --radius-3xl:  26px;
-  --radius-pill: 999px;
-
-  /* Brand color palette */
-  --color-brand-50:  #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-400: #fb923c;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --color-brand-800: #9a3412;
-  --color-brand-900: #7c2d12;
-
-  /* Surface colors */
-  --color-canvas:          #f7f7f8;
-  --color-surface:         #ffffff;
-  --color-surface-soft:    #f4f4f5;
-  --color-surface-inverse: #1c1b19;
-
-  /* Semantic text */
-  --color-text-primary:   #1a1714;
-  --color-text-secondary: #6b6b70;
-  --color-text-muted:     #9a9aa0;
-
-  /* Accent */
-  --color-success: #15803d;
-  --color-warning: #b45309;
-  --color-danger:  #dc2626;
-
-  /* Font size scale */
-  --font-size-caption:  11px;
-  --font-size-body:     13px;
-  --font-size-subhead:  15px;
-  --font-size-heading:  20px;
-  --font-size-display:  28px;
-
-  /* Font weight scale */
-  --font-weight-normal:   400;
-  --font-weight-medium:   500;
-  --font-weight-semibold: 600;
-  --font-weight-bold:     700;
-  --font-weight-heading:  800;
-
-  /* Spacing */
-  --spacing-1: 4px;
-  --spacing-2: 8px;
-  --spacing-3: 12px;
-  --spacing-4: 16px;
-  --spacing-5: 20px;
-  --spacing-6: 24px;
-  --spacing-8: 32px;
-}
-
-/* Layar pelanggan: warna merek sama, latarnya dihangatkan sedikit supaya
-   terasa berbeda dari terminal petugas tanpa memakai palet lain. */
-.theme-self-order {
-  --canvas-bg: #fffaf6;
-  --canvas-bg-start: #fffcfa;
-  --canvas-bg-mid: #fff6ef;
-  --canvas-bg-end: #fffaf7;
-  --surface-main: #fffaf6;
-  --surface-secondary: #fff4e9;
-  --panel-border: #f2e6da;
-  --panel-border-light: #f8f0e8;
-  --panel-border-strong: #e6d5c5;
 }

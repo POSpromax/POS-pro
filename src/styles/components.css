@@ -81,15 +81,15 @@
 .ui-button:disabled { cursor: not-allowed; opacity: 0.46; }
 
 .ui-button-primary {
-  border-color: var(--primary-solid);
-  background: var(--primary-solid);
+  border: 1px solid #047857;
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
   color: var(--text-inverse);
-  box-shadow: 0 6px 16px rgb(255 91 34 / 20%);
+  box-shadow: 0 4px 14px rgba(4, 120, 87, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .ui-button-primary:hover:not(:disabled) {
-  border-color: var(--primary-pressed);
-  background: var(--primary-pressed);
-  box-shadow: 0 8px 20px rgb(255 91 34 / 28%);
+  border-color: #065F46;
+  background: linear-gradient(180deg, #047857 0%, #065F46 100%);
+  box-shadow: 0 6px 20px rgba(4, 120, 87, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .ui-button-secondary {
   border-color: var(--panel-border);

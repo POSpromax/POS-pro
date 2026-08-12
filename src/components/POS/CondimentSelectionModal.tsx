@@ -30,7 +30,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   if (!isOpen || !menuItem) return null;
 
   // Filter active condiment groups for this menuItem
-  const applicableGroups = condimentGroups.filter((g) => isGroupApplicable(g, menuItem));
+  const applicableGroups = condimentGroups.filter((g) => g.isActive !== false && isGroupApplicable(g, menuItem));
 
   // State for selections: { [groupId]: string[] (selected option names) }
   const [selections, setSelections] = useState<Record<string, string[]>>({});
@@ -206,11 +206,11 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                     )}
                   </div>
 
-                  {/* Options laid out side-by-side so tall groups stay compact */}
+                  {/* Options laid out side-by-side with ON/OFF Toggle Switches */}
                   <div className="grid grid-cols-2 gap-2">
                     {group.options.map((option) => {
                       const isSelected = selectedList.includes(option.name);
-                      const isAvailable = option.isAvailable;
+                      const isAvailable = option.isAvailable !== false;
 
                       return (
                         <button
@@ -220,29 +220,37 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           onClick={() => isAvailable && toggleOption(group, option.name)}
                           className={`p-3 rounded-2xl text-left border text-xs font-bold transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
                             !isAvailable
-                              ? 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-tertiary)] opacity-60 cursor-not-allowed'
+                              ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                               : isSelected
-                              ? 'bg-[var(--primary-soft)] border-[var(--primary-border)] text-[var(--primary-hover)] shadow-sm'
-                              : 'bg-[var(--surface-card)] border-[var(--panel-border)] hover:border-[var(--primary-border)] text-[var(--text-primary)]'
+                              ? 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30'
+                              : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800'
                           }`}
                         >
-                          <span className="truncate">
-                            <span className="block font-bold text-[var(--text-primary)] uppercase">{option.name}</span>
+                          <span className="truncate min-w-0 flex-1">
+                            <span className="block font-black text-[#111827] uppercase tracking-wide text-xs">{option.name}</span>
                             {option.price > 0 && (
-                              <span className="block text-[11px] font-bold text-[var(--primary-text)] mt-0.5 font-mono">
+                              <span className="block text-[11px] font-extrabold text-[#047857] mt-0.5 font-mono">
                                 +Rp {option.price.toLocaleString('id-ID')}
                               </span>
                             )}
                           </span>
 
-                          <div
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                              isSelected
-                                ? 'border-[var(--primary)] bg-[var(--primary-solid)] text-white'
-                                : 'border-[var(--panel-border-strong)] bg-[var(--surface-secondary)]'
-                            }`}
-                          >
-                            {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                          {/* Saklar ON / OFF Toggle Switch for Cashier Modal */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`text-[9px] font-black uppercase tracking-wide ${isSelected ? 'text-[#047857]' : 'text-slate-400'}`}>
+                              {isSelected ? 'ON' : 'OFF'}
+                            </span>
+                            <div
+                              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                                isSelected ? 'bg-[#047857]' : 'bg-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                                  isSelected ? 'translate-x-4.5' : 'translate-x-0.5'
+                                }`}
+                              />
+                            </div>
                           </div>
                         </button>
                       );

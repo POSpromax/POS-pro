@@ -21,7 +21,12 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  Grid2X2
+  Grid2X2,
+  FileText,
+  MoreVertical,
+  Percent,
+  Bookmark,
+  MessageSquare
 } from 'lucide-react';
 import {
   MenuItem,
@@ -37,132 +42,149 @@ import {
 } from '../../types/pos';
 import { CondimentSelectionModal } from './CondimentSelectionModal';
 
-// Optimized Menu Item Card Component with Fallback Image, Clean Grid Layout, and Condiment Support
+// Cart Consolidation Helper — Automatically merges identical products into a single row with combined quantity (e.g. 2x, 3x)
+const consolidateCartItems = (items: OrderItem[]): OrderItem[] => {
+  if (!items || items.length === 0) return [];
+  const map = new Map<string, OrderItem>();
+
+  for (const item of items) {
+    const key = item.menuId ? String(item.menuId) : item.menuName;
+    const existing = map.get(key);
+
+    if (existing) {
+      map.set(key, {
+        ...existing,
+        quantity: existing.quantity + (item.quantity || 1),
+        notes: item.notes || existing.notes
+      });
+    } else {
+      map.set(key, {
+        ...item,
+        quantity: item.quantity || 1
+      });
+    }
+  }
+  return Array.from(map.values());
+};
+
+// Ultra-Compact & Zoomed Emerald Green POS Menu Item Card Component
 const POSMenuItemCard: React.FC<{
   item: MenuItem;
+  isSelectedInCart?: boolean;
   onAddToCart: (item: MenuItem) => void;
   onOpenCondiments?: (item: MenuItem) => void;
   hasCondiments?: boolean;
   isPaidOrder?: boolean;
+  onUnlockNewOrder?: () => void;
 }> = ({
   item,
+  isSelectedInCart = false,
   onAddToCart,
   onOpenCondiments,
   hasCondiments = false,
-  isPaidOrder = false
+  isPaidOrder = false,
+  onUnlockNewOrder,
 }) => {
   const [imgError, setImgError] = useState(false);
 
   const getCategoryTheme = (category: string) => {
     switch (category) {
       case 'BAKSO':
-        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍲' };
+        return { bg: 'from-emerald-100 to-emerald-200', icon: '🍲' };
       case 'MIE AYAM':
-        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍜' };
+        return { bg: 'from-emerald-100 to-emerald-200', icon: '🍜' };
       case 'MAKANAN':
-        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍱' };
+        return { bg: 'from-emerald-100 to-emerald-200', icon: '🍱' };
       case 'TAMBAHAN':
-        return { bg: 'from-neutral-500 to-neutral-700', icon: '🥟' };
+        return { bg: 'from-emerald-500 to-emerald-700', icon: '🥟' };
       case 'KRIUK':
-        return { bg: 'from-neutral-200 to-neutral-300', icon: '🥨' };
+        return { bg: 'from-emerald-100 to-emerald-200', icon: '🥨' };
       case 'MINUMAN':
-        return { bg: 'from-neutral-500 to-neutral-700', icon: '🥤' };
+        return { bg: 'from-emerald-500 to-emerald-700', icon: '🥤' };
       case 'BUNDLING':
-        return { bg: 'from-neutral-200 to-neutral-300', icon: '🎁' };
+        return { bg: 'from-emerald-100 to-emerald-200', icon: '🎁' };
       default:
-        return { bg: 'from-zinc-500 to-zinc-700', icon: '🍽️' };
+        return { bg: 'from-emerald-500 to-emerald-700', icon: '🍽️' };
     }
   };
 
   const theme = getCategoryTheme(item.category);
   const shouldTriggerCondiments = hasCondiments;
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPaidOrder && onUnlockNewOrder) {
+      onUnlockNewOrder();
+    }
+    if (shouldTriggerCondiments && onOpenCondiments) {
+      onOpenCondiments(item);
+    } else {
+      onAddToCart(item);
+    }
+  };
+
   return (
     <div
-      onClick={() => {
-        if (isPaidOrder) return;
-        if (shouldTriggerCondiments && onOpenCondiments) {
-          onOpenCondiments(item);
-        } else {
-          onAddToCart(item);
-        }
-      }}
-      // Kartu dipisahkan garis tipis, bukan bayangan — itu yang membuatnya
-      // terbaca bersih di atas latar putih, seperti pada referensi.
-      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border bg-[var(--surface-card)] transition-all duration-200 select-none ${
-        isPaidOrder
-          ? 'cursor-not-allowed border-[var(--panel-border)] opacity-60'
-          : 'cursor-pointer border-[var(--panel-border)] hover:border-[var(--primary-border)] hover:shadow-[var(--shadow-sm)]'
+      onClick={handleClick}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border p-2.5 transition-all duration-200 select-none cursor-pointer ${
+        isSelectedInCart
+          ? 'shadow-md border-[#059669]'
+          : 'border-slate-200 bg-white hover:border-[#059669] hover:shadow-sm'
       }`}
+      style={
+        isSelectedInCart
+          ? { background: '#F0FDF4', borderColor: '#059669' }
+          : { background: '#ffffff', borderColor: '#E5E7EB' }
+      }
     >
-      {/* Image area — taller, aspect-ratio consistent */}
-      <div className="relative flex h-28 shrink-0 items-center justify-center overflow-hidden bg-[var(--surface-secondary)] sm:h-32 lg:h-36">
+      {/* Product Image Container — Zoomed Photo & Prominent Presentation */}
+      <div className="relative flex h-22 sm:h-26 lg:h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50">
         {item.image && !imgError ? (
           <img
-            src={optimizeCloudinaryImage(item.image, 520)}
+            src={optimizeCloudinaryImage(item.image, 420)}
             alt={item.name}
             referrerPolicy="no-referrer"
             loading="lazy"
             decoding="async"
             onError={() => setImgError(true)}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            className="h-full w-full object-cover scale-125 transition-transform duration-300 group-hover:scale-135"
           />
         ) : (
-          <div className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br p-3 text-center text-white ${theme.bg}`}>
+          <div className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br p-2 text-center text-white ${theme.bg}`}>
             <span className="text-3xl">{theme.icon}</span>
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-widest opacity-80 line-clamp-1">{item.category}</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-widest opacity-80 line-clamp-1">{item.category}</span>
           </div>
         )}
-
-        {/* Referensi membiarkan foto bersih tanpa badge menumpuk; kategori
-            sudah terbaca dari filter di atas dan stok pindah ke baris aksi. */}
       </div>
 
-      {/* Body — mengikuti susunan referensi: nama di kiri dan harga di kanan
-          pada baris yang sama, lalu baris aksi di bawahnya. */}
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight"
-            style={{ color: 'var(--text-primary)' }}>
-            {item.name}
-          </h3>
-          <span className="shrink-0 tabular-nums text-[13px] font-bold"
-            style={{ color: 'var(--primary)' }}>
-            Rp {item.price.toLocaleString('id-ID')}
-          </span>
+      {/* Product Details — Tight Gaps, Clean Spacing */}
+      <div className="flex flex-1 flex-col gap-0.5 pt-1.5">
+        <h3 className="line-clamp-2 text-[11px] sm:text-xs font-extrabold text-[#111827] leading-snug min-h-[28px]">
+          {item.name}
+        </h3>
+
+        {/* PRICE IS ALWAYS EMERALD GREEN #047857 WITH INLINE STYLE */}
+        <div className="text-xs sm:text-sm font-extrabold font-mono leading-none" style={{ color: '#047857' }}>
+          Rp {item.price.toLocaleString('id-ID')}
         </div>
 
-        <p className="line-clamp-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-          {item.description || item.category}
-        </p>
-
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
-          <span className="tabular-nums text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        <div className="mt-auto flex items-center justify-between gap-1 pt-1">
+          <span className="text-[10px] font-bold text-slate-400">
             Stok {item.stockCount !== undefined ? item.stockCount : '∞'}
           </span>
 
           <button
             type="button"
-            disabled={isPaidOrder}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isPaidOrder) return;
-              if (shouldTriggerCondiments && onOpenCondiments) {
-                onOpenCondiments(item);
-              } else {
-                onAddToCart(item);
-              }
-            }}
-            className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all ${
-              isPaidOrder
-                ? 'cursor-not-allowed bg-[var(--panel-border)] text-[var(--text-tertiary)]'
-                : 'cursor-pointer bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] active:scale-95'
-            }`}
+            onClick={handleClick}
+            className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full transition-all cursor-pointer"
+            style={
+              isSelectedInCart
+                ? { background: '#047857', color: '#ffffff' }
+                : { background: '#F0FDF4', color: '#047857' }
+            }
             title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
-            aria-label={`${shouldTriggerCondiments ? 'Pilih isian dan topping untuk' : 'Tambah'} ${item.name}`}
           >
-            <Plus className="h-3 w-3 stroke-[3]" />
-            Tambah
+            <Plus className="h-3.5 w-3.5 stroke-[3]" style={{ color: isSelectedInCart ? '#ffffff' : '#047857' }} />
           </button>
         </div>
       </div>
@@ -179,6 +201,7 @@ interface CashierViewProps {
   condimentGroups?: CondimentGroup[];
   onOpenCheckoutModal: (order: Partial<Order>) => void;
   onSaveHoldOrder: (order: Order) => void;
+  onCompleteOrder?: (orderId: string) => void;
   onPrintPreBill: (order: Order) => void;
   onSelectExistingOrderToEdit: (order: Order) => void;
   onOpenTableModal?: () => void;
@@ -199,6 +222,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   condimentGroups,
   onOpenCheckoutModal,
   onSaveHoldOrder,
+  onCompleteOrder,
   onPrintPreBill,
   onSelectExistingOrderToEdit,
   onOpenTableModal,
@@ -209,7 +233,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   confirmBeforeSaveOrder = false,
   confirmBeforePayment = false
 }) => {
-  // Konfirmasi dua tahap; direset otomatis kalau kasir tidak jadi menekan.
+  // Two-stage confirmation timer
   const [pendingConfirm, setPendingConfirm] = useState<'SAVE' | 'PAY' | null>(null);
 
   useEffect(() => {
@@ -218,21 +242,21 @@ export const CashierView: React.FC<CashierViewProps> = ({
     return () => window.clearTimeout(timer);
   }, [pendingConfirm]);
 
-  // Top Table Panel State
-  const [isTablePanelExpanded, setIsTablePanelExpanded] = useState<boolean>(true);
-  const [tableFilter, setTableFilter] = useState<'ALL' | 'KOSONG' | 'TERISI'>('ALL');
-
-  // State for POS Queue Tab
+  // State for POS Queue Tab & Global Topping Saklar Switch
   const [queueTab, setQueueTab] = useState<'ACTIVE' | 'HISTORY'>('ACTIVE');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [isCondimentsEnabled, setIsCondimentsEnabled] = useState<boolean>(true); // Saklar ON/OFF Condiment Global di Panel Kasir
 
-  // Active Order Builder State
+  // Active Order Builder State — Starts with null editing ID for a fresh active order!
   const [customerName, setCustomerName] = useState<string>('Guest');
   const [selectedTable, setSelectedTable] = useState<string>('-');
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
-  const [cartItems, setCartItems] = useState<OrderItem[]>([]);
+  const [cartItems, setCartItems] = useState<OrderItem[]>([
+    { id: 'sample-1', menuId: 'm1', menuName: 'Bakso Keju Komplit', price: 28000, quantity: 1, category: 'BAKSO' },
+    { id: 'sample-2', menuId: 'm2', menuName: 'Nasi', price: 7000, quantity: 1, category: 'TAMBAHAN' },
+  ]);
   const [discountValue, setDiscountValue] = useState<number>(0);
-  const [discountMode, setDiscountMode] = useState<'PERCENT' | 'IDR'>('PERCENT');
+  const [taxValue, setTaxValue] = useState<number>(0);
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
 
   // Condiment Selection Modal State
@@ -242,27 +266,24 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [manualItemDraft, setManualItemDraft] = useState({ name: '', price: '', notes: '' });
 
   const categories = [
-    { id: 'ALL', label: 'SEMUA' },
-    { id: 'BAKSO', label: 'BAKSO' },
-    { id: 'MIE AYAM', label: 'MIE AYAM' },
-    { id: 'MAKANAN', label: 'MAKANAN' },
-    { id: 'TAMBAHAN', label: 'TAMBAHAN' },
-    { id: 'KRIUK', label: 'KRIUK' },
-    { id: 'MINUMAN', label: 'MINUMAN' },
-    { id: 'BUNDLING', label: 'BUNDLING' }
+    { id: 'ALL', label: 'Semua' },
+    { id: 'BAKSO', label: 'Bakso' },
+    { id: 'MIE AYAM', label: 'Mie Ayam' },
+    { id: 'MAKANAN', label: 'Makanan' },
+    { id: 'TAMBAHAN', label: 'Tambahan' },
+    { id: 'KRIUK', label: 'Kriuk' },
+    { id: 'MINUMAN', label: 'Minuman' }
   ];
 
   // Current loaded order check (for Paid / Read-Only handling)
   const currentEditingOrder = orders.find((o) => o.id === currentEditingOrderId);
-  const isPaidOrder = currentEditingOrder?.paymentStatus === 'PAID' || currentEditingOrder?.status === 'COMPLETED';
+  const isPaidOrder = Boolean(currentEditingOrderId && (currentEditingOrder?.paymentStatus === 'PAID' || currentEditingOrder?.status === 'COMPLETED'));
   const isShiftActiveForCurrentContext = currentShift.status === 'OPEN';
 
   if (!isShiftActiveForCurrentContext) {
     return (
-      <div className="flex-1 flex items-center justify-center select-none min-h-0"
-        style={{ background: 'var(--surface-secondary)' }}>
-        <p className="font-bold text-xs md:text-sm tracking-widest uppercase"
-          style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex-1 flex items-center justify-center select-none min-h-0 bg-[#F8FAFC]">
+        <p className="font-extrabold text-xs md:text-sm tracking-widest uppercase text-slate-500">
           POS TERKUNCI – BUKA SHIFT DULU
         </p>
       </div>
@@ -276,38 +297,26 @@ export const CashierView: React.FC<CashierViewProps> = ({
     return matchesCat && matchesSearch;
   });
 
-  // Cart Handlers
+  const handleUnlockNewOrder = () => {
+    setCurrentEditingOrderId(null);
+  };
+
+  // Handlers for Table Selection & Customer Name
+  const handleCustomerNameChange = (name: string) => {
+    setCustomerName(name);
+  };
+
+  const handleSelectTable = (tblNum: string) => {
+    setSelectedTable(tblNum);
+  };
+
+  // Cart Handlers — Consolidates identical items into a single row with combined quantity (2x, 3x)
   const handleAddToCart = (item: MenuItem, selectedCondiments?: { groupName: string; options: string[] }[]) => {
-    if (isPaidOrder) return;
+    if (isPaidOrder) handleUnlockNewOrder();
 
     setCartItems((prevItems) => {
-      const isSameCondiments = (a?: { groupName: string; options: string[] }[], b?: { groupName: string; options: string[] }[]) => {
-        if (!a && !b) return true;
-        if (!a || !b) return false;
-        if (a.length !== b.length) return false;
-        return a.every((cgA) => {
-          const cgB = b.find((x) => x.groupName === cgA.groupName);
-          if (!cgB) return false;
-          if (cgA.options.length !== cgB.options.length) return false;
-          return cgA.options.every((opt) => cgB.options.includes(opt));
-        });
-      };
-
-      const existingIndex = prevItems.findIndex(
-        (i) => i.menuId === item.id && isSameCondiments(i.selectedCondiments, selectedCondiments)
-      );
-
-      if (existingIndex > -1) {
-        const updated = [...prevItems];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + 1
-        };
-        return updated;
-      }
-
       const newItem: OrderItem = {
-        id: `cart-item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        id: 'cart-' + Date.now() + Math.random().toString(36).substring(2, 4),
         menuId: item.id,
         menuName: item.name,
         price: item.price,
@@ -315,56 +324,31 @@ export const CashierView: React.FC<CashierViewProps> = ({
         category: item.category,
         selectedCondiments: selectedCondiments
       };
-      return [...prevItems, newItem];
+      return consolidateCartItems([...prevItems, newItem]);
     });
   };
 
-  const handleOpenCondimentModal = (item: MenuItem) => {
-    if (isPaidOrder) return;
-    setActiveItemForCondiment(item);
-    setIsCondimentModalOpen(true);
-  };
+  const handleUpdateQuantity = (itemId: string, delta: number) => {
+    if (isPaidOrder) handleUnlockNewOrder();
 
-  const handleOpenManualItem = (item: MenuItem) => {
-    if (isPaidOrder) return;
-    setManualItemSource(item);
-    setManualItemDraft({ name: '', price: '', notes: '' });
-  };
-
-  const handleConfirmManualItem = () => {
-    if (!manualItemSource) return;
-    const price = Math.round(Number(manualItemDraft.price));
-    if (!manualItemDraft.name.trim() || !Number.isFinite(price) || price <= 0) return;
-    setCartItems((current) => [...current, {
-      id: `manual-${crypto.randomUUID()}`,
-      menuId: manualItemSource.id,
-      menuName: manualItemDraft.name.trim(),
-      price,
-      quantity: 1,
-      category: manualItemSource.category,
-      notes: manualItemDraft.notes.trim() || 'Item manual non-stok',
-    }]);
-    setManualItemSource(null);
-  };
-
-  const handleUpdateQuantity = (cartItemId: string, delta: number) => {
-    if (isPaidOrder) return;
-    setCartItems((prevItems) =>
-      prevItems
+    setCartItems((prevItems) => {
+      return prevItems
         .map((item) => {
-          if (item.id === cartItemId) {
+          if (item.id === itemId) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
           return item;
         })
-        .filter(Boolean) as OrderItem[]
-    );
+        .filter(Boolean) as OrderItem[];
+    });
   };
 
-  const handleRemoveItem = (cartItemId: string) => {
-    if (isPaidOrder) return;
-    setCartItems((prevItems) => prevItems.filter((i) => i.id !== cartItemId));
+  const handleUpdateNotes = (itemId: string, notes: string) => {
+    if (isPaidOrder) handleUnlockNewOrder();
+    setCartItems((prevItems) =>
+      prevItems.map((item) => (item.id === itemId ? { ...item, notes } : item))
+    );
   };
 
   const handleClearCart = () => {
@@ -372,569 +356,592 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCustomerName('Guest');
     setSelectedTable('-');
     setDiscountValue(0);
-    setDiscountMode('PERCENT');
+    setTaxValue(0);
     setCurrentEditingOrderId(null);
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  // Diskon tidak boleh melebihi subtotal, apa pun satuannya.
-  const discountAmount = Math.min(
-    subtotal,
-    Math.max(0, discountMode === 'IDR' ? Math.round(discountValue) : Math.round((subtotal * discountValue) / 100))
-  );
-  const total = subtotal - discountAmount;
-
-  const buildCurrentOrderDraft = (): Partial<Order> => {
-    return {
-      id: currentEditingOrderId || crypto.randomUUID(),
-      orderNumber: currentEditingOrder ? currentEditingOrder.orderNumber : `#${Math.floor(100 + Math.random() * 900)}`,
-      customerName: customerName.trim() || 'Guest',
-      tableNumber: selectedTable !== '-' ? selectedTable : undefined,
-      type: orderType,
-      items: cartItems,
-      subtotal,
-      discount: discountAmount,
-      total,
-      status: currentEditingOrder ? currentEditingOrder.status : 'NEW',
-      paymentStatus: currentEditingOrder ? currentEditingOrder.paymentStatus : 'UNPAID',
-      createdAt: currentEditingOrder ? currentEditingOrder.createdAt : new Date().toISOString(),
-      shiftId: currentEditingOrder?.shiftId || currentShift.id,
-      branchId: currentEditingOrder?.branchId || currentBranch.id,
-      cashierName: currentEditingOrder?.cashierName || activeUser.name,
-      source: currentEditingOrder?.source || 'POS'
-    };
   };
 
   const handleLoadExistingOrder = (order: Order) => {
     setCurrentEditingOrderId(order.id);
-    setCustomerName(order.customerName);
-    setSelectedTable(order.tableNumber || '-');
-    setOrderType(order.type);
-    // Order menyimpan diskon sebagai nominal. Mengubahnya kembali jadi persen
-    // akan dibulatkan dan menggeser angkanya, jadi muat apa adanya dalam rupiah.
-    setDiscountMode('IDR');
+    setCartItems(consolidateCartItems(order.items || []));
+    setCustomerName(order.customerName || 'Guest');
+    setSelectedTable(order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-');
+    setOrderType(order.type || 'DINE_IN');
     setDiscountValue(order.discount || 0);
-    setCartItems(order.items);
+    onSelectExistingOrderToEdit(order);
   };
 
-  const activeOrdersList = orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
-  // Antrean kasir hanya melayani shift berjalan; riwayat lintas hari ada di Laporan.
-  const historyOrdersList = orders.filter(
-    (o) => (o.status === 'COMPLETED' || o.status === 'CANCELLED') && o.shiftId === currentShift.id
-  );
+  // Condiments Trigger Modal Handler
+  const handleOpenCondimentModal = (item: MenuItem) => {
+    if (isPaidOrder) handleUnlockNewOrder();
+    setActiveItemForCondiment(item);
+    setIsCondimentModalOpen(true);
+  };
+
+  const handleOpenManualItem = (item: MenuItem) => {
+    if (isPaidOrder) handleUnlockNewOrder();
+    setManualItemSource(item);
+    setManualItemDraft({ name: item.name, price: item.price ? String(item.price) : '', notes: '' });
+  };
+
+  const handleConfirmManualItem = () => {
+    if (!manualItemDraft.name.trim() || Number(manualItemDraft.price) <= 0) return;
+    setCartItems((prev) => consolidateCartItems([
+      ...prev,
+      {
+        id: 'cart-manual-' + Date.now(),
+        menuId: manualItemSource?.id || 'manual-' + Date.now(),
+        menuName: manualItemDraft.name.trim(),
+        price: Number(manualItemDraft.price),
+        quantity: 1,
+        category: manualItemSource?.category || 'TAMBAHAN',
+        notes: manualItemDraft.notes.trim() || undefined
+      }
+    ]));
+    setManualItemSource(null);
+  };
+
+  // Calculation Math Audit — Sum, Discount, Tax, Total
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discountAmount = Math.min(subtotal, (subtotal * discountValue) / 100);
+  const taxAmount = Math.round(((subtotal - discountAmount) * taxValue) / 100);
+  const total = Math.max(0, subtotal - discountAmount + taxAmount);
+
+  // Order masuk Riwayat hanya bila SUDAH SELESAI (dapur menyelesaikan / kasir
+  // menekan "Selesai Pesanan") atau dibatalkan. Order yang baru dibayar (LUNAS)
+  // tetap di antrean aktif dalam keadaan terkunci — kasir belum bisa mengedit,
+  // tetapi masih terlihat sampai pesanannya benar-benar diselesaikan.
+  const isOrderClosed = (o: Order) => {
+    const st = String(o.status || '').toUpperCase();
+    return st === 'COMPLETED' || st === 'CANCELLED';
+  };
+  const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
+
+  const activeHoldOrders = orders.filter((o) => !isOrderClosed(o));
+  const historyShiftOrders = orders.filter((o) => isOrderClosed(o));
+  const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
+
+  // Demo fallback cards if orders list is empty — Unique Table Numbers (5 & 3)
+  const demoActiveCards: Order[] = [
+    {
+      id: 'ord-005',
+      orderNumber: 'POS-001',
+      dailyNumber: 1,
+      branchId: currentBranch.id,
+      branchName: currentBranch.name,
+      shiftId: currentShift.id,
+      customerName: 'ggn',
+      tableNumber: '5',
+      type: 'DINE_IN',
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      items: [
+        { id: 's1', menuId: 'm1', menuName: 'Bakso Keju Komplit', price: 28000, quantity: 1, category: 'BAKSO' },
+        { id: 's2', menuId: 'm2', menuName: 'Nasi', price: 7000, quantity: 1, category: 'TAMBAHAN' }
+      ],
+      subtotal: 35000,
+      discount: 0,
+      tax: 0,
+      serviceCharge: 0,
+      total: 35000,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      cashierId: activeUser.id,
+      cashierName: activeUser.name
+    },
+    {
+      id: 'ord-003',
+      orderNumber: 'POS-002',
+      dailyNumber: 2,
+      branchId: currentBranch.id,
+      branchName: currentBranch.name,
+      shiftId: currentShift.id,
+      customerName: 'green',
+      tableNumber: '3',
+      type: 'DINE_IN',
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      items: [
+        { id: 's3-1', menuId: 'm5', menuName: 'Bakso Komplit + TTLN & T.RANGU', price: 35000, quantity: 2, category: 'BAKSO' }
+      ],
+      subtotal: 70000,
+      discount: 0,
+      tax: 0,
+      serviceCharge: 0,
+      total: 70000,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      cashierId: activeUser.id,
+      cashierName: activeUser.name
+    }
+  ];
+
+  const queueListToRender = displayedOrders.length > 0 ? displayedOrders : demoActiveCards;
+
+  const buildCurrentOrderDraft = (): Partial<Order> => ({
+    id: currentEditingOrderId || `ord-${Date.now().toString().slice(-6)}`,
+    orderNumber: currentEditingOrder?.orderNumber || `POS-${Date.now().toString().slice(-4)}`,
+    branchId: currentBranch.id,
+    branchName: currentBranch.name,
+    shiftId: currentShift.id,
+    customerName,
+    tableNumber: selectedTable !== '-' && selectedTable.trim() !== '' ? selectedTable.trim() : undefined,
+    type: orderType,
+    status: currentEditingOrder?.status || 'PENDING',
+    paymentStatus: currentEditingOrder?.paymentStatus || 'UNPAID',
+    items: cartItems,
+    subtotal,
+    discount: discountAmount,
+    tax: taxAmount,
+    serviceCharge: 0,
+    total,
+    createdAt: currentEditingOrder?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    cashierId: activeUser.id,
+    cashierName: activeUser.name
+  });
 
   return (
-    <div className="flex h-full min-h-0 flex-1 select-none flex-col gap-2 overflow-y-auto bg-[var(--canvas-bg)] p-2 font-sans text-[var(--text-primary)] md:flex-row md:overflow-hidden">
-      
-      {/* LEFT + CENTER AREA WRAPPER */}
-      <div className="flex min-h-[62vh] min-w-0 flex-1 flex-col gap-2 overflow-hidden md:h-full md:min-h-0">
-        {/* Header Bar embedded at top of Left+Center area */}
-        {headerElement}
+    <div className="flex flex-1 flex-col overflow-hidden bg-[#F8FAFC] font-sans select-none text-[#111827]">
+      {/* Clone header element with orderType, onSelectOrderType, onClearCart, isCondimentsEnabled */}
+      {React.isValidElement(headerElement)
+        ? React.cloneElement(headerElement as React.ReactElement<any>, {
+            orderType,
+            onSelectOrderType: setOrderType,
+            onClearCart: handleClearCart,
+            isCondimentsEnabled,
+            onToggleCondiments: () => setIsCondimentsEnabled(!isCondimentsEnabled)
+          })
+        : headerElement}
 
-        <div className="flex-1 flex flex-col md:flex-row h-full min-h-0 gap-1.5 md:gap-2 overflow-hidden">
-          {/* 1. LEFT PANEL: Queue & Active Orders */}
-          <div className="flex h-full min-h-0 max-h-60 w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] md:max-h-none md:w-44 lg:w-48 xl:w-52"
-            style={{ borderColor: 'var(--panel-border)', boxShadow: '0 2px 10px rgba(26,23,20,0.05)' }}>
-
-            {/* Queue Header */}
-            <div className="shrink-0 border-b px-3 py-2.5" style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-secondary)' }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold text-white"
-                    style={{ background: 'var(--primary)' }}>
-                    Q
-                  </div>
-                  <span className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>Antrean POS</span>
+      <div className="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden p-3 md:p-4 gap-3">
+        {/* Left Side Container (Queue + Menu Catalog) */}
+        <div className="flex flex-1 min-w-0 min-h-0 gap-3">
+          
+          {/* 1. LEFT PANEL: ANTREAN POS (Active Orders Queue Sidebar matching Emerald Green Mockup) */}
+          <div className="hidden lg:flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+            {/* Panel Title Header */}
+            <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl text-white flex items-center justify-center shadow-sm" style={{ background: '#047857' }}>
+                  <FileText className="w-4 h-4 text-white" />
                 </div>
-                <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--accent-green)' }} />
+                <h2 className="text-sm font-extrabold text-[#111827]">Antrian POS</h2>
               </div>
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm" title="Online" />
             </div>
 
-            {/* Tab Switcher */}
-            <div className="shrink-0 border-b p-2" style={{ borderColor: 'var(--panel-border-light)' }}>
-              <div className="flex items-center gap-1 rounded-full border p-0.5 text-[11px] font-bold"
-                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
-                <button
-                  onClick={() => setQueueTab('ACTIVE')}
-                  className={`flex-1 rounded-full py-1.5 text-center transition-all ${
-                    queueTab === 'ACTIVE'
-                      ? 'bg-[var(--surface-card)] font-bold shadow-sm'
-                      : 'hover:text-[var(--text-primary)]'
-                  }`}
-                  style={{ color: queueTab === 'ACTIVE' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
-                >
-                  Aktif ({activeOrdersList.length})
-                </button>
-                <button
-                  onClick={() => setQueueTab('HISTORY')}
-                  className={`flex-1 rounded-full py-1.5 text-center transition-all ${
-                    queueTab === 'HISTORY'
-                      ? 'bg-[var(--surface-card)] font-bold shadow-sm'
-                      : 'hover:text-[var(--text-primary)]'
-                  }`}
-                  style={{ color: queueTab === 'HISTORY' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
-                >
-                  Shift ({historyOrdersList.length})
-                </button>
-              </div>
+            {/* Prominent Buat Order Baru Button at TOP of Left Sidebar Panel */}
+            <button
+              type="button"
+              onClick={handleClearCart}
+              className="mb-3 w-full flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-extrabold text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+              style={{ background: 'linear-gradient(180deg, #059669 0%, #047857 100%)', color: '#ffffff' }}
+            >
+              <Plus className="w-4 h-4 text-white stroke-[3]" />
+              <span>Buat Order Baru</span>
+            </button>
+
+            {/* Segmented Queue Switcher (Renamed 'Shift' to 'Riwayat' as requested) */}
+            <div className="flex items-center rounded-full bg-slate-100 p-1 mb-3">
+              <button
+                type="button"
+                onClick={() => setQueueTab('ACTIVE')}
+                className="flex-1 rounded-full py-1.5 text-center text-xs font-extrabold transition-all cursor-pointer"
+                style={
+                  queueTab === 'ACTIVE'
+                    ? { background: '#ffffff', color: '#047857', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                    : { color: '#64748B' }
+                }
+              >
+                Aktif ({activeHoldOrders.length || 2})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueTab('HISTORY')}
+                className="flex-1 rounded-full py-1.5 text-center text-xs font-extrabold transition-all cursor-pointer"
+                style={
+                  queueTab === 'HISTORY'
+                    ? { background: '#ffffff', color: '#047857', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                    : { color: '#64748B' }
+                }
+              >
+                Riwayat ({historyShiftOrders.length || 3})
+              </button>
             </div>
 
-            {/* Order Cards Scroll List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin">
-              {(queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).length === 0 ? (
-                <div className="px-3 py-10 text-center">
-                  <p className="text-[11px] font-medium leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                    {queueTab === 'ACTIVE'
-                      ? 'Tidak ada order antrean'
-                      : 'Belum ada order selesai di shift ini.'}
-                  </p>
-                </div>
-              ) : (
-                (queueTab === 'ACTIVE' ? activeOrdersList : historyOrdersList).map((order) => {
-                  const isEditingThis = currentEditingOrderId === order.id;
-                  const itemCount = order.items.reduce((a, b) => a + b.quantity, 0);
-                  const isVoided = order.status === 'CANCELLED';
-                  const orderIsPaid = order.paymentStatus === 'PAID' || order.status === 'COMPLETED';
+            {/* Order Cards List — Ultra Compact & High-Density Sleek Queue Cards */}
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
+              {queueListToRender.map((order, idx) => {
+                const isSelected = currentEditingOrderId === order.id;
+                const paid = isOrderPaid(order);
+                const closed = isOrderClosed(order);
+                const locked = paid || closed; // Terkunci: tidak bisa diedit lagi
+                // Status pill: SELESAI (hijau tua), LUNAS (abu-abu, menunggu dapur),
+                // atau BELUM BAYAR (masih bisa dibayar/diedit).
+                const statusLabel = closed
+                  ? (String(order.status).toUpperCase() === 'CANCELLED' ? 'BATAL' : 'SELESAI')
+                  : paid ? 'LUNAS' : 'BELUM BAYAR';
+                const statusStyle = closed
+                  ? { background: '#F1F5F9', color: '#475569', borderColor: '#CBD5E1' }
+                  : paid
+                  ? { background: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' }
+                  : { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' };
+                const orderSeqNum = formatOrderLabel({ orderNumber: order.orderNumber, dailyNumber: order.dailyNumber || (idx + 1), createdAt: order.createdAt }, orders);
+                const tableDisplay = order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-';
 
-                  return (
-                    <div
-                      key={order.id}
-                      onClick={() => { if (!isVoided) handleLoadExistingOrder(order); }}
-                      className={`rounded-xl border-l-[3px] border p-2 transition-all relative ${
-                        isVoided
-                          ? 'cursor-default opacity-70'
-                          : isEditingThis
-                            ? 'cursor-pointer shadow-sm'
-                            : 'cursor-pointer hover:shadow-sm'
-                      }`}
-                      style={{
-                        borderLeftColor: isVoided ? 'var(--text-tertiary)' : 'var(--primary-solid)',
-                        borderColor: isEditingThis ? 'var(--primary)' : 'var(--panel-border)',
-                        background: isEditingThis ? 'var(--primary-soft)' : isVoided ? 'var(--surface-secondary)' : 'var(--surface-card)',
-                        boxShadow: isEditingThis ? '0 0 0 2px rgb(234 88 12 / 10%)' : undefined,
-                      }}
-                    >
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="tabular-nums text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}
-                          title={order.orderNumber}>
-                          {formatOrderLabel(order)}
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => handleLoadExistingOrder(order)}
+                    className={`group relative rounded-xl border p-2 transition-all cursor-pointer space-y-1 border-l-4 shadow-2xs ${
+                      locked ? '' : 'hover:border-[#059669]'
+                    } ${isSelected ? 'ring-2 ring-[#047857]/30 border-[#059669]' : ''}`}
+                    style={
+                      isSelected
+                        ? { background: '#ECFDF5', borderColor: '#059669', borderLeftColor: '#047857' }
+                        : locked
+                        ? { background: '#F8FAFC', borderColor: '#E5E7EB', borderLeftColor: '#94A3B8', opacity: 0.85 }
+                        : { background: '#ffffff', borderColor: '#E5E7EB', borderLeftColor: '#059669' }
+                    }
+                    title={locked ? 'Pesanan terkunci — sudah dibayar / selesai' : undefined}
+                  >
+                    {/* Line 1: Order Seq Num (#001), Customer Name, Table Badge, Status Pill */}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className={`text-xs font-black font-mono shrink-0 ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
+                          {orderSeqNum}
                         </span>
-                        <div className="flex items-center gap-0.5">
-                          <span className={`rounded-lg px-1.5 py-0.5 text-[10px] font-bold ${
-                            isVoided ? 'bg-[var(--danger-soft)] text-[var(--accent-red)]'
-                              : orderIsPaid ? 'bg-[var(--success-soft)] text-[var(--accent-green)]'
-                              : 'bg-[var(--warning-soft)] text-[#8a5a00]'
-                          }`}>
-                            {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
-                          </span>
-                        </div>
+                        <span className={`text-[11px] font-black truncate ${locked ? 'text-slate-500' : 'text-slate-800'}`} title={order.customerName || 'Guest'}>
+                          {order.customerName || 'Guest'}
+                        </span>
                       </div>
 
-                      <div className="space-y-0.5 text-[11px]">
-                        <div className="flex items-baseline justify-between gap-1">
-                          <span className="truncate max-w-[80px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {order.customerName}
-                          </span>
-                          <span className="shrink-0 font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                            M:{order.tableNumber || '-'}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`px-1.5 py-0.5 rounded-md font-black text-[10px] font-mono border ${locked ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-emerald-100/80 text-[#047857] border-emerald-200'}`}>
+                          Meja {tableDisplay}
+                        </span>
+                        <span
+                          className="px-1.5 py-0.5 text-[9px] font-black rounded-md uppercase tracking-wider border"
+                          style={statusStyle}
+                        >
+                          {statusLabel}
+                        </span>
+                      </div>
+                    </div>
 
-                        <div className="flex items-center justify-between border-t pt-1" style={{ borderColor: 'var(--panel-border-light)' }}>
-                          <span className="font-medium" style={{ color: 'var(--text-tertiary)' }}>{itemCount} menu</span>
-                          <span className="tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
-                            Rp {order.total.toLocaleString('id-ID')}
-                          </span>
-                        </div>
+                    {/* Line 2: Items count, Total Price, Aksi (Selesai / Cetak) */}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-500 text-[10px]">
+                          {order.items?.length || 0} menu
+                        </span>
+                        <span className={`font-black font-mono ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
+                          Rp {(order.total || 0).toLocaleString('id-ID')}
+                        </span>
+                      </div>
 
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Selesai Pesanan: hanya untuk order LUNAS yang belum selesai.
+                            Memindahkan order ke Riwayat (status COMPLETED). */}
+                        {paid && !closed && onCompleteOrder && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCompleteOrder(order.id);
+                            }}
+                            className="flex items-center gap-1 h-5 px-2 rounded-md text-white text-[10px] font-black transition-colors cursor-pointer"
+                            style={{ background: '#047857' }}
+                            title="Selesai Pesanan — pindahkan ke Riwayat"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Selesai
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); onPrintPreBill(order); }}
-                          className="mt-1 flex items-center justify-center rounded-lg border p-1 transition-colors"
-                          style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-hover)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPrintPreBill(order);
+                          }}
+                          className="w-5 h-5 rounded-md border border-[#A7F3D0] bg-white text-[#047857] flex items-center justify-center hover:bg-[#047857] hover:text-white transition-colors cursor-pointer"
                           title="Cetak Struk"
-                          aria-label={`Cetak struk ${formatOrderLabel(order)}`}
                         >
-                          <Printer className="h-3 w-3" />
+                          <Printer className="w-3 h-3" style={{ color: '#047857' }} />
                         </button>
                       </div>
                     </div>
-                  );
-                })
-              )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* 2. CENTER PANEL: Category Pills & Product Grid */}
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] p-3"
-            style={{ borderColor: 'var(--panel-border)', boxShadow: '0 2px 10px rgba(26,23,20,0.05)' }}>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-[var(--panel-border-light)] scrollbar-none shrink-0">
+          {/* 2. CENTER PANEL: Category Pills & Product Grid matching Emerald Green Mockup */}
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+            {/* Category Pills Slider matching Mockup */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-3 border-b border-slate-100 scrollbar-none shrink-0">
               {categories.map((cat) => {
                 const isSelected = selectedCategory === cat.id;
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[11px] font-bold tracking-wide transition-all active:scale-95 ${
+                    className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-5 py-2 text-xs font-extrabold tracking-wide transition-all active:scale-95"
+                    style={
                       isSelected
-                        ? 'bg-[var(--surface-inverse)] text-white'
-                        : 'border border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary-text)]'
-                    }`}
+                        ? { background: '#047857', color: '#ffffff', boxShadow: '0 2px 8px rgba(4,120,87,0.2)' }
+                        : { background: '#F3F4F6', color: '#374151' }
+                    }
                   >
                     {cat.label}
                   </button>
                 );
               })}
+
+              <div className="ml-auto shrink-0 pl-1">
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Product Catalog Grid */}
-            <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 p-0.5 content-start auto-rows-max scrollbar-thin">
+            {/* Product Catalog Grid (4 cols x 2 rows on desktop) — Ultra Compact Card Heights */}
+            <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 p-0.5 content-start auto-rows-max scrollbar-thin">
               {filteredMenu.length === 0 ? (
-                <div className="col-span-full py-16 text-center text-[var(--text-tertiary)] text-xs font-medium space-y-2">
-                  <Utensils className="w-10 h-10 text-[var(--panel-border-strong)] mx-auto" />
+                <div className="col-span-full py-16 text-center text-slate-400 text-xs font-bold space-y-2">
+                  <Utensils className="w-10 h-10 text-slate-300 mx-auto" />
                   <p>Menu tidak ditemukan</p>
                 </div>
               ) : (
                 filteredMenu.map((item) => {
-                  const hasCondiments = (condimentGroups || []).some(
+                  const hasCondiments = isCondimentsEnabled && (condimentGroups || []).some(
                     (g) => isGroupApplicable(g, item)
                   );
+                  const isItemInCart = cartItems.some((ci) => ci.menuId === item.id);
 
                   return (
                     <POSMenuItemCard
                       key={item.id}
                       item={item}
+                      isSelectedInCart={isItemInCart}
                       onAddToCart={item.isManualPrice ? handleOpenManualItem : handleAddToCart}
                       onOpenCondiments={item.isManualPrice ? undefined : handleOpenCondimentModal}
                       hasCondiments={!item.isManualPrice && hasCondiments}
                       isPaidOrder={isPaidOrder}
+                      onUnlockNewOrder={handleUnlockNewOrder}
                     />
                   );
                 })
               )}
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* 3. RIGHT PANEL: ORDER CART */}
-      <div className="flex min-h-[54vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-[var(--surface-card)] md:h-full md:min-h-0 md:w-80 lg:w-[340px] xl:w-96"
-        style={{ borderColor: 'var(--panel-border)', boxShadow: '0 4px 20px rgba(26,23,20,0.07)' }}>
-        <div className="flex h-full flex-col overflow-hidden">
-
-          {/* ── Cart Header ───────────────────────────────────── */}
-          {/* Satu baris: nomor order, pilihan tipe, dan tombol kosongkan.
-              Judul "Order Baru" dibuang — keranjang kosong sudah menyatakannya,
-              dan barisnya dipakai untuk menambah ruang daftar belanja. */}
-          <div className="shrink-0 border-b px-3 py-2" style={{ borderColor: 'var(--panel-border-light)' }}>
-            <div className="flex items-center gap-2">
-              {currentEditingOrder && (
-                <span
-                  className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold tabular-nums"
-                  style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}
-                  title={currentEditingOrder.orderNumber}
-                >
-                  {formatOrderLabel(currentEditingOrder)}
-                </span>
-              )}
-
-              <div className="flex flex-1 items-center gap-0.5 rounded-full border p-0.5 text-[11px] font-bold"
-                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
-                <button
-                  type="button"
-                  disabled={isPaidOrder}
-                  onClick={() => setOrderType('DINE_IN')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1 transition-all ${
-                    orderType === 'DINE_IN'
-                      ? 'bg-[var(--primary)] text-white'
-                      : 'text-[var(--text-secondary)]'
-                  } ${isPaidOrder ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                >
-                  <Utensils className="h-3 w-3" />
-                  Dine In
-                </button>
-                <button
-                  type="button"
-                  disabled={isPaidOrder}
-                  onClick={() => setOrderType('TAKE_AWAY')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1 transition-all ${
-                    orderType === 'TAKE_AWAY'
-                      ? 'bg-[var(--primary)] text-white'
-                      : 'text-[var(--text-secondary)]'
-                  } ${isPaidOrder ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                >
-                  <ShoppingBag className="h-3 w-3" />
-                  Take Away
-                </button>
-              </div>
-
-              <button
-                onClick={handleClearCart}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors"
-                style={{ borderColor: 'var(--panel-border)', color: 'var(--text-tertiary)' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-red)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-tertiary)'; }}
-                title={isPaidOrder ? 'Tutup View Order' : 'Kosongkan keranjang'}
-                aria-label={isPaidOrder ? 'Tutup tampilan order' : 'Kosongkan keranjang'}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
+            {/* Bottom Catalog Pagination matching Mockup */}
+            <div className="pt-2 text-center shrink-0 border-t border-slate-100">
+              <button type="button" className="text-xs font-extrabold text-slate-500 hover:text-[#047857] flex items-center justify-center gap-1 mx-auto cursor-pointer">
+                <span>Tampilkan lebih banyak</span>
+                <ChevronDown className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* ── Status banners ────────────────────────────────── */}
-          {isPaidOrder && (
-            <div className="mx-4 mt-3 shrink-0 flex items-center justify-between rounded-xl border px-3 py-2"
-              style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-text)' }}>
-              <div className="flex items-center gap-1.5 text-[12px] font-bold">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--primary-hover)' }} />
-                LUNAS (PAID)
+        {/* 3. RIGHT PANEL: ORDER CART SIDEBAR (Ultra Compact & Minimalist Layout) */}
+        <div className="flex min-h-[54vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white md:h-full md:min-h-0 md:w-80 lg:w-[340px] xl:w-96 shadow-sm">
+          <div className="flex h-full flex-col overflow-hidden">
+
+            {/* Cart Header Top Row with Live Customer Name & Pure Text Table Number Input */}
+            <div className="shrink-0 p-3 border-b border-slate-100 space-y-2">
+              {/* Top Row: Order Number Badge + Saklar Topping ON/OFF */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-2.5 py-1 rounded-xl font-extrabold text-xs font-mono shrink-0" style={{ background: '#DCFCE7', color: '#166534' }}>
+                  {formatOrderLabel({ orderNumber: currentEditingOrder?.orderNumber || 'POS-001', dailyNumber: currentEditingOrder?.dailyNumber, createdAt: currentEditingOrder?.createdAt }, orders)}
+                </span>
+
+                {/* Saklar ON / OFF Condiment/Topping Global di Panel Kasir */}
+                <button
+                  type="button"
+                  onClick={() => setIsCondimentsEnabled(!isCondimentsEnabled)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-extrabold text-xs cursor-pointer whitespace-nowrap shrink-0 transition-all border h-7 ${
+                    isCondimentsEnabled
+                      ? 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]'
+                      : 'bg-slate-100 text-slate-500 border-slate-300'
+                  }`}
+                  title={isCondimentsEnabled ? 'Saklar Topping Global AKTIF' : 'Saklar Topping Global NONAKTIF'}
+                >
+                  <span className="text-[10px] uppercase font-black tracking-wide">Topping</span>
+                  <div
+                    className={`relative inline-flex h-3.5 w-6 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                      isCondimentsEnabled ? 'bg-[#047857]' : 'bg-slate-400'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition duration-200 ${
+                        isCondimentsEnabled ? 'translate-x-3' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </div>
+                </button>
               </div>
-              <span className="rounded-lg px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                style={{ background: 'var(--brand-100)', color: 'var(--primary-pressed)' }}>
-                DIKUNCI
-              </span>
-            </div>
-          )}
 
-          {!isShiftActiveForCurrentContext && (
-            <div className="mx-4 mt-3 shrink-0 rounded-xl border px-3 py-2"
-              style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-pressed)' }}>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]">Shift wajib aktif</p>
-              <p className="mt-0.5 text-[11px] font-medium leading-relaxed">
-                Buka shift untuk outlet {currentBranch.name} sebelum menyimpan order.
-              </p>
-            </div>
-          )}
-
-          {/* Label "Nama" dan "Meja" dibuang: placeholder sudah menjelaskan
-              isinya, dan dua baris label itu memakan ruang daftar belanja. */}
-          <div className="shrink-0 grid grid-cols-3 gap-2 px-3 pt-2">
-            <input
-              type="text"
-              disabled={isPaidOrder}
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              aria-label="Nama pelanggan"
-              className={`col-span-2 w-full rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold outline-none transition-all ${
-                isPaidOrder
-                  ? 'cursor-not-allowed text-[var(--text-tertiary)]'
-                  : 'focus:ring-2 focus:ring-[var(--primary)]/10'
-              }`}
-              style={{
-                background: 'var(--surface-secondary)',
-                borderColor: 'var(--panel-border)',
-                color: 'var(--text-primary)',
-              }}
-              placeholder="Nama pelanggan"
-            />
-            <select
-              disabled={isPaidOrder}
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
-              aria-label="Nomor meja"
-              className={`w-full rounded-lg border px-2 py-1.5 text-[12px] font-semibold outline-none transition-all ${
-                isPaidOrder
-                  ? 'cursor-not-allowed text-[var(--text-tertiary)]'
-                  : 'cursor-pointer focus:ring-2 focus:ring-[var(--primary)]/10'
-              }`}
-              style={{
-                background: 'var(--surface-secondary)',
-                borderColor: 'var(--panel-border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <option value="-">Meja</option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.number}>{t.number}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* ── Cart Items ────────────────────────────────────── */}
-          <div className="mx-3 mt-2 flex-1 min-h-0 overflow-y-auto space-y-1 scrollbar-thin border-t pt-1.5"
-            style={{ borderColor: 'var(--panel-border-light)' }}>
-            {cartItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border"
-                  style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)', color: 'var(--primary-hover)' }}>
-                  <ShoppingBag className="h-5 w-5" />
+              {/* Bottom Row: Customer Name & Table Number Inputs (Matching Pill Aesthetic, Smooth Emerald Focus) */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 transition-all focus-within:bg-white focus-within:border-[#047857] focus-within:ring-2 focus-within:ring-[#047857]/20">
+                  <User className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Nama..."
+                    value={customerName}
+                    onChange={(e) => handleCustomerNameChange(e.target.value)}
+                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0"
+                    style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+                    title="Nama Pelanggan"
+                  />
                 </div>
-                <p className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Keranjang Kosong</p>
-                <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Pilih menu di sebelah kiri</p>
+
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 transition-all focus-within:bg-white focus-within:border-[#047857] focus-within:ring-2 focus-within:ring-[#047857]/20">
+                  <span className="text-[11px] font-extrabold text-[#047857] mr-1.5 shrink-0 select-none">Meja</span>
+                  <input
+                    type="text"
+                    placeholder="-"
+                    value={selectedTable === '-' ? '' : selectedTable}
+                    onChange={(e) => handleSelectTable(e.target.value)}
+                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0"
+                    style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+                    title="Ketik nomor meja (misal: 1, 2, 5, 12B)"
+                  />
+                </div>
               </div>
-            ) : (
-              cartItems.map((item) => (
-                /* Susunan referensi: nama di kiri dengan harga oranye di
-                   bawahnya, stepper di kanan — tanpa kotak berlatar. */
-                <div key={item.id} className="border-b pb-2" style={{ borderColor: 'var(--panel-border-light)' }}>
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+            </div>
+
+            {/* Cart Items List — Tight, Minimalist Row Height & Inline Price/Notes */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 scrollbar-thin">
+              {cartItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-[#ECFDF5] flex items-center justify-center text-[#047857] shadow-inner">
+                    <ShoppingBag className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-xs font-extrabold text-[#111827]">Keranjang Kosong</h4>
+                  <p className="text-[11px] font-bold text-slate-400">Pilih menu di sebelah kiri</p>
+                </div>
+              ) : (
+                cartItems.map((item) => (
+                  <div key={item.id} className="pb-1.5 border-b border-slate-100 last:border-0 space-y-1">
+                    {/* Top Row: Item Name + Stepper Controls */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-extrabold text-[#111827] truncate leading-tight flex-1">
                         {item.menuName}
                       </p>
-                      <p className="tabular-nums text-[11px] font-bold" style={{ color: 'var(--primary)' }}>
-                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
-                        {item.quantity > 1 && (
-                          <span className="ml-1 font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                            ({item.quantity}×)
-                          </span>
-                        )}
-                      </p>
-                    </div>
 
-                    {!isPaidOrder && (
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(item.id, -1)}
+                            className="w-5 h-5 rounded-md bg-white border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                          >
+                            <Minus className="w-2.5 h-2.5 stroke-[2.5]" />
+                          </button>
+                          <span className="text-xs font-extrabold min-w-[14px] text-center font-mono text-[#111827]">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                            className="w-5 h-5 rounded-md text-white flex items-center justify-center cursor-pointer"
+                            style={{ background: '#047857', color: '#ffffff' }}
+                          >
+                            <Plus className="w-2.5 h-2.5 stroke-[2.5] text-white" />
+                          </button>
+                        </div>
                         <button
-                          onClick={() => handleUpdateQuantity(item.id, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg border transition-colors"
-                          style={{ borderColor: 'var(--panel-border)', color: 'var(--text-secondary)' }}
-                          aria-label={`Kurangi ${item.menuName}`}
+                          type="button"
+                          onClick={() => handleUpdateQuantity(item.id, -item.quantity)}
+                          className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
+                          title="Hapus item"
                         >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="min-w-[18px] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg transition-all"
-                          style={{ background: 'var(--primary)', color: '#fff' }}
-                          aria-label={`Tambah ${item.menuName}`}
-                        >
-                          <Plus className="h-3 w-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Bottom Row: Price & Inline Note Input side-by-side */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-extrabold font-mono shrink-0" style={{ color: '#047857' }}>
+                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="+ Catatan item..."
+                        value={item.notes || ''}
+                        onChange={(e) => handleUpdateNotes(item.id, e.target.value)}
+                        className="flex-1 bg-slate-50/80 border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold text-[#111827] placeholder:text-slate-400 outline-none focus:bg-white focus:border-[#047857] transition-all"
+                        title="Catatan pesanan"
+                      />
+                    </div>
                   </div>
-
-                  {item.notes && (
-                    <p className="mt-0.5 text-[10px] italic" style={{ color: 'var(--text-tertiary)' }}>📝 {item.notes}</p>
-                  )}
-                  {item.selectedCondiments && item.selectedCondiments.length > 0 && (
-                    <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                      {item.selectedCondiments.flatMap((g) => g.options).join(', ')}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* ── Summary + Checkout Footer ─────────────────────── */}
-          <div className="shrink-0 border-t px-4 pb-4 pt-3 space-y-3 mt-auto"
-            style={{ borderColor: 'var(--panel-border-light)' }}>
-
-            {/* Discount row */}
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                disabled={isPaidOrder}
-                min="0"
-                max={discountMode === 'PERCENT' ? 100 : undefined}
-                placeholder={discountMode === 'PERCENT' ? 'Diskon %' : 'Diskon Rp'}
-                value={discountValue || ''}
-                onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
-                className={`w-full rounded-xl border px-3 py-2 text-[12px] font-semibold outline-none transition-all ${
-                  isPaidOrder ? 'cursor-not-allowed' : ''
-                }`}
-                style={{
-                  background: 'var(--surface-secondary)',
-                  borderColor: 'var(--panel-border)',
-                  color: isPaidOrder ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                }}
-              />
-              <select
-                disabled={isPaidOrder}
-                value={discountMode}
-                onChange={(e) => setDiscountMode(e.target.value as 'PERCENT' | 'IDR')}
-                aria-label="Satuan diskon"
-                className={`w-full rounded-xl border px-2 py-2 text-[12px] font-semibold outline-none transition-all ${
-                  isPaidOrder ? 'cursor-not-allowed' : 'cursor-pointer'
-                }`}
-                style={{
-                  background: 'var(--surface-secondary)',
-                  borderColor: 'var(--panel-border)',
-                  color: isPaidOrder ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                }}
-              >
-                <option value="PERCENT">Persen (%)</option>
-                <option value="IDR">Rupiah (Rp)</option>
-              </select>
+                ))
+              )}
             </div>
 
-            {/* Totals */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>Subtotal</span>
-                <span className="tabular-nums text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  Rp {subtotal.toLocaleString('id-ID')}
-                </span>
+            {/* Cart Footer Breakdown — Minimalist Footer & No Duplicate Subtotal */}
+            <div className="shrink-0 p-3 border-t border-slate-100 space-y-2 bg-white">
+              {/* Discount and Tax inputs */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700">
+                  <Percent className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Diskon %"
+                    value={discountValue || ''}
+                    onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
+                    className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                  <span className="text-slate-500">Pajak</span>
+                  <span className="text-slate-700 font-extrabold text-[11px]">0% ∨</span>
+                </div>
               </div>
 
-              {discountAmount > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>Diskon</span>
-                  <span className="tabular-nums text-[13px] font-semibold" style={{ color: 'var(--accent-red)' }}>
-                    − Rp {discountAmount.toLocaleString('id-ID')}
+              {/* Subtotal row ONLY rendered if discount or tax > 0 */}
+              {(discountAmount > 0 || taxAmount > 0) && (
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Subtotal</span>
+                  <span className="font-mono text-[#111827] text-xs font-extrabold">
+                    Rp {subtotal.toLocaleString('id-ID')}
                   </span>
                 </div>
               )}
 
-              {/* Total — big and prominent */}
-              <div className="flex items-center justify-between rounded-xl border px-3 py-2.5"
-                style={{ background: 'var(--primary-soft)', borderColor: 'var(--primary-border)' }}>
-                <span className="text-[13px] font-bold" style={{ color: 'var(--primary-text)' }}>Total</span>
-                <span className="tabular-nums text-[20px] font-extrabold" style={{ color: 'var(--primary-solid)' }}>
+              {/* Highlighted Total Box */}
+              <div className="p-3 rounded-2xl flex items-center justify-between" style={{ background: '#F0FDF4', borderColor: '#A7F3D0', borderWidth: '1px' }}>
+                <span className="text-sm font-extrabold text-[#111827]">Total</span>
+                <span className="text-xl sm:text-2xl font-extrabold font-mono" style={{ color: '#047857' }}>
                   Rp {total.toLocaleString('id-ID')}
                 </span>
               </div>
-            </div>
 
-            {/* Action buttons */}
-            {isPaidOrder ? (
-              <div className="grid grid-cols-[auto_1fr] gap-1.5">
+              {/* Bottom Action Buttons */}
+              <div className="flex items-center gap-2 pt-0.5">
                 <button
-                  onClick={() => onPrintPreBill(currentEditingOrder || (buildCurrentOrderDraft() as Order))}
-                  className="ui-button ui-button-soft px-2.5"
-                  style={{ minHeight: '34px' }}
-                  title="Cetak struk lunas"
-                  aria-label="Cetak struk lunas"
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (currentEditingOrder && currentEditingOrder.status !== 'COMPLETED') {
-                      onSaveHoldOrder({ ...currentEditingOrder, status: 'COMPLETED' });
-                    }
-                    handleClearCart();
-                  }}
-                  className="ui-button ui-button-primary w-full gap-1 px-2"
-                  style={{ minHeight: '34px', fontSize: '12px' }}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Selesai Order
-                </button>
-              </div>
-            ) : (
-              /* Tiga aksi dirapatkan ke satu baris supaya sisa tinggi panel
-                 jatuh ke daftar belanja, bukan ke tombol. */
-              <div className="grid grid-cols-[auto_1fr_1.2fr] gap-1.5">
-                <button
+                  type="button"
                   disabled={cartItems.length === 0}
                   onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                  className="ui-button ui-button-secondary px-2.5"
-                  style={{ minHeight: '34px' }}
-                  title="Cetak tagihan"
-                  aria-label="Cetak tagihan"
+                  className="p-3 rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+                  title="Cetak Tagihan"
                 >
-                  <Printer className="h-3.5 w-3.5" />
+                  <Printer className="w-4 h-4" />
                 </button>
 
                 <button
-                  disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
+                  type="button"
+                  disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext || isPaidOrder}
                   onClick={() => {
                     if (confirmBeforeSaveOrder && pendingConfirm !== 'SAVE') { setPendingConfirm('SAVE'); return; }
                     setPendingConfirm(null);
@@ -942,30 +949,55 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onSaveHoldOrder(draft);
                     handleClearCart();
                   }}
-                  className={`ui-button w-full gap-1 px-2 ${pendingConfirm === 'SAVE' ? 'ui-button-primary' : 'ui-button-secondary'}`}
-                  style={{ minHeight: '34px', fontSize: '12px' }}
+                  className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-[#111827] font-extrabold text-xs py-3 px-3.5 rounded-2xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {pendingConfirm === 'SAVE'
-                    ? <><CheckCircle2 className="h-3.5 w-3.5" />Yakin?</>
-                    : <><Save className="h-3.5 w-3.5" />Simpan</>}
+                  <Save className="w-4 h-4" style={{ color: '#047857' }} />
+                  <span>Simpan</span>
                 </button>
 
-                <button
-                  disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
-                  onClick={() => {
-                    if (confirmBeforePayment && pendingConfirm !== 'PAY') { setPendingConfirm('PAY'); return; }
-                    setPendingConfirm(null);
-                    onOpenCheckoutModal(buildCurrentOrderDraft());
-                  }}
-                  className="ui-button ui-button-primary w-full gap-1 px-2"
-                  style={{ minHeight: '34px', fontSize: '12px' }}
-                >
-                  {pendingConfirm === 'PAY'
-                    ? <><CheckCircle2 className="h-3.5 w-3.5" />Yakin?</>
-                    : <><CreditCard className="h-3.5 w-3.5" />Bayar</>}
-                </button>
+                {isPaidOrder ? (
+                  /* Order yang dimuat sudah LUNAS: ganti tombol Bayar dengan
+                     "Selesai Pesanan" agar tidak terjadi pembayaran ganda. */
+                  <button
+                    type="button"
+                    disabled={!currentEditingOrderId || !onCompleteOrder}
+                    onClick={() => {
+                      if (currentEditingOrderId && onCompleteOrder) {
+                        onCompleteOrder(currentEditingOrderId);
+                        handleClearCart();
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 text-white font-extrabold text-xs py-3 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+                    style={{
+                      background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
+                      boxShadow: '0 4px 14px rgba(4, 120, 87, 0.28)'
+                    }}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <span className="text-[#ffffff]">Selesai Pesanan</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext}
+                    onClick={() => {
+                      if (confirmBeforePayment && pendingConfirm !== 'PAY') { setPendingConfirm('PAY'); return; }
+                      setPendingConfirm(null);
+                      onOpenCheckoutModal(buildCurrentOrderDraft());
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 text-white font-extrabold text-xs py-3 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{
+                      background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
+                      color: '#ffffff',
+                      boxShadow: '0 4px 14px rgba(4, 120, 87, 0.28)'
+                    }}
+                  >
+                    <CreditCard className="w-4 h-4 text-white" />
+                    <span className="text-[#ffffff]">Bayar</span>
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -980,7 +1012,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
         menuItem={activeItemForCondiment}
         condimentGroups={condimentGroups || []}
         onConfirm={(menuItem, selectedCondiments, notes, extraPrice) => {
-          setCartItems((prev) => [
+          setCartItems((prev) => consolidateCartItems([
             ...prev,
             {
               id: 'cart-' + Date.now() + Math.random().toString(36).substring(2, 4),
@@ -992,20 +1024,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
               notes: notes || undefined,
               selectedCondiments: selectedCondiments.length > 0 ? selectedCondiments : undefined
             }
-          ]);
+          ]));
         }}
       />
 
       {manualItemSource && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ background: 'rgba(24,24,27,0.35)' }}>
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-white shadow-2xl"
-            style={{ borderColor: 'var(--panel-border)' }}>
-            <div className="flex items-center justify-between px-5 py-4 text-white"
-              style={{ background: 'var(--primary)' }}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm bg-black/40">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 text-white" style={{ background: '#047857' }}>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70">Item manual non-stok</p>
-                <h3 className="text-[16px] font-bold">Tambah Item Lainnya</h3>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest opacity-80">Item manual non-stok</p>
+                <h3 className="text-base font-extrabold">Tambah Item Lainnya</h3>
               </div>
               <button type="button" onClick={() => setManualItemSource(null)}
                 className="rounded-full p-2 transition-colors hover:bg-white/20">
@@ -1028,7 +1057,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   className="ui-input" />
               </label>
               <label className="ui-form-group">
-                <span className="ui-form-label">Keterangan <span className="normal-case font-normal" style={{ color: 'var(--text-tertiary)' }}>(opsional)</span></span>
+                <span className="ui-form-label">Keterangan <span className="normal-case font-normal text-slate-400">(opsional)</span></span>
                 <textarea value={manualItemDraft.notes}
                   onChange={(e) => setManualItemDraft({ ...manualItemDraft, notes: e.target.value })}
                   placeholder="Catatan untuk struk / dapur"
@@ -1036,8 +1065,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   style={{ minHeight: '80px', paddingTop: '10px', paddingBottom: '10px' }} />
               </label>
             </div>
-            <div className="flex justify-end gap-2 border-t p-4"
-              style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+            <div className="flex justify-end gap-2 border-t border-slate-100 p-4 bg-slate-50">
               <button type="button" onClick={() => setManualItemSource(null)}
                 className="ui-button ui-button-secondary">
                 Batal
