@@ -1049,6 +1049,10 @@ export default function App() {
   ));
 
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
+  // Hanya order dari shift aktif saat ini — untuk CashierView dan KitchenDisplayView
+  const shiftOrders = currentShift.status === 'OPEN'
+    ? branchOrders.filter((o) => o.shiftId === currentShift.id)
+    : [];
   const branchTables = tables.filter((table) => !table.branchId || table.branchId === currentBranch.id);
   const branchRawMaterials = rawMaterials.filter((material) => material.branchId === currentBranch.id);
   const branchAttendanceRecords = attendanceRecords.filter(
@@ -1311,7 +1315,7 @@ export default function App() {
                 />
               }
               menuItems={menuItems}
-              orders={branchOrders}
+              orders={shiftOrders}
               tables={branchTables}
               activeUser={activeUser}
               currentBranch={currentBranch}
@@ -1334,7 +1338,7 @@ export default function App() {
 
           {activeTab === 'kds' && (
             <KitchenDisplayView
-              orders={branchOrders}
+              orders={shiftOrders}
               condimentGroups={condimentGroups}
               connectionState={orderSyncHealth.connectionState}
               onUpdateOrderStatus={handleUpdateOrderStatus}

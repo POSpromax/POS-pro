@@ -206,26 +206,41 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                     )}
                   </div>
 
-                  {/* Options laid out side-by-side with ON/OFF Toggle Switches */}
+                  {/* Opsi memakai CHECKBOX (multi-pilih; grup maxSelect=1 tetap
+                      berperilaku pilih-satu lewat toggleOption). */}
                   <div className="grid grid-cols-2 gap-2">
                     {group.options.map((option) => {
                       const isSelected = selectedList.includes(option.name);
                       const isAvailable = option.isAvailable !== false;
 
                       return (
-                        <button
+                        <label
                           key={option.id}
-                          type="button"
-                          disabled={!isAvailable}
-                          onClick={() => isAvailable && toggleOption(group, option.name)}
-                          className={`p-3 rounded-2xl text-left border text-xs font-bold transition-all flex items-center justify-between gap-2 select-none cursor-pointer ${
+                          className={`p-3 rounded-2xl text-left border text-xs font-bold transition-all flex items-center gap-2.5 select-none ${
                             !isAvailable
                               ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                               : isSelected
-                              ? 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30'
-                              : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800'
+                              ? 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30 cursor-pointer'
+                              : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800 cursor-pointer'
                           }`}
                         >
+                          {/* Kotak checkbox */}
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={isSelected}
+                            disabled={!isAvailable}
+                            onChange={() => isAvailable && toggleOption(group, option.name)}
+                          />
+                          <span
+                            aria-hidden="true"
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                              isSelected ? 'bg-[#047857] border-[#047857] text-white' : 'bg-white border-slate-300'
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                          </span>
+
                           <span className="truncate min-w-0 flex-1">
                             <span className="block font-black text-[#111827] uppercase tracking-wide text-xs">{option.name}</span>
                             {option.price > 0 && (
@@ -234,25 +249,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                               </span>
                             )}
                           </span>
-
-                          {/* Saklar ON / OFF Toggle Switch for Cashier Modal */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[9px] font-black uppercase tracking-wide ${isSelected ? 'text-[#047857]' : 'text-slate-400'}`}>
-                              {isSelected ? 'ON' : 'OFF'}
-                            </span>
-                            <div
-                              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
-                                isSelected ? 'bg-[#047857]' : 'bg-slate-300'
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
-                                  isSelected ? 'translate-x-4.5' : 'translate-x-0.5'
-                                }`}
-                              />
-                            </div>
-                          </div>
-                        </button>
+                        </label>
                       );
                     })}
                   </div>

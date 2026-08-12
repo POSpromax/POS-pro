@@ -417,9 +417,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
   };
   const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
 
-  // Hanya order asli (berid cloud UUID atau order lokal yang sah). Kartu demo
-  // dihapus total karena berbenturan id dengan order lama di localStorage dan
-  // memicu 400 saat coba disinkron.
+  // `orders` sudah dibatasi ke SHIFT BERJALAN dari App (prop shiftOrders), jadi
+  // antrean & riwayat kasir otomatis mulai dari 0 tiap buka shift baru. Riwayat
+  // lengkap lintas shift ada di menu Laporan.
   const activeHoldOrders = orders.filter((o) => !isOrderClosed(o));
   const historyShiftOrders = orders.filter((o) => isOrderClosed(o));
   const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
@@ -527,7 +527,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   </p>
                 </div>
               )}
-              {queueListToRender.map((order, idx) => {
+              {queueListToRender.map((order) => {
                 const isSelected = currentEditingOrderId === order.id;
                 const paid = isOrderPaid(order);
                 const closed = isOrderClosed(order);
@@ -542,7 +542,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   : paid
                   ? { background: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' }
                   : { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' };
-                const orderSeqNum = formatOrderLabel({ orderNumber: order.orderNumber, dailyNumber: order.dailyNumber || (idx + 1), createdAt: order.createdAt }, orders);
+                const orderSeqNum = formatOrderLabel(order, orders);
                 const tableDisplay = order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-';
 
                 return (
@@ -714,7 +714,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
               {/* Top Row: Order Number Badge + Saklar Topping ON/OFF */}
               <div className="flex items-center justify-between gap-2">
                 <span className="px-2.5 py-1 rounded-xl font-extrabold text-xs font-mono shrink-0" style={{ background: '#DCFCE7', color: '#166534' }}>
-                  {formatOrderLabel({ orderNumber: currentEditingOrder?.orderNumber || 'POS-001', dailyNumber: currentEditingOrder?.dailyNumber, createdAt: currentEditingOrder?.createdAt }, orders)}
+                  {currentEditingOrder ? formatOrderLabel(currentEditingOrder, orders) : 'Baru'}
                 </span>
 
                 {/* Saklar ON / OFF Condiment/Topping Global di Panel Kasir */}

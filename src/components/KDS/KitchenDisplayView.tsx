@@ -72,6 +72,8 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
     () => orders.filter((order) => order.status !== 'COMPLETED' && order.status !== 'CANCELLED'),
     [orders],
   );
+  // `orders` sudah dibatasi ke shift berjalan dari App, jadi riwayat dapur ikut
+  // reset 0 tiap buka shift baru. Riwayat lengkap lintas shift ada di Laporan.
   const completedOrders = useMemo(
     () => orders
       .filter((order) => order.status === 'COMPLETED')
@@ -198,7 +200,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                     <div className="flex items-start justify-between gap-2 border-b border-[var(--panel-border-light)] pb-2">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xl font-bold tabular-nums" title={order.orderNumber}>{formatOrderLabel(order)}</span>
+                          <span className="font-mono text-xl font-bold tabular-nums" title={order.orderNumber}>{formatOrderLabel(order, orders)}</span>
                           <span className="ui-badge bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] font-extrabold text-[10px]">{order.type === 'DINE_IN' ? 'Dine in' : 'Take away'}</span>
                         </div>
                         <p className="mt-1 truncate text-xs font-extrabold text-[#111827]">
@@ -206,7 +208,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]" aria-label={`Cetak tiket ${formatOrderLabel(order)}`} title="Cetak tiket dapur"><Printer className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]" aria-label={`Cetak tiket ${formatOrderLabel(order, orders)}`} title="Cetak tiket dapur"><Printer className="h-3.5 w-3.5" /></button>
                         <span className={`ui-badge ${tone.badge}`}><Clock className="h-3 w-3" />{elapsed}m</span>
                       </div>
                     </div>
@@ -262,12 +264,12 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
               {completedOrders.map((order) => (
                 <article key={order.id} className="ui-card p-3">
-                  <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-2"><span className="font-mono text-base font-bold">{formatOrderLabel(order)}</span><span className="ui-badge ui-badge-success"><Check className="h-3 w-3" />Selesai</span></div>
+                  <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-2"><span className="font-mono text-base font-bold">{formatOrderLabel(order, orders)}</span><span className="ui-badge ui-badge-success"><Check className="h-3 w-3" />Selesai</span></div>
                   <p className="my-2 text-[11px] font-bold text-[var(--text-secondary)]">{order.customerName} · Meja {order.tableNumber || '-'}</p>
                   <div className="space-y-1">{groupKitchenItems(order.items).map((item) => <div key={item.key} className="flex justify-between text-[11px] font-bold"><span>{item.menuName}</span><span>×{item.totalQuantity}</span></div>)}</div>
                   <div className="mt-3 flex gap-2 border-t border-[var(--panel-border-light)] pt-2">
                     <button type="button" onClick={() => onUpdateOrderStatus(order.id, 'COOKING')} className="flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg bg-[var(--warning-soft)] px-2 text-[11px] font-bold text-[var(--accent-amber)]"><RotateCcw className="h-3.5 w-3.5" />Kembalikan</button>
-                    <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--panel-border)]" aria-label={`Cetak ulang ${formatOrderLabel(order)}`} title="Cetak ulang"><Printer className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => onPrintKitchenTicket(order)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--panel-border)]" aria-label={`Cetak ulang ${formatOrderLabel(order, orders)}`} title="Cetak ulang"><Printer className="h-3.5 w-3.5" /></button>
                   </div>
                 </article>
               ))}
