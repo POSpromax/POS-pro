@@ -709,6 +709,32 @@ export class DBStorage {
     shift.status = 'CLOSED';
     shift.endTime = new Date().toISOString();
     shift.notes = closingNotes;
+
+    // Recalculate metrics from raw order data as a safety net in case
+    // cloud-sync race conditions have already zeroed the shift counters.
+    const allOrders = this.getOrders();
+    const shiftOrders = allOrders.filter(
+      (o) => o.shiftId === shift.id && o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'
+    );
+    if (shiftOrders.length > 0) {
+      const calcGross = shiftOrders.reduce((s, o) => s + (o.subtotal || o.total), 0);
+      const calcCash  = shiftOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((s, o) => s + o.total, 0);
+      const calcNonCash = shiftOrders.filter((o) => o.paymentMethod === 'QRIS' || o.paymentMethod === 'DEBIT').reduce((s, o) => s + o.total, 0);
+      // Use calculated value if shift counter is zero but we have real orders
+      if (shift.grossOmset === 0 && calcGross > 0)   shift.grossOmset   = calcGross;
+      if (shift.cashSales === 0 && calcCash > 0)     shift.cashSales    = calcCash;
+      if (shift.nonCashSales === 0 && calcNonCash > 0) shift.nonCashSales = calcNonCash;
+    }
+
+    // Recalculate expense/income from records if shift object shows 0
+    const shiftExpenses = this.getExpenseRecords().filter((r) => r.shiftId === shift.id);
+    if (shiftExpenses.length > 0) {
+      const calcExp = shiftExpenses.filter((r) => r.type === 'EXPENSE').reduce((s, r) => s + r.amount, 0);
+      const calcInc = shiftExpenses.filter((r) => r.type === 'INCOME').reduce((s, r) => s + r.amount, 0);
+      if (shift.totalExpense === 0 && calcExp > 0) shift.totalExpense = calcExp;
+      if (shift.totalIncome === 0 && calcInc > 0)  shift.totalIncome  = calcInc;
+    }
+
     setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, shift);
 
     const history = getStoredItem<Shift[]>(STORAGE_KEYS.SHIFT_HISTORY, []);

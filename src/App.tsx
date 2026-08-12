@@ -274,6 +274,7 @@ export default function App() {
   const [condimentGroups, setCondimentGroups] = useState<CondimentGroup[]>(() => DBStorage.getCondimentGroups());
   const [orders, setOrders] = useState<Order[]>(() => DBStorage.getOrders());
   const [currentShift, setCurrentShift] = useState<Shift>(() => DBStorage.getCurrentShift(currentBranch.id));
+  const [shiftHistory, setShiftHistory] = useState<Shift[]>(() => DBStorage.getShiftHistory());
   const [expenseRecords, setExpenseRecords] = useState<ExpenseIncomeRecord[]>(() => DBStorage.getExpenseRecords());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
@@ -493,10 +494,15 @@ export default function App() {
     setCurrentShift(DBStorage.clearCurrentShift(currentBranch.id));
 
     const syncShiftFromCloud = async () => {
+      // Block sync during the close-shift window to prevent race condition:
+      // after closeCloudShift(), the realtime listener fires and getCloudActiveShift()
+      // returns null → clearCurrentShift() would overwrite the just-saved CLOSED shift.
+      if (isClosingShiftRef.current) return;
       const sequence = ++requestSequence;
       try {
         const cloudShift = await getCloudActiveShift(currentBranch.id);
         if (cancelled || sequence !== requestSequence) return;
+        if (isClosingShiftRef.current) return;
         const nextShift = cloudShift
           ? DBStorage.setCurrentShift(cloudShift)
           : DBStorage.clearCurrentShift(currentBranch.id);
@@ -716,6 +722,9 @@ export default function App() {
   // 5. Toast Push Notifications State
   const [toastNotification, setToastNotification] = useState<{ title: string; message: string } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+  // Flag to block cloud shift sync immediately after closeShift — prevents race condition
+  // where subscribeCloudShift fires right after close and overwrites the saved CLOSED shift
+  const isClosingShiftRef = useRef<boolean>(false);
 
   // 6. Modals State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
@@ -1426,7 +1435,8 @@ export default function App() {
             <ShiftMonitorView
               currentShift={currentShift}
               orders={branchOrders}
-              expenseRecords={expenseRecords}
+              expenseRecords={expenseRecords.filter((r) => r.shiftId === currentShift.id)}
+              shiftHistory={shiftHistory}
               activeUser={activeUser}
               onShowToast={showPushToast}
               onAddExpenseIncome={(rec) => {
@@ -1446,7 +1456,28 @@ export default function App() {
                 setCurrentShift(nextShift);
               }}
               onCloseShift={async (notes, actualCash, expectedCash) => {
-                const shiftBeingClosed = currentShift;
+                // Snapshot shift and all data BEFORE any async operation
+                const shiftBeingClosed = { ...currentShift };
+                const ordersForShift = orders.filter(
+                  (o) => o.shiftId === shiftBeingClosed.id && o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'
+                );
+
+                // Recalculate metrics from orders in case cloud sync already zeroed currentShift
+                if (ordersForShift.length > 0 && shiftBeingClosed.grossOmset === 0) {
+                  shiftBeingClosed.grossOmset = ordersForShift.reduce((s, o) => s + (o.subtotal || o.total), 0);
+                  shiftBeingClosed.cashSales = ordersForShift.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((s, o) => s + o.total, 0);
+                  shiftBeingClosed.nonCashSales = ordersForShift.filter((o) => o.paymentMethod === 'QRIS' || o.paymentMethod === 'DEBIT').reduce((s, o) => s + o.total, 0);
+                }
+
+                // Recalculate expense/income from records if shift object shows 0
+                const expForShift = expenseRecords.filter((r) => r.shiftId === shiftBeingClosed.id);
+                if (expForShift.length > 0 && shiftBeingClosed.totalExpense === 0 && shiftBeingClosed.totalIncome === 0) {
+                  shiftBeingClosed.totalExpense = expForShift.filter((r) => r.type === 'EXPENSE').reduce((s, r) => s + r.amount, 0);
+                  shiftBeingClosed.totalIncome = expForShift.filter((r) => r.type === 'INCOME').reduce((s, r) => s + r.amount, 0);
+                }
+
+                // Block cloud sync during close window to prevent race condition
+                isClosingShiftRef.current = true;
                 try {
                   if (cloudReadiness.supabase) {
                     await closeCloudShift({
@@ -1459,14 +1490,30 @@ export default function App() {
                     });
                   }
                   const closed = DBStorage.closeShift(notes, shiftBeingClosed);
+                  // Update shift history state reactively
+                  const updatedHistory = DBStorage.getShiftHistory();
+                  setShiftHistory(updatedHistory);
                   setCurrentShift(closed);
-                  showPushToast('Shift Ditutup', 'Shift telah ditutup dan dikonfirmasi oleh server pusat.');
+
+                  // Clear orders and expenses so new shift starts clean
+                  DBStorage.clearAllOrders();
+                  setOrders([]);
+                  // Keep expenses in storage for historical reference but clear from active state
+                  setExpenseRecords([]);
+
+                  showPushToast('Shift Ditutup', 'Shift telah ditutup. Riwayat & laporan tersimpan.');
                 } catch (error) {
                   showPushToast(
                     'Shift Belum Ditutup',
                     error instanceof Error ? error.message : 'Server belum mengonfirmasi penutupan shift.',
                   );
                   throw error;
+                } finally {
+                  // Release the closing lock after a safe delay so any lingering realtime
+                  // events from the close operation are suppressed
+                  window.setTimeout(() => {
+                    isClosingShiftRef.current = false;
+                  }, 3000);
                 }
               }}
               onOpenNewShift={async (name, role, cash) => {
@@ -1501,6 +1548,13 @@ export default function App() {
                     showPushToast('Shift Baru Dibuka', `Shift kasir aktif untuk ${name}.`);
                   }
                   setCurrentShift(nextShift);
+                  // Clear any leftover orders/expenses from previous shift
+                  // (belt-and-suspenders: normally already cleared in onCloseShift)
+                  if (orders.length > 0) {
+                    DBStorage.clearAllOrders();
+                    setOrders([]);
+                  }
+                  setExpenseRecords(DBStorage.getExpenseRecords().filter((r) => r.shiftId === nextShift.id));
                 } catch (error) {
                   showPushToast(
                     'Shift Belum Dibuka',
@@ -1612,7 +1666,7 @@ export default function App() {
               orders={branchOrders}
               menuItems={menuItems}
               currentShift={currentShift}
-              allShifts={DBStorage.getShiftHistory()}
+              allShifts={shiftHistory}
               attendanceRecords={attendanceRecords}
               expenseRecords={expenseRecords}
               profile={profile}

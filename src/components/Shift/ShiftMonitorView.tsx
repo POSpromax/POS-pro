@@ -25,6 +25,7 @@ interface ShiftMonitorViewProps {
   currentShift: Shift;
   orders: Order[];
   expenseRecords: ExpenseIncomeRecord[];
+  shiftHistory?: Shift[];
   activeUser?: UserAccount;
   onAddExpenseIncome: (record: ExpenseIncomeRecord) => void;
   onCloseShift: (notes: string, actualCash: number, expectedCash: number) => Promise<void>;
@@ -37,6 +38,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   currentShift,
   orders,
   expenseRecords,
+  shiftHistory = [],
   activeUser,
   onAddExpenseIncome,
   onCloseShift,
@@ -143,22 +145,48 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     );
   }
 
-  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID');
-  const voidOrders = orders.filter((o) => o.status === 'CANCELLED');
-  const discountedOrders = orders.filter((o) => o.discount && o.discount > 0);
+  // ── Filter semua data hanya untuk shift yang sedang aktif ─────────────────
+  // Ini memastikan statistik tidak mencampur data dari shift sebelumnya
+  // dalam kasus edge di mana orders belum ter-clear saat shift dibuka ulang.
+  const shiftOrders = orders.filter((o) => o.shiftId === currentShift.id);
+  const activeOrders = shiftOrders.filter((o) => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID');
+  const voidOrders = shiftOrders.filter((o) => o.status === 'CANCELLED');
+  const discountedOrders = shiftOrders.filter((o) => (o.discount ?? 0) > 0);
 
-  const grossOmset = currentShift.grossOmset || activeOrders.reduce((sum, o) => sum + (o.subtotal || o.total), 0);
-  const tunaiSales = currentShift.cashSales || activeOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((sum, o) => sum + o.total, 0);
-  const qrisSales = activeOrders.filter((o) => o.paymentMethod === 'QRIS').reduce((sum, o) => sum + o.total, 0);
+  // Fallback: kalkulasi dari orders jika shift counter belum terupdate
+  const grossOmset = currentShift.grossOmset > 0
+    ? currentShift.grossOmset
+    : activeOrders.reduce((sum, o) => sum + (o.subtotal || o.total), 0);
+
+  const tunaiSales = currentShift.cashSales > 0
+    ? currentShift.cashSales
+    : activeOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((sum, o) => sum + o.total, 0);
+
+  const qrisSales  = activeOrders.filter((o) => o.paymentMethod === 'QRIS').reduce((sum, o) => sum + o.total, 0);
   const debitSales = activeOrders.filter((o) => o.paymentMethod === 'DEBIT').reduce((sum, o) => sum + o.total, 0);
-  const nonTunaiSales = qrisSales + debitSales;
+  const nonTunaiSales = currentShift.nonCashSales > 0
+    ? currentShift.nonCashSales
+    : qrisSales + debitSales;
 
   const totalDiscount = activeOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
-  const totalTax = activeOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
-  const netOmset = activeOrders.reduce((sum, o) => sum + o.total, 0);
+  const totalTax      = activeOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
+  const netOmset      = activeOrders.reduce((sum, o) => sum + o.total, 0);
 
-  const pengeluaranTotal = currentShift.totalExpense;
-  const pemasukanTotal = currentShift.totalIncome;
+  // Fallback: kalkulasi pengeluaran/pemasukan dari expenseRecords
+  // jika shift object sudah 0 (misal karena race condition)
+  const pengeluaranFromRecords = expenseRecords
+    .filter((r) => r.type === 'EXPENSE')
+    .reduce((s, r) => s + r.amount, 0);
+  const pemasukanFromRecords = expenseRecords
+    .filter((r) => r.type === 'INCOME')
+    .reduce((s, r) => s + r.amount, 0);
+
+  const pengeluaranTotal = currentShift.totalExpense > 0
+    ? currentShift.totalExpense
+    : pengeluaranFromRecords;
+  const pemasukanTotal = currentShift.totalIncome > 0
+    ? currentShift.totalIncome
+    : pemasukanFromRecords;
 
   const cashInDrawer = currentShift.initialCash + tunaiSales + pemasukanTotal - pengeluaranTotal;
   const avgTransactionValue = activeOrders.length > 0 ? Math.round(grossOmset / activeOrders.length) : 0;
@@ -483,9 +511,10 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
         </div>
       </div>
 
-      {/* TUTUP SHIFT & FINALISASI SHIFT MODAL matching Screenshot */}
+      {/* TUTUP SHIFT & FINALISASI SHIFT MODAL */}
       {isCloseModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.45)' }}>
           <div className="ui-card w-full max-w-4xl flex flex-col md:flex-row max-h-[92vh] overflow-hidden p-0">
             
             {/* LEFT SIDE: Finalisasi Shift Form (Screen Match) */}
@@ -649,7 +678,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
       {/* Handover Shift Modal */}
       {isHandoverModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.45)' }}>
           <div className="ui-card w-full max-w-md p-6 space-y-4 font-sans text-[var(--text-primary)]">
             <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3">
               <div className="flex items-center gap-2">
@@ -718,7 +748,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
       {/* Void History Modal */}
       {isVoidModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.45)' }}>
           <div className="ui-card w-full max-w-lg p-6 md:p-8 space-y-4 font-sans text-[var(--text-primary)]">
             <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3">
               <div className="flex items-center gap-2 text-[var(--accent-red)] font-bold text-sm">
@@ -772,7 +803,8 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
       {/* Discount History Modal */}
       {isDiscountModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.45)' }}>
           <div className="ui-card w-full max-w-lg p-6 md:p-8 space-y-4 font-sans text-[var(--text-primary)]">
             <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3">
               <div className="flex items-center gap-2 text-[var(--accent-amber)] font-bold text-sm">
@@ -831,63 +863,192 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
 
       {/* Shift History Perhari Archive Modal */}
       {isShiftHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="ui-card w-full max-w-2xl p-6 md:p-8 space-y-4 font-sans text-[var(--text-primary)] max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3">
-              <div className="flex items-center gap-2 text-[var(--primary-hover)] font-bold text-sm">
-                <Calendar className="w-5 h-5 text-[var(--primary-hover)]" />
-                <span>ARSIP RIWAYAT SHIFT PERHARI</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.45)' }}>
+          <div className="ui-card w-full max-w-2xl p-0 font-sans text-[var(--text-primary)] max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b px-6 py-4 shrink-0"
+              style={{ borderColor: 'var(--panel-border-light)' }}>
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary-hover)' }}>
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Arsip Riwayat Shift</h2>
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                    {shiftHistory.length} shift terdokumentasi
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsShiftHistoryModalOpen(false)}
-                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-[var(--panel-border)] rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
-              >
+              <button type="button" onClick={() => setIsShiftHistoryModalOpen(false)}
+                className="ui-icon-button h-8 w-8" aria-label="Tutup">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {DBStorage.getShiftHistory().length === 0 ? (
-                <div className="py-16 text-center space-y-2">
-                  <Calendar className="w-12 h-12 text-[var(--panel-border-strong)] mx-auto" />
-                  <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Belum ada arsip riwayat shift sebelumnya yang ditutup.</p>
+            {/* Summary banner */}
+            {shiftHistory.length > 0 && (
+              <div className="shrink-0 grid grid-cols-3 gap-0 border-b"
+                style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-secondary)' }}>
+                {[
+                  {
+                    label: 'Total Omzet',
+                    value: `Rp ${shiftHistory.reduce((s, sh) => s + (sh.grossOmset || 0), 0).toLocaleString('id-ID')}`,
+                    color: 'var(--primary-solid)'
+                  },
+                  {
+                    label: 'Total Shift',
+                    value: `${shiftHistory.length} shift`,
+                    color: 'var(--text-primary)'
+                  },
+                  {
+                    label: 'Rata-rata / Shift',
+                    value: `Rp ${Math.round(shiftHistory.reduce((s, sh) => s + (sh.grossOmset || 0), 0) / shiftHistory.length).toLocaleString('id-ID')}`,
+                    color: 'var(--accent-green)'
+                  }
+                ].map((stat) => (
+                  <div key={stat.label} className="px-4 py-3 text-center border-r last:border-r-0"
+                    style={{ borderColor: 'var(--panel-border-light)' }}>
+                    <p className="ui-stat-label">{stat.label}</p>
+                    <p className="mt-1 text-[14px] font-extrabold tabular-nums leading-none"
+                      style={{ color: stat.color }}>{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Shift list */}
+            <div className="flex-1 overflow-y-auto space-y-2 p-4">
+              {shiftHistory.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                    style={{ background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                    <Calendar className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+                      Belum ada riwayat shift
+                    </p>
+                    <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                      Shift yang sudah ditutup akan muncul di sini secara otomatis.
+                    </p>
+                  </div>
                 </div>
               ) : (
-                DBStorage.getShiftHistory().map((shf) => (
-                  <div key={shf.id} className="p-4 bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl space-y-2 hover:bg-[var(--panel-border)]/50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="bg-[var(--primary-soft)] text-[var(--primary-hover)] text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">
-                          CLOSED
-                        </span>
-                        <strong className="text-[11px] font-bold text-[var(--text-primary)]">{shf.staffName} ({shf.staffRole})</strong>
-                        <p className="text-[11px] text-[var(--text-secondary)] font-bold mt-0.5">
-                          {new Date(shf.startTime).toLocaleString('id-ID')} – {shf.endTime ? new Date(shf.endTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Selesai'}
-                        </p>
-                      </div>
-                      <div className="text-right font-mono">
-                        <span className="text-[11px] font-bold text-[var(--text-primary)] block">Rp {(shf.grossOmset || 0).toLocaleString('id-ID')}</span>
-                        <span className="text-[11px] text-[var(--text-tertiary)] font-bold">Gross Sales</span>
-                      </div>
-                    </div>
+                shiftHistory.map((shf, idx) => {
+                  const isExpanded = selectedHistoryShift?.id === shf.id;
+                  const shiftDuration = shf.endTime
+                    ? Math.round((new Date(shf.endTime).getTime() - new Date(shf.startTime).getTime()) / 60000)
+                    : null;
+                  return (
+                    <div key={shf.id}
+                      className="overflow-hidden rounded-2xl border transition-all cursor-pointer"
+                      style={{
+                        borderColor: isExpanded ? 'var(--primary-border)' : 'var(--panel-border)',
+                        background: isExpanded ? 'var(--primary-soft)' : 'var(--surface-card)'
+                      }}
+                      onClick={() => setSelectedHistoryShift(isExpanded ? null : shf)}>
 
-                    {shf.notes && (
-                      <p className="text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--surface-card)] p-2 rounded-xl border border-[var(--panel-border)] font-mono">
-                        💬 {shf.notes}
-                      </p>
-                    )}
-                  </div>
-                ))
+                      {/* Row header */}
+                      <div className="flex items-center justify-between gap-3 p-3.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Rank badge */}
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white"
+                            style={{ background: idx === 0 ? 'var(--primary-solid)' : 'var(--surface-inverse)' }}>
+                            #{idx + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold leading-tight truncate"
+                              style={{ color: 'var(--text-primary)' }}>
+                              {shf.staffName}
+                              <span className="ml-2 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-lg"
+                                style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
+                                {shf.staffRole}
+                              </span>
+                            </p>
+                            <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                              {new Date(shf.startTime).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              {' · '}
+                              {new Date(shf.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              {shf.endTime && ` → ${new Date(shf.endTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`}
+                              {shiftDuration !== null && ` (${shiftDuration} mnt)`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="text-[14px] font-extrabold tabular-nums"
+                              style={{ color: 'var(--primary-solid)' }}>
+                              Rp {(shf.grossOmset || 0).toLocaleString('id-ID')}
+                            </p>
+                            <p className="text-[10px] font-bold uppercase"
+                              style={{ color: 'var(--text-tertiary)' }}>gross omzet</p>
+                          </div>
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full transition-transform"
+                            style={{
+                              background: 'var(--surface-secondary)',
+                              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                            }}>
+                            <ChevronRight className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div className="border-t px-4 pb-4 pt-3 space-y-3"
+                          style={{ borderColor: 'var(--primary-border)' }}
+                          onClick={(e) => e.stopPropagation()}>
+
+                          {/* Stats grid 2×3 */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { label: 'Modal Awal', value: `Rp ${(shf.initialCash || 0).toLocaleString('id-ID')}`, color: 'var(--text-primary)' },
+                              { label: 'Tunai', value: `Rp ${(shf.cashSales || 0).toLocaleString('id-ID')}`, color: 'var(--accent-green)' },
+                              { label: 'Non-Tunai', value: `Rp ${(shf.nonCashSales || 0).toLocaleString('id-ID')}`, color: 'var(--primary-text)' },
+                              { label: 'Pengeluaran', value: `Rp ${(shf.totalExpense || 0).toLocaleString('id-ID')}`, color: 'var(--accent-red)' },
+                              { label: 'Pemasukan', value: `Rp ${(shf.totalIncome || 0).toLocaleString('id-ID')}`, color: 'var(--accent-green)' },
+                              {
+                                label: 'Kas Bersih',
+                                value: `Rp ${((shf.initialCash || 0) + (shf.cashSales || 0) + (shf.totalIncome || 0) - (shf.totalExpense || 0)).toLocaleString('id-ID')}`,
+                                color: 'var(--primary-solid)'
+                              },
+                            ].map((s) => (
+                              <div key={s.label} className="rounded-xl p-2.5"
+                                style={{ background: 'var(--surface-card)', border: '1px solid var(--panel-border)' }}>
+                                <p className="ui-stat-label">{s.label}</p>
+                                <p className="mt-1 text-[12px] font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Notes */}
+                          {shf.notes && (
+                            <div className="rounded-xl p-3 text-[11px] font-medium"
+                              style={{ background: 'var(--surface-card)', border: '1px solid var(--panel-border)', color: 'var(--text-secondary)' }}>
+                              <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Catatan: </span>
+                              {shf.notes}
+                            </div>
+                          )}
+
+                          {/* Shift ID */}
+                          <p className="text-[10px] font-mono text-right" style={{ color: 'var(--text-tertiary)' }}>
+                            ID: {shf.id} · Branch: {shf.branchName || shf.branchId || '-'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
 
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsShiftHistoryModalOpen(false)}
-                className="ui-button ui-button-primary px-5 py-2.5 text-[11px] uppercase tracking-wider"
-              >
+            <div className="shrink-0 flex justify-end border-t px-6 py-4"
+              style={{ borderColor: 'var(--panel-border-light)' }}>
+              <button type="button" onClick={() => setIsShiftHistoryModalOpen(false)}
+                className="ui-button ui-button-primary px-6 text-[12px]">
                 Tutup
               </button>
             </div>
