@@ -338,20 +338,20 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   };
 
   return (
-    <div className="theme-self-order flex min-h-screen w-full select-none flex-col items-center bg-[#FFF8F2] font-sans text-slate-800 antialiased">
+    <div className="theme-self-order flex min-h-screen w-full select-none flex-col items-center bg-[var(--primary-soft)] font-sans text-slate-800 antialiased">
       {localToast && (
         <div className="animate-fadeIn fixed left-1/2 top-4 z-[9999] -translate-x-1/2 rounded-2xl border border-orange-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-md">
           {localToast}
         </div>
       )}
       {/* Clean Responsive Web App Wrapper */}
-      <div className="relative flex min-h-screen w-full max-w-lg flex-col bg-[#FFF8F2] shadow-sm">
+      <div className="relative flex min-h-screen w-full max-w-lg flex-col bg-[var(--primary-soft)] shadow-sm">
         
         {/* =========================================
             STEP 1: LANDING PAGE (Screenshot 1 Match)
            ========================================= */}
         {activeStep === 'LANDING' && (
-          <div className="flex-1 space-y-4 overflow-y-auto bg-[#FFF8F2] p-5">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-[var(--primary-soft)] p-5">
             <div className="space-y-4">
               
               {/* Top Restaurant Profile Header Card */}
@@ -407,7 +407,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleStartOrder}
-                className="w-full bg-[#EA580C] hover:bg-orange-600 text-white rounded-2xl p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
+                className="w-full bg-[var(--primary)] hover:bg-orange-600 text-white rounded-2xl p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
               >
                 <div className="text-left space-y-0.5">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-orange-100 block opacity-90">
@@ -500,13 +500,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 2: TABLE & NAME INPUT SCREEN (Screenshot 2 Match)
            ========================================= */}
         {activeStep === 'TABLE_INPUT' && (
-          <div className="animate-fadeIn flex-1 overflow-y-auto bg-[#FFF8F2] p-6">
+          <div className="animate-fadeIn flex-1 overflow-y-auto bg-[var(--primary-soft)] p-6">
             {/* Pemusatan dipindah ke pembungkus dalam: kalau container yang
                 men-scroll ikut memusatkan, isinya menyusut dan tidak bisa digulir. */}
             <div className="min-h-full flex flex-col justify-center space-y-6">
             <div className="text-center space-y-2">
               {/* Orange Chef Hat Icon Box */}
-              <div className="w-20 h-20 bg-[#EA580C] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
+              <div className="w-20 h-20 bg-[var(--primary)] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/30 mx-auto">
                 <ChefHat className="w-10 h-10 stroke-[2.2]" />
               </div>
 
@@ -566,7 +566,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleProceedToMenu}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
+                className="w-full py-4 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
               >
                 <span>Mulai Pesan</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />
@@ -812,7 +812,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     )}
 
                     {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
-                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[#FFD4AD] bg-[#FFF2E6] px-2 py-1 text-[11px] font-bold text-[#C55600]">
+                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[var(--brand-200)] bg-[var(--primary-soft)] px-2 py-1 text-[11px] font-bold text-[var(--primary-text)]">
                         {item.quantity > 1 ? 'Atur per porsi' : 'Ubah porsi ini'}
                       </button>
                     )}
@@ -860,7 +860,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                className="w-full py-4 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Kirim Pesanan ke Dapur & Kasir</span>
                 <ArrowRight className="w-4 h-4" />
@@ -874,7 +874,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             STEP 5: ORDER SUCCESS (Screenshot 5 Match)
            ========================================= */}
         {activeStep === 'ORDER_SUCCESS' && (
-          <div className="animate-fadeIn flex-1 space-y-5 overflow-y-auto bg-[#FFF8F2] p-5">
+          <div className="animate-fadeIn flex-1 space-y-5 overflow-y-auto bg-[var(--primary-soft)] p-5">
             <div className="space-y-5 pt-2">
               
               {/* Big Green Checkmark Badge Header */}
@@ -907,7 +907,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   onClick={() => {
                     toast('Struk Tersimpan', 'Struk digital pesanan Anda berhasil disimpan!');
                   }}
-                  className="py-3.5 bg-[#EA580C] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-3.5 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Simpan Struk</span>

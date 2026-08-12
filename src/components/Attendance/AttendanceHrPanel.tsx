@@ -104,7 +104,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     <section className="mt-6 rounded-2xl border border-[var(--panel-border)] bg-white p-4 shadow-sm md:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-bold text-[var(--text-primary)]">Kehadiran & HR</h2><p className="text-xs font-semibold text-slate-500">Riwayat, izin, dan komponen payroll terhubung per outlet.</p></div>
-        <div className="flex rounded-2xl bg-[#F1F1F0] p-1 text-[11px] font-bold">
+        <div className="flex rounded-2xl bg-[var(--surface-secondary)] p-1 text-[11px] font-bold">
           <button onClick={() => setTab('HISTORY')} className={`rounded-xl px-3 py-2 ${tab === 'HISTORY' ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>DETAIL ABSEN</button>
           <button onClick={() => setTab('LEAVE')} className={`rounded-xl px-3 py-2 ${tab === 'LEAVE' ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>AJUKAN IZIN</button>
           {canManage && <button onClick={() => setTab('PAYROLL')} className={`rounded-xl px-3 py-2 ${tab === 'PAYROLL' ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>PAYROLL</button>}

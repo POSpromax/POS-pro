@@ -54,7 +54,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
         <div className="px-6 pb-6 space-y-4 overflow-y-auto max-h-[80vh]">
           
           {/* Card 1: Master Restriction Toggle matching Image 2 */}
-          <div className="bg-[#F5F5F5] rounded-2xl p-4 flex items-center justify-between border border-black/5 shadow-sm">
+          <div className="bg-[var(--surface-secondary)] rounded-2xl p-4 flex items-center justify-between border border-black/5 shadow-sm">
             <span className="font-extrabold text-xs text-slate-800">
               Pembatasan meja customer order
             </span>
@@ -64,7 +64,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                 type="button"
                 onClick={() => onToggleSystemSelfOrder(!isSelfOrderSystemEnabled)}
                 className={`w-12 h-6.5 rounded-full transition-colors relative flex items-center p-0.5 cursor-pointer ${
-                  isSelfOrderSystemEnabled ? 'bg-[#EA580C]' : 'bg-slate-300'
+                  isSelfOrderSystemEnabled ? 'bg-[var(--primary)]' : 'bg-slate-300'
                 }`}
               >
                 <div
@@ -84,7 +84,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
           </div>
 
           {/* Card 2: Table Control & Badge Pills Grid matching Image 2 */}
-          <div className="bg-[#F9FAFB] rounded-2xl p-5 border border-slate-200/80 space-y-4">
+          <div className="bg-[var(--surface-main)] rounded-2xl p-5 border border-slate-200/80 space-y-4">
             
             {/* Control & Active Counter Header */}
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -122,14 +122,14 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
                     onClick={() => onToggleTableSelfOrder(tbl.id, !isEnabled)}
                     className={`py-2 px-1 rounded-2xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 select-none ${
                       isEnabled
-                        ? 'bg-[var(--primary-soft)] text-[var(--primary-text)] border-[var(--brand-200)] hover:border-[#EA580C] shadow-sm'
+                        ? 'bg-[var(--primary-soft)] text-[var(--primary-text)] border-[var(--brand-200)] hover:border-[var(--primary)] shadow-sm'
                         : 'bg-white text-slate-400 border-slate-200 opacity-60 hover:opacity-100'
                     }`}
                   >
                     <span className="text-xs sm:text-sm font-bold">{tbl.number}</span>
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
-                        isEnabled ? 'bg-[#EA580C]' : 'bg-slate-300'
+                        isEnabled ? 'bg-[var(--primary)]' : 'bg-slate-300'
                       }`}
                     />
                   </button>

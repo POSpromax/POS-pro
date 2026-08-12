@@ -226,7 +226,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                   onClick={() => onSelectBranch && onSelectBranch(br)}
                   className={`p-3.5 rounded-2xl text-left border transition-all cursor-pointer flex flex-col justify-between gap-2 relative ${
                     isSelected
-                      ? 'bg-[var(--primary-soft)] border-[var(--primary)] text-[#2A211D] shadow-sm ring-2 ring-[var(--primary)]/10'
+                      ? 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--text-primary)] shadow-sm ring-2 ring-[var(--primary)]/10'
                       : 'bg-[var(--surface-card)] border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-slate-300 hover:bg-white'
                   }`}
                 >
@@ -822,10 +822,10 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <CheckCircle2 className="w-5 h-5 text-[#E95412]" />
+                  <CheckCircle2 className="w-5 h-5 text-[var(--primary)]" />
                   <h2 className="text-lg font-bold text-[var(--text-primary)]">Kesiapan Operasional {currentBranch.name}</h2>
                 </div>
-                <p className="text-xs text-[#8A8580]">Checklist ini mengarahkan urutan konfigurasi sebelum outlet menerima transaksi nyata.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Checklist ini mengarahkan urutan konfigurasi sebelum outlet menerima transaksi nyata.</p>
               </div>
               <span className="rounded-full border border-[var(--brand-200)] bg-[var(--primary-soft)] px-3 py-1.5 text-[11px] font-bold text-[var(--primary-hover)]">BLUEPRINT P0 / P1</span>
             </div>
@@ -840,13 +840,13 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 { title: 'Keamanan produksi', ready: false, detail: 'Backend auth, audit log, signed QR, dan idempotency wajib P0' }
               ].map((item) => (
                 <div key={item.title} className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 flex items-start gap-3">
-                  <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center ${item.ready ? 'bg-[var(--primary)] text-white' : 'bg-[#FFF0E8] text-[#E95412]'}`}>
+                  <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center ${item.ready ? 'bg-[var(--primary)] text-white' : 'bg-[var(--primary-soft)] text-[var(--primary)]'}`}>
                     {item.ready ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[var(--text-primary)]">{item.title}</p>
-                    <p className="text-[11px] leading-relaxed text-[#8A8580] mt-1">{item.detail}</p>
-                    <p className={`text-[11px] font-bold uppercase mt-2 ${item.ready ? 'text-[#55504C]' : 'text-[var(--primary-hover)]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
+                    <p className="text-[11px] leading-relaxed text-[var(--text-secondary)] mt-1">{item.detail}</p>
+                    <p className={`text-[11px] font-bold uppercase mt-2 ${item.ready ? 'text-[var(--text-secondary)]' : 'text-[var(--primary-hover)]'}`}>{item.ready ? 'Siap secara UI' : 'Perlu tindakan'}</p>
                   </div>
                 </div>
               ))}
@@ -865,12 +865,12 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     <p className="text-[11px] font-bold text-[var(--primary-hover)]">{group.phase}</p>
                     <h3 className="text-sm font-bold text-[var(--text-primary)]">{group.title}</h3>
                   </div>
-                  <Clock className="w-4 h-4 text-[#8A8580]" />
+                  <Clock className="w-4 h-4 text-[var(--text-secondary)]" />
                 </div>
                 <div className="space-y-2">
                   {group.items.map((item) => (
-                    <div key={item} className="flex items-center gap-2 text-[11px] font-semibold text-[#5F5A56]">
-                      <ArrowRight className="w-3.5 h-3.5 text-[#E95412]" />
+                    <div key={item} className="flex items-center gap-2 text-[11px] font-semibold text-[var(--text-secondary)]">
+                      <ArrowRight className="w-3.5 h-3.5 text-[var(--primary)]" />
                       <span>{item}</span>
                     </div>
                   ))}
@@ -881,7 +881,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
           <div className="rounded-2xl border border-[var(--brand-200)] bg-[var(--primary-soft)] p-4 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[var(--primary-hover)] shrink-0" />
-            <p className="text-xs leading-relaxed text-[#5F514A]"><strong>Batas keamanan:</strong> kontrol PIN dan lockout pada UI saat ini hanya untuk demonstrasi. Jangan memproses data biometrik atau pembayaran nyata sebelum seluruh P0 pada dokumen blueprint repository selesai.</p>
+            <p className="text-xs leading-relaxed text-[var(--text-secondary)]"><strong>Batas keamanan:</strong> kontrol PIN dan lockout pada UI saat ini hanya untuk demonstrasi. Jangan memproses data biometrik atau pembayaran nyata sebelum seluruh P0 pada dokumen blueprint repository selesai.</p>
           </div>
         </div>
       )}
