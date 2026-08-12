@@ -89,7 +89,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     return (
       <div className="ui-surface flex-1 p-4 md:p-8 overflow-y-auto font-sans select-none flex items-center justify-center text-[var(--text-primary)] min-h-0">
         <div className="max-w-md w-full ui-card p-8 md:p-10 text-center space-y-6">
-          <div className="w-20 h-20 bg-[var(--primary-solid)] rounded-[20px] flex items-center justify-center text-[var(--text-inverse)] mx-auto shadow-[var(--shadow-md)]">
+          <div className="w-20 h-20 bg-[var(--primary-solid)] rounded-2xl flex items-center justify-center text-[var(--text-inverse)] mx-auto shadow-[var(--shadow-md)]">
             <Store className="w-10 h-10" />
           </div>
 
@@ -184,7 +184,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
       {/* Top Bar matching Reference Image */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-[var(--primary-solid)] rounded-[20px] flex items-center justify-center text-[var(--text-inverse)] shadow-[var(--shadow-sm)]">
+          <div className="w-12 h-12 bg-[var(--primary-solid)] rounded-2xl flex items-center justify-center text-[var(--text-inverse)] shadow-[var(--shadow-sm)]">
             <Store className="w-6 h-6" />
           </div>
           <div>
@@ -256,7 +256,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
             {/* TOTAL OMSET (Hero White Card) */}
             <div className="ui-card p-6 flex flex-col justify-between relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-[14px] flex items-center justify-center text-[var(--primary-hover)]">
+                <div className="w-12 h-12 bg-[var(--primary-soft)] border border-[var(--primary-border)] rounded-lg flex items-center justify-center text-[var(--primary-hover)]">
                   <Coins className="w-6 h-6" />
                 </div>
                 <span className="bg-[var(--primary-soft)] border border-[var(--primary-border)] text-[var(--primary-hover)] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -272,9 +272,9 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
             </div>
 
             {/* UANG FISIK (LACI) (Hero Dark Navy Card) */}
-            <div className="bg-[var(--primary)] text-[var(--text-inverse)] rounded-[20px] p-6 shadow-[var(--shadow-sm)] flex flex-col justify-between relative overflow-hidden border border-[var(--primary-border)]">
+            <div className="bg-[var(--primary)] text-[var(--text-inverse)] rounded-2xl p-6 shadow-[var(--shadow-sm)] flex flex-col justify-between relative overflow-hidden border border-[var(--primary-border)]">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-[var(--primary-hover)] border border-white/15 rounded-[14px] flex items-center justify-center text-[var(--text-inverse)]">
+                <div className="w-12 h-12 bg-[var(--primary-hover)] border border-white/15 rounded-lg flex items-center justify-center text-[var(--text-inverse)]">
                   <Wallet className="w-6 h-6" />
                 </div>
                 <span className="bg-[var(--primary-hover)] border border-white/15 text-[var(--text-inverse)] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -384,7 +384,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider">CATAT BIAYA / PEMASUKAN</h3>
             </div>
 
-            <div className="flex bg-[var(--surface-secondary)] p-1 rounded-[14px]">
+            <div className="flex bg-[var(--surface-secondary)] p-1 rounded-lg">
               <button
                 type="button"
                 onClick={() => setRecordType('EXPENSE')}
@@ -498,7 +498,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
               </div>
 
               {/* HITUNG UANG FISIK Card */}
-              <div className="bg-[var(--surface-card)] rounded-[20px] p-6 border border-[var(--panel-border)] space-y-3">
+              <div className="bg-[var(--surface-card)] rounded-2xl p-6 border border-[var(--panel-border)] space-y-3">
                 <label className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest block">
                   HITUNG UANG FISIK
                 </label>

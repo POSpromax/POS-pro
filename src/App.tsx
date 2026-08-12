@@ -111,7 +111,10 @@ const canAccessTab = (rule: AccessControlRule | undefined, tab: string): boolean
   if (tab === 'inventory') return rule.canAccessInventory;
   if (tab === 'analytics' || tab === 'superowner') return rule.canAccessAnalytics;
   if (tab === 'attendance') return rule.canAccessAttendance ?? rule.canAccessSettings;
-  if (['settings', 'blueprint', 'tables', 'selforder'].includes(tab)) return rule.canAccessSettings;
+  // 'payroll' sempat tertinggal di sini: sidebar menampilkan menunya lewat
+  // aturan canAccessSettings, tapi fungsi ini menjatuhkannya ke false, jadi
+  // menunya terlihat namun selalu ditolak saat diklik.
+  if (['settings', 'blueprint', 'tables', 'selforder', 'payroll'].includes(tab)) return rule.canAccessSettings;
   return false;
 };
 
@@ -172,7 +175,7 @@ export default function App() {
   // Tab change with system portal awareness
   const handleTabChange = (targetTab: string) => {
     const cashierTabs = ['pos', 'kds', 'shift', 'inventory'];
-    const ownerTabs = ['superowner', 'blueprint', 'analytics', 'inventory', 'tables', 'attendance', 'selforder', 'settings'];
+    const ownerTabs = ['superowner', 'blueprint', 'analytics', 'inventory', 'tables', 'attendance', 'payroll', 'selforder', 'settings'];
     const baseRule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
     const rule = baseRule ? { ...baseRule, ...(activeUser.permissions || {}) } : undefined;
 

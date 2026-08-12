@@ -69,14 +69,21 @@
 
   /* Referensi memakai sudut yang jauh lebih bulat daripada bawaan Tailwind:
      kartu ~20-28px, tombol pill penuh. */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 26px;
+  /* Tailwind v4 membaca --radius-* ini sebagai nilai tema untuk rounded-*.
+     Sebelumnya hanya sm..xl yang ditulis, jadi rounded-2xl jatuh ke bawaan
+     Tailwind (16px) dan justru lebih tajam daripada rounded-lg (20px) —
+     kartu terlihat lebih runcing daripada chip di dalamnya. Skala di bawah
+     ditulis lengkap dan menaik supaya urutannya benar. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+  --radius-3xl: 26px;
   --radius-pill: 999px;
-  --card-radius: 20px;
-  --card-radius-lg: 24px;
-  --card-radius-xl: 28px;
+  --card-radius: 22px;
+  --card-radius-lg: 26px;
+  --card-radius-xl: 30px;
 
   --space-1: 4px;
   --space-2: 8px;
