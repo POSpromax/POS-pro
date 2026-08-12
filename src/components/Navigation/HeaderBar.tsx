@@ -170,7 +170,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               id="btn-header-meja-customer"
               type="button"
               onClick={onOpenTableManagement}
-              className="ui-button ui-button-primary shrink-0 gap-1.5 text-[11px]"
+              className="ui-button ui-button-secondary shrink-0 gap-1.5 text-[11px]"
               style={{ minHeight: '32px', padding: '0 12px' }}
               title="Konfigurasi Meja Customer Order"
             >

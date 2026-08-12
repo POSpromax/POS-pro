@@ -56,19 +56,19 @@ const POSMenuItemCard: React.FC<{
   const getCategoryTheme = (category: string) => {
     switch (category) {
       case 'BAKSO':
-        return { bg: 'from-[var(--primary-solid)] to-[var(--primary-light)]', icon: '🍲' };
+        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍲' };
       case 'MIE AYAM':
-        return { bg: 'from-[var(--primary-solid)] to-[var(--primary-light)]', icon: '🍜' };
+        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍜' };
       case 'MAKANAN':
-        return { bg: 'from-[var(--primary-solid)] to-red-500', icon: '🍱' };
+        return { bg: 'from-neutral-200 to-neutral-300', icon: '🍱' };
       case 'TAMBAHAN':
         return { bg: 'from-neutral-500 to-neutral-700', icon: '🥟' };
       case 'KRIUK':
-        return { bg: 'from-[var(--primary-solid)] to-[var(--primary-light)]', icon: '🥨' };
+        return { bg: 'from-neutral-200 to-neutral-300', icon: '🥨' };
       case 'MINUMAN':
         return { bg: 'from-neutral-500 to-neutral-700', icon: '🥤' };
       case 'BUNDLING':
-        return { bg: 'from-[var(--primary-solid)] to-[var(--primary-light)]', icon: '🎁' };
+        return { bg: 'from-neutral-200 to-neutral-300', icon: '🎁' };
       default:
         return { bg: 'from-zinc-500 to-zinc-700', icon: '🍽️' };
     }
@@ -138,7 +138,7 @@ const POSMenuItemCard: React.FC<{
         <div className="flex items-center justify-between gap-1 border-t pt-2"
           style={{ borderColor: 'var(--panel-border-light)' }}>
           <span className="tabular-nums text-[13px] font-extrabold"
-            style={{ color: 'var(--primary-solid)' }}>
+            style={{ color: 'var(--text-primary)' }}>
             Rp {item.price.toLocaleString('id-ID')}
           </span>
 
@@ -461,7 +461,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       ? 'bg-[var(--surface-card)] font-bold shadow-sm'
                       : 'hover:text-[var(--text-primary)]'
                   }`}
-                  style={{ color: queueTab === 'ACTIVE' ? 'var(--primary-hover)' : 'var(--text-secondary)' }}
+                  style={{ color: queueTab === 'ACTIVE' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                 >
                   Aktif ({activeOrdersList.length})
                 </button>
@@ -472,7 +472,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       ? 'bg-[var(--surface-card)] font-bold shadow-sm'
                       : 'hover:text-[var(--text-primary)]'
                   }`}
-                  style={{ color: queueTab === 'HISTORY' ? 'var(--primary-hover)' : 'var(--text-secondary)' }}
+                  style={{ color: queueTab === 'HISTORY' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                 >
                   Shift ({historyOrdersList.length})
                 </button>
@@ -515,7 +515,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       }}
                     >
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="tabular-nums text-[13px] font-bold" style={{ color: 'var(--primary-hover)' }}
+                        <span className="tabular-nums text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}
                           title={order.orderNumber}>
                           {formatOrderLabel(order)}
                         </span>
@@ -523,7 +523,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                           <span className={`rounded-lg px-1.5 py-0.5 text-[10px] font-bold ${
                             isVoided ? 'bg-[var(--danger-soft)] text-[var(--accent-red)]'
                               : orderIsPaid ? 'bg-[var(--success-soft)] text-[var(--accent-green)]'
-                              : 'bg-[var(--primary-soft)] text-[var(--primary-hover)]'
+                              : 'bg-[var(--warning-soft)] text-[#8a5a00]'
                           }`}>
                             {isVoided ? 'VOID' : orderIsPaid ? 'PAID' : 'UNPAID'}
                           </span>
@@ -578,7 +578,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-[11px] font-bold tracking-wide transition-all active:scale-95 ${
                       isSelected
-                        ? 'bg-[var(--primary)] text-white shadow-[0_4px_12px_rgba(234,88,12,0.25)]'
+                        ? 'bg-[var(--surface-inverse)] text-white'
                         : 'border border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:border-[var(--primary-border)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary-text)]'
                     }`}
                   >
