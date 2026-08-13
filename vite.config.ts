@@ -33,11 +33,29 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          navigateFallback: '/index.html',
+          // Jangan precache app-shell HTML. Pada POS multi-perangkat, HTML lama
+          // dapat menunjuk ke chunk yang sudah tidak ada dan membuat perubahan
+          // cabang/QR tampak tidak pernah terdeploy. Navigasi tetap tersedia
+          // offline dari cache NetworkFirst setelah pernah dibuka.
+          globIgnores: ['**/index.html'],
+          navigateFallback: null,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
           runtimeCaching: [
+            {
+              urlPattern: ({request}) => request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'pos-navigation-v2',
+                networkTimeoutSeconds: 4,
+                cacheableResponse: {statuses: [0, 200]},
+                expiration: {
+                  maxEntries: 12,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
+              },
+            },
             {
               urlPattern: /^https:\/\/res\.cloudinary\.com\//i,
               handler: 'CacheFirst',

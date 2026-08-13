@@ -9,6 +9,21 @@ export const PWAUpdatePrompt: React.FC = () => {
     updateServiceWorker,
   } = useRegisterSW();
 
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    let reloading = false;
+    const reloadOnControllerChange = () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+    // Periksa sw.js pada setiap aplikasi dibuka. Ini penting untuk terminal
+    // kasir yang dibiarkan hidup berhari-hari dan jarang menutup browser.
+    void navigator.serviceWorker.getRegistration().then((registration) => registration?.update());
+    navigator.serviceWorker.addEventListener('controllerchange', reloadOnControllerChange);
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', reloadOnControllerChange);
+  }, []);
+
   const isPublicSelfOrderRoute = typeof window !== 'undefined' && (
     /^\/\d{2,4}\/?$/.test(window.location.pathname) ||
     window.location.pathname.startsWith('/order') ||
