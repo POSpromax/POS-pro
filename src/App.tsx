@@ -1099,6 +1099,7 @@ export default function App() {
               initialTableNumber={tableFromUrl}
               onShowToast={showPushToast}
               qrToken={qrTokenFromUrl}
+              isShiftActive={currentShift?.status === 'OPEN'}
             />
           </Suspense>
         </div>
@@ -1431,6 +1432,7 @@ export default function App() {
                     onSubmitCustomerOrder={handleSubmitCustomerOrder}
                     initialTableNumber="1"
                     onShowToast={showPushToast}
+                    isShiftActive={currentShift?.status === 'OPEN'}
                   />
                 </div>
               </div>
@@ -1755,6 +1757,7 @@ export default function App() {
             onSubmitCustomerOrder={handleSubmitCustomerOrder}
             currentBranch={currentBranch}
             qrToken={selectedSelfOrderToken || undefined}
+            isShiftActive={currentShift?.status === 'OPEN'}
           />
         </Suspense>
       )}

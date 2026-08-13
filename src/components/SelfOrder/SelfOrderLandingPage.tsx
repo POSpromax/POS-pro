@@ -55,6 +55,7 @@ interface SelfOrderLandingPageProps {
   currentBranch: Branch;
   onShowToast?: (title: string, message: string) => void;
   qrToken?: string;
+  isShiftActive?: boolean;
 }
 
 export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
@@ -68,7 +69,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   initialTableNumber = '11',
   currentBranch,
   onShowToast,
-  qrToken
+  qrToken,
+  isShiftActive = true,
 }) => {
   // Navigation State Flow
   const [activeStep, setActiveStep] = useState<SelfOrderStep>('LANDING');
@@ -149,6 +151,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   });
 
   const handleStartOrder = () => {
+    if (!isShiftActive) {
+      toast('Shift Kasir Tutup', 'Shift kasir di outlet ini sedang tutup. Self-Order QR tidak dapat menerima pesanan saat shift tutup.');
+      return;
+    }
     if (!isSelfOrderSystemEnabled) {
       toast('Sistem Nonaktif', 'Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
       return;
@@ -158,6 +164,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   const handleProceedToMenu = () => {
     setTableErrorMsg('');
+    if (!isShiftActive) {
+      setTableErrorMsg('Shift kasir di outlet ini sedang tutup. Self-order tidak dapat menerima pesanan saat toko/shift kasir tutup.');
+      return;
+    }
     if (!customerName.trim()) {
       setTableErrorMsg('Silakan masukkan nama pemesan terlebih dahulu.');
       return;
@@ -177,16 +187,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     });
 
     if (!foundTable) {
-      setTableErrorMsg(`Meja "${selectedTable}" tidak ditemukan. Silakan periksa nomor yang tertera di meja Anda.`);
+      setTableErrorMsg(`Meja "${selectedTable}" tidak ditemukan. Silakan periksa nomor yang tertera di meja Anda atau hubungi kasir.`);
       return;
     }
 
-    if (foundTable.isSelfOrderEnabled === false) {
-      setTableErrorMsg(`Meja ${foundTable.number} saat ini sedang dinonaktifkan oleh Kasir.`);
+    if (foundTable.isSelfOrderEnabled === false || foundTable.status === 'DISABLED') {
+      setTableErrorMsg(`Meja ${foundTable.number} saat ini sedang NONAKTIF. Silakan hubungi kasir.`);
       return;
     }
-    // Status meja tidak memblokir self-order — cukup isSelfOrderEnabled=true.
-    // Status DISABLED/FREE/READY/OCCUPIED semua diizinkan selama fitur self-order aktif.
 
     setSelectedTable(foundTable.number);
     setActiveStep('MENU');
@@ -294,6 +302,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const totalAmount = cartItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
 
   const handleSubmitOrder = () => {
+    if (!isShiftActive) {
+      toast('Shift Kasir Tutup', 'Shift kasir di outlet ini sedang tutup. Self-Order QR tidak dapat menerima pesanan saat shift tutup.');
+      return;
+    }
     if (!isSelfOrderSystemEnabled) {
       toast('Sistem Nonaktif', 'Sistem Self-Order QR sedang dinonaktifkan sementara oleh Kasir.');
       return;
@@ -310,8 +322,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Pilih Meja', 'Silakan pilih nomor meja Anda terlebih dahulu.');
       return;
     }
-    if (selectedTableObj && selectedTableObj.isSelfOrderEnabled === false) {
-      toast('Meja Belum Aktif', 'Self-order untuk meja ini belum diaktifkan kasir. Silakan hubungi kasir.');
+    if (selectedTableObj && (selectedTableObj.isSelfOrderEnabled === false || selectedTableObj.status === 'DISABLED')) {
+      toast('Meja Nonaktif', `Self-order untuk Meja ${selectedTable} sedang nonaktif. Silakan hubungi kasir.`);
       return;
     }
 
@@ -387,20 +399,31 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                     📍 {currentBranch.address || profile.address || 'Jl. Re. Abdullah No.7-9, RT.01/RW.07, Pasirmulya BOGOR BARAT'}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
-                      OPEN NOW
-                    </span>
+                    {isShiftActive ? (
+                      <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-emerald-200/60">
+                        OPEN NOW
+                      </span>
+                    ) : (
+                      <span className="bg-red-100 text-red-800 text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full border border-red-200">
+                        KASIR TUTUP
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Disabled System Banner Notice */}
-              {!isSelfOrderSystemEnabled && (
+              {/* Disabled System / Closed Shift Banner Notice */}
+              {!isShiftActive ? (
+                <div className="bg-red-600 text-white text-xs font-bold p-3.5 rounded-2xl text-center space-y-1 shadow-md flex items-center justify-center gap-2">
+                  <Info className="w-4 h-4 shrink-0" />
+                  <span>Shift Kasir Tutup. Layanan Self-order QR tidak dapat menerima pesanan saat shift tutup. Silakan hubungi kasir.</span>
+                </div>
+              ) : !isSelfOrderSystemEnabled ? (
                 <div className="bg-red-600 text-white text-xs font-bold p-3.5 rounded-2xl text-center space-y-1 shadow-md flex items-center justify-center gap-2">
                   <Info className="w-4 h-4 shrink-0" />
                   <span>Sistem Self-Order QR sedang dinonaktifkan oleh Kasir.</span>
                 </div>
-              )}
+              ) : null}
 
               {/* Featured Promo Card */}
               <div className="bg-gradient-to-br from-amber-50/90 to-orange-50/70 border border-amber-200/80 rounded-2xl p-5 space-y-1.5 relative overflow-hidden shadow-sm">
@@ -420,7 +443,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <button
                 type="button"
                 onClick={handleStartOrder}
-                className="w-full bg-[var(--primary)] hover:bg-orange-600 text-white rounded-2xl p-5 px-6 shadow-xl shadow-orange-500/30 flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98]"
+                disabled={!isShiftActive || !isSelfOrderSystemEnabled}
+                className={`w-full rounded-2xl p-5 px-6 shadow-xl flex items-center justify-between transition-all cursor-pointer group active:scale-[0.98] ${
+                  isShiftActive && isSelfOrderSystemEnabled
+                    ? 'bg-[var(--primary)] hover:bg-orange-600 text-white shadow-orange-500/30'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-75 shadow-none'
+                }`}
               >
                 <div className="text-left space-y-0.5">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-orange-100 block opacity-90">

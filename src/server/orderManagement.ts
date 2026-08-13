@@ -147,16 +147,19 @@ export async function handleOrderRequest(
       .maybeSingle();
     table = data;
   }
-  if (source === 'SELF_ORDER' && (!table || !table.self_order_enabled)) return fail(403, 'Self-order tidak tersedia pada meja ini');
+  if (source === 'SELF_ORDER') {
+    if (!table || table.self_order_enabled === false || table.status === 'DISABLED') {
+      return fail(403, `Meja ${input.tableNumber || ''} sedang nonaktif / terisi. Silakan hubungi kasir.`);
+    }
+  }
 
   // QR statis (cetak sekali, tempel di meja) tidak lagi membawa token berputar.
   // Gerbang self-order cukup: meja mengaktifkan self-order (self_order_enabled,
   // dikendalikan kasir per-meja/semua) dan cabang aktif — dicek di atas. Meja
   // yang dinonaktifkan kasir otomatis punya self_order_enabled=false → ditolak.
 
-  // Self-order tidak punya konteks shift dari klien. Stempel dengan shift yang
-  // sedang OPEN di cabang supaya order muncul di antrean kasir & KDS (yang kini
-  // di-scope per shift). Bila tak ada shift terbuka, biarkan kosong.
+  // Self-order wajib memiliki shift kasir yang aktif di cabang. Bila shift kasir tutup,
+  // pesanan ditolak untuk keamanan agar tidak ada yang memesan saat outlet tutup.
   let selfOrderShiftId = '';
   if (source === 'SELF_ORDER') {
     const since = new Date(Date.now() - 60_000).toISOString();
@@ -165,7 +168,10 @@ export async function handleOrderRequest(
       admin.from('cashier_shifts').select('id').eq('branch_id', branchId).in('status', ['OPEN', 'HANDOVER']).order('opened_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     if ((count || 0) >= 5) return fail(429, 'Terlalu banyak pesanan. Tunggu sebentar lalu coba lagi.');
-    selfOrderShiftId = activeShift?.id ? String(activeShift.id) : '';
+    if (!activeShift?.id) {
+      return fail(403, 'Shift kasir di outlet ini sedang tutup. Self-order tidak dapat menerima pesanan saat shift tutup.');
+    }
+    selfOrderShiftId = String(activeShift.id);
   }
 
   const menuIds = [...new Set(input.items.map((item: any) => String(item.menuId || '')).filter((id: string) => UUID_PATTERN.test(id)))];
