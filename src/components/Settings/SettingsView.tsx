@@ -2123,7 +2123,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Modal Edit Staff & PIN */}
       {editingStaff && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+          style={{ background: 'rgba(24,24,27,0.4)' }}>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -2132,115 +2133,175 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   toast('PIN Tidak Valid', 'PIN baru harus tepat 6 digit, atau kosongkan jika tidak diubah.');
                   return;
                 }
+                if (editingStaff.nik && !/^\d{16}$/.test(editingStaff.nik)) {
+                  toast('NIK Tidak Valid', 'NIK harus tepat 16 digit angka.');
+                  return;
+                }
                 try {
                   await onSaveStaff(editingStaff);
                   setEditingStaff(null);
                 } catch {
-                  // Parent callback displays the error; keep the modal open for correction.
+                  // error ditampilkan oleh parent
                 }
               }
             }}
-            className="bg-white border border-[var(--panel-border)] w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 font-sans text-slate-900"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border bg-white font-sans shadow-2xl"
+            style={{ borderColor: 'var(--panel-border)', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase">Edit Detail Staff & PIN</h3>
-              <button
-                type="button"
-                onClick={() => setEditingStaff(null)}
-                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
-              >
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b px-5 py-4"
+              style={{ borderColor: 'var(--panel-border-light)' }}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary-hover)' }}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                    Edit Data Karyawan
+                  </h3>
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                    {editingStaff.name}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setEditingStaff(null)}
+                className="ui-icon-button h-8 w-8" aria-label="Tutup">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            {/* Body — scrollable */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+              {/* ── Identitas Login ── */}
               <div>
-                <label className="text-[13px]-bold-1">NAMA STAFF</label>
-                <input
-                  type="text"
-                  required
-                  value={editingStaff.name || ''}
-                  onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
-                  className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[13px]-bold-1">ROLE</label>
-                  <select
-                    value={editingStaff.role || 'KASIR'}
-                    onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as any })}
-                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
-                  >
-                    <option value="KASIR">Kasir</option>
-                    <option value="KITCHEN">Kitchen / Dapur</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="OWNER">Owner</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[13px]-bold-1">PIN 6-ANGKA</label>
-                  <input
-                    type="password"
-                    maxLength={6}
-                    inputMode="numeric"
-                    value={editingStaff.pin || ''}
-                    placeholder="Kosong = tidak diubah"
-                    onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value })}
-                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-mono font-bold tracking-widest outline-none focus:border-[var(--primary)] focus:bg-white text-[var(--primary-hover)]"
-                  />
+                <p className="ui-stat-label mb-2">Identitas Login</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="ui-form-label block mb-1">Nama Tampilan *</label>
+                    <input type="text" required className="ui-input"
+                      value={editingStaff.name || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="ui-form-label block mb-1">Role *</label>
+                      <select className="ui-input"
+                        value={editingStaff.role || 'KASIR'}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as any })}>
+                        <option value="KASIR">Kasir</option>
+                        <option value="KITCHEN">Dapur (Kitchen)</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="MANAGER">Manajer</option>
+                        <option value="OWNER">Owner</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="ui-form-label block mb-1">PIN 6-Angka</label>
+                      <input type="password" maxLength={6} inputMode="numeric" className="ui-input font-mono tracking-widest"
+                        value={editingStaff.pin || ''} placeholder="Kosong = tidak diubah"
+                        onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value })} />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[13px]-bold-1">MULAI SHIFT</label>
-                  <input
-                    type="time"
-                    value={editingStaff.shiftStart || '08:00'}
-                    onChange={(e) => setEditingStaff({ ...editingStaff, shiftStart: e.target.value })}
-                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[13px]-bold-1">SELESAI SHIFT</label>
-                  <input
-                    type="time"
-                    value={editingStaff.shiftEnd || '16:00'}
-                    onChange={(e) => setEditingStaff({ ...editingStaff, shiftEnd: e.target.value })}
-                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
-                  />
-                </div>
-              </div>
-
+              {/* ── Data Sesuai KTP ── */}
               <div>
-                <label className="text-[13px]-bold-1">OUTLET PENUGASAN</label>
-                <select
-                  value={editingStaff.branchIds?.length === branches.length ? '' : editingStaff.branchIds?.[0] || ''}
-                  onChange={(e) => setEditingStaff({ ...editingStaff, branchIds: e.target.value ? [e.target.value] : branches.map((b) => b.id) })}
-                  className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white text-slate-900"
-                >
-                  <option value="">Semua Outlet</option>
-                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <p className="ui-stat-label mb-2">Data Sesuai KTP</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="ui-form-label block mb-1">Nama Lengkap (KTP)</label>
+                    <input type="text" className="ui-input"
+                      placeholder="Sesuai KTP"
+                      value={editingStaff.fullNameKtp || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, fullNameKtp: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="ui-form-label block mb-1">NIK (16 digit)</label>
+                    <input type="text" inputMode="numeric" maxLength={16} className="ui-input font-mono tracking-wider"
+                      placeholder="0000000000000000"
+                      value={editingStaff.nik || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, nik: e.target.value.replace(/\D/g, '').slice(0, 16) })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="ui-form-label block mb-1">Tempat Lahir</label>
+                      <input type="text" className="ui-input"
+                        placeholder="Jakarta"
+                        value={editingStaff.birthPlace || ''}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, birthPlace: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="ui-form-label block mb-1">Tanggal Lahir</label>
+                      <input type="date" className="ui-input"
+                        value={editingStaff.birthDate || ''}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, birthDate: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="ui-form-label block mb-1">Alamat (KTP)</label>
+                    <textarea className="ui-input resize-none"
+                      style={{ minHeight: '64px', paddingTop: '10px', paddingBottom: '10px' }}
+                      placeholder="Jl. Contoh No.1, RT 01/RW 02, Kelurahan, Kecamatan"
+                      value={editingStaff.address || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, address: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Kontak & Kepegawaian ── */}
+              <div>
+                <p className="ui-stat-label mb-2">Kontak & Kepegawaian</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="ui-form-label block mb-1">No. HP / WhatsApp</label>
+                    <input type="tel" inputMode="numeric" className="ui-input"
+                      placeholder="08123456789"
+                      value={editingStaff.phone || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, phone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="ui-form-label block mb-1">Tanggal Mulai Bekerja</label>
+                    <input type="date" className="ui-input"
+                      value={editingStaff.joinDate || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, joinDate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="ui-form-label block mb-1">Outlet Penugasan</label>
+                    <select className="ui-input"
+                      value={editingStaff.branchIds?.length === branches.length ? '' : editingStaff.branchIds?.[0] || ''}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, branchIds: e.target.value ? [e.target.value] : branches.map((b) => b.id) })}>
+                      <option value="">Semua Outlet</option>
+                      {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="ui-form-label block mb-1">Mulai Shift</label>
+                      <input type="time" className="ui-input"
+                        value={editingStaff.shiftStart || '08:00'}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, shiftStart: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="ui-form-label block mb-1">Selesai Shift</label>
+                      <input type="time" className="ui-input"
+                        value={editingStaff.shiftEnd || '16:00'}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, shiftEnd: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setEditingStaff(null)}
-                className="px-4 py-2.5 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] text-[var(--text-secondary)] rounded-2xl text-xs font-bold cursor-pointer"
-              >
+            {/* Footer */}
+            <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-4"
+              style={{ borderColor: 'var(--panel-border-light)' }}>
+              <button type="button" onClick={() => setEditingStaff(null)} className="ui-button ui-button-secondary">
                 Batal
               </button>
-              <button
-                type="submit"
-                className="ui-button ui-button-primary cursor-pointer"
-              >
+              <button type="submit" className="ui-button ui-button-primary">
                 Simpan Perubahan
               </button>
             </div>

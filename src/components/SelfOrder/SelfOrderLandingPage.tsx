@@ -174,10 +174,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setTableErrorMsg(`Meja ${foundTable.number} saat ini sedang dinonaktifkan oleh Kasir.`);
       return;
     }
-    if (!['READY', 'OCCUPIED'].includes(foundTable.status)) {
-      setTableErrorMsg(`Meja ${foundTable.number} belum diaktifkan oleh Kasir.`);
-      return;
-    }
+    // Status meja tidak memblokir self-order — cukup isSelfOrderEnabled=true.
+    // Status DISABLED/FREE/READY/OCCUPIED semua diizinkan selama fitur self-order aktif.
 
     setSelectedTable(foundTable.number);
     setActiveStep('MENU');

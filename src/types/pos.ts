@@ -16,6 +16,14 @@ export interface UserAccount {
   shiftEnd?: string;
   workDays?: number[];
   permissions?: Partial<AccessControlRule>;
+  // ── Data Karyawan Lengkap ────────────────────────────────
+  phone?: string;           // No. HP/WhatsApp (format Indonesia, misal: 08123456789)
+  fullNameKtp?: string;     // Nama lengkap sesuai KTP
+  nik?: string;             // NIK 16 digit
+  birthPlace?: string;      // Tempat lahir
+  birthDate?: string;       // Tanggal lahir (ISO date: YYYY-MM-DD)
+  address?: string;         // Alamat sesuai KTP
+  joinDate?: string;        // Tanggal mulai bekerja (ISO date: YYYY-MM-DD)
 }
 
 export interface PinVerificationResult {
