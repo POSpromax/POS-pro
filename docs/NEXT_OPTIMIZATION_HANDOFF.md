@@ -17,6 +17,12 @@ Terakhir diperbarui: 13 Agustus 2026.
   `localStorage` ketika API/jaringan gagal; pengguna harus mencoba ulang sampai
   server mengakui operasi.
 - KDS memakai alur `NEW -> COOKING -> READY -> COMPLETED`.
+- Riwayat Kasir memakai syarat ganda: `status=COMPLETED` dan
+  `payment_status=PAID`; selesai di KDS saja tidak menutup Queue Kasir.
+- Order `SELF_ORDER` diberi badge HP di POS/KDS dan memakai suara cabang yang
+  dapat dipilih pada Pengaturan Operasional.
+- QR baru membawa pasangan `tenant` dan `branch`; katalog publik memvalidasi
+  bahwa cabang benar-benar milik tenant tersebut sebelum menampilkan data.
 - Migrasi 021 membuat pembayaran dan status akhir meja dibukukan atomik; migrasi
   ini wajib diterapkan sebelum deployment berikutnya.
 - Master inventory BGR-01 sudah disalin idempoten ke BGR-02 pada 13 Agustus

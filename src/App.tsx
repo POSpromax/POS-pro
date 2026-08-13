@@ -168,6 +168,9 @@ export default function App() {
   const requestedSelfOrderBranchId = typeof window !== 'undefined'
     ? normalizeBranchId(new URLSearchParams(window.location.search).get('branch'))
     : null;
+  const requestedSelfOrderTenantId = typeof window !== 'undefined'
+    ? normalizeBranchId(new URLSearchParams(window.location.search).get('tenant'))
+    : null;
   const isSelfOrderUrlParam = typeof window !== 'undefined' && (
     window.location.search.includes('selforder') ||
     window.location.search.includes('table=') ||
@@ -282,12 +285,17 @@ export default function App() {
     () => defaultBranchOperationalConfig(currentBranch.id),
   );
   const [isSelfOrderSystemEnabled, setIsSelfOrderSystemEnabled] = useState<boolean>(() => DBStorage.getProfile().isSelfOrderEnabled !== false);
+  const [selfOrderCatalogState, setSelfOrderCatalogState] = useState<{ loading: boolean; error: string | null }>({ loading: isSelfOrderUrlParam && cloudReadiness.supabase, error: null });
 
   useEffect(() => {
-    const catalogBranchId = requestedSelfOrderBranchId || currentBranch.id;
-    if (!isSelfOrderUrlParam || !cloudReadiness.supabase || !catalogBranchId) return;
+    if (!isSelfOrderUrlParam || !cloudReadiness.supabase) return;
+    if (!requestedSelfOrderBranchId) {
+      setSelfOrderCatalogState({ loading: false, error: 'Link QR tidak memiliki tujuan cabang yang valid.' });
+      return;
+    }
     let active = true;
-    void getPublicCatalogContext(catalogBranchId)
+    setSelfOrderCatalogState({ loading: true, error: null });
+    void getPublicCatalogContext(requestedSelfOrderBranchId, requestedSelfOrderTenantId || undefined)
       .then((context) => {
         if (!active) return;
         setCurrentBranch((branch) => ({ ...branch, ...context.branch }));
@@ -297,10 +305,16 @@ export default function App() {
         setBranchOperationalConfig(context.operationalConfig || defaultBranchOperationalConfig(context.branch.id));
         setIsSelfOrderSystemEnabled(context.operationalConfig?.selfOrderEnabled !== false);
         if (context.profile) setProfile((current) => ({ ...current, ...context.profile }));
+        setSelfOrderCatalogState({ loading: false, error: null });
       })
-      .catch((error) => showPushToast('Self-order Belum Siap', error instanceof Error ? error.message : 'Katalog cabang tidak dapat dimuat.'));
+      .catch((error) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'Katalog cabang tidak dapat dimuat.';
+        setSelfOrderCatalogState({ loading: false, error: message });
+        showPushToast('Self-order Belum Siap', message);
+      });
     return () => { active = false; };
-  }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, currentBranch.id]);
+  }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderTenantId]);
 
   const handleAddBranch = (newBranch: Branch) => {
     if (!cloudReadiness.supabase) {
@@ -553,7 +567,9 @@ export default function App() {
             const selfOrders = changedOrders.filter((order) => order.source === 'SELF_ORDER');
 
             if (selfOrders.length > 0) {
-              playSelfOrderAlertSound();
+              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+                playSelfOrderAlertSound(profile.soundCustomerOrder);
+              }
               selfOrders.forEach((order) => {
                 showPushToast(
                   'Pesanan Self-order Masuk',
@@ -561,7 +577,9 @@ export default function App() {
                 );
               });
             } else {
-              playNewOrderSound();
+              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+                playNewOrderSound(profile.soundPesananMasuk);
+              }
             }
           }
           // Saat Supabase aktif, database adalah satu-satunya sumber kebenaran.
@@ -629,7 +647,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', reconcileVisible);
       unsubscribe();
     };
-  }, [isTerminalUnlocked, currentBranch.id, systemPortal, activeTab]);
+  }, [isTerminalUnlocked, currentBranch.id, systemPortal, activeTab, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
 
   // Database adalah sumber tunggal status shift. Realtime memberi respons
   // cepat; polling/focus menjadi pengaman saat websocket terputus.
@@ -1057,7 +1075,7 @@ export default function App() {
       paymentStatus: 'PAID',
       cashPaid,
       change: Math.max(0, cashPaid - (activeCheckoutOrder.total || 0)),
-      status: 'NEW'
+      status: activeCheckoutOrder.status || 'NEW'
     };
 
     let saved = fullOrder;
@@ -1355,12 +1373,25 @@ export default function App() {
     (record) => !record.branchId || record.branchId === currentBranch.id
   );
 
+  if (isSelfOrderUrlParam && cloudReadiness.supabase && (selfOrderCatalogState.loading || selfOrderCatalogState.error)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
+        <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
+          <div className={`mx-auto mb-4 h-3 w-3 rounded-full ${selfOrderCatalogState.loading ? 'animate-pulse bg-emerald-500' : 'bg-rose-500'}`} />
+          <h1 className="text-lg font-extrabold text-slate-900">{selfOrderCatalogState.loading ? 'Memuat outlet…' : 'Link Self-order Tidak Valid'}</h1>
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            {selfOrderCatalogState.loading ? 'Memastikan tenant dan cabang tujuan QR.' : selfOrderCatalogState.error}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // If isolated self order tab or URL param is active, render native standalone mobile self-order
   if (isSelfOrderUrlParam) {
     const selfOrderParams = new URLSearchParams(window.location.search);
     const tableFromUrl = selfOrderParams.get('table') || '';
-    const requestedBranchId = selfOrderParams.get('branch');
-    const selfOrderBranch = branches.find((branch) => branch.id === requestedBranchId) || currentBranch;
+    const selfOrderBranch = currentBranch;
     const selfOrderTables = tables.filter((table) => table.branchId === selfOrderBranch.id);
     const selfOrderOrders = orders.filter((order) => !order.branchId || order.branchId === selfOrderBranch.id);
     return (
@@ -1643,6 +1674,9 @@ export default function App() {
               condimentGroups={condimentGroups}
               outletName={currentBranch.name}
               connectionState={orderSyncHealth.connectionState}
+              soundEnabledByDefault={profile.soundNotificationsEnabled !== false}
+              newOrderSound={profile.soundOrderBaru}
+              selfOrderSound={profile.soundCustomerOrder}
               onUpdateOrderStatus={handleUpdateOrderStatus}
               onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur ${formatOrderLabel(ord)} dicetak.`)}
             />
@@ -1689,6 +1723,7 @@ export default function App() {
             <TableManagementView
               tables={branchTables}
               branchId={currentBranch.id}
+              tenantId={branchOperationalConfig.tenantId}
               branchName={currentBranch.name}
               selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
               onSelfOrderBaseUrlChange={(selfOrderBaseUrl) => persistBranchOperationalConfig({ selfOrderBaseUrl })}
@@ -1712,7 +1747,7 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id), '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id, branchOperationalConfig.tenantId), '_blank', 'noopener,noreferrer')}
                   className="rounded-xl bg-[var(--primary)] px-4 py-2 text-[11px] font-bold text-white hover:bg-[var(--primary-hover)]"
                 >
                   Buka Halaman Publik
@@ -2104,6 +2139,7 @@ export default function App() {
         currentBranch={currentBranch}
         profile={profile}
         selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
+        tenantId={branchOperationalConfig.tenantId}
       />
 
       <ThermalReceiptModal

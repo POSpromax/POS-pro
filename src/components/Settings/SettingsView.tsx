@@ -51,7 +51,7 @@ import {
 } from '../../types/pos';
 import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
 import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
-import { playNewOrderSound } from '../../utils/audioNotification';
+import { playNewOrderSound, playSelfOrderAlertSound } from '../../utils/audioNotification';
 
 interface SettingsViewProps {
   profile: RestaurantProfile;
@@ -288,7 +288,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTestSound = (soundName: string) => {
-    playNewOrderSound();
+    if (soundName.toLocaleLowerCase('id-ID').includes('customer')) playSelfOrderAlertSound(soundName);
+    else playNewOrderSound(soundName);
     toast('Test Suara', `Memainkan chime: ${soundName}`);
   };
 
@@ -791,7 +792,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <span className="text-[11px] uppercase font-semibold text-[var(--text-tertiary)]">ORDER BARU (DAPUR)</span>
                           <button
                             type="button"
-                            onClick={() => handleTestSound('Order Baru')}
+                            onClick={() => handleTestSound(formProfile.soundOrderBaru || 'High Alarm (Siren)')}
                             className="text-[11px] text-[var(--primary-hover)] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                           >
                             <Play className="w-3 h-3" /> Test
@@ -813,7 +814,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <span className="text-[11px] uppercase font-semibold text-[var(--text-tertiary)]">PESANAN MASUK (POS)</span>
                           <button
                             type="button"
-                            onClick={() => handleTestSound('Pesanan Masuk')}
+                            onClick={() => handleTestSound(formProfile.soundPesananMasuk || 'Kitchen Order')}
                             className="text-[11px] text-[var(--primary-hover)] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                           >
                             <Play className="w-3 h-3" /> Test
@@ -834,7 +835,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <span className="text-[11px] uppercase font-semibold text-[var(--text-tertiary)]">PEMBAYARAN SUKSES</span>
                           <button
                             type="button"
-                            onClick={() => handleTestSound('Pembayaran Sukses')}
+                            onClick={() => handleTestSound(formProfile.soundPembayaranSukses || 'Success Chime')}
                             className="text-[11px] text-[var(--primary-hover)] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                           >
                             <Play className="w-3 h-3" /> Test
@@ -852,10 +853,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] uppercase font-semibold text-[var(--text-tertiary)]">CUSTOMER ORDER</span>
+                          <span className="text-[11px] uppercase font-semibold text-[var(--text-tertiary)]">SELF-ORDER DARI HP</span>
                           <button
                             type="button"
-                            onClick={() => handleTestSound('Customer Order')}
+                            onClick={() => handleTestSound(formProfile.soundCustomerOrder || 'Customer Order')}
                             className="text-[11px] text-[var(--primary-hover)] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                           >
                             <Play className="w-3 h-3" /> Test
@@ -866,7 +867,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           onChange={(e) => setFormProfile({ ...formProfile, soundCustomerOrder: e.target.value })}
                           className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
                         >
-                          <option value="Customer Order">Customer Order Bell</option>
+                          <option value="Customer Order">Customer Order Bell (Nyaring)</option>
                           <option value="Warning Beep">Warning Beep</option>
                         </select>
                       </div>

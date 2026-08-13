@@ -2,9 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getPublicCatalog(branchId: string, admin: SupabaseClient) {
+export async function getPublicCatalog(branchId: string, admin: SupabaseClient, tenantId?: string) {
   if (!UUID_PATTERN.test(branchId)) return { status: 400, data: { error: 'Outlet tidak valid' } };
-  const { data: branch } = await admin.from('branches').select('id,tenant_id,name,code,address,is_active').eq('id', branchId).maybeSingle();
+  if (tenantId && !UUID_PATTERN.test(tenantId)) return { status: 400, data: { error: 'Tenant tidak valid' } };
+  let branchQuery = admin.from('branches').select('id,tenant_id,name,code,address,is_active').eq('id', branchId);
+  if (tenantId) branchQuery = branchQuery.eq('tenant_id', tenantId);
+  const { data: branch } = await branchQuery.maybeSingle();
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
   const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }] = await Promise.all([
     admin.from('menu_items').select('*').eq('branch_id', branchId).eq('is_available', true).order('sort_order'),

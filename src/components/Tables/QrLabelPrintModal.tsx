@@ -11,9 +11,10 @@ interface Props {
   currentBranch: Branch;
   profile: RestaurantProfile;
   selfOrderBaseUrl?: string;
+  tenantId?: string;
 }
 
-export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile, selfOrderBaseUrl }) => {
+export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile, selfOrderBaseUrl, tenantId }) => {
   const baseUrl = selfOrderBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
   const [selectedTableNumber, setSelectedTableNumber] = useState<string>('ALL');
 
@@ -32,9 +33,9 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
         .map((t) => ({
           number: t.number,
           capacity: t.capacity,
-          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id),
+          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id, tenantId),
         })),
-    [availableTables, selectedTableNumber, currentBranch.id, baseUrl],
+    [availableTables, selectedTableNumber, currentBranch.id, baseUrl, tenantId],
   );
 
   if (!isOpen) return null;

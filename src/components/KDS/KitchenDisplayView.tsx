@@ -10,13 +10,14 @@ import {
   History,
   Printer,
   RotateCcw,
+  Smartphone,
   Sparkles,
   Utensils,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import { CondimentGroup, Order, OrderStatus } from '../../types/pos';
-import { playNewOrderSound, playWarningAlarmSound } from '../../utils/audioNotification';
+import { playNewOrderSound, playSelfOrderAlertSound, playWarningAlarmSound } from '../../utils/audioNotification';
 import { summarizeCondimentOptions } from '../../utils/condimentUtils';
 import { groupKitchenItems } from '../../utils/kitchenGrouping';
 import { formatOrderLabel } from '../../utils/orderNumber';
@@ -29,6 +30,9 @@ interface KitchenDisplayViewProps {
   onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus) => void;
   onPrintKitchenTicket: (order: Order) => void;
   connectionState?: RealtimeConnectionState;
+  soundEnabledByDefault?: boolean;
+  newOrderSound?: string;
+  selfOrderSound?: string;
 }
 
 type ViewMode = 'ACTIVE' | 'HISTORY';
@@ -57,12 +61,15 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   onUpdateOrderStatus,
   onPrintKitchenTicket,
   connectionState = 'CONNECTING',
+  soundEnabledByDefault = true,
+  newOrderSound = 'Kitchen Order',
+  selfOrderSound = 'Customer Order',
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('ACTIVE');
   const [filterType, setFilterType] = useState<FilterType>('SEMUA');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(soundEnabledByDefault);
   const [nowMs, setNowMs] = useState(Date.now());
-  const previousNewCountRef = useRef<number | null>(null);
+  const previousOrderQuantitiesRef = useRef<Map<string, number> | null>(null);
   const alertedBucketRef = useRef(new Map<string, number>());
 
   useEffect(() => {
@@ -84,10 +91,24 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   );
 
   useEffect(() => {
-    const count = kitchenOrders.filter((order) => order.status === 'NEW').length;
-    if (previousNewCountRef.current !== null && soundEnabled && count > previousNewCountRef.current) playNewOrderSound();
-    previousNewCountRef.current = count;
-  }, [kitchenOrders, soundEnabled]);
+    const newOrders = kitchenOrders.filter((order) => order.status === 'NEW');
+    const nextQuantities = new Map(kitchenOrders.map((order) => [
+      order.id,
+      order.items.reduce((sum, item) => sum + item.quantity, 0),
+    ]));
+    const added = previousOrderQuantitiesRef.current
+      ? newOrders.filter((order) => (
+          (nextQuantities.get(order.id) || 0) > (previousOrderQuantitiesRef.current?.get(order.id) || 0)
+        ))
+      : [];
+    if (soundEnabled && added.length > 0) {
+      if (added.some((order) => order.source === 'SELF_ORDER')) playSelfOrderAlertSound(selfOrderSound);
+      else playNewOrderSound(newOrderSound);
+    }
+    previousOrderQuantitiesRef.current = nextQuantities;
+  }, [kitchenOrders, soundEnabled, newOrderSound, selfOrderSound]);
+
+  useEffect(() => setSoundEnabled(soundEnabledByDefault), [soundEnabledByDefault, outletName]);
 
   const kitchenOrdersRef = useRef(kitchenOrders);
   kitchenOrdersRef.current = kitchenOrders;
@@ -205,6 +226,11 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-xl font-bold tabular-nums" title={order.orderNumber}>{formatOrderLabel(order, orders)}</span>
                           <span className="ui-badge bg-[#DCFCE7] text-[#166534] border border-[#86EFAC] font-extrabold text-[10px]">{order.type === 'DINE_IN' ? 'Dine in' : 'Take away'}</span>
+                          {order.source === 'SELF_ORDER' && (
+                            <span className="ui-badge border border-sky-200 bg-sky-50 text-[10px] font-extrabold text-sky-700" title="Pesanan masuk dari HP customer">
+                              <Smartphone className="h-3 w-3" /> HP
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 truncate text-xs font-extrabold text-[#111827]">
                           {order.customerName || 'Guest'} · <span className="text-[#047857] font-black">Meja {order.tableNumber || '-'}</span>

@@ -17,6 +17,7 @@ import { QrCodeCanvas } from './QrCodeCanvas';
 interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
+  tenantId?: string;
   branchName?: string;
   selfOrderBaseUrl?: string;
   onSelfOrderBaseUrlChange?: (baseUrl: string) => void | Promise<void>;
@@ -32,6 +33,7 @@ const normalizeNumber = (value: string) => value.trim().toUpperCase().replace(/^
 export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
+  tenantId,
   branchName,
   selfOrderBaseUrl,
   onSelfOrderBaseUrlChange,
@@ -168,7 +170,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
-            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId);
+            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId);
 
             return (
               <article key={table.id} className="ui-card overflow-hidden">

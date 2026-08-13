@@ -26,7 +26,8 @@ import {
   MoreVertical,
   Percent,
   Bookmark,
-  MessageSquare
+  MessageSquare,
+  Smartphone
 } from 'lucide-react';
 import {
   MenuItem,
@@ -275,7 +276,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // Current loaded order check (for Paid / Read-Only handling)
   const currentEditingOrder = orders.find((o) => o.id === currentEditingOrderId);
   const loadedStatus = String(currentEditingOrder?.status || '').toUpperCase();
-  const isLoadedClosed = loadedStatus === 'COMPLETED' || loadedStatus === 'CANCELLED'; // sudah selesai/batal
+  const isLoadedPaid = currentEditingOrder?.paymentStatus === 'PAID';
+  const isLoadedClosed = loadedStatus === 'CANCELLED' || (loadedStatus === 'COMPLETED' && isLoadedPaid);
   const isLoadedPaidActive = currentEditingOrder?.paymentStatus === 'PAID' && !isLoadedClosed; // LUNAS, menunggu diselesaikan
   // Order terkunci (tidak bisa diedit/bayar ulang) bila sudah dibayar atau selesai.
   const isPaidOrder = Boolean(currentEditingOrder && (isLoadedPaidActive || isLoadedClosed));
@@ -411,11 +413,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // menekan "Selesai Pesanan") atau dibatalkan. Order yang baru dibayar (LUNAS)
   // tetap di antrean aktif dalam keadaan terkunci — kasir belum bisa mengedit,
   // tetapi masih terlihat sampai pesanannya benar-benar diselesaikan.
+  const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
   const isOrderClosed = (o: Order) => {
     const st = String(o.status || '').toUpperCase();
-    return st === 'COMPLETED' || st === 'CANCELLED';
+    return st === 'CANCELLED' || (st === 'COMPLETED' && isOrderPaid(o));
   };
-  const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
 
   // `orders` sudah dibatasi ke SHIFT BERJALAN dari App (prop shiftOrders), jadi
   // antrean & riwayat kasir otomatis mulai dari 0 tiap buka shift baru. Riwayat
@@ -531,14 +533,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 const isSelected = currentEditingOrderId === order.id;
                 const paid = isOrderPaid(order);
                 const closed = isOrderClosed(order);
+                const kitchenDone = String(order.status).toUpperCase() === 'COMPLETED';
                 const locked = paid || closed; // Terkunci: tidak bisa diedit lagi
                 // Status pill: SELESAI (hijau tua), LUNAS (abu-abu, menunggu dapur),
                 // atau BELUM BAYAR (masih bisa dibayar/diedit).
                 const statusLabel = closed
                   ? (String(order.status).toUpperCase() === 'CANCELLED' ? 'BATAL' : 'SELESAI')
-                  : paid ? 'LUNAS' : 'BELUM BAYAR';
+                  : kitchenDone ? 'DAPUR SELESAI' : paid ? 'LUNAS · TUNGGU DAPUR' : 'BELUM BAYAR';
                 const statusStyle = closed
                   ? { background: '#F1F5F9', color: '#475569', borderColor: '#CBD5E1' }
+                  : kitchenDone
+                  ? { background: '#FFF7ED', color: '#C2410C', borderColor: '#FDBA74' }
                   : paid
                   ? { background: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' }
                   : { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' };
@@ -564,6 +569,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     {/* Line 1: Order Seq Num (#001), Customer Name, Table Badge, Status Pill */}
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        {order.source === 'SELF_ORDER' && (
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sky-50 text-sky-700" title="Pesanan dari HP customer">
+                            <Smartphone className="h-3 w-3" />
+                          </span>
+                        )}
                         <span className={`text-xs font-black font-mono shrink-0 ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
                           {orderSeqNum}
                         </span>
@@ -599,7 +609,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       <div className="flex items-center gap-1 shrink-0">
                         {/* Selesai Pesanan: hanya untuk order LUNAS yang belum selesai.
                             Memindahkan order ke Riwayat (status COMPLETED). */}
-                        {paid && !closed && onCompleteOrder && (
+                        {paid && kitchenDone && !closed && onCompleteOrder && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -918,26 +928,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     <span>{loadedStatus === 'CANCELLED' ? 'Pesanan Dibatalkan' : 'Pesanan Selesai'}</span>
                   </div>
                 ) : isLoadedPaidActive ? (
-                  /* Order yang dimuat sudah LUNAS: ganti tombol Bayar dengan
-                     "Selesai Pesanan" agar tidak terjadi pembayaran ganda. */
-                  <button
-                    type="button"
-                    disabled={!currentEditingOrderId || !onCompleteOrder}
-                    onClick={() => {
-                      if (currentEditingOrderId && onCompleteOrder) {
-                        onCompleteOrder(currentEditingOrderId);
-                        handleClearCart();
-                      }
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 text-white font-extrabold text-xs py-3 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40"
-                    style={{
-                      background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
-                      boxShadow: '0 4px 14px rgba(4, 120, 87, 0.28)'
-                    }}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-white" />
-                    <span className="text-[#ffffff]">Selesai Pesanan</span>
-                  </button>
+                  <div className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
+                    <Clock className="h-4 w-4" />
+                    <span>Lunas · Menunggu Kitchen Selesai</span>
+                  </div>
                 ) : (
                   <button
                     type="button"

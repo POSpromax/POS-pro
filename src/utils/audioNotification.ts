@@ -56,27 +56,42 @@ if (typeof window !== 'undefined') {
 /**
  * Synthesizes a pleasant 3-tone audio notification chime for new POS / Self-Order events.
  */
-export const playNewOrderSound = () => {
+export const playNewOrderSound = (preset = 'Kitchen Order') => {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state === 'suspended') return;
 
     // Play 3 melodic tones (E5 -> G5 -> C6 chime)
-    const notes = [
-      { freq: 659.25, time: 0, duration: 0.15 },   // E5
-      { freq: 783.99, time: 0.12, duration: 0.15 },  // G5
-      { freq: 1046.50, time: 0.24, duration: 0.4 }   // C6
-    ];
+    const normalizedPreset = preset.toLocaleLowerCase('id-ID');
+    const urgent = normalizedPreset.includes('alarm') || normalizedPreset.includes('siren');
+    const warning = normalizedPreset.includes('warning') || normalizedPreset.includes('beep');
+    const notes = urgent
+      ? [
+          { freq: 980, time: 0, duration: 0.18 },
+          { freq: 1320, time: 0.22, duration: 0.18 },
+          { freq: 980, time: 0.44, duration: 0.18 },
+          { freq: 1480, time: 0.66, duration: 0.35 },
+        ]
+      : warning
+        ? [
+            { freq: 880, time: 0, duration: 0.14 },
+            { freq: 880, time: 0.2, duration: 0.2 },
+          ]
+        : [
+            { freq: 659.25, time: 0, duration: 0.15 },
+            { freq: 783.99, time: 0.12, duration: 0.15 },
+            { freq: 1046.50, time: 0.24, duration: 0.4 },
+          ];
 
     notes.forEach((note) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sine';
+      osc.type = urgent || warning ? 'square' : 'sine';
       osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
 
       gain.gain.setValueAtTime(0, ctx.currentTime + note.time);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + note.time + 0.02);
+      gain.gain.linearRampToValueAtTime(urgent ? 0.38 : warning ? 0.22 : 0.25, ctx.currentTime + note.time + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + note.time + note.duration);
 
       osc.connect(gain);
@@ -128,12 +143,16 @@ export const playWarningAlarmSound = () => {
 /**
  * LOUD, attention-grabbing alert sound for incoming Self-Order from customer phone.
  */
-export const playSelfOrderAlertSound = () => {
+export const playSelfOrderAlertSound = (preset = 'Customer Order') => {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state === 'suspended') return;
 
-    const bursts = [
+    const warningOnly = preset.toLocaleLowerCase('id-ID').includes('warning');
+    const bursts = warningOnly ? [
+      { freq: 1000, time: 0, duration: 0.18 },
+      { freq: 1000, time: 0.24, duration: 0.24 },
+    ] : [
       { freq: 1200, time: 0, duration: 0.12 },
       { freq: 800, time: 0.14, duration: 0.12 },
       { freq: 1200, time: 0.28, duration: 0.15 },
@@ -153,7 +172,7 @@ export const playSelfOrderAlertSound = () => {
       osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
 
       gain.gain.setValueAtTime(0, ctx.currentTime + note.time);
-      gain.gain.linearRampToValueAtTime(0.45, ctx.currentTime + note.time + 0.01);
+      gain.gain.linearRampToValueAtTime(warningOnly ? 0.28 : 0.45, ctx.currentTime + note.time + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + note.time + note.duration);
 
       osc.connect(gain);
