@@ -33,7 +33,7 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
         .map((t) => ({
           number: t.number,
           capacity: t.capacity,
-          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id, tenantId),
+          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id, tenantId, currentBranch.code),
         })),
     [availableTables, selectedTableNumber, currentBranch.id, baseUrl, tenantId],
   );

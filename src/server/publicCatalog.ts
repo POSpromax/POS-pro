@@ -2,19 +2,23 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getPublicCatalog(branchId: string, admin: SupabaseClient, tenantId?: string) {
-  if (!UUID_PATTERN.test(branchId)) return { status: 400, data: { error: 'Outlet tidak valid' } };
+export async function getPublicCatalog(branchId: string, admin: SupabaseClient, tenantId?: string, branchRouteCode?: string) {
+  const normalizedRouteCode = String(branchRouteCode || '').trim();
+  if (!UUID_PATTERN.test(branchId) && !/^\d{2,4}$/.test(normalizedRouteCode)) return { status: 400, data: { error: 'Outlet tidak valid' } };
   if (tenantId && !UUID_PATTERN.test(tenantId)) return { status: 400, data: { error: 'Tenant tidak valid' } };
-  let branchQuery = admin.from('branches').select('id,tenant_id,name,code,address,is_active').eq('id', branchId);
+  let branchQuery = admin.from('branches').select('id,tenant_id,name,code,address,is_active');
+  branchQuery = UUID_PATTERN.test(branchId)
+    ? branchQuery.eq('id', branchId)
+    : branchQuery.ilike('code', `%-${normalizedRouteCode}`);
   if (tenantId) branchQuery = branchQuery.eq('tenant_id', tenantId);
-  const { data: branch } = await branchQuery.maybeSingle();
+  const { data: branch } = await branchQuery.eq('is_active', true).limit(1).maybeSingle();
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
   const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }] = await Promise.all([
-    admin.from('menu_items').select('*').eq('branch_id', branchId).eq('is_available', true).order('sort_order'),
-    admin.from('restaurant_tables').select('*').eq('branch_id', branchId).eq('self_order_enabled', true).neq('status', 'DISABLED').order('number'),
-    admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branchId).eq('is_active', true).order('sort_order'),
+    admin.from('menu_items').select('*').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
+    admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).neq('status', 'DISABLED').order('number'),
+    admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
-    admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branchId).maybeSingle(),
+    admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
   ]);
   const scopes = branchConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {};
   const tenantProfile = config ? {
@@ -77,7 +81,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
         status: row.status,
         isSelfOrderEnabled: row.self_order_enabled,
         activeOrderId: row.active_order_id || undefined,
-        branchId,
+        branchId: branch.id,
       })),
       condimentGroups: (groups || []).map((row) => ({
         id: row.id, name: row.name, mode: row.mode, isRequired: row.required, minSelect: row.min_select, maxSelect: row.max_select,

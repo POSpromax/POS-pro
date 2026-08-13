@@ -330,7 +330,11 @@ export async function handleOrderRequest(
     return { status: 200, data: orders[0] };
   }
 
-  const paymentStatus = input.paymentStatus === 'PAID' ? 'PAID' : 'UNPAID';
+  // Self-order tidak pernah boleh menyatakan dirinya sudah dibayar. Tanpa
+  // payment gateway, hanya terminal staff terautentikasi yang mengubah PAID.
+  const paymentStatus = source === 'SELF_ORDER'
+    ? 'UNPAID'
+    : input.paymentStatus === 'PAID' ? 'PAID' : 'UNPAID';
   const paymentMethod = PAYMENT_METHODS.has(String(input.paymentMethod)) ? String(input.paymentMethod) : null;
   const rawCashPaid = Math.floor(Number(input.cashPaid));
   const cashPaid = Number.isFinite(rawCashPaid) && rawCashPaid > 0 ? rawCashPaid : null;

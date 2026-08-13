@@ -30,6 +30,7 @@ interface KitchenDisplayViewProps {
   onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus) => void;
   onPrintKitchenTicket: (order: Order) => void;
   connectionState?: RealtimeConnectionState;
+  currentShiftId?: string;
   soundEnabledByDefault?: boolean;
   newOrderSound?: string;
   selfOrderSound?: string;
@@ -61,6 +62,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   onUpdateOrderStatus,
   onPrintKitchenTicket,
   connectionState = 'CONNECTING',
+  currentShiftId,
   soundEnabledByDefault = true,
   newOrderSound = 'Kitchen Order',
   selfOrderSound = 'Customer Order',
@@ -229,6 +231,11 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                           {order.source === 'SELF_ORDER' && (
                             <span className="ui-badge border border-sky-200 bg-sky-50 text-[10px] font-extrabold text-sky-700" title="Pesanan masuk dari HP customer">
                               <Smartphone className="h-3 w-3" /> HP
+                            </span>
+                          )}
+                          {currentShiftId && order.shiftId !== currentShiftId && (
+                            <span className="ui-badge border border-amber-200 bg-amber-50 text-[9px] font-extrabold text-amber-700" title="Order dibawa dari shift sebelumnya">
+                              Carry-over
                             </span>
                           )}
                         </div>

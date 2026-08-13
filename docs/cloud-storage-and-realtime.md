@@ -96,8 +96,9 @@ dan shift per 10 menit sebagai safety net. Saat channel terganggu, POS fallback
 
 ## QR permanen dan kontrol meja
 
-- URL publik membawa pasangan UUID `tenant` + `branch`, tanpa nomor meja atau
-  token sesi. API menolak pasangan tenant/cabang yang tidak cocok.
+- Label operasional memakai rute pendek cabang (`/01`, `/02`) tanpa nomor meja.
+  Server menerjemahkan rute ke UUID cabang; bentuk query UUID lama tetap
+  didukung dan memvalidasi pasangan tenant/cabang.
 - Semua label meja dalam satu cabang boleh memiliki QR identik. Label fisiknya
   tetap menampilkan nomor meja agar pelanggan memilih nomor yang benar.
 - Daftar pelanggan hanya berisi meja cabang tersebut yang

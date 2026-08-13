@@ -17,6 +17,7 @@ import { QrCodeCanvas } from './QrCodeCanvas';
 interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
+  branchCode?: string;
   tenantId?: string;
   branchName?: string;
   selfOrderBaseUrl?: string;
@@ -33,6 +34,7 @@ const normalizeNumber = (value: string) => value.trim().toUpperCase().replace(/^
 export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
+  branchCode,
   tenantId,
   branchName,
   selfOrderBaseUrl,
@@ -148,6 +150,9 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
             Reset
           </button>
         </label>
+        <p className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-800">
+          Tujuan QR outlet ini: {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode)}
+        </p>
       </div>
 
       {errorMessage && <div role="alert" className="mb-4 rounded-xl border border-[var(--accent-red)] bg-[var(--danger-soft)] px-4 py-3 text-xs font-bold text-[var(--accent-red)]">{errorMessage}</div>}
@@ -170,7 +175,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
-            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId);
+            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode);
 
             return (
               <article key={table.id} className="ui-card overflow-hidden">

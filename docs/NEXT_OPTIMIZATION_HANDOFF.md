@@ -23,6 +23,10 @@ Terakhir diperbarui: 13 Agustus 2026.
   dapat dipilih pada Pengaturan Operasional.
 - QR baru membawa pasangan `tenant` dan `branch`; katalog publik memvalidasi
   bahwa cabang benar-benar milik tenant tersebut sebelum menampilkan data.
+- QR operasional memakai rute pendek sesuai kode cabang: BGR-01 menjadi `/01`
+  dan BGR-02 menjadi `/02`. Semua meja satu cabang tetap memakai tujuan sama.
+- Order menggantung tetap dibawa ke Queue/KDS shift berikutnya dengan label
+  `Carry-over`; penutupan shift tidak membatalkan ataupun menyembunyikannya.
 - Migrasi 021 membuat pembayaran dan status akhir meja dibukukan atomik; migrasi
   ini wajib diterapkan sebelum deployment berikutnya.
 - Master inventory BGR-01 sudah disalin idempoten ke BGR-02 pada 13 Agustus

@@ -147,7 +147,7 @@ async function startServer() {
 
   app.get('/api/public-catalog', async (req, res) => {
     try {
-      const result = await getPublicCatalog(String(req.query.branchId || ''), getSupabaseAdmin(), String(req.query.tenantId || '') || undefined);
+      const result = await getPublicCatalog(String(req.query.branchId || ''), getSupabaseAdmin(), String(req.query.tenantId || '') || undefined, String(req.query.branchCode || '') || undefined);
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Katalog self-order belum tersedia' });

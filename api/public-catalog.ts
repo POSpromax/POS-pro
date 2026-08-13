@@ -16,7 +16,8 @@ export default async function handler(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const branchId = params.get('branchId') || '';
   const tenantId = params.get('tenantId') || undefined;
+  const branchCode = params.get('branchCode') || undefined;
   const admin = createClient(supabaseUrl, serverKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  const result = await getPublicCatalog(branchId, admin, tenantId);
+  const result = await getPublicCatalog(branchId, admin, tenantId, branchCode);
   return json(result.data, result.status);
 }

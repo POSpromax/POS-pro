@@ -171,11 +171,15 @@ export default function App() {
   const requestedSelfOrderTenantId = typeof window !== 'undefined'
     ? normalizeBranchId(new URLSearchParams(window.location.search).get('tenant'))
     : null;
+  const requestedSelfOrderRouteCode = typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/(\d{2,4})\/?$/)?.[1] || null
+    : null;
   const isSelfOrderUrlParam = typeof window !== 'undefined' && (
     window.location.search.includes('selforder') ||
     window.location.search.includes('table=') ||
     window.location.pathname.startsWith('/order') ||
     window.location.pathname.startsWith('/self-order') ||
+    Boolean(requestedSelfOrderRouteCode) ||
     window.location.hash.includes('self-order') ||
     window.location.hash.includes('order')
   );
@@ -289,13 +293,13 @@ export default function App() {
 
   useEffect(() => {
     if (!isSelfOrderUrlParam || !cloudReadiness.supabase) return;
-    if (!requestedSelfOrderBranchId) {
+    if (!requestedSelfOrderBranchId && !requestedSelfOrderRouteCode) {
       setSelfOrderCatalogState({ loading: false, error: 'Link QR tidak memiliki tujuan cabang yang valid.' });
       return;
     }
     let active = true;
     setSelfOrderCatalogState({ loading: true, error: null });
-    void getPublicCatalogContext(requestedSelfOrderBranchId, requestedSelfOrderTenantId || undefined)
+    void getPublicCatalogContext(requestedSelfOrderBranchId || undefined, requestedSelfOrderTenantId || undefined, requestedSelfOrderRouteCode || undefined)
       .then((context) => {
         if (!active) return;
         setCurrentBranch((branch) => ({ ...branch, ...context.branch }));
@@ -314,7 +318,7 @@ export default function App() {
         showPushToast('Self-order Belum Siap', message);
       });
     return () => { active = false; };
-  }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderTenantId]);
+  }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderTenantId, requestedSelfOrderRouteCode]);
 
   const handleAddBranch = (newBranch: Branch) => {
     if (!cloudReadiness.supabase) {
@@ -1364,8 +1368,11 @@ export default function App() {
 
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
   // Hanya order dari shift aktif saat ini — untuk CashierView dan KitchenDisplayView
+  const isOrderOperationallyClosed = (order: Order) => (
+    order.status === 'CANCELLED' || (order.status === 'COMPLETED' && order.paymentStatus === 'PAID')
+  );
   const shiftOrders = currentShift.status === 'OPEN'
-    ? branchOrders.filter((o) => o.shiftId === currentShift.id)
+    ? branchOrders.filter((order) => order.shiftId === currentShift.id || !isOrderOperationallyClosed(order))
     : [];
   const branchTables = tables.filter((table) => table.branchId === currentBranch.id);
   const branchRawMaterials = rawMaterials.filter((material) => material.branchId === currentBranch.id);
@@ -1674,6 +1681,7 @@ export default function App() {
               condimentGroups={condimentGroups}
               outletName={currentBranch.name}
               connectionState={orderSyncHealth.connectionState}
+              currentShiftId={currentShift.id}
               soundEnabledByDefault={profile.soundNotificationsEnabled !== false}
               newOrderSound={profile.soundOrderBaru}
               selfOrderSound={profile.soundCustomerOrder}
@@ -1723,6 +1731,7 @@ export default function App() {
             <TableManagementView
               tables={branchTables}
               branchId={currentBranch.id}
+              branchCode={currentBranch.code}
               tenantId={branchOperationalConfig.tenantId}
               branchName={currentBranch.name}
               selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
@@ -1747,7 +1756,7 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id, branchOperationalConfig.tenantId), '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id, branchOperationalConfig.tenantId, currentBranch.code), '_blank', 'noopener,noreferrer')}
                   className="rounded-xl bg-[var(--primary)] px-4 py-2 text-[11px] font-bold text-white hover:bg-[var(--primary-hover)]"
                 >
                   Buka Halaman Publik

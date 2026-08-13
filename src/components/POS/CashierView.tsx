@@ -574,6 +574,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                             <Smartphone className="h-3 w-3" />
                           </span>
                         )}
+                        {order.shiftId !== currentShift.id && (
+                          <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-700" title="Order dari shift sebelumnya">
+                            Carry-over
+                          </span>
+                        )}
                         <span className={`text-xs font-black font-mono shrink-0 ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
                           {orderSeqNum}
                         </span>
