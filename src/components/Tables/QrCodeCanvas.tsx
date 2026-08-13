@@ -25,5 +25,14 @@ export const QrCodeCanvas: React.FC<QrCodeCanvasProps> = ({ value, size = 160, c
     });
   }, [value, size]);
 
-  return <canvas ref={canvasRef} className={className} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      role="img"
+      aria-label={`QR Self-order ${value}`}
+      data-qr-value={value}
+      title={value}
+    />
+  );
 };

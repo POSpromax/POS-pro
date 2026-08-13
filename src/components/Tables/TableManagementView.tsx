@@ -47,7 +47,10 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   onTableUpdated,
   onOpenQrPrint,
 }) => {
-  const [customBaseUrl, setCustomBaseUrl] = useState(() => selfOrderBaseUrl || (typeof window === 'undefined' ? '' : window.location.origin));
+  const initialBaseUrl = selfOrderBaseUrl || (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+  const initialBranchUrl = buildBranchSelfOrderUrl(initialBaseUrl, branchId, tenantId, branchCode, publicOrderSlug);
+  const [customBranchUrl, setCustomBranchUrl] = useState(initialBranchUrl);
+  const [activeQrUrl, setActiveQrUrl] = useState(initialBranchUrl);
   const [query, setQuery] = useState('');
   const [copiedTableNumber, setCopiedTableNumber] = useState<string | null>(null);
   const [busyTable, setBusyTable] = useState<string | null>(null);
@@ -56,23 +59,47 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   const [urlSaveState, setUrlSaveState] = useState<'IDLE' | 'DIRTY' | 'SAVED'>('IDLE');
 
   useEffect(() => {
-    setCustomBaseUrl(selfOrderBaseUrl || window.location.origin);
+    const nextUrl = buildBranchSelfOrderUrl(
+      selfOrderBaseUrl || window.location.origin,
+      branchId,
+      tenantId,
+      branchCode,
+      publicOrderSlug,
+    );
+    setCustomBranchUrl(nextUrl);
+    setActiveQrUrl(nextUrl);
     setUrlSaveState('IDLE');
     setErrorMessage(null);
-  }, [branchId]);
+  }, [branchId, branchCode, publicOrderSlug, tenantId]);
 
   useEffect(() => {
     if (urlSaveState !== 'DIRTY' && !isSavingUrl) {
-      setCustomBaseUrl(selfOrderBaseUrl || window.location.origin);
+      const nextUrl = buildBranchSelfOrderUrl(
+        selfOrderBaseUrl || window.location.origin,
+        branchId,
+        tenantId,
+        branchCode,
+        publicOrderSlug,
+      );
+      setCustomBranchUrl(nextUrl);
+      setActiveQrUrl(nextUrl);
     }
-  }, [selfOrderBaseUrl, urlSaveState, isSavingUrl]);
+  }, [selfOrderBaseUrl, urlSaveState, isSavingUrl, branchId, branchCode, publicOrderSlug, tenantId]);
 
-  const saveBaseUrl = async (value: string) => {
+  const saveBranchUrl = async (value: string) => {
     setIsSavingUrl(true);
     try {
-      const normalized = new URL(value).origin;
-      await onSelfOrderBaseUrlChange?.(normalized);
-      setCustomBaseUrl(normalized);
+      const parsed = new URL(value.trim());
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('URL harus memakai http:// atau https://');
+      const expectedUrl = buildBranchSelfOrderUrl(parsed.origin, branchId, tenantId, branchCode, publicOrderSlug);
+      const expectedPath = new URL(expectedUrl).pathname.replace(/\/$/, '') || '/';
+      const inputPath = parsed.pathname.replace(/\/$/, '') || '/';
+      if (inputPath !== '/' && inputPath !== expectedPath) {
+        throw new Error(`Path cabang ${branchCode || ''} harus ${expectedPath}`);
+      }
+      await onSelfOrderBaseUrlChange?.(parsed.origin);
+      setCustomBranchUrl(expectedUrl);
+      setActiveQrUrl(expectedUrl);
       setErrorMessage(null);
       setUrlSaveState('SAVED');
     } catch (error) {
@@ -151,24 +178,28 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari meja: 17, 38, A7..." className="ui-input w-full !pl-9 !pr-3 text-xs font-bold" />
         </label>
-        <label className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Domain dasar</span>
+        <label className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2" htmlFor="branch-self-order-url">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">URL QR Cabang</span>
           <input
-            value={customBaseUrl}
+            id="branch-self-order-url"
+            name="branchSelfOrderUrl"
+            type="url"
+            autoComplete="url"
+            value={customBranchUrl}
             onChange={(event) => {
-              setCustomBaseUrl(event.target.value);
+              setCustomBranchUrl(event.target.value);
               setUrlSaveState('DIRTY');
               setErrorMessage(null);
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') void saveBaseUrl(customBaseUrl);
+              if (event.key === 'Enter') void saveBranchUrl(customBranchUrl);
             }}
             className="ui-input min-w-0 px-3 text-[11px] font-semibold"
           />
           <button
             type="button"
             disabled={isSavingUrl || urlSaveState !== 'DIRTY'}
-            onClick={() => void saveBaseUrl(customBaseUrl)}
+            onClick={() => void saveBranchUrl(customBranchUrl)}
             className="ui-button ui-button-primary px-3 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSavingUrl ? 'Menyimpan…' : urlSaveState === 'SAVED' ? 'Tersimpan' : 'Simpan URL'}
@@ -176,7 +207,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              setCustomBaseUrl(window.location.origin);
+              setCustomBranchUrl(buildBranchSelfOrderUrl(window.location.origin, branchId, tenantId, branchCode, publicOrderSlug));
               setUrlSaveState('DIRTY');
               setErrorMessage(null);
             }}
@@ -186,7 +217,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           </button>
         </label>
         <p className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-800">
-          URL QR cabang (path otomatis): {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug)}
+          URL yang sedang dikodekan ke QR: {activeQrUrl}
         </p>
       </div>
 
@@ -210,7 +241,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
-            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug);
+            const qrUrl = activeQrUrl;
 
             return (
               <article key={table.id} className="ui-card overflow-hidden">
@@ -232,7 +263,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                       Scan lalu pilih meja aktif
                     </p>
                     <p className="mt-1 max-w-full truncate rounded-full bg-sky-50 px-2 py-0.5 font-mono text-[9px] font-black text-sky-700" title={qrUrl}>
-                      {new URL(qrUrl).pathname}
+                      {qrUrl.replace(/^https?:\/\//, '')}
                     </p>
                   </div>
 

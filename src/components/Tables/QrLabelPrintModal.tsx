@@ -168,7 +168,9 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
                       <p className="text-[10px] font-medium text-slate-500 leading-tight">
                         1. Scan QR &nbsp;•&nbsp; 2. Pilih Menu &nbsp;•&nbsp; 3. Pesan Langsung
                       </p>
-                      <p className="font-mono text-[9px] font-black text-emerald-700">{new URL(label.url).pathname}</p>
+                      <p className="max-w-full truncate font-mono text-[9px] font-black text-emerald-700" title={label.url}>
+                        {label.url.replace(/^https?:\/\//, '')}
+                      </p>
                     </div>
                   </div>
                 </div>
