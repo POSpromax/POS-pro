@@ -22,6 +22,7 @@ import { QrCodeCanvas } from './QrCodeCanvas';
 interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
+  branchName?: string;
   onToggleSelfOrder: (tableNumber: string, enabled: boolean) => void;
   onClearTableStatus: (tableNumber: string) => void;
   onOpenCustomerSelfOrderModal: (tableNumber: string, qrToken?: string) => void;
@@ -40,6 +41,7 @@ const normalizeNumber = (value: string) => value.trim().toUpperCase().replace(/^
 export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
+  branchName,
   onToggleSelfOrder,
   onClearTableStatus,
   onOpenCustomerSelfOrderModal,
@@ -145,9 +147,14 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
     <div className="ui-surface flex-1 overflow-y-auto p-4 font-sans text-[var(--text-primary)] md:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Grid2X2 className="h-6 w-6 text-[var(--primary)]" />
             <h1 className="text-xl font-bold tracking-tight">Meja & QR Self-order</h1>
+            {branchName && (
+              <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-0.5 text-xs font-extrabold text-orange-700 shadow-xs">
+                📍 Outlet: {branchName}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[11px] font-semibold text-[var(--text-secondary)]">
             QR Code Meja siap pakai dan dapat langsung dicetak. Pelanggan cukup scan untuk masuk ke halaman Self-order.

@@ -941,23 +941,25 @@ export default function App() {
 
   // Customer Self-Order Submission from Meja QR Code
   const handleSubmitCustomerOrder = (newOrder: Order & { qrToken?: string }) => {
-    DBStorage.saveOrder(newOrder, isOnline);
-    DBStorage.updateTableStatus(newOrder.tableNumber, 'OCCUPIED', newOrder.id, newOrder.branchId);
+    const targetBranchId = newOrder.branchId || currentBranch.id;
+    const orderToSave = { ...newOrder, branchId: targetBranchId };
+    DBStorage.saveOrder(orderToSave, isOnline);
+    DBStorage.updateTableStatus(orderToSave.tableNumber, 'OCCUPIED', orderToSave.id, targetBranchId);
     setOrders(DBStorage.getOrders());
     setTables(DBStorage.getTables());
     setRawMaterials(DBStorage.getRawMaterials());
     if (cloudReadiness.supabase && isOnline) {
-      void submitCloudOrder(newOrder)
+      void submitCloudOrder(orderToSave)
         .then((saved) => {
-          DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== newOrder.id && order.id !== saved.id)]);
-          DBStorage.updateTableStatus(saved.tableNumber, 'OCCUPIED', saved.id, saved.branchId);
+          DBStorage.saveOrders([saved, ...DBStorage.getOrders().filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);
+          DBStorage.updateTableStatus(saved.tableNumber, 'OCCUPIED', saved.id, saved.branchId || targetBranchId);
           setOrders(DBStorage.getOrders());
           setTables(DBStorage.getTables());
         })
         .catch((error) => showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.'));
     }
     
-    showPushToast('Order Baru dari HP Customer!', `Meja ${newOrder.tableNumber} memesan order ${newOrder.orderNumber}. Meja dikunci (RED).`);
+    showPushToast('Order Baru dari HP Customer!', `Meja ${orderToSave.tableNumber} memesan order ${orderToSave.orderNumber}. Meja dikunci (RED).`);
   };
 
   // Condiments Management
@@ -1406,6 +1408,7 @@ export default function App() {
             <TableManagementView
               tables={branchTables}
               branchId={currentBranch.id}
+              branchName={currentBranch.name}
               onToggleSelfOrder={handleToggleTableSelfOrder}
               onClearTableStatus={handleClearTableStatus}
               onOpenCustomerSelfOrderModal={(tblNum, token) => {
