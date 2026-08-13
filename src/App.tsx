@@ -107,8 +107,9 @@ const condimentCloudSaveTimers = new Map<string, number>();
 // Server hanya menerima id order berupa UUID cloud. Order yang masih memakai id
 // lokal (mis. `ord-123456`) belum pernah sampai ke database, sehingga PATCH
 // status ke cloud pasti ditolak 400. Guard ini memisahkan keduanya.
-const CLOUD_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const isCloudOrderId = (id: string): boolean => CLOUD_ID_PATTERN.test(String(id || ''));
+const CLOUD_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isCloudUuid = (id?: string | null): boolean => CLOUD_UUID_PATTERN.test(String(id || ''));
+const isCloudOrderId = (id: string): boolean => isCloudUuid(id);
 
 const createInactiveShift = (branchId?: string): Shift => ({
   id: 'shift-not-opened',
@@ -389,15 +390,29 @@ export default function App() {
   }, [systemPortal, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !activeUser.id) return;
+    // Saat startup, activeUser masih dapat berisi ID seed lokal (`usr-2`)
+    // beberapa milidetik sebelum validateCloudSession memulihkan UUID Auth.
+    // Jangan kirim ID legacy itu ke branch_members.user_id (uuid), karena
+    // PostgREST akan menolaknya sebagai HTTP 400 / invalid input syntax.
+    if (
+      !cloudReadiness.supabase
+      || !isSessionValidated
+      || !isTerminalUnlocked
+      || !isCloudUuid(currentBranch.id)
+      || !isCloudUuid(activeUser.id)
+    ) return;
     let cancelled = false;
     void (async () => {
-      const { data: membership } = await getSupabase().from('branch_members')
+      const { data: membership, error } = await getSupabase().from('branch_members')
         .select('role,permissions,is_active')
         .eq('user_id', activeUser.id)
         .eq('branch_id', currentBranch.id)
         .maybeSingle();
       if (cancelled) return;
+      if (error) {
+        showPushToast('Validasi Akses Cabang Tertunda', error.message);
+        return;
+      }
       if (!membership?.is_active) {
         showPushToast('Akses Cabang Ditolak', `Akun tidak memiliki membership aktif di ${currentBranch.name}.`);
         return;
@@ -410,7 +425,7 @@ export default function App() {
       }));
     })();
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, currentBranch.id, activeUser.id]);
+  }, [isSessionValidated, isTerminalUnlocked, currentBranch.id, activeUser.id]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
