@@ -16,5 +16,10 @@ PIN server-side and exchanges a generated one-time token for a Supabase Auth
 session. Direct anonymous writes to attendance, audit, credential, and
 self-order-session tables are intentionally unavailable.
 
-The UI data adapter has not yet been cut over from browser storage. Applying the
-migrations alone does not make demo transactions persistent.
+Data operasional produksi menggunakan Supabase sebagai sumber kebenaran. Browser
+storage hanya dipakai untuk konfigurasi perangkat, sesi terminal, dan antrean
+order offline yang belum berhasil dikirim. Jangan menambahkan kembali broadcast
+array data atau listener `storage` sebagai mekanisme sinkronisasi antarperangkat.
+
+Migrasi `202608130018_operational_realtime.sql` menutup policy kanal sinkronisasi
+localStorage lama dan menggantinya dengan event database privat per cabang.

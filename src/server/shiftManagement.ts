@@ -142,6 +142,17 @@ export async function handleShiftRequest(
 
   if (method === 'GET') {
     try {
+      if (String(payload.history || '').toLowerCase() === 'true') {
+        const { data: rows, error } = await admin
+          .from('cashier_shifts')
+          .select('*')
+          .eq('branch_id', branchId)
+          .eq('status', 'CLOSED')
+          .order('closed_at', { ascending: false })
+          .limit(100);
+        if (error) throw error;
+        return { status: 200, data: { shifts: await Promise.all((rows || []).map((row) => mapShift(row, admin))) } };
+      }
       const active = await readActiveShift(branchId, admin);
       return { status: 200, data: { shift: active ? await mapShift(active, admin) : null } };
     } catch (error) {

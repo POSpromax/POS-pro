@@ -87,7 +87,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       }}
     >
       {/* ── LEFT: Hamburger + Clock + Connection Badge ─────────────────────── */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Hamburger Menu Button — Toggles Quick Access Sidebar */}
         <button
           type="button"
@@ -100,17 +100,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {/* Time and Date Display matching Target Mockup */}
         <div className="flex flex-col shrink-0">
-          <span className="font-mono text-xs sm:text-sm font-extrabold leading-none text-[#111827]">
+          <span className="font-mono text-[10px] sm:text-xs font-extrabold leading-none text-[#111827]">
             {timeStr}
           </span>
-          <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mt-0.5 whitespace-nowrap">
+          <span className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide text-slate-400 mt-0.5 whitespace-nowrap">
             {dateStr}
           </span>
         </div>
 
         {/* Online / Offline Pill Badge matching Target Mockup */}
         <div
-          className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-extrabold tracking-wide border shadow-2xs shrink-0"
+          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold tracking-wide border shadow-2xs shrink-0"
           style={
             isOnline
               ? { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' }
@@ -119,10 +119,47 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           role="status"
           title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
         >
-          <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#166534] animate-pulse" />
           <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
       </div>
+
+      {!isOwnerMode && (
+        <div
+          className="flex min-w-0 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1"
+          title={`Outlet aktif: ${currentBranch.name}`}
+        >
+          <Store className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+          <div className="min-w-0 leading-none">
+            <p className="text-[7px] font-black uppercase tracking-wider text-emerald-600">Outlet aktif</p>
+            <p className="mt-0.5 max-w-32 truncate text-[9px] font-extrabold text-emerald-900">
+              {currentBranch.code || currentBranch.name}
+              <span className="hidden lg:inline"> · {currentBranch.name.replace(/^Bakso Ujo\s*-\s*/i, '')}</span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isOwnerMode && (
+        <div className="ml-auto flex min-w-0 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5">
+          <Store className="h-4 w-4 shrink-0 text-orange-700" />
+          <div className="hidden min-w-0 sm:block">
+            <p className="text-[9px] font-black uppercase tracking-wider text-orange-600">Konteks cabang</p>
+            <p className="max-w-40 truncate text-[11px] font-bold text-orange-900">{currentBranch.name}</p>
+          </div>
+          <select
+            value={currentBranch.id}
+            onChange={(event) => {
+              const branch = branches.find((item) => item.id === event.target.value);
+              if (branch) onSelectBranch(branch);
+            }}
+            className="max-w-44 rounded-lg border border-orange-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-800 outline-none"
+            aria-label="Pilih konteks cabang Owner"
+          >
+            {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.code || branch.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* ── MIDDLE / RIGHT: Kasir mode controls matching Target Mockup ─────────── */}
       {activeTab === 'pos' && !isOwnerMode && (

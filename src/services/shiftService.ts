@@ -43,6 +43,12 @@ export async function getCloudActiveShift(branchId: string): Promise<Shift | nul
   return res.shift || null;
 }
 
+export async function listCloudShiftHistory(branchId: string): Promise<Shift[]> {
+  if (!branchId) return [];
+  const res = await request<{ shifts: Shift[] }>(`/api/shifts?branchId=${encodeURIComponent(branchId)}&history=true`);
+  return res.shifts || [];
+}
+
 export async function openCloudShift(params: {
   branchId: string;
   staffId?: string;
@@ -100,19 +106,11 @@ export function subscribeCloudShift(
     timer = window.setTimeout(onChange, 300);
   };
 
-  // Listen to Postgres Changes on cashier_shifts for this branch
   const dbChannel = supabase
-    .channel(`branch:${branchId}:shift_db`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'cashier_shifts',
-        filter: `branch_id=eq.${branchId}`,
-      },
-      notify,
-    )
+    .channel(`branch:${branchId}:shift`, { config: { private: true } })
+    .on('broadcast', { event: 'INSERT' }, notify)
+    .on('broadcast', { event: 'UPDATE' }, notify)
+    .on('broadcast', { event: 'DELETE' }, notify)
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
       else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');

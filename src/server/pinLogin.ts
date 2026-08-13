@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeBranchId } from '../utils/branchId';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/i;
@@ -23,13 +24,14 @@ interface VerificationRow {
 export interface PinLoginSuccess {
   tokenHash: string;
   verificationType: 'magiclink';
-  user: {
+    user: {
     id: string;
     tenantId: string | null;
     branchId: string;
     name: string | null;
     role: string | null;
-    permissions: Record<string, boolean>;
+      permissions: Record<string, boolean>;
+      branchIds?: string[];
   };
 }
 
@@ -43,17 +45,11 @@ export type PinLoginResult =
   | { status: number; data: PinLoginSuccess }
   | { status: number; data: PinLoginError };
 
-const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
-  'br-1': '00000000-0000-4000-a000-000000000010',
-  'br-2': '00000000-0000-4000-a000-000000000020',
-};
-
 export async function handlePinLogin(
   body: PinLoginRequest,
   admin: SupabaseClient,
 ): Promise<PinLoginResult> {
-  const rawBranchId = body.branchId || '';
-  const branchId = LEGACY_BRANCH_ID_MAP[rawBranchId] || rawBranchId;
+  const branchId = normalizeBranchId(body.branchId);
 
   if (!branchId || !UUID_PATTERN.test(branchId)) {
     return { status: 400, data: { error: 'Outlet tidak valid' } };
@@ -111,6 +107,11 @@ export async function handlePinLogin(
     return { status: 500, data: { error: 'Sesi staf tidak dapat dibuat' } };
   }
 
+  const { data: memberships } = await admin.from('branch_members')
+    .select('branch_id')
+    .eq('user_id', verification.matched_user_id)
+    .eq('is_active', true);
+
   return {
     status: 200,
     data: {
@@ -119,10 +120,11 @@ export async function handlePinLogin(
       user: {
         id: verification.matched_user_id,
         tenantId: verification.matched_tenant_id,
-        branchId: body.branchId,
+        branchId,
         name: verification.display_name,
         role: verification.matched_role,
         permissions: verification.permissions || {},
+        branchIds: (memberships || []).map((membership) => membership.branch_id),
       },
     },
   };

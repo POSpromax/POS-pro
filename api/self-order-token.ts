@@ -18,7 +18,6 @@ export default async function handler(request: Request): Promise<Response> {
   const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
   const admin = createClient(supabaseUrl, serverKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const secret = process.env.QR_TOKEN_SECRET || serverKey;
-  const result = await handleTableSessionRequest(body, accessToken, admin, secret, 'https://pos-pro-eight.vercel.app');
+  const result = await handleTableSessionRequest(body, accessToken, admin);
   return json(result.data, result.status);
 }

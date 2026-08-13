@@ -68,19 +68,17 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
 
   const getOrdersForScope = (branchId?: string) => {
     if (!branchId) return orders;
-    return orders.filter(
-      (o) => o.branchId === branchId || (!o.branchId && branches.find((b) => b.id === branchId)?.isMainBranch),
-    );
+    return orders.filter((order) => order.branchId === branchId);
   };
 
   const getTablesForScope = (branchId?: string) => {
     if (!branchId) return tables;
-    return tables.filter((t) => !t.branchId || t.branchId === branchId);
+    return tables.filter((table) => table.branchId === branchId);
   };
 
   const getMaterialsForScope = (branchId?: string) => {
     if (!branchId) return rawMaterials;
-    return rawMaterials.filter((m) => !m.branchId || m.branchId === branchId);
+    return rawMaterials.filter((material) => material.branchId === branchId);
   };
 
   const scopeBranchId =

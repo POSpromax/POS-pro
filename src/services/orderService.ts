@@ -43,13 +43,10 @@ export function subscribeCloudOrders(
     window.clearTimeout(timer);
     timer = window.setTimeout(onChange, 250);
   };
-  const channel = supabase.channel(`branch:${branchId}:orders_realtime`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `branch_id=eq.${branchId}` }, notify)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, notify)
+  const channel = supabase.channel(`branch:${branchId}:orders`, { config: { private: true } })
     .on('broadcast', { event: 'INSERT' }, notify)
     .on('broadcast', { event: 'UPDATE' }, notify)
     .on('broadcast', { event: 'DELETE' }, notify)
-    .on('broadcast', { event: 'pos_sync' }, notify)
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
       else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');

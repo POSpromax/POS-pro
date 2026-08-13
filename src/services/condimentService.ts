@@ -16,12 +16,14 @@ type ScopeConfig = Record<string, { targetProductIds?: string[]; targetProductNa
 
 export async function listCloudCondiments(branchId: string): Promise<CondimentGroup[]> {
   const { supabase, tenantId } = await tenantContext();
-  const [{ data: groups, error: groupError }, { data: config }] = await Promise.all([
+  const [{ data: groups, error: groupError }, { data: branchConfig }, { data: config }] = await Promise.all([
     supabase.from('condiment_groups').select('*,condiment_options(*)').eq('branch_id', branchId).order('sort_order'),
+    supabase.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
     supabase.from('tenant_config').select('kds_config').eq('tenant_id', tenantId).maybeSingle(),
   ]);
   if (groupError) throw new Error(groupError.message);
-  const scopes = ((config?.kds_config as { condimentScopes?: ScopeConfig } | null)?.condimentScopes || {});
+  const scopes = (branchConfig?.condiment_scopes as ScopeConfig | null)
+    || ((config?.kds_config as { condimentScopes?: ScopeConfig } | null)?.condimentScopes || {});
   return (groups || []).map((group) => ({
     id: group.id,
     name: group.name,
@@ -66,9 +68,8 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
     const { error } = await supabase.from('condiment_options').insert(group.options.map((option, index) => ({ group_id: groupId, name: option.name, price: option.price, is_available: option.isAvailable, sort_order: index })));
     if (error) throw new Error(error.message);
   }
-  const { data: config } = await supabase.from('tenant_config').select('kds_config').eq('tenant_id', tenantId).maybeSingle();
-  const kdsConfig = (config?.kds_config && typeof config.kds_config === 'object' ? config.kds_config : {}) as Record<string, unknown>;
-  const scopes = { ...((kdsConfig.condimentScopes || {}) as ScopeConfig), [groupId]: { targetProductIds: group.targetProductIds || [], targetProductNames: group.targetProductNames || [] } };
-  const { error: configError } = await supabase.from('tenant_config').update({ kds_config: { ...kdsConfig, condimentScopes: scopes } }).eq('tenant_id', tenantId);
+  const { data: config } = await supabase.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle();
+  const scopes = { ...((config?.condiment_scopes || {}) as ScopeConfig), [groupId]: { targetProductIds: group.targetProductIds || [], targetProductNames: group.targetProductNames || [] } };
+  const { error: configError } = await supabase.from('branch_operational_config').upsert({ branch_id: branchId, tenant_id: tenantId, condiment_scopes: scopes }, { onConflict: 'branch_id' });
   if (configError) throw new Error(configError.message);
 }

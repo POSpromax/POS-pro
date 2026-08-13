@@ -6,22 +6,20 @@ async function accessToken(): Promise<string> {
   return data.session?.access_token || '';
 }
 
-export type TableSessionAction = 'ACTIVATE' | 'ROTATE' | 'DEACTIVATE' | 'SET_ENABLED' | 'SET_ENABLED_ALL';
+export type TableSessionAction = 'LIST' | 'CREATE' | 'SET_ENABLED' | 'SET_ENABLED_ALL' | 'SET_STATUS' | 'RESET_ALL';
 
 export interface TableSessionResponse {
   table?: RestaurantTable;
   tables?: RestaurantTable[];
-  token?: string;
-  url?: string;
-  expiresInHours?: number;
 }
 
 export async function updateCloudTableSession(params: {
   action: TableSessionAction;
   branchId: string;
   tableNumber: string;
-  baseUrl?: string;
+  capacity?: number;
   enabled?: boolean;
+  status?: RestaurantTable['status'];
   force?: boolean;
 }): Promise<TableSessionResponse> {
   const token = await accessToken();
@@ -33,4 +31,20 @@ export async function updateCloudTableSession(params: {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Status meja gagal diperbarui');
   return data as TableSessionResponse;
+}
+
+export async function listCloudTables(branchId: string): Promise<RestaurantTable[]> {
+  const response = await updateCloudTableSession({ action: 'LIST', branchId, tableNumber: '' });
+  return response.tables || [];
+}
+
+export async function createCloudTable(branchId: string, tableNumber: string, capacity: number): Promise<RestaurantTable> {
+  const response = await updateCloudTableSession({ action: 'CREATE', branchId, tableNumber, capacity });
+  if (!response.table) throw new Error('Data meja baru tidak dikembalikan server');
+  return response.table;
+}
+
+export async function setAllCloudTablesEnabled(branchId: string, enabled: boolean): Promise<RestaurantTable[]> {
+  const response = await updateCloudTableSession({ action: 'SET_ENABLED_ALL', branchId, tableNumber: '', enabled });
+  return response.tables || [];
 }

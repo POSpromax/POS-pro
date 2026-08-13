@@ -12,6 +12,7 @@ import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
 import { handleCloudinarySign } from './src/server/cloudinarySign';
 import { handleTableSessionRequest } from './src/server/tableSession';
+import { handleBranchRequest } from './src/server/branchManagement';
 
 async function startServer() {
   const app = express();
@@ -132,6 +133,18 @@ async function startServer() {
     }
   });
 
+  app.all('/api/branches', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleBranchRequest(req.method, req.body || {}, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server cabang belum dikonfigurasi' });
+    }
+  });
+
   app.get('/api/public-catalog', async (req, res) => {
     try {
       const result = await getPublicCatalog(String(req.query.branchId || ''), getSupabaseAdmin());
@@ -146,8 +159,7 @@ async function startServer() {
       const admin = getSupabaseAdmin();
       const authorization = req.header('Authorization') || '';
       const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-      const secret = process.env.QR_TOKEN_SECRET || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-      const result = await handleTableSessionRequest(req.body || {}, accessToken, admin, secret, `http://localhost:${PORT}`);
+      const result = await handleTableSessionRequest(req.body || {}, accessToken, admin);
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server token belum dikonfigurasi' });

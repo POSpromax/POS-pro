@@ -19,7 +19,6 @@ import {
   FileText
 } from 'lucide-react';
 import { Shift, ExpenseIncomeRecord, Order, UserAccount } from '../../types/pos';
-import { DBStorage } from '../../services/dbStorage';
 
 interface ShiftMonitorViewProps {
   currentShift: Shift;
@@ -198,7 +197,6 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
     setIsShiftMutationPending(true);
     try {
       if (onRefreshShift) await onRefreshShift();
-      DBStorage.syncAllDataWithCloud();
       toast('Sinkronisasi Berhasil', 'Status shift terbaru telah dibaca dari server pusat.');
     } catch (error) {
       toast('Sinkronisasi Gagal', error instanceof Error ? error.message : 'Server pusat belum dapat dihubungi.');

@@ -62,9 +62,8 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
   const runSession = async (
     table: RestaurantTable,
-    action: 'DEACTIVATE' | 'SET_ENABLED',
+    action: 'SET_ENABLED',
     enabled = true,
-    force = false,
   ) => {
     setBusyTable(table.id);
     try {
@@ -73,11 +72,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         branchId,
         tableNumber: table.number.replace(/^0+(?=\d)/, ''),
         enabled,
-        force,
       });
       if (result.table) onTableUpdated(result.table);
       if (onShowToast) {
-        const off = action === 'DEACTIVATE' || !enabled;
+        const off = !enabled;
         onShowToast(
           off ? 'Self-Order Meja Dimatikan' : 'Self-Order Meja Aktif',
           off
@@ -333,7 +331,8 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
             </div>
             <button
               type="submit"
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+              className="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-sm"
+              style={{ color: '#ffffff' }}
             >
               Simpan Meja Baru
             </button>
@@ -436,7 +435,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={() => void runSession(table, 'DEACTIVATE', false, isOccupied)}
+                          onClick={() => void runSession(table, 'SET_ENABLED', false)}
                           className="px-2.5 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
                           title="Matikan self-order untuk meja ini"
                         >

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR', 'KITCHEN']);
 const MANAGEMENT_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN']);
+const ROLE_RANK: Record<string, number> = { KITCHEN: 1, KASIR: 1, ADMIN: 2, MANAGER: 3, OWNER: 4, SUPER_OWNER: 5 };
 
 interface StaffPayload {
   id?: string;
@@ -148,6 +149,10 @@ async function createStaff(
   const allowedBranches = new Set(auth.memberships.map((item) => item.branch_id));
   if (!(await validateTargetBranches(admin, auth.tenantId, branchIds, allowedBranches))) return fail(403, 'Penugasan outlet tidak diizinkan');
   const callerRoles = new Set(auth.memberships.map((item) => item.role));
+  const callerRank = Math.max(...Array.from(callerRoles).map((role) => ROLE_RANK[role] || 0));
+  if (callerRank < ROLE_RANK.OWNER && (ROLE_RANK[role] || 0) >= callerRank) {
+    return fail(403, 'Anda hanya dapat membuat role di bawah kewenangan Anda');
+  }
   if (role === 'SUPER_OWNER' && !callerRoles.has('SUPER_OWNER')) return fail(403, 'Role Super Owner hanya dapat dibuat Super Owner');
   if (role === 'OWNER' && !callerRoles.has('SUPER_OWNER') && !callerRoles.has('OWNER')) return fail(403, 'Role Owner hanya dapat dibuat Owner');
 
@@ -204,11 +209,19 @@ async function updateStaff(
   if (targetProfile?.tenant_id !== auth.tenantId) return fail(404, 'Staff tidak ditemukan');
   const callerRoles = new Set(auth.memberships.map((item) => item.role));
   const isOwner = callerRoles.has('SUPER_OWNER') || callerRoles.has('OWNER');
+  const callerRank = Math.max(...Array.from(callerRoles).map((item) => ROLE_RANK[item] || 0));
+  const highestTargetRank = Math.max(0, ...(existingMemberships || []).map((item) => ROLE_RANK[item.role] || 0));
   const existingBranchIds = (existingMemberships || []).map((item) => item.branch_id);
   if (!isOwner && existingBranchIds.some((id) => !allowedBranches.has(id))) {
     return fail(403, 'Staff memiliki penugasan outlet di luar kewenangan Anda');
   }
   const role = payload.role || 'KASIR';
+  if (!callerRoles.has('SUPER_OWNER') && highestTargetRank >= callerRank) {
+    return fail(403, 'Anda tidak dapat mengubah akun dengan kewenangan setara atau lebih tinggi');
+  }
+  if (callerRank < ROLE_RANK.OWNER && (ROLE_RANK[role] || 0) >= callerRank) {
+    return fail(403, 'Anda hanya dapat menetapkan role di bawah kewenangan Anda');
+  }
   if (role === 'SUPER_OWNER' && !callerRoles.has('SUPER_OWNER')) return fail(403, 'Role Super Owner hanya dapat diatur Super Owner');
   if (role === 'OWNER' && !isOwner) return fail(403, 'Role Owner hanya dapat diatur Owner');
   if (payload.id === auth.userId && (payload.isActive === false || !isOwner || (role !== 'OWNER' && role !== 'SUPER_OWNER'))) {
@@ -262,11 +275,16 @@ async function deactivateStaff(
   if (!UUID_PATTERN.test(userId) || userId === auth.userId) return fail(400, 'Staff tidak dapat dinonaktifkan');
   const [{ data: profile }, { data: memberships }] = await Promise.all([
     admin.from('user_profiles').select('tenant_id').eq('user_id', userId).maybeSingle(),
-    admin.from('branch_members').select('branch_id').eq('user_id', userId).eq('is_active', true),
+    admin.from('branch_members').select('branch_id,role').eq('user_id', userId).eq('is_active', true),
   ]);
   if (profile?.tenant_id !== auth.tenantId) return fail(404, 'Staff tidak ditemukan');
   const callerRoles = new Set(auth.memberships.map((item) => item.role));
   const isOwner = callerRoles.has('SUPER_OWNER') || callerRoles.has('OWNER');
+  const callerRank = Math.max(...Array.from(callerRoles).map((item) => ROLE_RANK[item] || 0));
+  const highestTargetRank = Math.max(0, ...(memberships || []).map((item) => ROLE_RANK[item.role] || 0));
+  if (!callerRoles.has('SUPER_OWNER') && highestTargetRank >= callerRank) {
+    return fail(403, 'Anda tidak dapat menonaktifkan akun dengan kewenangan setara atau lebih tinggi');
+  }
   const allowedBranches = new Set(auth.memberships.map((item) => item.branch_id));
   if (!isOwner && (memberships || []).some((item) => !allowedBranches.has(item.branch_id))) {
     return fail(403, 'Staff memiliki penugasan outlet di luar kewenangan Anda');

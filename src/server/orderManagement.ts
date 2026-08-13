@@ -60,7 +60,7 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
 
 async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string) {
   let query = admin.from('orders')
-    .select('*, restaurant_tables(number)')
+    .select('*, restaurant_tables!orders_table_id_fkey(number)')
     .eq('branch_id', branchId)
     .order('created_at', { ascending: false })
     .limit(orderId ? 1 : 150);
@@ -129,22 +129,6 @@ export async function handleOrderRequest(
       await admin.from('order_items').update({ kitchen_status: 'DONE' }).eq('order_id', payload.orderId).neq('kitchen_status', 'DONE');
     }
 
-    try {
-      const channel = admin.channel(`branch:${branchId}:orders_realtime`);
-      await channel.send({
-        type: 'broadcast',
-        event: 'UPDATE',
-        payload: { orderId: payload.orderId, status: payload.status },
-      });
-      await channel.send({
-        type: 'broadcast',
-        event: 'pos_sync',
-        payload: { action: 'ORDER_UPDATED', orderId: payload.orderId },
-      });
-    } catch (err) {
-      console.warn('Server realtime broadcast error:', err);
-    }
-
     return { status: 200, data: { success: true } };
   }
 
@@ -158,19 +142,26 @@ export async function handleOrderRequest(
   let table: any = null;
   if (input.tableNumber) {
     const { data } = await admin.from('restaurant_tables')
-      .select('id,number,status,self_order_enabled,qr_token_hash,qr_generation,active_order_id')
+      .select('id,number,status,self_order_enabled,active_order_id')
       .eq('branch_id', branchId)
       .eq('number', String(input.tableNumber))
       .maybeSingle();
     table = data;
   }
   if (source === 'SELF_ORDER') {
+    const { data: branchConfig } = await admin.from('branch_operational_config')
+      .select('self_order_enabled')
+      .eq('branch_id', branchId)
+      .maybeSingle();
+    if (branchConfig?.self_order_enabled === false) {
+      return fail(403, 'Self-order outlet ini sedang dinonaktifkan. Silakan hubungi kasir.');
+    }
     if (!table || table.self_order_enabled === false || table.status === 'DISABLED') {
-      return fail(403, `Meja ${input.tableNumber || ''} sedang nonaktif / terisi. Silakan hubungi kasir.`);
+      return fail(403, `Meja ${input.tableNumber || ''} tidak aktif untuk self-order. Silakan hubungi kasir.`);
     }
   }
 
-  // QR statis (cetak sekali, tempel di meja) tidak lagi membawa token berputar.
+  // QR permanen per cabang tidak membawa token maupun nomor meja.
   // Gerbang self-order cukup: meja mengaktifkan self-order (self_order_enabled,
   // dikendalikan kasir per-meja/semua) dan cabang aktif — dicek di atas. Meja
   // yang dinonaktifkan kasir otomatis punya self_order_enabled=false → ditolak.
@@ -192,19 +183,35 @@ export async function handleOrderRequest(
   }
 
   const menuIds = [...new Set(input.items.map((item: any) => String(item.menuId || '')).filter((id: string) => UUID_PATTERN.test(id)))];
-  const [{ data: menus }, { data: groups }, { data: config }] = await Promise.all([
-    menuIds.length ? admin.from('menu_items').select('id,name,category,price,is_available').eq('branch_id', branchId).in('id', menuIds) : Promise.resolve({ data: [] }),
+  const [{ data: menus }, { data: groups }, { data: config }, { data: branchOrderConfig }] = await Promise.all([
+    menuIds.length ? admin.from('menu_items').select('id,name,category,price,is_available,stock_count').eq('branch_id', branchId).in('id', menuIds) : Promise.resolve({ data: [] }),
     admin.from('condiment_groups').select('id,name,required,min_select,max_select,target_categories').eq('branch_id', branchId).eq('is_active', true),
     admin.from('tenant_config').select('kds_config').eq('tenant_id', branch.tenant_id).maybeSingle(),
+    admin.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
   ]);
   const groupIds = (groups || []).map((group) => group.id);
   const { data: options } = groupIds.length
     ? await admin.from('condiment_options').select('group_id,name,price').in('group_id', groupIds).eq('is_available', true)
     : { data: [] };
   const menuMap = new Map((menus || []).map((menu) => [menu.id, menu]));
+  const { data: ingredientStockRows } = menuIds.length
+    ? await admin.from('menu_item_ingredients')
+      .select('menu_item_id,raw_material_id,amount_needed,raw_materials(name,stock_quantity)')
+      .in('menu_item_id', menuIds)
+    : { data: [] };
+  const ingredientsByMenu = new Map<string, any[]>();
+  const rawStock = new Map<string, { name: string; quantity: number }>();
+  for (const row of ingredientStockRows || []) {
+    const list = ingredientsByMenu.get(row.menu_item_id) || [];
+    list.push(row);
+    ingredientsByMenu.set(row.menu_item_id, list);
+    const material = Array.isArray((row as any).raw_materials) ? (row as any).raw_materials[0] : (row as any).raw_materials;
+    rawStock.set(row.raw_material_id, { name: material?.name || 'Bahan baku', quantity: Number(material?.stock_quantity || 0) });
+  }
+  const requiredRawStock = new Map<string, number>();
   const groupMap = new Map((groups || []).map((group) => [String(group.name).trim().toLocaleLowerCase('id-ID'), group]));
   const optionPrice = new Map((options || []).map((option) => [`${option.group_id}:${String(option.name).trim().toLocaleLowerCase('id-ID')}`, Number(option.price || 0)]));
-  const scopes = ((config?.kds_config as any)?.condimentScopes || {}) as Record<string, { targetProductIds?: string[]; targetProductNames?: string[] }>;
+  const scopes = (branchOrderConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {}) as Record<string, { targetProductIds?: string[]; targetProductNames?: string[] }>;
 
   const normalizedItems: any[] = [];
   for (const item of input.items) {
@@ -220,6 +227,15 @@ export async function handleOrderRequest(
     const isManual = /^(menu tambahan )?lain(ya|nya)$/i.test(String(menu.name).trim());
     if (isManual && source === 'SELF_ORDER') return fail(403, 'Item manual hanya tersedia di terminal kasir');
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
+    if (menu.stock_count !== null && menu.stock_count !== undefined && Number(menu.stock_count) < quantity) {
+      return fail(409, `Stok menu ${menu.name} tidak mencukupi`);
+    }
+    for (const ingredient of ingredientsByMenu.get(menu.id) || []) {
+      requiredRawStock.set(
+        ingredient.raw_material_id,
+        (requiredRawStock.get(ingredient.raw_material_id) || 0) + Number(ingredient.amount_needed || 0) * quantity,
+      );
+    }
     const modifiers = Array.isArray(item.selectedCondiments) ? item.selectedCondiments : [];
     let extras = 0;
     const selectedGroupIds = new Set<string>();
@@ -266,6 +282,13 @@ export async function handleOrderRequest(
       kitchen_status: 'PENDING',
       category: menu.category,
     });
+  }
+
+  for (const [rawMaterialId, required] of requiredRawStock) {
+    const available = rawStock.get(rawMaterialId);
+    if (!available || available.quantity < required) {
+      return fail(409, `Stok ${available?.name || 'bahan baku'} tidak mencukupi untuk pesanan ini`);
+    }
   }
 
   // Tambahan self-order masuk sebagai item PENDING pada bill aktif yang sama.
@@ -365,7 +388,7 @@ export async function handleOrderRequest(
   if (table?.id) {
     if (paymentStatus === 'PAID') {
       await admin.from('restaurant_tables').update({
-        status: 'DISABLED', active_order_id: null, qr_token_hash: null, qr_revoked_at: new Date().toISOString(),
+        status: 'DISABLED', active_order_id: null,
       }).eq('id', table.id).eq('branch_id', branchId);
     } else {
       await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
@@ -374,7 +397,7 @@ export async function handleOrderRequest(
   }
 
   const [{ data: savedRow }, { data: savedItems }] = await Promise.all([
-    admin.from('orders').select('*, restaurant_tables(number)').eq('id', savedOrderId).single(),
+    admin.from('orders').select('*, restaurant_tables!orders_table_id_fkey(number)').eq('id', savedOrderId).single(),
     admin.from('order_items').select('*').eq('order_id', savedOrderId).order('created_at'),
   ]);
   if (!savedRow) return fail(500, 'Pesanan gagal dibaca setelah disimpan');
@@ -383,22 +406,6 @@ export async function handleOrderRequest(
     ...item,
     category: (menuMap.get(item.menu_item_id) as any)?.category || 'MAKANAN',
   }));
-
-  try {
-    const channel = admin.channel(`branch:${branchId}:orders_realtime`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'INSERT',
-      payload: { orderId: savedOrderId, source: source || 'SELF_ORDER', tableNumber: tableNumStr },
-    });
-    await channel.send({
-      type: 'broadcast',
-      event: 'pos_sync',
-      payload: { action: 'ORDER_CREATED', orderId: savedOrderId, source: source || 'SELF_ORDER' },
-    });
-  } catch (broadcastErr) {
-    console.warn('Server realtime broadcast error:', broadcastErr);
-  }
 
   return { status: (checkout as any)?.created ? 201 : 200, data: mapOrder(savedRow, hydratedItems) };
 }

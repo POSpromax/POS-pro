@@ -1,8 +1,9 @@
-import type { Branch, CondimentGroup, MenuItem, RestaurantProfile, RestaurantTable } from '../types/pos';
+import type { Branch, BranchOperationalConfig, CondimentGroup, MenuItem, RestaurantProfile, RestaurantTable } from '../types/pos';
 
 export interface PublicCatalogContext {
   branch: Branch;
   profile: Partial<RestaurantProfile> | null;
+  operationalConfig: BranchOperationalConfig;
   menuItems: MenuItem[];
   tables: RestaurantTable[];
   condimentGroups: CondimentGroup[];

@@ -15,6 +15,7 @@ interface PinLoginUser {
   tenantId?: string | null;
   branchId?: string;
   permissions?: Record<string, boolean>;
+  branchIds?: string[];
 }
 
 interface PinAuthModalProps {
@@ -96,6 +97,8 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
       const result: CloudLoginResult = await cloudPinLogin(branch.id, pin, controller.signal);
       if (controller.signal.aborted || attemptId !== attemptSequenceRef.current) return;
       if (result.success && result.user) {
+        const canonicalBranch = branches.find((item) => item.id === result.user?.branchId)
+          || { ...branch, id: result.user.branchId };
         finishSuccess(
           {
             id: result.user.id,
@@ -104,8 +107,9 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             tenantId: result.user.tenantId,
             branchId: result.user.branchId,
             permissions: result.user.permissions,
+            branchIds: result.user.branchIds,
           },
-          branch,
+          canonicalBranch,
           mode,
         );
         return;

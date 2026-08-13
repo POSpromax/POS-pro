@@ -1,39 +1,30 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   Copy,
   ExternalLink,
   Grid2X2,
-  Loader2,
-  Power,
   Printer,
-  QrCode,
-  RefreshCw,
   Search,
-  ShieldCheck,
   Smartphone,
   Users,
 } from 'lucide-react';
 import { RestaurantTable } from '../../types/pos';
 import { updateCloudTableSession } from '../../services/tableService';
-import { buildStaticSelfOrderUrl } from '../../utils/qrToken';
+import { buildBranchSelfOrderUrl } from '../../utils/selfOrderUrl';
 import { QrCodeCanvas } from './QrCodeCanvas';
 
 interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
   branchName?: string;
+  selfOrderBaseUrl?: string;
+  onSelfOrderBaseUrlChange?: (baseUrl: string) => void | Promise<void>;
   onToggleSelfOrder: (tableNumber: string, enabled: boolean) => void;
   onClearTableStatus: (tableNumber: string) => void;
-  onOpenCustomerSelfOrderModal: (tableNumber: string, qrToken?: string) => void;
+  onOpenCustomerSelfOrderModal: (tableNumber: string) => void;
   onTableUpdated: (table: RestaurantTable) => void;
   onOpenQrPrint?: () => void;
-}
-
-interface TableToken {
-  token: string;
-  url: string;
-  generatedAt: number;
 }
 
 const normalizeNumber = (value: string) => value.trim().toUpperCase().replace(/^0+(?=\d)/, '');
@@ -42,21 +33,34 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
   branchName,
+  selfOrderBaseUrl,
+  onSelfOrderBaseUrlChange,
   onToggleSelfOrder,
   onClearTableStatus,
   onOpenCustomerSelfOrderModal,
   onTableUpdated,
   onOpenQrPrint,
 }) => {
-  const [customBaseUrl, setCustomBaseUrl] = useState(() => {
-    if (typeof window === 'undefined') return 'https://pos-pro-eight.vercel.app';
-    return localStorage.getItem('pos_custom_qr_domain') || window.location.origin;
-  });
+  const [customBaseUrl, setCustomBaseUrl] = useState(() => selfOrderBaseUrl || (typeof window === 'undefined' ? '' : window.location.origin));
   const [query, setQuery] = useState('');
   const [copiedTableNumber, setCopiedTableNumber] = useState<string | null>(null);
-  const [tableTokens, setTableTokens] = useState<Record<string, TableToken>>({});
   const [busyTable, setBusyTable] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCustomBaseUrl(selfOrderBaseUrl || window.location.origin);
+  }, [branchId, selfOrderBaseUrl]);
+
+  const saveBaseUrl = async (value: string) => {
+    try {
+      const normalized = new URL(value).origin;
+      setCustomBaseUrl(normalized);
+      await onSelfOrderBaseUrlChange?.(normalized);
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage('Domain QR harus berupa URL lengkap, contoh https://order-nama-outlet.com');
+    }
+  };
 
   const filteredTables = useMemo(() => {
     const normalizedQuery = normalizeNumber(query);
@@ -70,57 +74,6 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
     window.setTimeout(() => setCopiedTableNumber(null), 2000);
   };
 
-  const activateTable = async (table: RestaurantTable) => {
-    const tableNumber = normalizeNumber(table.number);
-    setBusyTable(table.id);
-    setErrorMessage(null);
-    try {
-      const active = table.status === 'READY' || table.status === 'OCCUPIED';
-      const result = await updateCloudTableSession({
-        action: active ? 'ROTATE' : 'ACTIVATE',
-        branchId,
-        tableNumber,
-        baseUrl: customBaseUrl,
-      });
-      onTableUpdated(result.table);
-      if (result.token && result.url) {
-        setTableTokens((current) => ({ ...current, [tableNumber]: { token: result.token!, url: result.url!, generatedAt: Date.now() } }));
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Meja gagal diaktifkan');
-    } finally {
-      setBusyTable(null);
-    }
-  };
-
-  const [confirmingDeactivateId, setConfirmingDeactivateId] = useState<string | null>(null);
-
-  const deactivateTable = async (table: RestaurantTable) => {
-    if (confirmingDeactivateId !== table.id) {
-      setConfirmingDeactivateId(table.id);
-      return;
-    }
-    setConfirmingDeactivateId(null);
-    const occupied = table.status === 'OCCUPIED';
-    setBusyTable(table.id);
-    setErrorMessage(null);
-    try {
-      const result = await updateCloudTableSession({
-        action: 'DEACTIVATE', branchId, tableNumber: normalizeNumber(table.number), force: occupied,
-      });
-      onTableUpdated(result.table);
-      setTableTokens((current) => {
-        const next = { ...current };
-        delete next[normalizeNumber(table.number)];
-        return next;
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Meja gagal dinonaktifkan');
-    } finally {
-      setBusyTable(null);
-    }
-  };
-
   const toggleSelfOrder = async (table: RestaurantTable) => {
     const enabled = !table.isSelfOrderEnabled;
     setBusyTable(table.id);
@@ -128,14 +81,6 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
     try {
       const result = await updateCloudTableSession({ action: 'SET_ENABLED', branchId, tableNumber: normalizeNumber(table.number), enabled });
       onTableUpdated(result.table);
-      onToggleSelfOrder(normalizeNumber(table.number), enabled);
-      if (!enabled) {
-        setTableTokens((current) => {
-          const next = { ...current };
-          delete next[normalizeNumber(table.number)];
-          return next;
-        });
-      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Pengaturan Self-order gagal disimpan');
     } finally {
@@ -157,7 +102,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
             )}
           </div>
           <p className="mt-1 text-[11px] font-semibold text-[var(--text-secondary)]">
-            QR Code Meja siap pakai dan dapat langsung dicetak. Pelanggan cukup scan untuk masuk ke halaman Self-order.
+            Satu QR permanen untuk satu cabang. Kasir menentukan meja yang dapat dipilih pelanggan melalui kontrol ON/OFF.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
@@ -187,18 +132,14 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Domain QR</span>
           <input
             value={customBaseUrl}
-            onChange={(event) => {
-              const val = event.target.value;
-              setCustomBaseUrl(val);
-              localStorage.setItem('pos_custom_qr_domain', val);
-            }}
+            onChange={(event) => setCustomBaseUrl(event.target.value)}
+            onBlur={() => void saveBaseUrl(customBaseUrl)}
             className="ui-input min-w-0 px-3 text-[11px] font-semibold"
           />
           <button
             type="button"
             onClick={() => {
-              setCustomBaseUrl(window.location.origin);
-              localStorage.removeItem('pos_custom_qr_domain');
+              void saveBaseUrl(window.location.origin);
             }}
             className="ui-button ui-button-secondary px-3 text-[11px]"
           >
@@ -219,7 +160,6 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
             const status = legacyInactive ? 'DISABLED' : table.status;
             const ready = status === 'READY';
             const occupied = status === 'OCCUPIED';
-            const tokenData = tableTokens[tableNumber];
             const busy = busyTable === table.id;
             const statusStyle = occupied
               ? 'border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]'
@@ -228,7 +168,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
-            const qrUrl = tokenData?.url || buildStaticSelfOrderUrl(customBaseUrl, branchId, tableNumber);
+            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId);
 
             return (
               <article key={table.id} className="ui-card overflow-hidden">
@@ -247,7 +187,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                   <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--panel-border)] bg-white p-3 shadow-xs">
                     <QrCodeCanvas value={qrUrl} size={140} className="rounded-lg border border-slate-100 p-1" />
                     <p className="mt-2 text-center text-[11px] font-bold text-[var(--text-secondary)]">
-                      Scan untuk Pesan di Meja {tableNumber}
+                      Scan lalu pilih meja aktif
                     </p>
                   </div>
 
@@ -272,7 +212,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     </a>
                     <button
                       type="button"
-                      onClick={() => onOpenCustomerSelfOrderModal(tableNumber, tokenData?.token)}
+                      onClick={() => onOpenCustomerSelfOrderModal(tableNumber)}
                       className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--primary-border)] bg-[var(--primary-soft)] text-[var(--primary-hover)]"
                       title="Simulator Self-Order"
                     >
@@ -299,7 +239,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                       onClick={() => onClearTableStatus(tableNumber)}
                       className="w-full rounded-xl py-1.5 text-[11px] font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
                     >
-                      Perbaiki status lokal meja
+                      Kosongkan meja
                     </button>
                   )}
                 </div>

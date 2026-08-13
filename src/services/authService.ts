@@ -9,6 +9,7 @@ export interface CloudLoginResult {
     name: string | null;
     role: string | null;
     permissions: Record<string, boolean>;
+    branchIds?: string[];
   };
   error?: string;
   lockedUntil?: string | null;

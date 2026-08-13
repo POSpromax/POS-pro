@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
 import {
   ShoppingBag,
@@ -50,11 +50,10 @@ interface SelfOrderLandingPageProps {
   condimentGroups: CondimentGroup[];
   isSelfOrderSystemEnabled?: boolean;
   orders?: Order[];
-  onSubmitCustomerOrder: (order: Order & { qrToken?: string }) => void;
+  onSubmitCustomerOrder: (order: Order) => void;
   initialTableNumber?: string;
   currentBranch: Branch;
   onShowToast?: (title: string, message: string) => void;
-  qrToken?: string;
   isShiftActive?: boolean;
 }
 
@@ -66,10 +65,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   isSelfOrderSystemEnabled = true,
   orders = [],
   onSubmitCustomerOrder,
-  initialTableNumber = '11',
+  initialTableNumber = '',
   currentBranch,
   onShowToast,
-  qrToken,
   isShiftActive = true,
 }) => {
   // Navigation State Flow
@@ -123,11 +121,21 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     return digits || str.trim().toUpperCase();
   };
 
+  const availableTables = useMemo(
+    () => tables
+      .filter((table) =>
+        (!table.branchId || table.branchId === currentBranch.id)
+        && table.isSelfOrderEnabled !== false
+        && table.status !== 'DISABLED')
+      .sort((a, b) => a.number.localeCompare(b.number, 'id', { numeric: true })),
+    [tables, currentBranch.id],
+  );
+
   // Table status check
-  const selectedTableObj = tables.find((t) => normalizeTableNum(t.number) === normalizeTableNum(selectedTable));
+  const selectedTableObj = availableTables.find((t) => normalizeTableNum(t.number) === normalizeTableNum(selectedTable));
   const isSelectedTableEnabled = selectedTableObj
     ? selectedTableObj.isSelfOrderEnabled !== false && (!selectedTableObj.branchId || selectedTableObj.branchId === currentBranch.id)
-    : true;
+    : false;
 
   const categories: { key: CategoryType; label: string; icon: string }[] = [
     { key: 'ALL', label: 'Semua Menu', icon: '🔥' },
@@ -178,7 +186,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     }
 
     const inputNormalized = normalizeTableNum(selectedTable);
-    const foundTable = tables.find((t) => {
+    const foundTable = availableTables.find((t) => {
       const storedNormalized = normalizeTableNum(t.number);
       return (
         storedNormalized === inputNormalized ||
@@ -187,7 +195,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     });
 
     if (!foundTable) {
-      setTableErrorMsg(`Meja "${selectedTable}" tidak ditemukan. Silakan periksa nomor yang tertera di meja Anda atau hubungi kasir.`);
+      setTableErrorMsg(`Meja "${selectedTable}" tidak tersedia untuk self-order. Silakan pilih meja aktif atau hubungi kasir.`);
       return;
     }
 
@@ -322,8 +330,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Pilih Meja', 'Silakan pilih nomor meja Anda terlebih dahulu.');
       return;
     }
-    if (selectedTableObj && (selectedTableObj.isSelfOrderEnabled === false || selectedTableObj.status === 'DISABLED')) {
-      toast('Meja Nonaktif', `Self-order untuk Meja ${selectedTable} sedang nonaktif. Silakan hubungi kasir.`);
+    if (!selectedTableObj || !isSelectedTableEnabled) {
+      toast('Meja Tidak Tersedia', `Meja ${selectedTable} sedang tidak aktif untuk self-order. Silakan pilih ulang atau hubungi kasir.`);
       return;
     }
 
@@ -332,7 +340,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       id: orderId,
       orderNumber: '#' + Math.floor(100 + Math.random() * 900),
       customerName: customerName.trim(),
-      tableNumber: selectedTable || '11',
+      tableNumber: selectedTable,
       type: 'DINE_IN',
       items: cartItems,
       subtotal: totalAmount,
@@ -347,9 +355,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       branchId: currentBranch.id,
       cashierName: `Self Order • ${currentBranch.code || currentBranch.name}`,
       source: 'SELF_ORDER',
-      parentOrderId: selectedTableObj?.activeOrderId,
-      qrToken: qrToken || undefined
-    } as Order & { qrToken?: string };
+      parentOrderId: selectedTableObj.activeOrderId,
+    };
 
     onSubmitCustomerOrder(newOrder);
     setSubmittedOrderId(orderId);
@@ -588,26 +595,28 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <span className="w-2 h-2 rounded-full bg-orange-500" />
                   Nomor Meja
                 </label>
-                <input
-                  type="text"
+                <select
                   value={selectedTable}
-                  onChange={(e) => { if (!qrToken) setSelectedTable(e.target.value); }}
-                  readOnly={Boolean(qrToken)}
-                  placeholder="Nomor meja"
-                  className={`w-full rounded-2xl border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100 ${qrToken ? 'cursor-not-allowed opacity-70' : ''}`}
-                />
-                {qrToken && (
-                  <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3 h-3" /> Meja terverifikasi dari QR
-                  </p>
-                )}
+                  onChange={(e) => setSelectedTable(e.target.value)}
+                  disabled={availableTables.length === 0}
+                  className="w-full rounded-2xl border border-orange-100 bg-orange-50/50 p-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">{availableTables.length ? 'Pilih meja yang diberikan kasir' : 'Belum ada meja aktif'}</option>
+                  {availableTables.map((table) => (
+                    <option key={table.id} value={table.number}>Meja {table.number}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] font-medium text-slate-500">
+                  Hanya meja yang diaktifkan kasir yang dapat dipilih.
+                </p>
               </div>
 
               {/* Action Button */}
               <button
                 type="button"
                 onClick={handleProceedToMenu}
-                className="w-full py-4 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2"
+                disabled={availableTables.length === 0}
+                className="w-full py-4 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-sm rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 mt-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>Mulai Pesan</span>
                 <ArrowRight className="w-4 h-4 stroke-[3]" />

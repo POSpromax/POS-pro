@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { X, Printer, QrCode, Smartphone, Sparkles, Utensils } from 'lucide-react';
 import type { Branch, RestaurantTable, RestaurantProfile } from '../../types/pos';
-import { buildStaticSelfOrderUrl } from '../../utils/qrToken';
+import { buildBranchSelfOrderUrl } from '../../utils/selfOrderUrl';
 import { QrCodeCanvas } from './QrCodeCanvas';
 
 interface Props {
@@ -10,16 +10,17 @@ interface Props {
   tables: RestaurantTable[];
   currentBranch: Branch;
   profile: RestaurantProfile;
+  selfOrderBaseUrl?: string;
 }
 
-export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile }) => {
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile, selfOrderBaseUrl }) => {
+  const baseUrl = selfOrderBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
   const [selectedTableNumber, setSelectedTableNumber] = useState<string>('ALL');
 
   const availableTables = useMemo(
     () =>
       [...tables]
-        .filter((t) => !t.branchId || t.branchId === currentBranch.id)
+        .filter((t) => t.branchId === currentBranch.id)
         .sort((a, b) => a.number.localeCompare(b.number, 'id', { numeric: true })),
     [tables, currentBranch.id]
   );
@@ -31,7 +32,7 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
         .map((t) => ({
           number: t.number,
           capacity: t.capacity,
-          url: buildStaticSelfOrderUrl(baseUrl, currentBranch.id, t.number.replace(/^0+(?=\d)/, '')),
+          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id),
         })),
     [availableTables, selectedTableNumber, currentBranch.id, baseUrl],
   );
@@ -81,7 +82,7 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 md:text-xl">Desain Label QR Code Meja</h2>
               <p className="mt-0.5 text-xs font-medium text-slate-500">
-                Desain siap cetak. QR Code statis langsung mengarah ke menu Self-Order tanpa perlu aktivasi ulang.
+                QR permanen per cabang. Pelanggan memilih meja yang sedang diaktifkan kasir.
               </p>
             </div>
           </div>

@@ -25,6 +25,7 @@ import type { RealtimeConnectionState } from '../../services/orderService';
 interface KitchenDisplayViewProps {
   orders: Order[];
   condimentGroups: CondimentGroup[];
+  outletName: string;
   onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus) => void;
   onPrintKitchenTicket: (order: Order) => void;
   connectionState?: RealtimeConnectionState;
@@ -52,6 +53,7 @@ const timeTone = (minutes: number) => {
 export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   orders,
   condimentGroups,
+  outletName,
   onUpdateOrderStatus,
   onPrintKitchenTicket,
   connectionState = 'CONNECTING',
@@ -146,10 +148,10 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
 
           {/* Running Ticker / Info Announcement Ticker Bar ONLY on Kitchen Display */}
           <div className="hidden lg:flex items-center gap-2 overflow-hidden rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-3.5 py-1.5 text-xs font-extrabold text-[#047857] max-w-[240px] xl:max-w-[340px] shrink-0 shadow-2xs">
-            <span className="flex h-2 w-2 rounded-full bg-[#047857] shrink-0 animate-ping" />
-            <marquee className="whitespace-nowrap overflow-hidden text-xs font-extrabold text-[#047857] select-none" scrollamount={4}>
-              📢 POS-PRO KDS System • Pesanan Dapur Realtime Active • Outlet Utama • Siap Memasak!
-            </marquee>
+            <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#047857] animate-pulse" />
+            <p className="truncate whitespace-nowrap text-xs font-extrabold text-[#047857] select-none">
+              KDS aktif · Pesanan dapur tersinkron · {outletName}
+            </p>
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">

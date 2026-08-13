@@ -33,7 +33,9 @@ import {
   LogIn,
   Key,
   UserCheck,
-  Phone
+  Phone,
+  Building2,
+  MonitorCog
 } from 'lucide-react';
 import {
   RestaurantProfile,
@@ -64,6 +66,7 @@ interface SettingsViewProps {
   staffAccounts: UserAccount[];
   branches: Branch[];
   currentBranch: Branch;
+  activeUserRole: UserRole;
   onSaveStaff: (staff: UserAccount) => void | Promise<void>;
   onDeleteStaff?: (id: string) => void | Promise<void>;
   accessControl: AccessControlRule[];
@@ -89,6 +92,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   staffAccounts,
   branches,
   currentBranch,
+  activeUserRole,
   onSaveStaff,
   onDeleteStaff,
   accessControl,
@@ -128,6 +132,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [editingStaff, setEditingStaff] = useState<UserAccount | null>(null);
   const [accessDraft, setAccessDraft] = useState<AccessControlRule[]>(accessControl);
   const [isSavingAccess, setIsSavingAccess] = useState(false);
+  const canManageTenant = activeUserRole === 'SUPER_OWNER' || activeUserRole === 'OWNER';
+
+  const scopeMeta = activeTab === 'ACCESS'
+    ? { label: 'PUSAT / SEMUA CABANG', detail: 'Matriks role berlaku untuk seluruh organisasi.', icon: Building2, tone: 'border-violet-200 bg-violet-50 text-violet-800' }
+    : activeTab === 'DATABASE'
+      ? { label: 'PERANGKAT INI', detail: 'Reset dan cache hanya memengaruhi browser/terminal ini.', icon: MonitorCog, tone: 'border-slate-200 bg-slate-50 text-slate-700' }
+      : activeTab === 'PROFILE' || activeTab === 'STAFF'
+        ? { label: 'PUSAT + CABANG', detail: `Brand/akun dikelola pusat; detail operasional berlaku untuk ${currentBranch.name}.`, icon: Building2, tone: 'border-blue-200 bg-blue-50 text-blue-800' }
+        : { label: `CABANG ${currentBranch.code || ''}`, detail: `Perubahan hanya berlaku untuk ${currentBranch.name}.`, icon: MapPin, tone: 'border-orange-200 bg-orange-50 text-orange-800' };
+  const ScopeIcon = scopeMeta.icon;
 
   useEffect(() => {
     setNewStaffBranchId(currentBranch.id);
@@ -136,6 +150,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   useEffect(() => {
     setAccessDraft(accessControl);
   }, [accessControl]);
+
+  useEffect(() => {
+    setFormProfile({ ...profile });
+  }, [profile, currentBranch.id]);
+
+  useEffect(() => {
+    if (!canManageTenant && activeTab === 'ACCESS') setActiveTab('PROFILE');
+  }, [activeTab, canManageTenant]);
 
   // Condiments Expanded Accordion State
   const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>(['cg-1', 'cg-2']);
@@ -293,6 +315,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
 
+        <div className={`mb-5 flex items-center gap-3 rounded-2xl border px-4 py-3 ${scopeMeta.tone}`}>
+          <ScopeIcon className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-wider">Cakupan: {scopeMeta.label}</p>
+            <p className="mt-0.5 text-xs font-semibold opacity-80">{scopeMeta.detail}</p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Navigation Sidebar */}
           <div className="space-y-5">
@@ -414,7 +444,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </button>
 
-                <button
+                {canManageTenant && <button
                   onClick={() => setActiveTab('ACCESS')}
                   className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
                     activeTab === 'ACCESS'
@@ -429,7 +459,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-xs font-bold text-[var(--text-primary)]">Hak Akses</p>
                     <p className="text-[11px] text-[var(--text-secondary)] font-bold">Role & Permissions</p>
                   </div>
-                </button>
+                </button>}
 
                 <button
                   onClick={() => setActiveTab('DATABASE')}
@@ -450,15 +480,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            {/* Bottom Save Changes Button */}
-            <button
+            {/* Hanya form profil cabang yang memakai tombol simpan bersama.
+                Hak akses, condiment, dan maintenance punya aksi tersendiri. */}
+            {(['PROFILE', 'LANDING', 'KDS', 'STAFF', 'FINANCE'] as const).includes(activeTab as any) && <button
               type="button"
               onClick={handleSaveAll}
               className="ui-button ui-button-primary w-full cursor-pointer mt-4"
             >
               <Save className="w-4 h-4" />
-              <span>SIMPAN PERUBAHAN</span>
-            </button>
+              <span>{activeTab === 'PROFILE' && canManageTenant ? `SIMPAN PUSAT + ${currentBranch.code || 'CABANG'}` : `SIMPAN ${currentBranch.code || 'CABANG'}`}</span>
+            </button>}
           </div>
 
           {/* Right Main Form Content Panel */}
@@ -469,6 +500,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text-primary)]">Profil & Brand</h2>
                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Informasi dasar yang tampil di struk dan aplikasi.</p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-violet-800">
+                    <p className="text-[11px] font-black uppercase tracking-wider">Brand pusat</p>
+                    <p className="mt-1 text-xs font-semibold">Nama, logo, Instagram, dan TikTok dipakai bersama oleh semua cabang. Hanya Owner yang dapat mengubah.</p>
+                  </div>
+                  <div className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-800">
+                    <p className="text-[11px] font-black uppercase tracking-wider">Profil outlet: {currentBranch.code}</p>
+                    <p className="mt-1 text-xs font-semibold">Tagline, alamat, WhatsApp, dan konfigurasi operasional hanya untuk {currentBranch.name}.</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
@@ -484,8 +526,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       type="text"
                       placeholder="URL Logo Image..."
                       value={formProfile.logoUrl}
+                      disabled={!canManageTenant}
                       onChange={(e) => setFormProfile({ ...formProfile, logoUrl: e.target.value })}
-                      className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-1.5 text-[11px] text-[var(--text-secondary)] outline-none focus:border-[var(--primary)] font-medium"
+                      className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-1.5 text-[11px] text-[var(--text-secondary)] outline-none focus:border-[var(--primary)] font-medium disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                     />
                   </div>
 
@@ -498,8 +541,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <input
                         type="text"
                         value={formProfile.name}
+                        disabled={!canManageTenant}
                         onChange={(e) => setFormProfile({ ...formProfile, name: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] transition-all"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] transition-all disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                       />
                     </div>
 
@@ -552,8 +596,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <input
                         type="text"
                         value={formProfile.instagram}
+                        disabled={!canManageTenant}
                         onChange={(e) => setFormProfile({ ...formProfile, instagram: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                       />
                     </div>
 
@@ -562,8 +607,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <input
                         type="text"
                         value={formProfile.tiktok}
+                        disabled={!canManageTenant}
                         onChange={(e) => setFormProfile({ ...formProfile, tiktok: e.target.value })}
-                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+                        className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -2050,7 +2096,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                   <ul className="text-xs text-[var(--text-tertiary)] space-y-1.5 list-disc pl-5 font-medium">
                     <li><strong>Vercel Edge Deployment:</strong> Hosting SPA React & PWA Service Worker tanpa server overhead.</li>
-                    <li><strong>Supabase Realtime Postgres:</strong> Menggunakan WebSocket Channels (<code className="text-[var(--primary-text)]">postgres_changes</code>) untuk sinkronisasi KDS & status order QR customer secara instant tanpa beban polling berulang.</li>
+                    <li><strong>Supabase Realtime:</strong> KDS dan Kasir memakai Broadcast privat berisi invalidation kecil; data resmi selalu diambil ulang dari database, dengan polling hanya sebagai fallback.</li>
                     <li><strong>Cloudinary CDN:</strong> Penyimpanan foto menu, bukti selfie absensi karyawan, dan wallpaper background dengan kompresi otomatis WebP.</li>
                   </ul>
                 </div>

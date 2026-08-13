@@ -25,8 +25,8 @@ import {
   INITIAL_BRANCHES,
   INITIAL_ACCESS_CONTROL
 } from '../data/initialData';
-import { cloudReadiness } from '../lib/runtimeEnv';
 import { resolveMaterialGroup } from '../utils/materialGroup';
+import { normalizeBranchId } from '../utils/branchId';
 
 export const STORAGE_KEYS = {
   ORDERS: 'nusantara_pos_orders',
@@ -51,13 +51,8 @@ export const STORAGE_KEYS = {
 
 const CURRENT_DATA_VERSION = 6;
 const DEMO_ORDER_IDS = new Set(['ord-038', 'ord-037', 'ord-036', 'ord-035']);
-const LEGACY_BRANCH_ID_MAP: Record<string, string> = {
-  'br-1': '00000000-0000-4000-a000-000000000010',
-  'br-2': '00000000-0000-4000-a000-000000000020'
-};
-
 const migrateBranchId = (branchId?: string): string | undefined =>
-  branchId ? (LEGACY_BRANCH_ID_MAP[branchId] || branchId) : branchId;
+  branchId ? normalizeBranchId(branchId) : branchId;
 
 const createEmptyShift = (branchId?: string): Shift => ({
   id: 'shift-not-opened',
@@ -75,80 +70,8 @@ const createEmptyShift = (branchId?: string): Shift => ({
   branchId
 });
 
-const posBroadcastChannel =
-  typeof window !== 'undefined' && 'BroadcastChannel' in window
-    ? new BroadcastChannel('pos_pro_sync_channel')
-    : null;
-
-// Siaran perubahan data antar perangkat dalam SATU cabang.
-//
-// Sebelumnya ini satu channel global bernama 'pos_cloud_sync_realtime' yang
-// dipakai semua cabang dan semua tenant sekaligus, tanpa private: true. Stok,
-// menu, meja, shift, dan pengeluaran satu outlet tersiar ke outlet lain dan
-// langsung ditulis ke localStorage penerima tanpa pemeriksaan asal — data
-// Pasirmulya menimpa Pasar Anyar, dan tenant lain ikut mendengar.
-let supabaseSyncChannel: any = null;
-let syncChannelBranchId: string | null = null;
-let isSyncChannelJoined = false;
-
-export function disconnectBranchSync(): void {
-  if (!supabaseSyncChannel) return;
-  const channel = supabaseSyncChannel;
-  supabaseSyncChannel = null;
-  syncChannelBranchId = null;
-  import('../lib/supabase')
-    .then(({ getSupabase }) => getSupabase().removeChannel(channel))
-    .catch(() => {});
-}
-
-function connectBranchSync(branchId: string): void {
-  if (!branchId || !cloudReadiness.supabase) return;
-  if (syncChannelBranchId === branchId && supabaseSyncChannel) return;
-
-  if (supabaseSyncChannel) {
-    const oldChannel = supabaseSyncChannel;
-    supabaseSyncChannel = null;
-    isSyncChannelJoined = false;
-    void import('../lib/supabase').then(({ getSupabase }) => getSupabase().removeChannel(oldChannel));
-  }
-
-  syncChannelBranchId = branchId;
-  import('../lib/supabase')
-    .then(({ getSupabase }) => {
-      if (syncChannelBranchId !== branchId) return;
-      try {
-        const channel = getSupabase().channel(`branch:${branchId}:sync`, { config: { private: true } });
-        channel
-          .on('broadcast', { event: 'pos_sync' }, (message: any) => {
-            const { key, value, branchId: senderBranchId } = message.payload || {};
-            if (!key || value === undefined || senderBranchId !== syncChannelBranchId) return;
-            if (key === STORAGE_KEYS.CURRENT_SHIFT) return;
-            try {
-              localStorage.setItem(key, JSON.stringify(value));
-              window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
-            } catch {
-              // Ignore failure
-            }
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              isSyncChannelJoined = true;
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              isSyncChannelJoined = false;
-              syncChannelBranchId = null;
-            }
-          });
-        supabaseSyncChannel = channel;
-      } catch {
-        syncChannelBranchId = null;
-        isSyncChannelJoined = false;
-      }
-    })
-    .catch(() => {
-      syncChannelBranchId = null;
-      isSyncChannelJoined = false;
-    });
-}
+// Data lintas perangkat tidak pernah disinkronkan melalui localStorage.
+// Supabase/database adalah sumber kebenaran untuk data operasional cloud.
 
 // Helper to get item from localStorage or default
 function getStoredItem<T>(key: string, defaultValue: T): T {
@@ -161,56 +84,15 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
   }
 }
 
-// Keys that require cloud real-time broadcast across different devices/origins
-const CRITICAL_CLOUD_SYNC_KEYS = new Set([
-  STORAGE_KEYS.EXPENSES,
-  STORAGE_KEYS.TABLES,
-  STORAGE_KEYS.MENU,
-  STORAGE_KEYS.RAW_MATERIALS
-]);
-
-const cloudBroadcastDebounceMap = new Map<string, number>();
-
 function setStoredItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-
-    if (typeof window !== 'undefined') {
-      // 1. Instant Local Tab/Window Sync (100% Free - 0 Supabase CPU)
-      window.dispatchEvent(new CustomEvent('pos_data_changed', { detail: { key, value } }));
-      posBroadcastChannel?.postMessage({ key, value, timestamp: Date.now() });
-
-      // 2. Selective Cloud Broadcast (Only when WebSocket channel is actively joined)
-      if (isSyncChannelJoined && supabaseSyncChannel && cloudReadiness.supabase && CRITICAL_CLOUD_SYNC_KEYS.has(key)) {
-        const lastSent = cloudBroadcastDebounceMap.get(key) || 0;
-        const now = Date.now();
-        if (now - lastSent > 1500) {
-          cloudBroadcastDebounceMap.set(key, now);
-          supabaseSyncChannel
-            .send({
-              type: 'broadcast',
-              event: 'pos_sync',
-              payload: { key, value, timestamp: now, branchId: syncChannelBranchId }
-            })
-            .catch(() => {});
-        }
-      }
-    }
   } catch (e) {
     console.error(`Error saving localStorage key "${key}":`, e);
   }
 }
 
 export class DBStorage {
-  /** Dengarkan siaran perubahan data dari perangkat lain di cabang ini. */
-  static connectBranchSync(branchId: string): void {
-    connectBranchSync(branchId);
-  }
-
-  static disconnectBranchSync(): void {
-    disconnectBranchSync();
-  }
-
   // Initialize default data if empty
   static initDefaults(): void {
     if (!localStorage.getItem(STORAGE_KEYS.MENU)) {
@@ -311,7 +193,12 @@ export class DBStorage {
 
   // Branches / Outlets
   static getBranches(): Branch[] {
-    return getStoredItem<Branch[]>(STORAGE_KEYS.BRANCHES, INITIAL_BRANCHES);
+      const branches = getStoredItem<Branch[]>(STORAGE_KEYS.BRANCHES, INITIAL_BRANCHES);
+      const migrated = branches.map((branch) => ({ ...branch, id: normalizeBranchId(branch.id) }));
+      if (migrated.some((branch, index) => branch.id !== branches[index]?.id)) {
+        setStoredItem(STORAGE_KEYS.BRANCHES, migrated);
+      }
+      return migrated;
   }
 
   static saveBranch(branch: Branch): Branch[] {
@@ -829,12 +716,6 @@ export class DBStorage {
 
   static clearOfflineQueue(): void {
     setStoredItem(STORAGE_KEYS.OFFLINE_QUEUE, []);
-    // Mark pending orders as synced
-    const orders = this.getOrders();
-    orders.forEach((o) => {
-      o.syncStatus = 'SYNCED';
-    });
-    setStoredItem(STORAGE_KEYS.ORDERS, orders);
   }
 
   // Purge all prototype dummy transactions & test records for real-time trial
@@ -855,48 +736,4 @@ export class DBStorage {
     setStoredItem(STORAGE_KEYS.CURRENT_SHIFT, createEmptyShift());
   }
 
-  // Real-time Event Subscription & Cross-Origin Broadcast
-  static subscribeToSync(callback: (key: string, value: any) => void): () => void {
-    if (typeof window === 'undefined') return () => {};
-
-    const handleCustomEvent = (e: any) => {
-      if (e.detail?.key) {
-        callback(e.detail.key, e.detail.value);
-      }
-    };
-
-    const handleStorageEvent = (e: StorageEvent) => {
-      if (e.key) {
-        try {
-          const val = e.newValue ? JSON.parse(e.newValue) : null;
-          callback(e.key, val);
-        } catch {
-          // ignore parse error
-        }
-      }
-    };
-
-    const handleBroadcast = (e: MessageEvent) => {
-      if (e.data?.key) {
-        callback(e.data.key, e.data.value);
-      }
-    };
-
-    window.addEventListener('pos_data_changed', handleCustomEvent);
-    window.addEventListener('storage', handleStorageEvent);
-    posBroadcastChannel?.addEventListener('message', handleBroadcast);
-
-    return () => {
-      window.removeEventListener('pos_data_changed', handleCustomEvent);
-      window.removeEventListener('storage', handleStorageEvent);
-      posBroadcastChannel?.removeEventListener('message', handleBroadcast);
-    };
-  }
-
-  static syncAllDataWithCloud(): void {
-    if (typeof window === 'undefined') return;
-    setStoredItem(STORAGE_KEYS.ORDERS, this.getOrders());
-    setStoredItem(STORAGE_KEYS.EXPENSES, this.getExpenseRecords());
-    setStoredItem(STORAGE_KEYS.TABLES, this.getTables());
-  }
 }
