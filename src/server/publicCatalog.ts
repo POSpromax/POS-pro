@@ -6,9 +6,17 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   const normalizedRouteCode = String(branchRouteCode || '').trim();
   if (!UUID_PATTERN.test(branchId) && !/^\d{2,4}$/.test(normalizedRouteCode)) return { status: 400, data: { error: 'Outlet tidak valid' } };
   if (tenantId && !UUID_PATTERN.test(tenantId)) return { status: 400, data: { error: 'Tenant tidak valid' } };
+  let resolvedBranchId = UUID_PATTERN.test(branchId) ? branchId : '';
+  if (!resolvedBranchId && normalizedRouteCode) {
+    const routeResult = await admin.from('branch_operational_config')
+      .select('branch_id')
+      .eq('public_order_slug', normalizedRouteCode)
+      .maybeSingle();
+    if (!routeResult.error && routeResult.data?.branch_id) resolvedBranchId = routeResult.data.branch_id;
+  }
   let branchQuery = admin.from('branches').select('id,tenant_id,name,code,address,is_active');
-  branchQuery = UUID_PATTERN.test(branchId)
-    ? branchQuery.eq('id', branchId)
+  branchQuery = resolvedBranchId
+    ? branchQuery.eq('id', resolvedBranchId)
     : branchQuery.ilike('code', `%-${normalizedRouteCode}`);
   if (tenantId) branchQuery = branchQuery.eq('tenant_id', tenantId);
   const { data: branch } = await branchQuery.eq('is_active', true).limit(1).maybeSingle();
@@ -67,6 +75,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
         tenantId: branch.tenant_id,
         selfOrderEnabled: branchConfig?.self_order_enabled !== false,
         selfOrderBaseUrl: branchConfig?.self_order_base_url || '',
+        publicOrderSlug: normalizedRouteCode || '',
         profileOverrides: branchConfig?.profile_overrides || {},
       },
       profile: publicProfile,

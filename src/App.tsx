@@ -1140,7 +1140,7 @@ export default function App() {
     if (cloudReadiness.supabase && isOnline && isCloudOrderId(orderId)) {
       // Hanya order berid cloud (UUID) yang bisa di-PATCH. Perubahannya tersiar
       // realtime ke semua terminal lewat trigger database.
-      void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
+      void updateCloudOrderStatus(currentBranch.id, orderId, newStatus, currentShift.id)
         .then(() => showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`))
         .catch((error) => {
           void listCloudOrders(currentBranch.id).then(setOrders);

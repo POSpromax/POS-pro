@@ -49,36 +49,50 @@ async function readActiveShift(branchId: string, admin: SupabaseClient) {
 }
 
 async function aggregateShiftMetrics(shiftId: string, branchId: string, admin: SupabaseClient) {
-  const [{ data: orders, error: orderError }, { data: cashRecords, error: cashError }] = await Promise.all([
-    admin
-      .from('orders')
-      .select('total_amount,payment_method')
+  const [paymentResult, cashResult] = await Promise.all([
+    admin.from('payments')
+      .select('amount,method,orders!inner(status)')
       .eq('branch_id', branchId)
       .eq('shift_id', shiftId)
-      .eq('payment_status', 'PAID')
-      .neq('status', 'CANCELLED'),
+      .eq('status', 'PAID')
+      .neq('orders.status', 'CANCELLED'),
     admin
       .from('expense_income_records')
       .select('record_type,amount')
       .eq('branch_id', branchId)
       .eq('shift_id', shiftId),
   ]);
-  if (orderError) throw orderError;
-  if (cashError) throw cashError;
+  if (cashResult.error) throw cashResult.error;
+
+  let sales = (paymentResult.data || []).map((payment: any) => ({
+    amount: Number(payment.amount || 0),
+    method: payment.method,
+  }));
+  if (paymentResult.error) {
+    // Fallback sampai migrasi paid_shift_id/payment.shift_id diterapkan.
+    const { data: orders, error } = await admin.from('orders')
+      .select('total_amount,payment_method')
+      .eq('branch_id', branchId)
+      .eq('shift_id', shiftId)
+      .eq('payment_status', 'PAID')
+      .neq('status', 'CANCELLED');
+    if (error) throw error;
+    sales = (orders || []).map((order) => ({ amount: Number(order.total_amount || 0), method: order.payment_method }));
+  }
 
   let grossOmset = 0;
   let cashSales = 0;
   let nonCashSales = 0;
-  for (const order of orders || []) {
-    const amount = Number(order.total_amount || 0);
+  for (const sale of sales) {
+    const amount = sale.amount;
     grossOmset += amount;
-    if (order.payment_method === 'CASH') cashSales += amount;
+    if (sale.method === 'CASH') cashSales += amount;
     else nonCashSales += amount;
   }
 
   let totalExpense = 0;
   let totalIncome = 0;
-  for (const record of cashRecords || []) {
+  for (const record of cashResult.data || []) {
     const amount = Number(record.amount || 0);
     if (record.record_type === 'EXPENSE') totalExpense += amount;
     else if (record.record_type === 'INCOME') totalIncome += amount;

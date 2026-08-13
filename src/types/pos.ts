@@ -95,6 +95,7 @@ export interface BranchOperationalConfig {
   tenantId?: string;
   selfOrderEnabled: boolean;
   selfOrderBaseUrl: string;
+  publicOrderSlug?: string;
   profileOverrides?: Partial<RestaurantProfile>;
 }
 
@@ -177,6 +178,9 @@ export interface Order {
   status: OrderStatus;
   createdAt: string; // ISO String
   shiftId: string;
+  createdShiftId?: string;
+  paidShiftId?: string;
+  completedShiftId?: string;
   branchId: string;
   cashierName: string;
   isOfflineCreated?: boolean;

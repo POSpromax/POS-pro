@@ -39,6 +39,9 @@ const mapOrder = (row: any, items: any[] = []) => {
   status: row.status === 'ACCEPTED' ? 'NEW' : row.status,
   createdAt: row.created_at,
   shiftId: row.shift_id || metadata.shiftId || '',
+  createdShiftId: row.created_shift_id || row.shift_id || metadata.shiftId || undefined,
+  paidShiftId: row.paid_shift_id || undefined,
+  completedShiftId: row.completed_shift_id || undefined,
   branchId: row.branch_id,
   cashierName: row.cashier_name || metadata.cashierName || 'Staff',
   source: row.source,
@@ -59,15 +62,27 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
 }
 
 async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string) {
-  let query = admin.from('orders')
-    .select('*, restaurant_tables!orders_table_id_fkey(number)')
-    .eq('branch_id', branchId)
-    .order('created_at', { ascending: false })
-    .limit(orderId ? 1 : 150);
-  if (orderId) query = query.eq('id', orderId);
-  const { data: rows, error } = await query;
-  if (error) throw error;
-  const ids = (rows || []).map((row) => row.id);
+  const select = '*, restaurant_tables!orders_table_id_fkey(number)';
+  let rows: any[] = [];
+  if (orderId) {
+    const { data, error } = await admin.from('orders').select(select).eq('branch_id', branchId).eq('id', orderId).limit(1);
+    if (error) throw error;
+    rows = data || [];
+  } else {
+    const [{ data: recent, error: recentError }, { data: openLifecycle, error: openError }] = await Promise.all([
+      admin.from('orders').select(select).eq('branch_id', branchId).order('created_at', { ascending: false }).limit(150),
+      admin.from('orders').select(select)
+        .eq('branch_id', branchId)
+        .neq('status', 'CANCELLED')
+        .or('status.neq.COMPLETED,payment_status.neq.PAID')
+        .order('created_at', { ascending: false }),
+    ]);
+    if (recentError || openError) throw recentError || openError;
+    const unique = new Map<string, any>();
+    [...(openLifecycle || []), ...(recent || [])].forEach((row) => unique.set(row.id, row));
+    rows = [...unique.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+  const ids = rows.map((row) => row.id);
   const { data: items, error: itemsError } = ids.length
     ? await admin.from('order_items').select('*').in('order_id', ids).order('created_at')
     : { data: [], error: null };
@@ -78,7 +93,7 @@ async function readOrders(branchId: string, admin: SupabaseClient, orderId?: str
     if (bucket) bucket.push(item);
     else itemsByOrder.set(item.order_id, [item]);
   });
-  return (rows || []).map((row) => mapOrder(row, itemsByOrder.get(row.id) || []));
+  return rows.map((row) => mapOrder(row, itemsByOrder.get(row.id) || []));
 }
 
 export async function handleOrderRequest(
@@ -106,10 +121,15 @@ export async function handleOrderRequest(
   if (method === 'PATCH') {
     if (!actor) return fail(401, 'Sesi telah berakhir');
     if (!UUID_PATTERN.test(String(payload.orderId || '')) || !ORDER_STATUSES.has(payload.status)) return fail(400, 'Status pesanan tidak valid');
+    const kitchenRoles = new Set(['KITCHEN', 'SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
+    if (!kitchenRoles.has(actor.role)) return fail(403, 'Role tidak memiliki izin memperbarui status dapur');
 
     // Pembatalan bukan sekadar ganti status: stok dikembalikan, pembayaran
     // ditandai refund, dan peristiwanya dicatat — semuanya dalam satu transaksi.
     if (payload.status === 'CANCELLED') {
+      if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(actor.role)) {
+        return fail(403, 'Pembatalan membutuhkan persetujuan Manager atau Owner');
+      }
       const { error: voidError } = await admin.rpc('void_order', {
         p_order_id: payload.orderId,
         p_branch_id: branchId,
@@ -121,7 +141,17 @@ export async function handleOrderRequest(
       return { status: 200, data: { success: true } };
     }
 
-    const { data: updated, error } = await admin.from('orders').update({ status: payload.status }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
+    const completedShiftId = UUID_PATTERN.test(String(payload.shiftId || '')) ? String(payload.shiftId) : null;
+    let updateResult = await admin.from('orders').update({
+      status: payload.status,
+      ...(payload.status === 'COMPLETED' && completedShiftId ? { completed_shift_id: completedShiftId } : {}),
+    }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
+    // Kompatibilitas singkat selama migrasi attribution belum diterapkan.
+    if (updateResult.error && payload.status === 'COMPLETED' && completedShiftId) {
+      updateResult = await admin.from('orders').update({ status: payload.status })
+        .eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
+    }
+    const { data: updated, error } = updateResult;
     if (error || !updated) return fail(500, 'Status pesanan gagal diperbarui');
     if (payload.status === 'COOKING') {
       await admin.from('order_items').update({ kitchen_status: 'PREPARING' }).eq('order_id', payload.orderId).eq('kitchen_status', 'PENDING');
@@ -136,6 +166,9 @@ export async function handleOrderRequest(
   if (!input || !Array.isArray(input.items) || input.items.length < 1 || input.items.length > 60) return fail(400, 'Isi pesanan tidak valid');
   const source = input.source === 'SELF_ORDER' ? 'SELF_ORDER' : 'POS';
   if (source === 'POS' && !actor) return fail(401, 'Sesi telah berakhir');
+  if (source === 'POS' && actor && !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'].includes(actor.role)) {
+    return fail(403, 'Role tidak memiliki izin membuat atau membayar order POS');
+  }
   const { data: branch } = await admin.from('branches').select('tenant_id,is_active').eq('id', branchId).maybeSingle();
   if (!branch?.is_active || (actor && actor.tenantId !== branch.tenant_id)) return fail(403, 'Outlet tidak aktif');
 

@@ -53,6 +53,7 @@ Jalankan migrasi berurutan sampai:
 3. `202608130019_realtime_free_tier_optimization.sql`
 4. `202608130020_permanent_branch_qr_tables.sql`
 5. `202608130021_atomic_paid_table_state.sql`
+6. `202608130022_shift_attribution_public_route.sql`
 
 Migrasi 018 menghapus izin kanal `branch:{branchId}:sync` lama sehingga browser
 tidak lagi dapat mengirim seluruh isi localStorage ke perangkat lain.
@@ -67,6 +68,11 @@ relasi `active_order_id`. Query embed order-meja harus menyebut foreign key
 
 Migrasi 021 memakai deferred constraint trigger agar order berstatus `PAID` dan
 meja `DISABLED`/tanpa bill aktif selalu selesai dalam commit database yang sama.
+
+Migrasi 022 menyimpan shift pembuatan, pembayaran, dan penyelesaian secara
+terpisah; pembayaran carry-over masuk ke omzet shift penerima pembayaran tanpa
+menghapus jejak shift pembuat order. Migrasi ini juga mengunci slug Self-order
+sebagai nilai unik global.
 
 ## Matriks subscription aktif
 

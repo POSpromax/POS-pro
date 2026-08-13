@@ -27,6 +27,10 @@ Terakhir diperbarui: 13 Agustus 2026.
   dan BGR-02 menjadi `/02`. Semua meja satu cabang tetap memakai tujuan sama.
 - Order menggantung tetap dibawa ke Queue/KDS shift berikutnya dengan label
   `Carry-over`; penutupan shift tidak membatalkan ataupun menyembunyikannya.
+- Migrasi 022 memisahkan `created_shift_id`, `paid_shift_id`, dan
+  `completed_shift_id`, serta menjadikan slug Self-order unik secara global.
+- API selalu mengambil seluruh lifecycle order yang belum tuntas di luar batas
+  150 histori terbaru dan menerapkan izin aksi berdasarkan role.
 - Migrasi 021 membuat pembayaran dan status akhir meja dibukukan atomik; migrasi
   ini wajib diterapkan sebelum deployment berikutnya.
 - Master inventory BGR-01 sudah disalin idempoten ke BGR-02 pada 13 Agustus
@@ -47,6 +51,11 @@ Terakhir diperbarui: 13 Agustus 2026.
 2. Uji POS -> KDS -> bayar -> ledger stok -> tutup shift pada dua perangkat.
 3. Pastikan order self-order masuk hanya pada cabang/meja aktif yang benar.
 4. Tambahkan automated integration test untuk checkout idempotent dan role/RLS.
+
+Migrasi terbaru yang wajib diterapkan berurutan:
+
+1. `202608130021_atomic_paid_table_state.sql`
+2. `202608130022_shift_attribution_public_route.sql`
 
 Penyalinan master inventory dapat diulang tanpa membuat duplikat:
 

@@ -23,8 +23,8 @@ export const listCloudOrders = (branchId: string): Promise<Order[]> =>
 export const submitCloudOrder = (order: Order): Promise<Order> =>
   request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ branchId: order.branchId, order }) }, order.source !== 'SELF_ORDER');
 
-export const updateCloudOrderStatus = (branchId: string, orderId: string, status: OrderStatus): Promise<void> =>
-  request<void>('/api/orders', { method: 'PATCH', body: JSON.stringify({ branchId, orderId, status }) });
+export const updateCloudOrderStatus = (branchId: string, orderId: string, status: OrderStatus, shiftId?: string): Promise<void> =>
+  request<void>('/api/orders', { method: 'PATCH', body: JSON.stringify({ branchId, orderId, status, shiftId }) });
 
 export const getPublicOrder = (branchId: string, orderId: string): Promise<Order | null> =>
   request<Order | null>(`/api/orders?branchId=${encodeURIComponent(branchId)}&orderId=${encodeURIComponent(orderId)}`, undefined, false);
