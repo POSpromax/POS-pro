@@ -1,28 +1,63 @@
-# OmniPOS Multi Cabang
+# POS-PRO Bakso Ujo
 
-POS restoran multi-cabang dengan terminal kasir, KDS, shift, absensi, inventory,
-self-order, PWA, Supabase, Cloudinary, dan deployment Vercel.
+POS restoran multi-cabang berbasis React, Express, Supabase, Cloudinary, dan Vercel. Modul utama mencakup POS kasir, KDS, shift, inventory/HPP, meja, absensi, payroll, laporan owner, serta self-order.
 
 ## Menjalankan lokal
 
-1. Gunakan Node.js 20 atau lebih baru.
-2. Salin `.env.example` menjadi `.env.local`, lalu isi variable publik saja.
-3. Jalankan `npm install` dan `npm run dev`.
-4. Validasi dengan `npm run lint` dan `npm run build:web`.
+Persyaratan: Node.js 20+ dan npm.
 
-Jangan simpan secret Supabase atau Cloudinary di variable yang diawali `VITE_`.
-Semua nilai `VITE_*` akan menjadi bagian dari bundle browser.
+```powershell
+npm.cmd ci
+npm.cmd run dev
+```
 
-## Status arsitektur
+Aplikasi tersedia di `http://localhost:3000`. Salin `.env.example` menjadi `.env` untuk development lokal dan isi kredensial proyek yang benar. Jangan commit `.env`.
 
-- PWA, lazy-loaded route, cache media Cloudinary, dan deployment Vercel: tersedia.
-- Schema tenant/cabang, RLS, private Realtime Broadcast, workflow security, dan
-  audit ledger: tersedia sebagai migration di `supabase/migrations`.
-- Cloudinary memakai signed upload dan memverifikasi user, tenant, cabang, dan role.
-- Terminal sekarang terkunci saat halaman operasional pertama dibuka.
-- Adapter transaksi UI masih memakai browser storage. Jangan melakukan pilot
-  transaksi nyata sampai migration dijalankan, seed dibuat, dan cutover adapter
-  Supabase selesai.
+Validasi sebelum commit:
 
-Lihat `DEPLOYMENT_SECURITY_CHECKLIST.md` dan
-`BLUEPRINT_OPTIMASI_WORKFLOW_MULTI_CABANG.md` sebelum deployment produksi.
+```powershell
+npm.cmd run lint
+npm.cmd run build
+git diff --check
+```
+
+Gunakan `npm.cmd run clean` untuk menghapus output build secara portable.
+
+## Arsitektur saat ini
+
+- Supabase adalah sumber kebenaran data lintas perangkat.
+- Data selalu dibatasi tenant dan cabang melalui API/RLS.
+- POS/KDS memakai realtime per cabang dengan polling cadangan hemat free-tier.
+- Shift memakai realtime dan rekonsiliasi database; tidak memakai cache browser sebagai status pusat.
+- QR self-order permanen per cabang. Kasir mengaktifkan atau menonaktifkan meja dari server.
+- Checkout cloud, payment key, nomor order harian, stock ledger, dan konsistensi shift tersedia melalui migration.
+- `localStorage` hanya untuk mode demo tanpa konfigurasi Supabase; `sessionStorage` hanya untuk sesi terminal perangkat.
+
+## Struktur penting
+
+```text
+api/                  Vercel serverless entrypoints
+src/components/       UI per domain
+src/server/           handler dan validasi server
+src/services/         adapter cloud/realtime di browser
+src/styles/           token dan komponen tema global
+supabase/migrations/  schema berurutan dan immutable
+scripts/              alat setup/migrasi yang dijalankan manual
+docs/                 handoff dan dokumentasi operasional
+```
+
+## Deployment
+
+Branch `main` terhubung ke Vercel. Push ke `origin/main` memicu build/deployment. Environment Vercel dan lokal harus menunjuk proyek Supabase yang sama agar data sinkron.
+
+Migration harus diterapkan berurutan. Lihat `supabase/README.md` sebelum menjalankan SQL pada environment baru.
+
+## Status data yang perlu perhatian
+
+- Cabang BGR-02 sudah memiliki 53 menu.
+- Resep bahan cabang masih perlu dilengkapi sebelum deduksi stok otomatis dianggap siap.
+- Gunakan panel **Kesiapan Inventory Cabang** untuk melihat tahapan menu, bahan konsumsi, resep, HPP, dan batas stok.
+
+## Handoff editor
+
+Mulai dari `AGENTS.md` dan `docs/EDITOR_CONTINUITY.md`. Keduanya sengaja tidak bergantung pada VS Code, Cursor, Claude, Kiro, atau editor tertentu.

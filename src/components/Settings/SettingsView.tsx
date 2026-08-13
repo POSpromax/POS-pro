@@ -298,7 +298,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Main Header Bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+            <div className="w-12 h-12 bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] rounded-2xl flex items-center justify-center text-white shadow-[var(--shadow-md)]">
               <Settings className="w-6 h-6" />
             </div>
             <div>
@@ -1330,7 +1330,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setNewGroupModalOpen(true)}
-                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-md shadow-orange-500/20 cursor-pointer"
+                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-[var(--shadow-md)] cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       <span>+ Grup</span>
@@ -1443,7 +1443,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onSaveCondimentGroup({ ...group, isRequired: true })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[var(--primary)] text-white shadow-md shadow-orange-500/20' : 'text-[var(--text-secondary)]'}`}
+                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-md)]' : 'text-[var(--text-secondary)]'}`}
                                   >
                                     Wajib Pilih (Harus Ada)
                                   </button>

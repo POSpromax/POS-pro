@@ -262,7 +262,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             <button
               onClick={() => onProcessPayment(paymentMethod, cashPaid, true)}
-              className="ui-button ui-button-primary px-6 py-3 text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20"
+              className="ui-button ui-button-primary px-6 py-3 text-xs flex items-center gap-1.5"
             >
               <Printer className="w-4 h-4" /> Bayar & Cetak Struk
             </button>

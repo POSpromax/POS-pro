@@ -1,4 +1,5 @@
 import { getDeviceFingerprintHash } from '../lib/deviceFingerprint';
+import { getSupabase } from '../lib/supabase';
 
 export interface CloudLoginResult {
   success: boolean;
@@ -40,7 +41,6 @@ export async function cloudPinLogin(branchId: string, pin: string, signal?: Abor
 
   if (signal?.aborted) throw new DOMException('Login dibatalkan', 'AbortError');
 
-  const { getSupabase } = await import('../lib/supabase');
   const supabase = getSupabase();
   const { error: otpError } = await supabase.auth.verifyOtp({
     token_hash: data.tokenHash,
@@ -55,7 +55,6 @@ export async function cloudPinLogin(branchId: string, pin: string, signal?: Abor
 }
 
 export async function cloudSignOut(): Promise<void> {
-  const { getSupabase } = await import('../lib/supabase');
   const supabase = getSupabase();
   await supabase.auth.signOut({ scope: 'global' });
 }

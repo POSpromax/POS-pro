@@ -1,7 +1,7 @@
 import type { UserAccount } from '../types/pos';
+import { getSupabase } from '../lib/supabase';
 
 async function authorizedRequest(method: string, body?: unknown) {
-  const { getSupabase } = await import('../lib/supabase');
   const supabase = getSupabase();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;

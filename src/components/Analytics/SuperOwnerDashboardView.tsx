@@ -440,7 +440,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
               style={{
                 borderColor: isSelected ? 'var(--primary)' : 'var(--panel-border)',
                 background: isSelected ? 'var(--primary-soft)' : 'var(--surface-card)',
-                boxShadow: isSelected ? '0 0 0 3px rgb(234 88 12 / 8%)' : 'var(--card-shadow)',
+                boxShadow: isSelected ? 'var(--focus-ring)' : 'var(--card-shadow)',
               }}
             >
               {/* Card header */}
@@ -529,7 +529,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                       : 'border text-slate-800'
                   }`}
                   style={isSelected
-                    ? { background: 'var(--primary-gradient)', boxShadow: '0 4px 14px rgb(234 88 12 / 20%)' }
+                    ? { background: 'var(--primary-gradient)', boxShadow: '0 4px 14px rgb(4 120 87 / 22%)' }
                     : { borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }
                   }
                 >

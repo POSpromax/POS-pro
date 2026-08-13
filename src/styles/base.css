@@ -31,18 +31,18 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid rgb(234 88 12 / 35%);
+  outline: 3px solid rgb(5 150 105 / 32%);
   outline-offset: 2px;
 }
 
 ::selection { background: var(--brand-200); color: var(--text-primary); }
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
-.scrollbar-thin { scrollbar-color: #d4d4d8 transparent; scrollbar-width: thin; }
+.scrollbar-thin { scrollbar-color: #cbd5e1 transparent; scrollbar-width: thin; }
 .scrollbar-thin::-webkit-scrollbar { width: 5px; height: 5px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { border-radius: 999px; background: #d4d4d8; }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #b4b4bb; }
+.scrollbar-thin::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 @keyframes skeletonShimmer { to { background-position: -200% 0; } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }

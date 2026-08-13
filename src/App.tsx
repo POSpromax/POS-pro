@@ -38,6 +38,7 @@ import {
 import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
 import { cloudReadiness } from './lib/runtimeEnv';
+import { getSupabase } from './lib/supabase';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
 import { cloudSignOut } from './services/authService';
 import {
@@ -133,7 +134,7 @@ if (typeof window !== 'undefined' && !cloudReadiness.supabase) {
 
 const RouteFallback = () => (
   <div className="flex flex-1 items-center justify-center bg-[#f5f5f4] text-sm font-bold text-stone-500">
-    <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-stone-300 border-t-orange-600" />
+    <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
     Memuat modul…
   </div>
 );
@@ -350,7 +351,7 @@ export default function App() {
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !activeUser.id) return;
     let cancelled = false;
-    void import('./lib/supabase').then(async ({ getSupabase }) => {
+    void (async () => {
       const { data: membership } = await getSupabase().from('branch_members')
         .select('role,permissions,is_active')
         .eq('user_id', activeUser.id)
@@ -367,7 +368,7 @@ export default function App() {
         role: membership.role as UserAccount['role'],
         permissions: membership.permissions || {},
       }));
-    });
+    })();
     return () => { cancelled = true; };
   }, [isTerminalUnlocked, currentBranch.id, activeUser.id]);
 
@@ -563,33 +564,10 @@ export default function App() {
               playNewOrderSound();
             }
           }
-          // Hanya antrean offline yang boleh digabung ke tampilan cloud.
-          // Cache order lama di localStorage tidak pernah menjadi sumber sinkronisasi.
-          const localOrders = DBStorage.getOfflineQueue()
-            .filter((entry) => entry.type === 'SAVE_ORDER')
-            .map((entry) => entry.payload as Order)
-            .filter((order) => order.branchId === currentBranch.id);
-          const mergedOrders = cloudOrders.map((cloudOrder) => {
-            const localMatch = localOrders.find((lo) => lo.id === cloudOrder.id);
-            const effectiveTableNumber =
-              (cloudOrder.tableNumber && cloudOrder.tableNumber !== '-' && cloudOrder.tableNumber !== '')
-                ? cloudOrder.tableNumber
-                : (localMatch?.tableNumber && localMatch.tableNumber !== '-' && localMatch.tableNumber !== '')
-                ? localMatch.tableNumber
-                : '-';
-
-            return {
-              ...cloudOrder,
-              tableNumber: effectiveTableNumber
-            };
-          });
-
-          // Include any local-only hold orders not yet present in cloud response
-          const cloudIds = new Set(cloudOrders.map((o) => o.id));
-          const localOnlyOrders = localOrders.filter((lo) => !cloudIds.has(lo.id));
-          const finalOrders = [...mergedOrders, ...localOnlyOrders];
-
-          setOrders(finalOrders);
+          // Saat Supabase aktif, database adalah satu-satunya sumber kebenaran.
+          // Order lokal tidak boleh disisipkan ke layar cloud karena dapat membuat
+          // kasir/KDS melihat transaksi yang belum pernah diterima server.
+          setOrders(cloudOrders);
 
           // Update state trackers for next realtime comparison
           knownItemQuantities = nextItemQuantities;
@@ -909,7 +887,6 @@ export default function App() {
         return;
       }
       try {
-        const { getSupabase } = await import('./lib/supabase');
         const supabase = getSupabase();
         const { data: userData } = await supabase.auth.getUser();
         const user = userData.user;
@@ -949,7 +926,7 @@ export default function App() {
 
   // 4. Online/Offline & Sync Queue State
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => DBStorage.getOfflineQueue().length);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => cloudReadiness.supabase ? 0 : DBStorage.getOfflineQueue().length);
   const [orderSyncHealth, setOrderSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
   const [shiftSyncHealth, setShiftSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
   const activeTabRef = useRef(activeTab);
@@ -1011,24 +988,11 @@ export default function App() {
     return false;
   };
 
-  // Sync Offline Queue & Realtime Channel
+  // Rekonsiliasi manual: muat ulang snapshot resmi dari cloud.
   const handleManualSync = async () => {
-    const queue = DBStorage.getOfflineQueue();
-    const failed: typeof queue = [];
-    if (cloudReadiness.supabase && isOnline) {
-      for (const entry of queue) {
-        if (entry.type !== 'SAVE_ORDER') {
-          failed.push(entry);
-          continue;
-        }
-        try {
-          await submitCloudOrder(entry.payload as Order);
-        } catch {
-          failed.push(entry);
-        }
-      }
-      DBStorage.clearOfflineQueue();
-      failed.forEach((entry) => DBStorage.addToOfflineQueue(entry));
+    if (cloudReadiness.supabase && !isOnline) {
+      showPushToast('Sinkronisasi Gagal', 'Terminal sedang offline. Tidak ada transaksi lokal yang dibuat.');
+      return;
     }
     if (cloudReadiness.supabase && isOnline) {
       const [cloudOrders, cloudTables, catalog, expenses, cloudShift] = await Promise.all([
@@ -1044,28 +1008,28 @@ export default function App() {
       setRawMaterials(catalog.rawMaterials.map((material) => ({ ...material, branchName: currentBranch.name })));
       setExpenseRecords(expenses);
       setCurrentShift(cloudShift || createInactiveShift(currentBranch.id));
+      // Antrean versi lama tidak lagi dikirim ke cloud.
+      DBStorage.clearOfflineQueue();
     }
-    setPendingSyncCount(failed.length);
-    showPushToast(
-      failed.length ? 'Sebagian Data Masih Tertunda' : 'Sinkronisasi Realtime Sukses',
-      failed.length ? `${failed.length} perubahan masih menunggu koneksi stabil.` : 'Pesanan telah tersimpan dan terminal cabang menerima pembaruan realtime.'
-    );
+    setPendingSyncCount(0);
+    showPushToast('Sinkronisasi Realtime Sukses', 'Data dimuat ulang dari cloud sebagai sumber kebenaran terminal.');
   };
 
   // Order Handlers
   const handleSaveHoldOrder = async (draftOrder: Order) => {
     if (!ensureOpenShift('menyimpan transaksi')) return;
     let saved = draftOrder;
-    if (cloudReadiness.supabase && isOnline) {
+    if (cloudReadiness.supabase) {
+      if (!isOnline) {
+        showPushToast('Order Belum Disimpan', 'Terminal offline. Sambungkan internet lalu coba kembali.');
+        return;
+      }
       try {
         saved = await submitCloudOrder(draftOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== draftOrder.id && order.id !== saved.id)]);
       } catch (error) {
-        saved = { ...draftOrder, isOfflineCreated: true, syncStatus: 'PENDING' };
-        DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: saved, timestamp: Date.now() });
-        setOrders((current) => [saved, ...current.filter((order) => order.id !== saved.id)]);
-        setPendingSyncCount(DBStorage.getOfflineQueue().length);
-        showPushToast('Order Masuk Antrean Offline', error instanceof Error ? error.message : 'Akan disinkronkan saat koneksi pulih.');
+        showPushToast('Order Gagal Disimpan', error instanceof Error ? error.message : 'Cloud belum menerima transaksi. Silakan coba kembali.');
+        return;
       }
     } else {
       saved = DBStorage.saveOrder(draftOrder, isOnline);
@@ -1074,8 +1038,6 @@ export default function App() {
       setTables(DBStorage.getTables());
       setCurrentShift(DBStorage.getCurrentShift());
     }
-    if (!isOnline) setPendingSyncCount(DBStorage.getOfflineQueue().length);
-
     showPushToast('Pesanan Disimpan', `Order ${formatOrderLabel(saved)} masuk antrean. Buka lewat Queue POS untuk melanjutkan.`);
   };
 
@@ -1099,16 +1061,17 @@ export default function App() {
     };
 
     let saved = fullOrder;
-    if (cloudReadiness.supabase && isOnline) {
+    if (cloudReadiness.supabase) {
+      if (!isOnline) {
+        showPushToast('Pembayaran Belum Diproses', 'Terminal offline. Sambungkan internet lalu coba kembali.');
+        return;
+      }
       try {
         saved = await submitCloudOrder(fullOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
       } catch (error) {
-        saved = { ...fullOrder, isOfflineCreated: true, syncStatus: 'PENDING' };
-        DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: saved, timestamp: Date.now() });
-        setOrders((current) => [saved, ...current.filter((order) => order.id !== saved.id)]);
-        setPendingSyncCount(DBStorage.getOfflineQueue().length);
-        showPushToast('Pembayaran Tersimpan Lokal', error instanceof Error ? error.message : 'Order akan disinkronkan saat koneksi pulih.');
+        showPushToast('Pembayaran Gagal', error instanceof Error ? error.message : 'Cloud belum mengakui pembayaran. Silakan coba kembali.');
+        return;
       }
     } else {
       saved = DBStorage.saveOrder(fullOrder, isOnline);
@@ -1120,8 +1083,6 @@ export default function App() {
       setTables(DBStorage.getTables());
       setCurrentShift(DBStorage.getCurrentShift());
     }
-    if (!isOnline) setPendingSyncCount(DBStorage.getOfflineQueue().length);
-
     setIsPaymentModalOpen(false);
     setActiveCheckoutOrder(null);
 
@@ -1158,16 +1119,18 @@ export default function App() {
       // Hanya order berid cloud (UUID) yang bisa di-PATCH. Perubahannya tersiar
       // realtime ke semua terminal lewat trigger database.
       void updateCloudOrderStatus(currentBranch.id, orderId, newStatus)
+        .then(() => showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`))
         .catch((error) => {
           void listCloudOrders(currentBranch.id).then(setOrders);
           showPushToast('Update Dapur Ditolak', error instanceof Error ? error.message : 'Status cloud belum berubah.');
         });
-    } else if (isOnline && found && !isCloudOrderId(orderId) && found.source !== 'SELF_ORDER') {
-      // Order berid lokal belum ada di cloud — tidak bisa di-PATCH (pasti 400).
-      // Antrekan untuk dikirim ulang lewat Sinkronisasi, bukan POST langsung
-      // supaya tidak membanjiri error saat order belum valid.
-      DBStorage.addToOfflineQueue({ type: 'SAVE_ORDER', payload: { ...found, status: newStatus, syncStatus: 'PENDING' }, timestamp: Date.now() });
-      setPendingSyncCount(DBStorage.getOfflineQueue().length);
+      return;
+    } else if (cloudReadiness.supabase) {
+      // Mode cloud tidak pernah mengantrekan perubahan status ke localStorage.
+      // Pulihkan layar dari database dan minta operator mencoba ulang.
+      void listCloudOrders(currentBranch.id).then(setOrders);
+      showPushToast('Update Dapur Ditolak', isOnline ? 'Order belum memiliki ID cloud yang valid.' : 'Terminal sedang offline.');
+      return;
     } else if (!cloudReadiness.supabase) {
       DBStorage.updateOrderStatus(orderId, newStatus);
       setOrders(DBStorage.getOrders());
@@ -1179,7 +1142,11 @@ export default function App() {
   const handleSubmitCustomerOrder = async (newOrder: Order) => {
     const targetBranchId = newOrder.branchId || currentBranch.id;
     const orderToSave = { ...newOrder, branchId: targetBranchId };
-    if (cloudReadiness.supabase && isOnline) {
+    if (cloudReadiness.supabase) {
+      if (!isOnline) {
+        showPushToast('Self-order Belum Terkirim', 'Perangkat sedang offline. Sambungkan internet lalu kirim ulang.');
+        return;
+      }
       try {
         const saved = await submitCloudOrder(orderToSave);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);

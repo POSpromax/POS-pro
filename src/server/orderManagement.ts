@@ -125,7 +125,7 @@ export async function handleOrderRequest(
     if (error || !updated) return fail(500, 'Status pesanan gagal diperbarui');
     if (payload.status === 'COOKING') {
       await admin.from('order_items').update({ kitchen_status: 'PREPARING' }).eq('order_id', payload.orderId).eq('kitchen_status', 'PENDING');
-    } else if (payload.status === 'COMPLETED') {
+    } else if (payload.status === 'READY' || payload.status === 'COMPLETED') {
       await admin.from('order_items').update({ kitchen_status: 'DONE' }).eq('order_id', payload.orderId).neq('kitchen_status', 'DONE');
     }
 

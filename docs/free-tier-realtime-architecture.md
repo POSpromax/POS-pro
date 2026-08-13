@@ -10,7 +10,7 @@
 - Self-order menulis melalui endpoint server yang memvalidasi cabang, meja, menu, harga, condiment, dan batas maksimal lima order per meja per menit.
 - Harga menu dan condiment dihitung ulang di server. Browser tidak menjadi sumber kebenaran harga.
 - Katalog, KDS, HR, payroll, inventory, settings, dan self-order dimuat sebagai chunk terpisah setelah dibutuhkan.
-- PWA menyimpan aset antarmuka; data transaksi tetap mengikuti database dan antrean offline lokal.
+- PWA hanya menyimpan aset antarmuka; transaksi cloud tidak disimpan sebagai antrean offline lokal.
 - Event operations hanya membawa metadata perubahan. Setelah event diterima,
   aplikasi membaca ulang row resmi dari database; event tidak membawa array
   state dan tidak pernah ditulis ke `localStorage`.

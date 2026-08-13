@@ -275,7 +275,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={handleSave}
-            className="ui-button ui-button-primary w-full py-4 text-sm font-extrabold shadow-md shadow-orange-500/30 flex items-center justify-center gap-2"
+            className="ui-button ui-button-primary w-full py-4 text-sm font-extrabold flex items-center justify-center gap-2"
           >
             <span>+ Tambahkan Pesanan</span>
           </button>

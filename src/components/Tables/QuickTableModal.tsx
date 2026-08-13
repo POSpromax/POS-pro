@@ -157,7 +157,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         {/* MODAL HEADER */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--panel-border)] bg-white p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-md shadow-orange-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-[var(--shadow-md)]">
               <Grid2X2 className="w-5 h-5" />
             </div>
             <div>

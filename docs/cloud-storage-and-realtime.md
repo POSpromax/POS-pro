@@ -11,7 +11,7 @@ mengambil ulang data resmi; payload realtime tidak menjadi database kedua.
 | Domain | Penyimpanan | Jalur pembaruan |
 |---|---|---|
 | Order dan item | `orders`, `order_items` | `branch:{branchId}:orders` lalu re-fetch API |
-| Shift | `cashier_shifts` | Postgres change lalu re-fetch API |
+| Shift | `cashier_shifts` | `branch:{branchId}:shift` lalu re-fetch API |
 | Meja | `restaurant_tables` | `branch:{branchId}:operations` lalu re-fetch |
 | Menu dan bahan | `menu_items`, `raw_materials` | operations lalu re-fetch katalog |
 | Condiment | `condiment_groups`, `condiment_options` | operations lalu re-fetch |
@@ -27,7 +27,7 @@ menjadi pengaman; penyembunyian menu UI bukan pengganti otorisasi.
 - konfigurasi printer Bluetooth pada perangkat;
 - status kunci terminal pada `sessionStorage`;
 - preferensi portal/tab pada sesi browser;
-- antrean order offline yang belum dikonfirmasi server;
+- tidak ada antrean transaksi offline ketika Supabase aktif;
 - data demo hanya ketika Supabase tidak dikonfigurasi.
 
 Data lokal di atas tidak boleh disiarkan ke perangkat lain. Saat cloud aktif,
@@ -40,7 +40,8 @@ boleh dibaca dari localStorage sebagai hasil sinkronisasi.
 2. Aplikasi melakukan re-fetch pada cabang aktif.
 3. Saat channel gagal, order memiliki polling layar aktif dan shift memiliki
    rekonsiliasi berkala/focus/online.
-4. Order offline tetap berada di antrean lokal sampai POST berhasil.
+4. Saat Supabase dikonfigurasi, kegagalan POST/PATCH tidak membuat transaksi
+   lokal. UI mengembalikan state dari cloud dan operator mencoba ulang.
 5. Setelah sinkronisasi manual, layar dibangun ulang dari respons cloud.
 
 ## Migrasi wajib
@@ -50,6 +51,8 @@ Jalankan migrasi berurutan sampai:
 1. `202608130017_branch_operational_config.sql`
 2. `202608130018_operational_realtime.sql`
 3. `202608130019_realtime_free_tier_optimization.sql`
+4. `202608130020_permanent_branch_qr_tables.sql`
+5. `202608130021_atomic_paid_table_state.sql`
 
 Migrasi 018 menghapus izin kanal `branch:{branchId}:sync` lama sehingga browser
 tidak lagi dapat mengirim seluruh isi localStorage ke perangkat lain.
@@ -57,6 +60,13 @@ tidak lagi dapat mengirim seluruh isi localStorage ke perangkat lain.
 Migrasi 019 mengganti payload full-row menjadi invalidation kecil, menghapus
 event duplikat per `order_item`, dan memindahkan shift dari Postgres Changes ke
 Broadcast privat.
+
+Migrasi 020 menetapkan QR permanen per cabang, sesi aktivasi meja di server, dan
+relasi `active_order_id`. Query embed order-meja harus menyebut foreign key
+`orders_table_id_fkey` agar tidak ambigu.
+
+Migrasi 021 memakai deferred constraint trigger agar order berstatus `PAID` dan
+meja `DISABLED`/tanpa bill aktif selalu selesai dalam commit database yang sama.
 
 ## Matriks subscription aktif
 

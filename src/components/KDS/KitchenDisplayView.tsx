@@ -188,12 +188,13 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               const elapsed = elapsedMinutes(order.createdAt);
               const tone = timeTone(elapsed);
               const visibleItems = order.items.filter((item) => (
-                item.status !== 'DONE' &&
+                (order.status === 'READY' || item.status !== 'DONE') &&
                 (filterType === 'SEMUA' || (filterType === 'FOOD' ? item.category !== 'MINUMAN' : item.category === 'MINUMAN'))
               ));
               const productGroups = groupKitchenItems(visibleItems);
               const isNew = order.status === 'NEW';
               const isReady = order.status === 'READY';
+              const nextStatus: OrderStatus = isNew ? 'COOKING' : isReady ? 'COMPLETED' : 'READY';
 
               return (
                 <article key={order.id} className="ui-card relative overflow-hidden">
@@ -245,8 +246,12 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                   </div>
 
                   <div className="border-t border-[var(--panel-border)] bg-[var(--surface-main)] p-2">
-                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, isNew ? 'COOKING' : 'COMPLETED')} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-[var(--text-inverse)] transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--accent-green)] hover:opacity-90'}`}>
-                      {isNew ? <><Flame className="h-3.5 w-3.5" /> Mulai masak</> : <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai & sajikan</>}
+                    <button type="button" onClick={() => onUpdateOrderStatus(order.id, nextStatus)} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-[var(--text-inverse)] transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--accent-green)] hover:opacity-90'}`}>
+                      {isNew
+                        ? <><Flame className="h-3.5 w-3.5" /> Mulai masak</>
+                        : isReady
+                          ? <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai disajikan</>
+                          : <><CheckCircle2 className="h-3.5 w-3.5" /> Siap disajikan</>}
                     </button>
                   </div>
                 </article>

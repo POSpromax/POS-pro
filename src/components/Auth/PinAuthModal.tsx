@@ -209,7 +209,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                     onClick={() => switchTab(tab)}
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
                       isActive
-                        ? 'bg-[var(--primary)] text-white shadow-md shadow-orange-500/30'
+                        ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-md)]'
                         : 'text-white/45 hover:text-white/70'
                     }`}
                   >
@@ -222,7 +222,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
             {/* Header */}
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] shadow-md shadow-orange-500/30">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--primary)] shadow-[var(--shadow-md)]">
                 <TabIcon className="h-5 w-5" />
               </div>
               <div>
@@ -236,16 +236,17 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             {/* Branch Selector */}
             <label className="block rounded-2xl border border-white/10 bg-white/[0.06] p-4">
               <span className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-white/55">
-                <Building2 className="h-3.5 w-3.5 text-[var(--primary-hover)]" /> Pilih Cabang
+                <Building2 className="h-3.5 w-3.5 text-[var(--brand-300)]" /> Pilih Cabang
               </span>
               <select
                 aria-label="Pilih cabang"
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="w-full cursor-pointer rounded-xl border border-white/10 bg-[var(--surface-secondary)] px-3 py-2.5 text-xs font-bold text-white outline-none"
+                className="w-full cursor-pointer rounded-xl border border-white/15 bg-white px-3 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--brand-300)] focus:shadow-[var(--focus-ring)]"
+                style={{ color: '#0f172a', WebkitTextFillColor: '#0f172a', colorScheme: 'light' }}
               >
                 {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
+                  <option key={branch.id} value={branch.id} style={{ color: '#0f172a', backgroundColor: '#ffffff' }}>
                     {branch.name}{branch.isMainBranch ? ' · Pusat' : ''}
                   </option>
                 ))}
@@ -255,7 +256,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             {/* Info Items */}
             <div className="mt-5 space-y-3">
               <div className="flex gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary-hover)]" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-300)]" />
                 <div>
                   <p className="text-xs font-bold">Akses otomatis berdasarkan PIN</p>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/50">
@@ -264,7 +265,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
                 </div>
               </div>
               <div className="flex gap-3">
-                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary-hover)]" />
+                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-300)]" />
                 <div>
                   <p className="text-xs font-bold">PIN bersifat pribadi</p>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/50">

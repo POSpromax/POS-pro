@@ -73,17 +73,30 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== 'pos') return;
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.getElementById('input-header-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', focusSearch);
+    return () => window.removeEventListener('keydown', focusSearch);
+  }, [activeTab]);
+
   const isOwnerMode = systemPortal === 'OWNER';
+  const shortcutLabel = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
 
   return (
     <header
       id="app-header-bar"
       className="z-20 flex h-14 shrink-0 select-none items-center justify-between gap-2 sm:gap-3 rounded-2xl border px-2.5 sm:px-3.5 font-sans transition-all duration-200"
       style={{
-        background: '#ffffff',
-        borderColor: '#E5E7EB',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-        color: '#111827',
+        background: 'var(--surface-card)',
+        borderColor: 'var(--panel-border)',
+        boxShadow: 'var(--shadow-sm)',
+        color: 'var(--text-primary)',
       }}
     >
       {/* ── LEFT: Hamburger + Clock + Connection Badge ─────────────────────── */}
@@ -141,11 +154,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       )}
 
       {isOwnerMode && (
-        <div className="ml-auto flex min-w-0 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5">
-          <Store className="h-4 w-4 shrink-0 text-orange-700" />
+        <div className="ml-auto flex min-w-0 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5">
+          <Store className="h-4 w-4 shrink-0 text-amber-700" />
           <div className="hidden min-w-0 sm:block">
-            <p className="text-[9px] font-black uppercase tracking-wider text-orange-600">Konteks cabang</p>
-            <p className="max-w-40 truncate text-[11px] font-bold text-orange-900">{currentBranch.name}</p>
+            <p className="text-[9px] font-black uppercase tracking-wider text-amber-700">Konteks cabang</p>
+            <p className="max-w-40 truncate text-[11px] font-bold text-amber-950">{currentBranch.name}</p>
           </div>
           <select
             value={currentBranch.id}
@@ -153,7 +166,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               const branch = branches.find((item) => item.id === event.target.value);
               if (branch) onSelectBranch(branch);
             }}
-            className="max-w-44 rounded-lg border border-orange-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-800 outline-none"
+            className="max-w-44 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60"
             aria-label="Pilih konteks cabang Owner"
           >
             {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.code || branch.name}</option>)}
@@ -192,8 +205,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             </button>
           )}
 
-          {/* Search Input Bar with Shortcut ⌘ K */}
-          <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100/80 px-3.5 py-1.5 text-xs transition-all min-w-[140px] max-w-[240px] flex-1 focus-within:bg-white focus-within:border-[#047857] focus-within:ring-2 focus-within:ring-[#047857]/10">
+          {/* Search Input Bar with keyboard shortcut */}
+          <div className="flex min-w-[140px] max-w-[240px] flex-1 items-center gap-1.5 rounded-xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3.5 py-1.5 text-xs transition-all focus-within:border-[var(--primary)] focus-within:bg-white focus-within:shadow-[var(--focus-ring)]">
             <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <input
               id="input-header-search"
@@ -205,7 +218,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
             />
             <kbd className="hidden md:inline-flex items-center rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-mono font-bold text-slate-400 shrink-0">
-              ⌘ K
+              {shortcutLabel}
             </kbd>
           </div>
 

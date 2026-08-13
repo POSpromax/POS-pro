@@ -1,7 +1,7 @@
 import type { AttendanceRecord } from '../types/pos';
+import { getSupabase } from '../lib/supabase';
 
 async function getAccessToken() {
-  const { getSupabase } = await import('../lib/supabase');
   const { data } = await getSupabase().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Sesi absensi telah berakhir');

@@ -66,9 +66,8 @@ export default defineConfig(() => {
             if (!id.includes('node_modules')) return undefined;
             if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('lucide-react')) return 'vendor-icons';
-            if (id.includes('motion')) return 'vendor-motion';
-            if (id.includes('react')) return 'vendor-react';
-            return 'vendor';
+            if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
+            return undefined;
           },
         },
       },
