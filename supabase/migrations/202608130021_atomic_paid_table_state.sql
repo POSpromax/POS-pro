@@ -18,7 +18,11 @@ begin
         active_order_id = null,
         updated_at = now()
     where id = new.table_id
-      and branch_id = new.branch_id;
+      and branch_id = new.branch_id
+      -- Jangan menyentuh meja yang sudah dipakai bill lain. Kondisi NULL
+      -- dibutuhkan untuk checkout PAID baru karena RPC lama belum mengisi
+      -- active_order_id sebelum deferred trigger dijalankan.
+      and (active_order_id is null or active_order_id = new.id);
   end if;
 
   return new;
