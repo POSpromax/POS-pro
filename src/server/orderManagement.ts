@@ -146,11 +146,11 @@ export async function handleOrderRequest(
     let updateResult = await admin.from('orders').update({
       status: payload.status,
       ...(payload.status === 'COMPLETED' && completedShiftId ? { completed_shift_id: completedShiftId } : {}),
-    }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
+    }).eq('id', payload.orderId).eq('branch_id', branchId).select('table_id,payment_status,status').maybeSingle();
     // Kompatibilitas singkat selama migrasi attribution belum diterapkan.
     if (updateResult.error && payload.status === 'COMPLETED' && completedShiftId) {
       updateResult = await admin.from('orders').update({ status: payload.status })
-        .eq('id', payload.orderId).eq('branch_id', branchId).select('table_id').maybeSingle();
+        .eq('id', payload.orderId).eq('branch_id', branchId).select('table_id,payment_status,status').maybeSingle();
     }
     const { data: updated, error } = updateResult;
     if (error || !updated) return fail(500, 'Status pesanan gagal diperbarui');
@@ -158,6 +158,18 @@ export async function handleOrderRequest(
       await admin.from('order_items').update({ kitchen_status: 'PREPARING' }).eq('order_id', payload.orderId).eq('kitchen_status', 'PENDING');
     } else if (payload.status === 'READY' || payload.status === 'COMPLETED') {
       await admin.from('order_items').update({ kitchen_status: 'DONE' }).eq('order_id', payload.orderId).neq('kitchen_status', 'DONE');
+    }
+
+    // Kompatibilitas sebelum trigger lifecycle 021 terbaru diterapkan.
+    if (updated.table_id) {
+      const isClosed = updated.status === 'CANCELLED'
+        || (updated.status === 'COMPLETED' && updated.payment_status === 'PAID');
+      await admin.from('restaurant_tables').update(isClosed
+        ? { status: 'DISABLED', active_order_id: null }
+        : { status: 'OCCUPIED', active_order_id: payload.orderId })
+        .eq('id', updated.table_id)
+        .eq('branch_id', branchId)
+        .or(`active_order_id.is.null,active_order_id.eq.${payload.orderId}`);
     }
 
     return { status: 200, data: { success: true } };
@@ -437,13 +449,15 @@ export async function handleOrderRequest(
   if (checkoutError || !savedOrderId) return fail(500, 'Pesanan gagal disimpan');
 
   if (table?.id) {
-    if (paymentStatus === 'PAID') {
-      await admin.from('restaurant_tables').update({
+    const isClosed = paymentStatus === 'PAID' && orderPayload.status === 'COMPLETED';
+    const tableUpdate = isClosed
+      ? await admin.from('restaurant_tables').update({
         status: 'DISABLED', active_order_id: null,
-      }).eq('id', table.id).eq('branch_id', branchId);
-    } else {
-      await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
+      }).eq('id', table.id).eq('branch_id', branchId)
+      : await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
         .eq('id', table.id).eq('branch_id', branchId);
+    if (tableUpdate.error) {
+      return fail(500, 'Pesanan tersimpan, tetapi status meja belum tersinkron. Muat ulang lalu coba lagi.');
     }
   }
 

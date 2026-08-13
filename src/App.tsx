@@ -1060,6 +1060,12 @@ export default function App() {
   };
 
   // Order Handlers
+  const refreshBranchTables = async (branchId = currentBranch.id) => {
+    if (!cloudReadiness.supabase || !branchId) return;
+    const cloudTables = await listCloudTables(branchId);
+    setTables((existing) => [...existing.filter((table) => table.branchId !== branchId), ...cloudTables]);
+  };
+
   const handleSaveHoldOrder = async (draftOrder: Order) => {
     if (!ensureOpenShift('menyimpan transaksi')) return;
     let saved = draftOrder;
@@ -1071,6 +1077,7 @@ export default function App() {
       try {
         saved = await submitCloudOrder(draftOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== draftOrder.id && order.id !== saved.id)]);
+        await refreshBranchTables(saved.branchId);
       } catch (error) {
         showPushToast('Order Gagal Disimpan', error instanceof Error ? error.message : 'Cloud belum menerima transaksi. Silakan coba kembali.');
         return;
@@ -1113,6 +1120,7 @@ export default function App() {
       try {
         saved = await submitCloudOrder(fullOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
+        await refreshBranchTables(saved.branchId);
       } catch (error) {
         showPushToast('Pembayaran Gagal', error instanceof Error ? error.message : 'Cloud belum mengakui pembayaran. Silakan coba kembali.');
         return;
@@ -1163,7 +1171,10 @@ export default function App() {
       // Hanya order berid cloud (UUID) yang bisa di-PATCH. Perubahannya tersiar
       // realtime ke semua terminal lewat trigger database.
       void updateCloudOrderStatus(currentBranch.id, orderId, newStatus, currentShift.id)
-        .then(() => showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`))
+        .then(async () => {
+          await refreshBranchTables(currentBranch.id);
+          showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`);
+        })
         .catch((error) => {
           void listCloudOrders(currentBranch.id).then(setOrders);
           showPushToast('Update Dapur Ditolak', error instanceof Error ? error.message : 'Status cloud belum berubah.');
@@ -1194,8 +1205,16 @@ export default function App() {
       try {
         const saved = await submitCloudOrder(orderToSave);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);
+        await refreshBranchTables(targetBranchId);
         showPushToast('Order Baru dari HP Customer!', `Meja ${saved.tableNumber} memesan order ${saved.orderNumber}.`);
       } catch (error) {
+        void Promise.all([
+          listCloudOrders(targetBranchId).then((cloudOrders) => setOrders((current) => [
+            ...current.filter((order) => order.branchId !== targetBranchId),
+            ...cloudOrders,
+          ])),
+          refreshBranchTables(targetBranchId),
+        ]).catch(() => undefined);
         showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.');
       }
       return;
