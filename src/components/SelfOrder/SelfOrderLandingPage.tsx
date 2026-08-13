@@ -97,6 +97,16 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     localToastTimerRef.current = window.setTimeout(() => setLocalToast(null), 3000);
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const urlTable = params.get('table');
+    if (urlTable) {
+      const cleanTable = urlTable.trim().replace(/^0+(?=\d)/, '');
+      setSelectedTable(cleanTable);
+    }
+  }, []);
+
   useEffect(() => () => {
     if (localToastTimerRef.current) window.clearTimeout(localToastTimerRef.current);
   }, []);

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { X, Printer, QrCode } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, Printer, QrCode, Smartphone, Sparkles, Utensils } from 'lucide-react';
 import type { Branch, RestaurantTable, RestaurantProfile } from '../../types/pos';
 import { buildStaticSelfOrderUrl } from '../../utils/qrToken';
 import { QrCodeCanvas } from './QrCodeCanvas';
@@ -12,67 +12,108 @@ interface Props {
   profile: RestaurantProfile;
 }
 
-// Alat CETAK LABEL QR — terpisah total dari manajemen/aktivasi meja. Setiap
-// label berisi QR statis (branch + nomor meja) yang dicetak sekali lalu ditempel
-// di meja; QR ini tidak pernah kedaluwarsa dan tidak terpengaruh on/off meja.
 export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile }) => {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const [selectedTableNumber, setSelectedTableNumber] = useState<string>('ALL');
 
-  const labels = useMemo(
+  const availableTables = useMemo(
     () =>
       [...tables]
         .filter((t) => !t.branchId || t.branchId === currentBranch.id)
-        .sort((a, b) => a.number.localeCompare(b.number, 'id', { numeric: true }))
+        .sort((a, b) => a.number.localeCompare(b.number, 'id', { numeric: true })),
+    [tables, currentBranch.id]
+  );
+
+  const labels = useMemo(
+    () =>
+      availableTables
+        .filter((t) => selectedTableNumber === 'ALL' || t.number === selectedTableNumber)
         .map((t) => ({
           number: t.number,
+          capacity: t.capacity,
           url: buildStaticSelfOrderUrl(baseUrl, currentBranch.id, t.number.replace(/^0+(?=\d)/, '')),
         })),
-    [tables, currentBranch.id, baseUrl],
+    [availableTables, selectedTableNumber, currentBranch.id, baseUrl],
   );
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-600/30 p-3 backdrop-blur-md sm:p-5">
-      {/* Aturan cetak: sembunyikan seluruh app, tampilkan hanya area label. */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 backdrop-blur-md sm:p-5">
+      {/* Aturan cetak cetak presisi: sembunyikan UI app, tampilkan hanya area label. */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
           body * { visibility: hidden !important; }
           .qr-print-area, .qr-print-area * { visibility: visible !important; }
-          .qr-print-area { position: absolute; inset: 0; margin: 0; padding: 16px; }
+          .qr-print-area {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 0;
+            background: white !important;
+          }
           .qr-no-print { display: none !important; }
-          .qr-label { break-inside: avoid; page-break-inside: avoid; }
+          .qr-print-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+          }
+          .qr-label-card {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+          }
         }
       `}</style>
 
-      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white shadow-[0_24px_70px_rgba(26,23,20,0.20)]">
-        {/* Header */}
-        <div className="qr-no-print flex shrink-0 items-center justify-between border-b border-[var(--panel-border)] p-4 md:p-5">
+      <div className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        {/* Header Control */}
+        <div className="qr-no-print flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 md:p-5 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--primary)] text-white shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md">
               <QrCode className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)] md:text-xl">Cetak Label QR Meja</h2>
-              <p className="mt-0.5 text-xs font-medium text-[var(--text-secondary)]">
-                Cetak sekali, tempel di tiap meja. QR tidak kedaluwarsa dan terpisah dari aktivasi meja.
+              <h2 className="text-lg font-extrabold text-slate-900 md:text-xl">Desain Label QR Code Meja</h2>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">
+                Desain siap cetak. QR Code statis langsung mengarah ke menu Self-Order tanpa perlu aktivasi ulang.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter Meja */}
+            <select
+              value={selectedTableNumber}
+              onChange={(e) => setSelectedTableNumber(e.target.value)}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+            >
+              <option value="ALL">Semua Meja ({availableTables.length})</option>
+              {availableTables.map((t) => (
+                <option key={t.id} value={t.number}>
+                  Meja {t.number}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
               onClick={() => window.print()}
               disabled={labels.length === 0}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white transition-all hover:bg-emerald-500 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-emerald-500 active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <Printer className="h-4 w-4" />
-              Cetak
+              Cetak Sekarang
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 text-slate-500 hover:bg-slate-200 cursor-pointer"
               aria-label="Tutup"
             >
               <X className="h-4 w-4" />
@@ -80,28 +121,52 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
           </div>
         </div>
 
-        {/* Grid label */}
-        <div className="qr-print-area flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
+        {/* Print Preview & Printable Canvas Area */}
+        <div className="qr-print-area flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100/70 scrollbar-thin">
           {labels.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-              <QrCode className="mb-2 h-8 w-8 text-slate-300" />
-              <p className="text-sm font-bold">Belum ada meja untuk dicetak</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center text-slate-400">
+              <QrCode className="mb-2 h-10 w-10 text-slate-300" />
+              <p className="text-sm font-bold">Tidak ada label meja untuk ditampilkan</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            <div className="qr-print-grid grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {labels.map((label) => (
                 <div
                   key={label.number}
-                  className="qr-label flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 text-center"
+                  className="qr-label-card relative flex flex-col items-center justify-between rounded-3xl border-2 border-slate-900 bg-white p-5 text-center shadow-lg transition-all"
                 >
-                  <p className="text-sm font-black uppercase tracking-wide text-[#1A1714]">
-                    {profile.name || currentBranch.name}
-                  </p>
-                  <div className="rounded-xl border border-slate-100 bg-white p-1.5">
-                    <QrCodeCanvas value={label.url} size={150} />
+                  {/* Banner Resto */}
+                  <div className="w-full border-b-2 border-slate-900 pb-3">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-900 line-clamp-1">
+                      {profile.name || currentBranch.name}
+                    </p>
+                    <p className="text-[10px] font-bold text-emerald-700 tracking-tight flex items-center justify-center gap-1 mt-0.5">
+                      <Sparkles className="h-3 w-3" /> SELF-ORDER MENU
+                    </p>
                   </div>
-                  <p className="text-lg font-black text-[#1A1714]">Meja {label.number}</p>
-                  <p className="text-[11px] font-bold text-slate-500">Scan untuk pesan sendiri</p>
+
+                  {/* QR Canvas Container */}
+                  <div className="my-3 flex flex-col items-center">
+                    <div className="rounded-2xl border-2 border-slate-900 bg-white p-2.5 shadow-sm">
+                      <QrCodeCanvas value={label.url} size={170} />
+                    </div>
+                  </div>
+
+                  {/* Meja Badge & Instructions */}
+                  <div className="w-full space-y-2">
+                    <div className="rounded-xl bg-slate-900 py-1.5 px-3 text-white">
+                      <p className="text-xl font-black tracking-wide">MEJA {label.number}</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-900 flex items-center justify-center gap-1">
+                        <Smartphone className="h-3.5 w-3.5 text-emerald-600" /> SCAN DENGAN KAMERA HP
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-500 leading-tight">
+                        1. Scan QR &nbsp;•&nbsp; 2. Pilih Menu &nbsp;•&nbsp; 3. Pesan Langsung
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -111,3 +176,4 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
     </div>
   );
 };
+
