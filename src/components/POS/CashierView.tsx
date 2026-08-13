@@ -165,7 +165,7 @@ const POSMenuItemCard: React.FC<{
 
         {/* PRICE IS ALWAYS EMERALD GREEN #047857 WITH INLINE STYLE */}
         <div className="text-xs sm:text-sm font-extrabold font-mono leading-none" style={{ color: '#047857' }}>
-          Rp {item.price.toLocaleString('id-ID')}
+          {item.isManualPrice ? 'Input Harga Custom' : `Rp ${item.price.toLocaleString('id-ID')}`}
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-1 pt-1">

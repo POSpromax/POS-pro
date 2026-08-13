@@ -28,14 +28,15 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
   const rawNames = new Map((rawRows || []).map((row) => [row.id, row.name]));
   return {
     menuItems: (menuRows || []).map((row) => {
-      const isManualPrice = /^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim());
+      const isManualPrice = row.id === 'menu-custom' || Boolean(row.is_manual_price) || /^(menu tambahan|menu custom|custom|lainya|lainnya)$/i.test(String(row.name).trim());
+      const isSticky = row.id === 'menu-custom' || Boolean(row.is_sticky) || isManualPrice;
       const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => ({
         rawMaterialId: ingredient.raw_material_id,
         rawMaterialName: rawNames.get(ingredient.raw_material_id) || 'Bahan baku',
         amountNeeded: Number(ingredient.amount_needed),
         unit: ingredient.unit,
       }));
-      return { id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients, isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined, isAutoStock: ingredients.length > 0, isManualPrice, trackStock: !isManualPrice };
+      return { id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients, isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined, isAutoStock: ingredients.length > 0, isManualPrice, isSticky, trackStock: !isManualPrice };
     }),
     rawMaterials: (rawRows || []).map((row) => ({ id: row.id, name: row.name, unit: row.unit, stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold), costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '', group: row.material_group || undefined, takeAwayUsagePerItem: Number(row.take_away_usage_per_item || 0) || undefined })),
   };

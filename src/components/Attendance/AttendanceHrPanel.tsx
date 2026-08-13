@@ -141,6 +141,11 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       onShowToast('Data Tidak Lengkap', 'Isi nominal kasbon dan alasan.');
       return;
     }
+    const profile = data.payrollProfiles.find((p) => p.user_id === kasbonStaff.id);
+    if (profile?.base_salary && Number(kasbonAmount) > profile.base_salary * 0.5) {
+      onShowToast('Melebihi Batas Kasbon', `Maksimal kasbon adalah Rp ${Math.round(profile.base_salary * 0.5).toLocaleString('id-ID')} (50% dari gaji pokok).`);
+      return;
+    }
     setLoading(true);
     try {
       await requestKasbon({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Boxes,
   Layers,
@@ -375,9 +375,64 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     const cat = newCategoryName.trim().toUpperCase() as CategoryType;
     if (!categoriesList.includes(cat)) {
       setCategoriesList([...categoriesList, cat]);
-      setExpandedCategories({ ...expandedCategories, [cat]: true });
+      setExpandedCategories((prev) => ({ ...prev, [cat]: true }));
     }
     setNewCategoryName('');
+    toast('Kategori Ditambahkan', `Kategori ${cat} berhasil dibuat.`);
+  };
+
+  const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string } | null>(null);
+  const [confirmingDeleteCat, setConfirmingDeleteCat] = useState<string | null>(null);
+
+  // Dynamic merged list of all categories
+  const displayCategories = useMemo(() => {
+    const customCats = menuItems.map((m) => m.category);
+    const set = new Set([...categoriesList, ...customCats]);
+    return Array.from(set);
+  }, [categoriesList, menuItems]);
+
+  const handleSaveRenameCategory = () => {
+    if (!editingCategory || !editingCategory.newName.trim()) return;
+    const oldCat = editingCategory.oldName;
+    const newCat = editingCategory.newName.trim().toUpperCase() as CategoryType;
+    if (oldCat === newCat) {
+      setEditingCategory(null);
+      return;
+    }
+
+    setCategoriesList((prev) => prev.map((c) => (c === oldCat ? newCat : c)));
+    setExpandedCategories((prev) => {
+      const next = { ...prev };
+      if (next[oldCat] !== undefined) {
+        next[newCat] = next[oldCat];
+        delete next[oldCat];
+      }
+      return next;
+    });
+
+    const matchingItems = menuItems.filter((m) => m.category === oldCat);
+    matchingItems.forEach((item) => {
+      onSaveMenuItem({ ...item, category: newCat });
+    });
+
+    setEditingCategory(null);
+    toast('Kategori Diperbarui', `Kategori ${oldCat} diubah menjadi ${newCat} (${matchingItems.length} menu diperbarui).`);
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (catToDelete === 'TAMBAHAN') {
+      toast('Kategori Sistem', 'Kategori TAMBAHAN adalah kategori sistem utama dan tidak dapat dihapus.');
+      return;
+    }
+    setCategoriesList((prev) => prev.filter((c) => c !== catToDelete));
+
+    const affected = menuItems.filter((m) => m.category === catToDelete);
+    affected.forEach((item) => {
+      onSaveMenuItem({ ...item, category: 'TAMBAHAN' });
+    });
+
+    setConfirmingDeleteCat(null);
+    toast('Kategori Dihapus', `Kategori ${catToDelete} dihapus.${affected.length > 0 ? ` ${affected.length} item dipindahkan ke TAMBAHAN.` : ''}`);
   };
 
   return (
@@ -634,101 +689,181 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
 
           {/* Categories Accordion */}
-          {categoriesList.map((cat) => {
+          {displayCategories.map((cat) => {
             const categoryItems = filteredMenuItems.filter((m) => m.category === cat);
-            if (categoryItems.length === 0 && searchTerm) return null;
-            const isExpanded = expandedCategories[cat] !== false;
+            if (categoryItems.length === 0 && searchTerm.trim()) return null;
+            const isExpanded = searchTerm.trim().length > 0 ? true : (expandedCategories[cat] ?? true);
 
             return (
               <div key={cat} className="bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]/90 shadow-sm overflow-hidden">
                 <div
-                  onClick={() =>
-                    setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
-                  }
-                  className="p-3 md:p-4 bg-[var(--surface-card)] flex items-center justify-between border-b border-[var(--panel-border-light)] cursor-pointer hover:bg-[var(--surface-secondary)]/60 transition-colors"
+                  className="p-3 md:p-4 bg-[var(--surface-card)] flex items-center justify-between border-b border-[var(--panel-border-light)] hover:bg-[var(--surface-secondary)]/60 transition-colors"
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
+                  <div
+                    onClick={() =>
+                      setExpandedCategories((prev) => ({ ...prev, [cat]: !(prev[cat] ?? true) }))
+                    }
+                    className="flex items-center gap-2 md:gap-3 cursor-pointer flex-1 min-w-0"
+                  >
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" />}
-                    <h3 className="font-bold text-xs md:text-sm text-[var(--text-primary)] uppercase">{cat}</h3>
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold md:text-[11px]"
+                    <h3 className="font-bold text-xs md:text-sm text-[var(--text-primary)] uppercase truncate">{cat}</h3>
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold shrink-0"
                       style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
                       {categoryItems.length}
                     </span>
+                  </div>
+
+                  {/* Pengelolaan Kategori Actions */}
+                  <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setEditingCategory({ oldName: cat, newName: cat })}
+                      className="p-1.5 text-slate-400 hover:text-[var(--primary-hover)] hover:bg-[var(--brand-50)] rounded-lg transition-colors cursor-pointer"
+                      title="Edit Nama Kategori"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    {cat !== 'TAMBAHAN' && (
+                      <button
+                        onClick={() => {
+                          if (confirmingDeleteCat === cat) {
+                            handleDeleteCategory(cat);
+                          } else {
+                            setConfirmingDeleteCat(cat);
+                            setTimeout(() => setConfirmingDeleteCat(null), 3000);
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          confirmingDeleteCat === cat ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={confirmingDeleteCat === cat ? 'Klik lagi untuk hapus' : 'Hapus Kategori'}
+                      >
+                        {confirmingDeleteCat === cat ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {isExpanded && (
                   <div className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
-                    {categoryItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[var(--surface-card)] transition-colors gap-2"
-                      >
-                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover shrink-0 border border-[var(--panel-border)]"
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1 md:gap-2 flex-wrap">
-                              <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{item.name}</span>
-                              {item.isAutoStock !== false && (
-                                <span className="ui-badge ui-badge-success hidden sm:inline-flex">
-                                  Auto-Stock
-                                </span>
-                              )}
-                            </div>
-                            <span className="font-bold text-[11px] md:text-xs text-[var(--text-secondary)] md:hidden">
-                              Rp {item.price.toLocaleString('id-ID')}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                          <span className="font-bold text-xs text-[var(--text-primary)] hidden md:inline">
-                            Rp {item.price.toLocaleString('id-ID')}
-                          </span>
-
-                          <span className="bg-[var(--surface-secondary)] text-[var(--text-primary)] text-[11px] md:text-xs font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-lg border border-[var(--panel-border)]">
-                            {item.stockCount || 100}
-                          </span>
-
-                          <div className="flex items-center gap-0.5">
-                            <button
-                              onClick={() => handleOpenEditMenuModal(item)}
-                              className="p-1 md:p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer"
-                              title="Edit Menu & Resep"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirmingDeleteId === item.id) {
-                                  onDeleteMenuItem(item.id);
-                                  setConfirmingDeleteId(null);
-                                  toast('Dihapus', `${item.name} berhasil dihapus.`);
-                                } else {
-                                  setConfirmingDeleteId(item.id);
-                                  setTimeout(() => setConfirmingDeleteId(null), 3000);
-                                }
-                              }}
-                              className={`p-1 md:p-1.5 rounded-lg cursor-pointer ${
-          confirmingDeleteId === item.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
-                              }`}
-                              title={confirmingDeleteId === item.id ? 'Klik lagi untuk hapus' : 'Hapus Menu'}
-                            >
-                              {confirmingDeleteId === item.id ? <Check className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-                            </button>
-                          </div>
-                        </div>
+                    {categoryItems.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                        Belum ada item dalam kategori ini.
                       </div>
-                    ))}
+                    ) : (
+                      categoryItems.map((item) => {
+                        const isStickyItem = item.id === 'menu-custom' || item.isSticky || item.isManualPrice;
+                        return (
+                          <div
+                            key={item.id}
+                            className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[var(--surface-card)] transition-colors gap-2"
+                          >
+                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover shrink-0 border border-[var(--panel-border)]"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                                  <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{item.name}</span>
+                                  {isStickyItem && (
+                                    <span className="ui-badge ui-badge-primary text-[10px]">
+                                      Melekat (Custom)
+                                    </span>
+                                  )}
+                                  {item.isAutoStock !== false && !isStickyItem && (
+                                    <span className="ui-badge ui-badge-success hidden sm:inline-flex">
+                                      Auto-Stock
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-bold text-[11px] md:text-xs text-[var(--text-secondary)] md:hidden">
+                                  {isStickyItem ? 'Harga Custom' : `Rp ${item.price.toLocaleString('id-ID')}`}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 md:gap-6 shrink-0">
+                              <span className="font-bold text-xs text-[var(--text-primary)] hidden md:inline">
+                                {isStickyItem ? 'Harga Custom' : `Rp ${item.price.toLocaleString('id-ID')}`}
+                              </span>
+
+                              <span className="bg-[var(--surface-secondary)] text-[var(--text-primary)] text-[11px] md:text-xs font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-lg border border-[var(--panel-border)]">
+                                {isStickyItem ? '∞' : (item.stockCount || 100)}
+                              </span>
+
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={() => handleOpenEditMenuModal(item)}
+                                  className="p-1 md:p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer"
+                                  title="Edit Menu & Resep"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                </button>
+
+                                {isStickyItem ? (
+                                  <span className="p-1 md:p-1.5 text-slate-300 cursor-not-allowed" title="Item Sistem Melekat (Tidak bisa dihapus)">
+                                    <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-40" />
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (confirmingDeleteId === item.id) {
+                                        onDeleteMenuItem(item.id);
+                                        setConfirmingDeleteId(null);
+                                        toast('Dihapus', `${item.name} berhasil dihapus.`);
+                                      } else {
+                                        setConfirmingDeleteId(item.id);
+                                        setTimeout(() => setConfirmingDeleteId(null), 3000);
+                                      }
+                                    }}
+                                    className={`p-1 md:p-1.5 rounded-lg cursor-pointer ${
+                                      confirmingDeleteId === item.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
+                                    }`}
+                                    title={confirmingDeleteId === item.id ? 'Klik lagi untuk hapus' : 'Hapus Menu'}
+                                  >
+                                    {confirmingDeleteId === item.id ? <Check className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal Edit Kategori */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md" style={{ background: 'rgba(24,24,27,0.45)' }}>
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl space-y-4" style={{ borderColor: 'var(--panel-border)' }}>
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Edit Kategori</h3>
+              <button onClick={() => setEditingCategory(null)} className="ui-icon-button h-7 w-7"><X className="h-4 w-4" /></button>
+            </div>
+            <div>
+              <label className="ui-form-label block mb-1">Nama Kategori</label>
+              <input
+                type="text"
+                className="ui-input font-bold uppercase"
+                value={editingCategory.newName}
+                onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })}
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Mengubah nama kategori akan secara otomatis memperbarui kategori semua menu di dalamnya.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button onClick={() => setEditingCategory(null)} className="ui-button ui-button-secondary">Batal</button>
+              <button onClick={handleSaveRenameCategory} className="ui-button ui-button-primary">Simpan Nama</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -57,6 +57,7 @@ export interface MenuItem {
   isAutoStock?: boolean; // Gunakan Resep (Auto-Stock)
   trackStock?: boolean; // false untuk item jasa/manual yang tidak memotong stok
   isManualPrice?: boolean; // POS meminta nama, harga, dan keterangan saat item dipilih
+  isSticky?: boolean; // Item permanen/sistem yang tidak bisa dihapus dari inventori
 }
 
 export type MaterialGroup = 'MENU' | 'DAPUR' | 'KEMASAN';

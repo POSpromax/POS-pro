@@ -78,6 +78,21 @@ export const INITIAL_RAW_MATERIALS: RawMaterial[] = [
 ];
 
 export const INITIAL_MENU_ITEMS: MenuItem[] = [
+  // ITEM SYSTEM STICKY (Menu Tambahan / Custom)
+  {
+    id: 'menu-custom',
+    name: 'Menu Tambahan / Custom',
+    category: 'TAMBAHAN',
+    price: 0,
+    hppCost: 0,
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80',
+    description: 'Item custom untuk produk non-rutin atau musiman. Nama & harga diisi saat transaksi.',
+    isAvailable: true,
+    ingredients: [],
+    isManualPrice: true,
+    isSticky: true,
+    trackStock: false
+  },
   // BAKSO
   {
     id: 'menu-1',
