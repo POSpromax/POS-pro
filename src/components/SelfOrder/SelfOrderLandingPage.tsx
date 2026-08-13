@@ -76,6 +76,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   // Customer Data State
   const [selectedTable, setSelectedTable] = useState<string>(initialTableNumber);
   const [customerName, setCustomerName] = useState<string>('');
+  const [orderNotes, setOrderNotes] = useState<string>('');
   const [tableErrorMsg, setTableErrorMsg] = useState<string>('');
 
   // Menu Search & Filter State
@@ -340,6 +341,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       id: orderId,
       orderNumber: '#' + Math.floor(100 + Math.random() * 900),
       customerName: customerName.trim(),
+      notes: orderNotes.trim() || undefined,
       tableNumber: selectedTable,
       type: 'DINE_IN',
       items: cartItems,
@@ -366,6 +368,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const handleResetToLanding = () => {
     setSubmittedOrderId(null);
     setCartItems([]);
+    setOrderNotes('');
     setActiveStep('LANDING');
   };
 
@@ -914,7 +917,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       }}
                       className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
                     >
-                      <span>Lanjut ke Pembayaran</span>
+                      <span>Periksa &amp; Kirim Pesanan</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -926,7 +929,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
         )}
 
         {/* =========================================
-            STEP 4: CART CHECKOUT SCREEN (Ringkasan Pembayaran)
+            STEP 4: CART CHECKOUT SCREEN (Konfirmasi Pesanan)
            ========================================= */}
         {activeStep === 'CART' && (
           <div className="flex-1 bg-white flex flex-col justify-between overflow-hidden animate-fadeIn">
@@ -937,7 +940,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <ShoppingBag className="w-5 h-5 text-orange-600" />
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
-                    Ringkasan & Konfirmasi Pembayaran
+                    Periksa &amp; Kirim Pesanan
                   </h3>
                   <p className="text-[11px] font-bold text-slate-500">
                     Meja #{selectedTable} • {customerName}
@@ -977,6 +980,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       <span className="text-[11px] font-semibold text-slate-500">
                         {item.quantity} x Rp {item.price.toLocaleString('id-ID')}
                       </span>
+                      {item.notes && (
+                        <p className="mt-1 text-[10px] font-bold italic text-orange-700">Catatan item: {item.notes}</p>
+                      )}
                     </div>
 
                     <span className="text-xs font-black text-slate-900 font-mono shrink-0">
@@ -986,18 +992,32 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 ))}
               </div>
 
+              <label className="block rounded-2xl border border-slate-200 bg-white p-3">
+                <span className="mb-1.5 block text-[11px] font-extrabold text-slate-700">
+                  Catatan untuk seluruh pesanan <span className="font-semibold text-slate-400">(opsional)</span>
+                </span>
+                <textarea
+                  value={orderNotes}
+                  onChange={(event) => setOrderNotes(event.target.value.slice(0, 500))}
+                  rows={3}
+                  placeholder="Contoh: kuah dipisah, antar bersamaan, jangan pakai bawang..."
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-orange-400 focus:bg-white"
+                />
+                <span className="mt-1 block text-right text-[9px] font-bold text-slate-400">{orderNotes.length}/500</span>
+              </label>
+
               <div className="bg-orange-50/80 border border-orange-200 p-3.5 rounded-2xl text-[11px] text-orange-900 font-semibold space-y-1">
                 <p className="font-extrabold flex items-center gap-1">
-                  ℹ️ Informasi Pengiriman & Pembayaran:
+                  Informasi pengiriman pesanan:
                 </p>
-                <p>Pesanan akan langsung terkirim secara **real-time ke Kasir & Dapur**. Pembayaran dilakukan di Kasir.</p>
+                <p>Pesanan langsung dikirim ke Kasir dan Dapur. Tidak ada pembayaran di halaman ini; pembayaran dilakukan langsung kepada Kasir.</p>
               </div>
             </div>
 
             {/* Cart Footer */}
             <div className="p-4 border-t border-slate-100 bg-white space-y-3">
               <div className="flex justify-between text-sm font-black text-slate-900">
-                <span>TOTAL PEMBAYARAN</span>
+                <span>TOTAL PESANAN</span>
                 <span className="text-orange-600 text-base font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
 
@@ -1006,7 +1026,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 onClick={handleSubmitOrder}
                 className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>Kirim Pesanan ke Dapur & Kasir</span>
+                <span>Konfirmasi &amp; Kirim Pesanan</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

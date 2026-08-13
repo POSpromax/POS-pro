@@ -434,6 +434,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     branchId: currentBranch.id,
     shiftId: currentShift.id,
     customerName,
+    notes: currentEditingOrder?.notes,
     tableNumber: selectedTable !== '-' && selectedTable.trim() !== '' ? selectedTable.trim() : undefined,
     type: orderType,
     status: currentEditingOrder?.status || 'NEW',
@@ -535,11 +536,16 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 const closed = isOrderClosed(order);
                 const kitchenDone = String(order.status).toUpperCase() === 'COMPLETED';
                 const locked = paid || closed; // Terkunci: tidak bisa diedit lagi
+                const originShiftId = order.createdShiftId || order.shiftId;
+                const isCarryOver = Boolean(
+                  originShiftId && currentShift.id && originShiftId !== currentShift.id
+                  && new Date(order.createdAt).getTime() < new Date(currentShift.startTime).getTime()
+                );
                 // Status pill: SELESAI (hijau tua), LUNAS (abu-abu, menunggu dapur),
                 // atau BELUM BAYAR (masih bisa dibayar/diedit).
                 const statusLabel = closed
                   ? (String(order.status).toUpperCase() === 'CANCELLED' ? 'BATAL' : 'SELESAI')
-                  : kitchenDone ? 'DAPUR SELESAI' : paid ? 'LUNAS · TUNGGU DAPUR' : 'BELUM BAYAR';
+                  : kitchenDone ? 'SIAP · TAGIH' : paid ? 'LUNAS · DAPUR' : 'BELUM BAYAR';
                 const statusStyle = closed
                   ? { background: '#F1F5F9', color: '#475569', borderColor: '#CBD5E1' }
                   : kitchenDone
@@ -566,36 +572,33 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     }
                     title={locked ? 'Pesanan terkunci — sudah dibayar / selesai' : undefined}
                   >
-                    {/* Line 1: Order Seq Num (#001), Customer Name, Table Badge, Status Pill */}
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    {/* Identitas dan satu status utama dipisahkan agar tidak bertumpuk. */}
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
                         {order.source === 'SELF_ORDER' && (
                           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sky-50 text-sky-700" title="Pesanan dari HP customer">
                             <Smartphone className="h-3 w-3" />
                           </span>
                         )}
-                        {order.shiftId !== currentShift.id && (
-                          <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-700" title="Order dari shift sebelumnya">
-                            Carry-over
-                          </span>
-                        )}
-                        <span className={`text-xs font-black font-mono shrink-0 ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
+                        <span className={`shrink-0 font-mono text-xs font-black ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
                           {orderSeqNum}
                         </span>
-                        <span className={`text-[11px] font-black truncate ${locked ? 'text-slate-500' : 'text-slate-800'}`} title={order.customerName || 'Guest'}>
-                          {order.customerName || 'Guest'}
-                        </span>
                       </div>
+                      <span className="shrink-0 rounded-md border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide" style={statusStyle} title={statusLabel}>
+                        {statusLabel}
+                      </span>
+                    </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className={`px-1.5 py-0.5 rounded-md font-black text-[10px] font-mono border ${locked ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-emerald-100/80 text-[#047857] border-emerald-200'}`}>
+                    <div className="flex min-w-0 items-center justify-between gap-1.5">
+                      <span className={`min-w-0 truncate text-[10px] font-black ${locked ? 'text-slate-500' : 'text-slate-800'}`} title={order.customerName || 'Guest'}>
+                        {order.customerName || 'Guest'}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isCarryOver && (
+                          <span className="rounded-md border border-amber-200 bg-amber-50 px-1 py-0.5 text-[7px] font-black uppercase text-amber-700" title="Order dari shift sebelumnya">Shift lalu</span>
+                        )}
+                        <span className={`rounded-md border px-1.5 py-0.5 font-mono text-[9px] font-black ${locked ? 'border-slate-200 bg-slate-100 text-slate-500' : 'border-emerald-200 bg-emerald-100/80 text-[#047857]'}`}>
                           Meja {tableDisplay}
-                        </span>
-                        <span
-                          className="px-1.5 py-0.5 text-[9px] font-black rounded-md uppercase tracking-wider border"
-                          style={statusStyle}
-                        >
-                          {statusLabel}
                         </span>
                       </div>
                     </div>
@@ -604,7 +607,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-500 text-[10px]">
-                          {order.items?.length || 0} menu
+                          {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0} item
                         </span>
                         <span className={`font-black font-mono ${locked ? 'text-slate-500' : 'text-[#111827]'}`}>
                           Rp {(order.total || 0).toLocaleString('id-ID')}

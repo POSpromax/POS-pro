@@ -63,19 +63,41 @@ import { formatOrderLabel } from './utils/orderNumber';
 import { buildBranchSelfOrderUrl } from './utils/selfOrderUrl';
 import { normalizeBranchId } from './utils/branchId';
 
-const KitchenDisplayView = lazy(() => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
-const CashierView = lazy(() => import('./components/POS/CashierView').then((m) => ({ default: m.CashierView })));
-const AttendanceHrPanel = lazy(() => import('./components/Attendance/AttendanceHrPanel').then((m) => ({ default: m.AttendanceHrPanel })));
-const CustomerSelfOrderModal = lazy(() => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
-const TableManagementView = lazy(() => import('./components/Tables/TableManagementView').then((m) => ({ default: m.TableManagementView })));
-const SelfOrderLandingPage = lazy(() => import('./components/SelfOrder/SelfOrderLandingPage').then((m) => ({ default: m.SelfOrderLandingPage })));
-const ShiftMonitorView = lazy(() => import('./components/Shift/ShiftMonitorView').then((m) => ({ default: m.ShiftMonitorView })));
-const AttendanceView = lazy(() => import('./components/Attendance/AttendanceView').then((m) => ({ default: m.AttendanceView })));
-const InventoryHppView = lazy(() => import('./components/Inventory/InventoryHppView').then((m) => ({ default: m.InventoryHppView })));
-const AnalyticsExportView = lazy(() => import('./components/Analytics/AnalyticsExportView').then((m) => ({ default: m.AnalyticsExportView })));
-const SettingsView = lazy(() => import('./components/Settings/SettingsView').then((m) => ({ default: m.SettingsView })));
-const SuperOwnerDashboardView = lazy(() => import('./components/Analytics/SuperOwnerDashboardView').then((m) => ({ default: m.SuperOwnerDashboardView })));
-const BlueprintArchitectureView = lazy(() => import('./components/Owner/BlueprintArchitectureView').then((m) => ({ default: m.BlueprintArchitectureView })));
+const lazyWithVersionRecovery = <T extends React.ComponentType<any>>(
+  key: string,
+  importer: () => Promise<{ default: T }>,
+) => lazy(async () => {
+  try {
+    const module = await importer();
+    sessionStorage.removeItem(`omnipos_chunk_recovery_${key}`);
+    return module;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isVersionMismatch = /dynamically imported module|failed to fetch|module script|importing a module script/i.test(message);
+    const storageKey = `omnipos_chunk_recovery_${key}`;
+    const lastReloadAt = Number(sessionStorage.getItem(storageKey) || 0);
+    if (isVersionMismatch && Date.now() - lastReloadAt > 60_000) {
+      sessionStorage.setItem(storageKey, String(Date.now()));
+      window.location.reload();
+      return new Promise<never>(() => undefined);
+    }
+    throw error;
+  }
+});
+
+const KitchenDisplayView = lazyWithVersionRecovery('kds', () => import('./components/KDS/KitchenDisplayView').then((m) => ({ default: m.KitchenDisplayView })));
+const CashierView = lazyWithVersionRecovery('pos', () => import('./components/POS/CashierView').then((m) => ({ default: m.CashierView })));
+const AttendanceHrPanel = lazyWithVersionRecovery('attendance-hr', () => import('./components/Attendance/AttendanceHrPanel').then((m) => ({ default: m.AttendanceHrPanel })));
+const CustomerSelfOrderModal = lazyWithVersionRecovery('self-order-modal', () => import('./components/SelfOrder/CustomerSelfOrderModal').then((m) => ({ default: m.CustomerSelfOrderModal })));
+const TableManagementView = lazyWithVersionRecovery('tables', () => import('./components/Tables/TableManagementView').then((m) => ({ default: m.TableManagementView })));
+const SelfOrderLandingPage = lazyWithVersionRecovery('self-order', () => import('./components/SelfOrder/SelfOrderLandingPage').then((m) => ({ default: m.SelfOrderLandingPage })));
+const ShiftMonitorView = lazyWithVersionRecovery('shift', () => import('./components/Shift/ShiftMonitorView').then((m) => ({ default: m.ShiftMonitorView })));
+const AttendanceView = lazyWithVersionRecovery('attendance', () => import('./components/Attendance/AttendanceView').then((m) => ({ default: m.AttendanceView })));
+const InventoryHppView = lazyWithVersionRecovery('inventory', () => import('./components/Inventory/InventoryHppView').then((m) => ({ default: m.InventoryHppView })));
+const AnalyticsExportView = lazyWithVersionRecovery('analytics', () => import('./components/Analytics/AnalyticsExportView').then((m) => ({ default: m.AnalyticsExportView })));
+const SettingsView = lazyWithVersionRecovery('settings', () => import('./components/Settings/SettingsView').then((m) => ({ default: m.SettingsView })));
+const SuperOwnerDashboardView = lazyWithVersionRecovery('owner', () => import('./components/Analytics/SuperOwnerDashboardView').then((m) => ({ default: m.SuperOwnerDashboardView })));
+const BlueprintArchitectureView = lazyWithVersionRecovery('blueprint', () => import('./components/Owner/BlueprintArchitectureView').then((m) => ({ default: m.BlueprintArchitectureView })));
 
 const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
 const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
@@ -1372,7 +1394,7 @@ export default function App() {
     order.status === 'CANCELLED' || (order.status === 'COMPLETED' && order.paymentStatus === 'PAID')
   );
   const shiftOrders = currentShift.status === 'OPEN'
-    ? branchOrders.filter((order) => order.shiftId === currentShift.id || !isOrderOperationallyClosed(order))
+    ? branchOrders.filter((order) => (order.createdShiftId || order.shiftId) === currentShift.id || !isOrderOperationallyClosed(order))
     : [];
   const branchTables = tables.filter((table) => table.branchId === currentBranch.id);
   const branchRawMaterials = rawMaterials.filter((material) => material.branchId === currentBranch.id);
@@ -1682,6 +1704,7 @@ export default function App() {
               outletName={currentBranch.name}
               connectionState={orderSyncHealth.connectionState}
               currentShiftId={currentShift.id}
+              currentShiftStartedAt={currentShift.startTime}
               soundEnabledByDefault={profile.soundNotificationsEnabled !== false}
               newOrderSound={profile.soundOrderBaru}
               selfOrderSound={profile.soundCustomerOrder}
@@ -1732,6 +1755,7 @@ export default function App() {
               tables={branchTables}
               branchId={currentBranch.id}
               branchCode={currentBranch.code}
+              publicOrderSlug={branchOperationalConfig.publicOrderSlug}
               tenantId={branchOperationalConfig.tenantId}
               branchName={currentBranch.name}
               selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
@@ -1756,7 +1780,7 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id, branchOperationalConfig.tenantId, currentBranch.code), '_blank', 'noopener,noreferrer')}
+                  onClick={() => window.open(buildBranchSelfOrderUrl(branchOperationalConfig.selfOrderBaseUrl || window.location.origin, currentBranch.id, branchOperationalConfig.tenantId, currentBranch.code, branchOperationalConfig.publicOrderSlug), '_blank', 'noopener,noreferrer')}
                   className="rounded-xl bg-[var(--primary)] px-4 py-2 text-[11px] font-bold text-white hover:bg-[var(--primary-hover)]"
                 >
                   Buka Halaman Publik
@@ -2149,6 +2173,7 @@ export default function App() {
         profile={profile}
         selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
         tenantId={branchOperationalConfig.tenantId}
+        publicOrderSlug={branchOperationalConfig.publicOrderSlug}
       />
 
       <ThermalReceiptModal

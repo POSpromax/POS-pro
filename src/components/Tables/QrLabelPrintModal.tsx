@@ -12,9 +12,10 @@ interface Props {
   profile: RestaurantProfile;
   selfOrderBaseUrl?: string;
   tenantId?: string;
+  publicOrderSlug?: string;
 }
 
-export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile, selfOrderBaseUrl, tenantId }) => {
+export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, currentBranch, profile, selfOrderBaseUrl, tenantId, publicOrderSlug }) => {
   const baseUrl = selfOrderBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
   const [selectedTableNumber, setSelectedTableNumber] = useState<string>('ALL');
 
@@ -33,9 +34,9 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
         .map((t) => ({
           number: t.number,
           capacity: t.capacity,
-          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id, tenantId, currentBranch.code),
+          url: buildBranchSelfOrderUrl(baseUrl, currentBranch.id, tenantId, currentBranch.code, publicOrderSlug),
         })),
-    [availableTables, selectedTableNumber, currentBranch.id, baseUrl, tenantId],
+    [availableTables, selectedTableNumber, currentBranch.id, currentBranch.code, baseUrl, tenantId, publicOrderSlug],
   );
 
   if (!isOpen) return null;
@@ -167,6 +168,7 @@ export const QrLabelPrintModal: React.FC<Props> = ({ isOpen, onClose, tables, cu
                       <p className="text-[10px] font-medium text-slate-500 leading-tight">
                         1. Scan QR &nbsp;•&nbsp; 2. Pilih Menu &nbsp;•&nbsp; 3. Pesan Langsung
                       </p>
+                      <p className="font-mono text-[9px] font-black text-emerald-700">{new URL(label.url).pathname}</p>
                     </div>
                   </div>
                 </div>

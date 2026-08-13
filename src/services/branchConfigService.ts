@@ -15,11 +15,22 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
   const fallback = defaultBranchOperationalConfig(branchId);
   if (!isSupabaseConfigured()) return fallback;
 
-  const { data, error } = await getSupabase()
+  let { data, error } = await getSupabase()
     .from('branch_operational_config')
-    .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
+    .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,public_order_slug,profile_overrides')
     .eq('branch_id', branchId)
     .maybeSingle();
+
+  // Kompatibel sebelum migrasi public_order_slug diterapkan.
+  if (error?.code === '42703' || error?.code === 'PGRST204') {
+    const legacy = await getSupabase()
+      .from('branch_operational_config')
+      .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
+      .eq('branch_id', branchId)
+      .maybeSingle();
+    data = legacy.data as typeof data;
+    error = legacy.error;
+  }
 
   // Backwards-compatible while the migration is being deployed.
   if (error?.code === '42P01' || error?.code === 'PGRST205') return fallback;
@@ -31,6 +42,7 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
     tenantId: data.tenant_id,
     selfOrderEnabled: data.self_order_enabled !== false,
     selfOrderBaseUrl: data.self_order_base_url || fallback.selfOrderBaseUrl,
+    publicOrderSlug: (data as any).public_order_slug || undefined,
     profileOverrides: (data.profile_overrides || {}) as BranchOperationalConfig['profileOverrides'],
   };
 }
@@ -67,6 +79,7 @@ export async function saveCloudBranchOperationalConfig(
     tenantId: data.tenant_id,
     selfOrderEnabled: data.self_order_enabled !== false,
     selfOrderBaseUrl: data.self_order_base_url || defaultBaseUrl(),
+    publicOrderSlug: config.publicOrderSlug,
     profileOverrides: (data.profile_overrides || {}) as BranchOperationalConfig['profileOverrides'],
   };
 }

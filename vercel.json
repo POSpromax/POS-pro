@@ -6,7 +6,7 @@
   "regions": ["sin1"],
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|assets/|sw\\.js$|manifest\\.webmanifest$|omnipos-icon\\.svg$).*)",
       "destination": "/index.html"
     }
   ],
@@ -22,6 +22,15 @@
     },
     {
       "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
       "headers": [
         {
           "key": "Cache-Control",

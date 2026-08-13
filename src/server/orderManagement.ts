@@ -15,6 +15,7 @@ const mapOrder = (row: any, items: any[] = []) => {
   orderNumber: row.order_number,
   dailyNumber: row.daily_number ?? undefined,
   customerName: row.customer_name || 'Guest',
+  notes: metadata.customerNotes || undefined,
   tableNumber: row.restaurant_tables?.number || row.table_number || metadata.tableNumber || '',
   type: row.order_type,
   items: items.map((item) => ({
@@ -328,10 +329,15 @@ export async function handleOrderRequest(
   // Item lama tidak dihapus atau dikirim ulang ke Kitchen.
   if (source === 'SELF_ORDER' && table.status === 'OCCUPIED' && table.active_order_id) {
     const increment = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
+    const appendedItems = normalizedItems.map((item, index) => {
+      const orderNote = input.notes ? String(input.notes).trim().slice(0, 500) : '';
+      if (index !== 0 || !orderNote) return item;
+      return { ...item, notes: item.notes ? `${item.notes} · Catatan order: ${orderNote}` : `Catatan order: ${orderNote}` };
+    });
     const { error: appendError } = await admin.rpc('append_self_order_items', {
       p_order_id: table.active_order_id,
       p_branch_id: branchId,
-      p_items: normalizedItems.map(({ category: _category, ...item }) => item),
+      p_items: appendedItems.map(({ category: _category, ...item }) => item),
       p_total_increment: increment,
     });
     if (appendError) return fail(500, 'Tambahan pesanan gagal dimasukkan ke bill aktif');
@@ -394,7 +400,15 @@ export async function handleOrderRequest(
     discount_amount: discount,
     tax_amount: tax,
     total_amount: total,
-    notes: JSON.stringify({ cashierName: actor?.name || 'Self Order', shiftId: input.shiftId || selfOrderShiftId || '', paymentMethod, cashPaid, change, tableNumber: tableNumStr }),
+    notes: JSON.stringify({
+      cashierName: actor?.name || 'Self Order',
+      shiftId: input.shiftId || selfOrderShiftId || '',
+      paymentMethod,
+      cashPaid,
+      change,
+      tableNumber: tableNumStr,
+      customerNotes: input.notes ? String(input.notes).trim().slice(0, 500) : undefined,
+    }),
     payment_method: paymentMethod,
     paid_amount: cashPaid,
     change_amount: change,

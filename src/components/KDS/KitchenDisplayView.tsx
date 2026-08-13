@@ -8,6 +8,7 @@ import {
   Filter,
   Flame,
   History,
+  MessageSquare,
   Printer,
   RotateCcw,
   Smartphone,
@@ -31,6 +32,7 @@ interface KitchenDisplayViewProps {
   onPrintKitchenTicket: (order: Order) => void;
   connectionState?: RealtimeConnectionState;
   currentShiftId?: string;
+  currentShiftStartedAt?: string;
   soundEnabledByDefault?: boolean;
   newOrderSound?: string;
   selfOrderSound?: string;
@@ -63,6 +65,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   onPrintKitchenTicket,
   connectionState = 'CONNECTING',
   currentShiftId,
+  currentShiftStartedAt,
   soundEnabledByDefault = true,
   newOrderSound = 'Kitchen Order',
   selfOrderSound = 'Customer Order',
@@ -218,6 +221,12 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               const isNew = order.status === 'NEW';
               const isReady = order.status === 'READY';
               const nextStatus: OrderStatus = isNew ? 'COOKING' : isReady ? 'COMPLETED' : 'READY';
+              const originShiftId = order.createdShiftId || order.shiftId;
+              const isCarryOver = Boolean(
+                currentShiftId && originShiftId && originShiftId !== currentShiftId
+                && currentShiftStartedAt
+                && new Date(order.createdAt).getTime() < new Date(currentShiftStartedAt).getTime()
+              );
 
               return (
                 <article key={order.id} className="ui-card relative overflow-hidden">
@@ -233,9 +242,9 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                               <Smartphone className="h-3 w-3" /> HP
                             </span>
                           )}
-                          {currentShiftId && order.shiftId !== currentShiftId && (
+                          {isCarryOver && (
                             <span className="ui-badge border border-amber-200 bg-amber-50 text-[9px] font-extrabold text-amber-700" title="Order dibawa dari shift sebelumnya">
-                              Carry-over
+                              Shift lalu
                             </span>
                           )}
                         </div>
@@ -248,6 +257,13 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                         <span className={`ui-badge ${tone.badge}`}><Clock className="h-3 w-3" />{elapsed}m</span>
                       </div>
                     </div>
+
+                    {order.notes && (
+                      <div className="mt-2 flex items-start gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-2 text-[11px] font-bold leading-snug text-orange-800">
+                        <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>Catatan order: {order.notes}</span>
+                      </div>
+                    )}
 
                     <div className="mt-2.5 space-y-2">
                       {productGroups.map((product) => (

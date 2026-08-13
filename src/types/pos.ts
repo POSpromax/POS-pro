@@ -164,6 +164,7 @@ export interface Order {
   orderNumber: string; // Identitas unik penuh, mis. "POS-MSNWCM6VFDL"
   dailyNumber?: number; // Nomor antrean harian per cabang, untuk ditampilkan
   customerName: string;
+  notes?: string;
   tableNumber: string;
   type: OrderType;
   items: OrderItem[];

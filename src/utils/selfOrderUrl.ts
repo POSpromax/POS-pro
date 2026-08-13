@@ -5,8 +5,15 @@ export function branchRouteCode(branchCode?: string): string {
   return match ? match[1].padStart(2, '0') : '';
 }
 
-export function buildBranchSelfOrderUrl(baseUrl: string, branchId: string, tenantId?: string, branchCode?: string): string {
-  const routeCode = branchRouteCode(branchCode);
+export function buildBranchSelfOrderUrl(
+  baseUrl: string,
+  branchId: string,
+  tenantId?: string,
+  branchCode?: string,
+  publicOrderSlug?: string,
+): string {
+  const configuredSlug = String(publicOrderSlug || '').trim();
+  const routeCode = /^\d{2,4}$/.test(configuredSlug) ? configuredSlug : branchRouteCode(branchCode);
   const url = new URL(routeCode ? `/${routeCode}` : '/', baseUrl);
   if (routeCode) return url.toString();
   url.searchParams.set('selforder', 'true');

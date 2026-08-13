@@ -90,6 +90,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   useEffect(() => {
+    if (quickAccessRef.current?.contains(document.activeElement)) {
+      document.getElementById('btn-quick-access')?.focus();
+    }
     setMenuOpen(false);
   }, [activeTab, systemPortal]);
 
@@ -109,6 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   const selectTab = (tab: string) => {
+    document.getElementById('btn-quick-access')?.focus();
     setActiveTab(tab);
     setMenuOpen(false);
   };
@@ -127,6 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           menuOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
         }`}
         aria-hidden={!menuOpen}
+        inert={!menuOpen}
       >
         <button
           type="button"

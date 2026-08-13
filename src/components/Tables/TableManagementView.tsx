@@ -18,6 +18,7 @@ interface TableManagementViewProps {
   tables: RestaurantTable[];
   branchId: string;
   branchCode?: string;
+  publicOrderSlug?: string;
   tenantId?: string;
   branchName?: string;
   selfOrderBaseUrl?: string;
@@ -35,6 +36,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   tables,
   branchId,
   branchCode,
+  publicOrderSlug,
   tenantId,
   branchName,
   selfOrderBaseUrl,
@@ -151,7 +153,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           </button>
         </label>
         <p className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-800">
-          Tujuan QR outlet ini: {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode)}
+          Link QR khusus outlet ini: {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug)}
         </p>
       </div>
 
@@ -175,7 +177,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                 : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
-            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode);
+            const qrUrl = buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug);
 
             return (
               <article key={table.id} className="ui-card overflow-hidden">
@@ -195,6 +197,9 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     <QrCodeCanvas value={qrUrl} size={140} className="rounded-lg border border-slate-100 p-1" />
                     <p className="mt-2 text-center text-[11px] font-bold text-[var(--text-secondary)]">
                       Scan lalu pilih meja aktif
+                    </p>
+                    <p className="mt-1 max-w-full truncate rounded-full bg-sky-50 px-2 py-0.5 font-mono text-[9px] font-black text-sky-700" title={qrUrl}>
+                      {new URL(qrUrl).pathname}
                     </p>
                   </div>
 
