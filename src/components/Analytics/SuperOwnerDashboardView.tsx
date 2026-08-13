@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { Branch, Order, RestaurantTable, RawMaterial } from '../../types/pos';
+import { buildBranchSelfOrderUrl } from '../../utils/selfOrderUrl';
 
 interface SuperOwnerDashboardViewProps {
   branches: Branch[];
@@ -538,7 +539,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
                 </button>
 
                 <a
-                  href={`?selforder=true&branch=${encodeURIComponent(branch.id)}&table=${encodeURIComponent(tables.find((t) => (!t.branchId || t.branchId === branch.id) && t.isSelfOrderEnabled)?.number || '1')}`}
+                  href={buildBranchSelfOrderUrl(window.location.origin, branch.id, undefined, branch.code)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex w-full items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold transition cursor-pointer"

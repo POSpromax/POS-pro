@@ -9,13 +9,29 @@ export const PWAUpdatePrompt: React.FC = () => {
     updateServiceWorker,
   } = useRegisterSW();
 
+  const isPublicSelfOrderRoute = typeof window !== 'undefined' && (
+    /^\/\d{2,4}\/?$/.test(window.location.pathname) ||
+    window.location.pathname.startsWith('/order') ||
+    window.location.pathname.startsWith('/self-order') ||
+    new URLSearchParams(window.location.search).has('selforder')
+  );
+
+  useEffect(() => {
+    // Halaman publik tidak memiliki transaksi kasir yang perlu ditahan. Muat
+    // service worker terbaru segera agar QR lama tidak menampilkan app-shell
+    // POS/login dari deployment sebelumnya.
+    if (needRefresh && isPublicSelfOrderRoute) {
+      void updateServiceWorker(true);
+    }
+  }, [isPublicSelfOrderRoute, needRefresh, updateServiceWorker]);
+
   useEffect(() => {
     if (!offlineReady) return;
     const timeout = window.setTimeout(() => setOfflineReady(false), 4000);
     return () => window.clearTimeout(timeout);
   }, [offlineReady, setOfflineReady]);
 
-  if (!offlineReady && !needRefresh) return null;
+  if ((!offlineReady && !needRefresh) || (needRefresh && isPublicSelfOrderRoute)) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-[80] w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-black/10 bg-[var(--primary)] p-3.5 text-white shadow-xl">
