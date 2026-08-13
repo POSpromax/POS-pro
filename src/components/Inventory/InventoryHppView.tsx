@@ -25,7 +25,11 @@ import {
   ShoppingBag,
   LayoutGrid,
   List,
-  History
+  History,
+  ClipboardCheck,
+  ArrowRight,
+  ShieldCheck,
+  Circle
 } from 'lucide-react';
 import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
@@ -127,6 +131,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [selectedRecipeQty, setSelectedRecipeQty] = useState<number>(1);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [isSetupPanelOpen, setIsSetupPanelOpen] = useState<boolean>(true);
+  const [showOnlyMissingRecipes, setShowOnlyMissingRecipes] = useState<boolean>(false);
 
   // Riwayat pergerakan stok per bahan
   const [ledgerMaterial, setLedgerMaterial] = useState<RawMaterial | null>(null);
@@ -172,16 +178,50 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredMenuItems = menuItems.filter((m) =>
+  const filteredMenuItems = menuItems.filter((m) => (
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) && (!showOnlyMissingRecipes || (!m.isManualPrice && (m.ingredients?.length || 0) === 0)));
 
   // Quantities & Restock calculation
   const totalAssetsCount = rawMaterials.length;
   const restockNeedCount = rawMaterials.filter((m) => m.stockQuantity <= m.minStockThreshold).length;
-  const recipeLinkedCount = menuItems.filter((menu) => !menu.isManualPrice && (menu.ingredients?.length || 0) > 0).length;
-  const recipeMissingCount = menuItems.filter((menu) => !menu.isManualPrice && (menu.ingredients?.length || 0) === 0).length;
+  const recipeEligibleItems = menuItems.filter((menu) => !menu.isManualPrice);
+  const recipeLinkedCount = recipeEligibleItems.filter((menu) => (menu.ingredients?.length || 0) > 0).length;
+  const recipeMissingCount = recipeEligibleItems.length - recipeLinkedCount;
+  const consumptionMaterials = rawMaterials.filter((material) => resolveMaterialGroup(material) === 'MENU');
+  const configuredConsumptionMaterials = consumptionMaterials.filter((material) => material.costPerUnit > 0 && material.minStockThreshold >= 0);
+  const inventorySetupSteps = [
+    { id: 'menu', label: 'Master menu tersedia', detail: `${menuItems.length} menu di outlet`, done: menuItems.length > 0 },
+    { id: 'material', label: 'Bahan konsumsi tersedia', detail: `${consumptionMaterials.length} bahan menu`, done: consumptionMaterials.length > 0 },
+    { id: 'recipe', label: 'Resep menu lengkap', detail: `${recipeLinkedCount}/${recipeEligibleItems.length} menu terhubung`, done: recipeEligibleItems.length > 0 && recipeMissingCount === 0 },
+    { id: 'cost', label: 'HPP dan batas stok siap', detail: `${configuredConsumptionMaterials.length}/${consumptionMaterials.length} bahan terkonfigurasi`, done: consumptionMaterials.length > 0 && configuredConsumptionMaterials.length === consumptionMaterials.length },
+  ];
+  const completedSetupSteps = inventorySetupSteps.filter((step) => step.done).length;
+  const inventoryReadinessPercent = Math.round((completedSetupSteps / inventorySetupSteps.length) * 100);
+  const isInventoryOperationalReady = completedSetupSteps === inventorySetupSteps.length;
+
+  const handleContinueInventorySetup = () => {
+    if (menuItems.length === 0) {
+      setSubTab('MENU');
+      handleOpenEditMenuModal();
+      return;
+    }
+    if (consumptionMaterials.length === 0) {
+      setSubTab('BAHAN');
+      handleOpenRawModal();
+      return;
+    }
+    if (recipeMissingCount > 0) {
+      setSubTab('MENU');
+      setSearchTerm('');
+      setShowOnlyMissingRecipes(true);
+      toast('Lengkapi Resep', 'Pilih Edit Menu & Resep pada setiap menu yang belum terhubung ke bahan.');
+      return;
+    }
+    setSubTab('BAHAN');
+    toast('Lengkapi HPP', 'Periksa harga satuan dan batas minimum setiap bahan menu.');
+  };
 
   const handleAdjustStock = (material: RawMaterial, delta: number) => {
     const updatedQty = Math.max(0, material.stockQuantity + delta);
@@ -554,6 +594,73 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       </div>
 
       {/* Metric Cards — 2 cols on mobile, 4 on desktop */}
+      <section className={`mb-4 overflow-hidden rounded-2xl border shadow-[0_10px_30px_rgba(15,23,42,0.07)] ${isInventoryOperationalReady ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-white'}`}>
+        <button
+          type="button"
+          onClick={() => setIsSetupPanelOpen((open) => !open)}
+          className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left md:px-5"
+          aria-expanded={isSetupPanelOpen}
+        >
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm ${isInventoryOperationalReady ? 'bg-emerald-600' : 'bg-slate-900'}`}>
+            {isInventoryOperationalReady ? <ShieldCheck className="h-5 w-5" /> : <ClipboardCheck className="h-5 w-5" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-extrabold text-slate-950">Kesiapan Inventory Cabang</p>
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${isInventoryOperationalReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {isInventoryOperationalReady ? 'Siap operasional' : 'Perlu dilengkapi'}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
+              {currentBranch?.name || 'Outlet aktif'} · {completedSetupSteps}/{inventorySetupSteps.length} tahap selesai
+            </p>
+          </div>
+          <div className="hidden w-28 items-center gap-2 sm:flex">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${inventoryReadinessPercent}%` }} />
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-700">{inventoryReadinessPercent}%</span>
+          </div>
+          {isSetupPanelOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+        </button>
+
+        {isSetupPanelOpen && (
+          <div className="border-t border-slate-200/80 px-4 py-4 md:px-5">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {inventorySetupSteps.map((step, index) => (
+                <div key={step.id} className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 ${step.done ? 'border-emerald-200 bg-emerald-50/80' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${step.done ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-400'}`}>
+                    {step.done ? <Check className="h-3 w-3" /> : <span className="text-[9px] font-extrabold">{index + 1}</span>}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-[10px] font-extrabold ${step.done ? 'text-emerald-950' : 'text-slate-800'}`}>{step.label}</p>
+                    <p className="mt-0.5 text-[9px] font-medium text-slate-500">{step.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {!isInventoryOperationalReady && (
+              <div className="mt-3 flex flex-col gap-2 rounded-xl bg-slate-900 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-2">
+                  <Circle className="mt-1 h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />
+                  <p className="text-[10px] font-semibold leading-relaxed text-slate-200">
+                    Jangan gunakan kontrol stok otomatis sebelum bahan konsumsi, resep, HPP, dan batas minimum selesai dikonfigurasi.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleContinueInventorySetup}
+                  className="flex min-h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-[10px] font-extrabold text-slate-950 transition hover:bg-emerald-50"
+                >
+                  Lanjutkan setup <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {subTab === 'MENU' && recipeMissingCount > 0 && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 shadow-[0_8px_22px_rgba(180,83,9,0.08)] sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
@@ -565,9 +672,21 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               <p className="mt-0.5 text-[11px] font-medium text-amber-800">Stok bahan belum berkurang otomatis untuk menu tersebut. Buka Edit Menu lalu isi komposisi resep per outlet.</p>
             </div>
           </div>
-          <span className="shrink-0 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-[10px] font-extrabold text-amber-800">
-            Resep aktif {recipeLinkedCount}/{menuItems.filter((menu) => !menu.isManualPrice).length}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setShowOnlyMissingRecipes((current) => !current);
+              }}
+              className="cursor-pointer rounded-xl bg-amber-600 px-3 py-1.5 text-[10px] font-extrabold text-white transition hover:bg-amber-700"
+            >
+              {showOnlyMissingRecipes ? 'Tampilkan semua' : 'Fokus yang belum siap'}
+            </button>
+            <span className="rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-[10px] font-extrabold text-amber-800">
+              Resep aktif {recipeLinkedCount}/{recipeEligibleItems.length}
+            </span>
+          </div>
         </div>
       )}
 
@@ -726,8 +845,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           {/* Categories Accordion */}
           {displayCategories.map((cat) => {
             const categoryItems = filteredMenuItems.filter((m) => m.category === cat);
-            if (categoryItems.length === 0 && searchTerm.trim()) return null;
-            const isExpanded = searchTerm.trim().length > 0 ? true : (expandedCategories[cat] ?? true);
+            if (categoryItems.length === 0 && (searchTerm.trim() || showOnlyMissingRecipes)) return null;
+            const isExpanded = searchTerm.trim().length > 0 || showOnlyMissingRecipes ? true : (expandedCategories[cat] ?? true);
 
             return (
               <div key={cat} className="bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]/90 shadow-sm overflow-hidden">
@@ -809,6 +928,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                                   {item.isAutoStock !== false && !isStickyItem && (
                                     <span className="ui-badge ui-badge-success hidden sm:inline-flex">
                                       Auto-Stock
+                                    </span>
+                                  )}
+                                  {!isStickyItem && (item.ingredients?.length || 0) === 0 && (
+                                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-extrabold text-amber-800">
+                                      Resep belum ada
                                     </span>
                                   )}
                                 </div>
