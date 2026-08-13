@@ -4,13 +4,17 @@
  */
 
 let sharedAudioCtx: AudioContext | null = null;
+let audioUnlockedByGesture = false;
 
 const hasUserGesture = (): boolean => {
   if (typeof window === 'undefined') return false;
+  if (audioUnlockedByGesture) return true;
   if ('userActivation' in navigator && (navigator as any).userActivation) {
     return (navigator as any).userActivation.hasBeenActive;
   }
-  return true;
+  // Browser lama tanpa UserActivation API tetap harus menunggu listener
+  // pointer/keyboard di bawah, jangan menganggap autoplay sudah diizinkan.
+  return false;
 };
 
 const getAudioContext = (): AudioContext | null => {
@@ -19,6 +23,10 @@ const getAudioContext = (): AudioContext | null => {
     window.AudioContext ||
     (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextClass) return null;
+
+  // Membuat AudioContext saja sudah cukup untuk memicu warning autoplay di
+  // Chrome. Jangan pernah membuatnya saat initial render/realtime bootstrap.
+  if (!sharedAudioCtx && !hasUserGesture()) return null;
 
   if (!sharedAudioCtx) {
     try {
@@ -40,15 +48,18 @@ const getAudioContext = (): AudioContext | null => {
 // Global click / keydown / touchstart listener to unlock Web Audio API seamlessly on first user interaction
 if (typeof window !== 'undefined') {
   const unlockAudio = () => {
+    audioUnlockedByGesture = true;
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
     }
-    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('pointerdown', unlockAudio, true);
     window.removeEventListener('keydown', unlockAudio);
     window.removeEventListener('touchstart', unlockAudio);
   };
-  window.addEventListener('click', unlockAudio, { passive: true, once: true });
+  // Capture pointerdown berjalan sebelum React onClick (termasuk tombol tes
+  // suara), sehingga bunyi pertama dapat dimainkan tanpa warning autoplay.
+  window.addEventListener('pointerdown', unlockAudio, { passive: true, once: true, capture: true });
   window.addEventListener('keydown', unlockAudio, { passive: true, once: true });
   window.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
 }
