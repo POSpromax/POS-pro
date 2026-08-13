@@ -14,7 +14,17 @@ export function buildBranchSelfOrderUrl(
 ): string {
   const configuredSlug = String(publicOrderSlug || '').trim();
   const routeCode = /^\d{2,4}$/.test(configuredSlug) ? configuredSlug : branchRouteCode(branchCode);
-  const url = new URL(routeCode ? `/${routeCode}` : '/', baseUrl);
+  const browserOrigin = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'http://localhost';
+  let safeBaseUrl = browserOrigin;
+  try {
+    safeBaseUrl = new URL(String(baseUrl || '').trim()).origin;
+  } catch {
+    // Konfigurasi domain dapat kosong/tidak lengkap ketika sedang diedit.
+    // QR tetap memakai origin aplikasi supaya render halaman tidak terputus.
+  }
+  const url = new URL(routeCode ? `/${routeCode}` : '/', safeBaseUrl);
   if (routeCode) return url.toString();
   url.searchParams.set('selforder', 'true');
   if (tenantId) url.searchParams.set('tenant', tenantId);
