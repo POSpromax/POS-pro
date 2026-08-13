@@ -437,6 +437,19 @@ export default function App() {
 
           setOrders(finalOrders);
           DBStorage.saveOrders(finalOrders);
+
+          // Update table OCCUPIED statuses in DBStorage & state so Table Management updates immediately
+          finalOrders.forEach((o) => {
+            if (o.tableNumber && o.tableNumber !== '-' && o.tableNumber !== '' && o.status !== 'COMPLETED' && o.status !== 'CANCELLED') {
+              DBStorage.updateTableStatus(o.tableNumber, 'OCCUPIED', o.id, o.branchId);
+            }
+          });
+          setTables(DBStorage.getTables());
+
+          // Update state trackers for next realtime comparison
+          knownItemQuantities = nextItemQuantities;
+          isFirstLoad = false;
+
           setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         })
         .catch((error) => showPushToast('Sinkronisasi Order Tertunda', error instanceof Error ? error.message : 'Order cloud belum dapat dimuat.'))

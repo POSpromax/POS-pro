@@ -128,6 +128,23 @@ export async function handleOrderRequest(
     } else if (payload.status === 'COMPLETED') {
       await admin.from('order_items').update({ kitchen_status: 'DONE' }).eq('order_id', payload.orderId).neq('kitchen_status', 'DONE');
     }
+
+    try {
+      const channel = admin.channel(`branch:${branchId}:orders_realtime`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'UPDATE',
+        payload: { orderId: payload.orderId, status: payload.status },
+      });
+      await channel.send({
+        type: 'broadcast',
+        event: 'pos_sync',
+        payload: { action: 'ORDER_UPDATED', orderId: payload.orderId },
+      });
+    } catch (err) {
+      console.warn('Server realtime broadcast error:', err);
+    }
+
     return { status: 200, data: { success: true } };
   }
 
@@ -366,5 +383,22 @@ export async function handleOrderRequest(
     ...item,
     category: (menuMap.get(item.menu_item_id) as any)?.category || 'MAKANAN',
   }));
+
+  try {
+    const channel = admin.channel(`branch:${branchId}:orders_realtime`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'INSERT',
+      payload: { orderId: savedOrderId, source: source || 'SELF_ORDER', tableNumber: tableNumStr },
+    });
+    await channel.send({
+      type: 'broadcast',
+      event: 'pos_sync',
+      payload: { action: 'ORDER_CREATED', orderId: savedOrderId, source: source || 'SELF_ORDER' },
+    });
+  } catch (broadcastErr) {
+    console.warn('Server realtime broadcast error:', broadcastErr);
+  }
+
   return { status: (checkout as any)?.created ? 201 : 200, data: mapOrder(savedRow, hydratedItems) };
 }
