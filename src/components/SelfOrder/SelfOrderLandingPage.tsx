@@ -84,6 +84,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
   const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
+  const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false);
 
   // Submitted Order Tracking State
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
@@ -733,31 +734,154 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               )}
             </div>
 
-            {/* Sticky Cart Bar Footer */}
+            {/* Sticky Floating Freeze Cart Bar Footer */}
             {cartItems.length > 0 && (
-              <div className="absolute bottom-3 left-3 right-3 z-30 animate-slideUp">
+              <div className="sticky bottom-3 left-3 right-3 z-40 px-3 pb-3 animate-slideUp">
                 <button
                   type="button"
-                  onClick={() => setActiveStep('CART')}
-                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-orange-600 bg-orange-600 p-3.5 text-white shadow-xl shadow-orange-500/20 hover:bg-orange-700"
+                  onClick={() => setIsCartModalOpen(true)}
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-orange-500 bg-gradient-to-r from-orange-600 to-amber-600 p-3.5 text-white shadow-2xl shadow-orange-600/30 hover:brightness-105 active:scale-[0.99] transition-all"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-white/20 text-white font-extrabold text-xs flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-inner">
                       {totalCartQty}
                     </div>
                     <div className="text-left">
-                      <span className="block text-[11px] font-bold uppercase leading-tight text-orange-100">KERANJANG PESANAN</span>
-                      <span className="text-xs font-bold text-white leading-none">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-orange-100">KERANJANG BELANJA</span>
+                      <span className="text-sm font-extrabold text-white leading-none">
                         Rp {totalAmount.toLocaleString('id-ID')}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all">
-                    <span>Lihat Keranjang</span>
+                  <div className="flex items-center gap-1.5 bg-white text-orange-600 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all hover:bg-orange-50">
+                    <span>Detil Pesanan ({cartItems.length})</span>
                     <ChevronRight className="w-4 h-4" />
                   </div>
                 </button>
+              </div>
+            )}
+
+            {/* MODAL DETIL KERANJANG & Rincian Kondiment */}
+            {isCartModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:p-4 backdrop-blur-xs animate-fadeIn">
+                <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl animate-slideUp">
+                  {/* Header Modal Detil Keranjang */}
+                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 text-white shadow-sm">
+                        <ShoppingBag className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-900">Detil Keranjang Pesanan</h3>
+                        <p className="text-[11px] font-bold text-slate-500">Meja #{selectedTable} • {cartItems.length} Jenis Menu</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCartModalOpen(false)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* List Item & DETIL KONDIMENT LENGKAP */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col gap-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1 flex-1">
+                            <h5 className="text-xs font-black text-slate-900">{item.menuName}</h5>
+                            <span className="text-xs font-bold text-orange-600 block">
+                              @ Rp {item.price.toLocaleString('id-ID')} &nbsp;•&nbsp; Total: Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+
+                          {/* Tombol Kuantitas */}
+                          <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl border border-slate-200 shrink-0 shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQty(item.id, -1)}
+                              className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all cursor-pointer"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-xs font-bold text-slate-900 w-4 text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQty(item.id, 1)}
+                              className="w-6 h-6 rounded-lg bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center transition-all cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* RINCIAN DETIL KONDIMENT */}
+                        {item.selectedCondiments && item.selectedCondiments.length > 0 && (
+                          <div className="mt-1 space-y-1.5 rounded-xl border border-amber-200/80 bg-amber-50/60 p-2.5">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wide text-amber-900 flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-amber-600" /> Pilihan Kondiment / Varian:
+                            </p>
+                            <div className="space-y-1">
+                              {item.selectedCondiments.map((grp, gIdx) => (
+                                <div key={gIdx} className="text-[11px] font-medium text-amber-950">
+                                  <span className="font-extrabold text-amber-900">{grp.groupName}: </span>
+                                  {grp.options.map((opt) => `${opt.name}${opt.price ? ` (+Rp ${opt.price.toLocaleString('id-ID')})` : ''}`).join(', ')}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Catatan Item */}
+                        {item.notes && (
+                          <div className="text-[11px] font-medium text-slate-600 italic bg-slate-100 px-2.5 py-1 rounded-lg">
+                            📝 Catatan: "{item.notes}"
+                          </div>
+                        )}
+
+                        {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCartModalOpen(false);
+                              handleConfigurePerPortion(item);
+                            }}
+                            className="mt-1 self-start text-[11px] font-bold text-orange-600 hover:underline cursor-pointer"
+                          >
+                            ✏️ Ubah Varian / Kondiment Porsi Ini
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="border-t border-slate-100 bg-white p-4 space-y-3">
+                    <div className="flex justify-between items-center text-sm font-black text-slate-900">
+                      <span>Total Biaya ({totalCartQty} Item)</span>
+                      <span className="text-orange-600 text-base font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCartModalOpen(false);
+                        setActiveStep('CART');
+                      }}
+                      className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <span>Lanjut ke Pembayaran</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -765,7 +889,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
         )}
 
         {/* =========================================
-            STEP 4: CART CHECKOUT SCREEN
+            STEP 4: CART CHECKOUT SCREEN (Ringkasan Pembayaran)
            ========================================= */}
         {activeStep === 'CART' && (
           <div className="flex-1 bg-white flex flex-col justify-between overflow-hidden animate-fadeIn">
@@ -776,7 +900,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <ShoppingBag className="w-5 h-5 text-orange-600" />
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
-                    Konfirmasi Keranjang
+                    Ringkasan & Konfirmasi Pembayaran
                   </h3>
                   <p className="text-[11px] font-bold text-slate-500">
                     Meja #{selectedTable} • {customerName}
@@ -792,87 +916,58 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               </button>
             </div>
 
-            {/* Cart Items List */}
+            {/* Cart Items List — Tampilan Ringkas & Bersih untuk Kasir/Pembayaran */}
             <div className="p-4 overflow-y-auto space-y-3 flex-1">
-              <h4 className="text-xs font-bold uppercase text-slate-400">Item Pesanan ({cartItems.length}):</h4>
-              
-              {cartItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-start justify-between gap-2"
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase text-slate-400">Ringkasan Pesanan ({cartItems.length}):</h4>
+                <button
+                  type="button"
+                  onClick={() => setIsCartModalOpen(true)}
+                  className="text-[11px] font-bold text-orange-600 hover:underline cursor-pointer"
                 >
-                  <div className="flex-1 space-y-0.5">
-                    <h5 className="text-xs font-extrabold text-slate-900">{item.menuName}</h5>
-                    
-                    {item.selectedCondiments && item.selectedCondiments.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-0.5">
-                        {item.selectedCondiments.flatMap((g) => g.options).map((opt, i) => (
-                          <span
-                            key={i}
-                            className="text-[11px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded-lg uppercase"
-                          >
-                            + {opt.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                  Lihat Detil Kondiment
+                </button>
+              </div>
+              
+              <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-slate-50/50 p-1">
+                {cartItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-xs font-black text-slate-900 truncate">{item.menuName}</h5>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {item.quantity} x Rp {item.price.toLocaleString('id-ID')}
+                      </span>
+                    </div>
 
-                    {item.notes && (
-                      <p className="text-[11px] font-medium text-amber-600 italic pt-0.5">
-                        "{item.notes}"
-                      </p>
-                    )}
-
-                    {(item.quantity > 1 || condimentGroups.some((group) => isGroupApplicable(group, menuItems.find((menu) => menu.id === item.menuId)!))) && (
-                      <button type="button" onClick={() => handleConfigurePerPortion(item)} className="mt-1.5 rounded-lg border border-[var(--brand-200)] bg-[var(--primary-soft)] px-2 py-1 text-[11px] font-bold text-[var(--primary-text)]">
-                        {item.quantity > 1 ? 'Atur per porsi' : 'Ubah porsi ini'}
-                      </button>
-                    )}
-
-                    <span className="text-xs font-bold text-orange-600 block pt-1">
-                      Rp {item.price.toLocaleString('id-ID')}
+                    <span className="text-xs font-black text-slate-900 font-mono shrink-0">
+                      Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                     </span>
                   </div>
+                ))}
+              </div>
 
-                  <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl border border-slate-200 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateQty(item.id, -1)}
-                      className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xs font-bold text-slate-900 w-4 text-center">
-                      {item.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateQty(item.id, 1)}
-                      className="w-6 h-6 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="bg-orange-50/70 border border-orange-200/80 p-3 rounded-2xl text-[11px] text-orange-900 font-semibold space-y-1">
-                <p className="font-extrabold">ℹ️ Informasi Pembayaran:</p>
-                <p>Pesanan akan langsung dikirim ke Dapur & Kasir. Pembayaran dilakukan di Kasir saat hidangan selesai / sebelum pulang.</p>
+              <div className="bg-orange-50/80 border border-orange-200 p-3.5 rounded-2xl text-[11px] text-orange-900 font-semibold space-y-1">
+                <p className="font-extrabold flex items-center gap-1">
+                  ℹ️ Informasi Pengiriman & Pembayaran:
+                </p>
+                <p>Pesanan akan langsung terkirim secara **real-time ke Kasir & Dapur**. Pembayaran dilakukan di Kasir.</p>
               </div>
             </div>
 
             {/* Cart Footer */}
             <div className="p-4 border-t border-slate-100 bg-white space-y-3">
-              <div className="flex justify-between text-sm font-bold text-slate-900">
-                <span>TOTAL BAYAR</span>
+              <div className="flex justify-between text-sm font-black text-slate-900">
+                <span>TOTAL PEMBAYARAN</span>
                 <span className="text-orange-600 text-base font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
               </div>
 
               <button
                 type="button"
                 onClick={handleSubmitOrder}
-                className="w-full py-4 bg-[var(--primary)] hover:bg-orange-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Kirim Pesanan ke Dapur & Kasir</span>
                 <ArrowRight className="w-4 h-4" />

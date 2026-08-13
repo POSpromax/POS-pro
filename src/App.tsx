@@ -460,13 +460,13 @@ export default function App() {
       },
     );
     const fallbackTimer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible' || realtimeState !== 'DEGRADED') return;
+      if (document.visibilityState !== 'visible') return;
       const visibleTab = activeTabRef.current;
-      const fallbackDelay = visibleTab === 'kds' ? 5_000 : visibleTab === 'pos' ? 12_000 : 0;
+      const fallbackDelay = visibleTab === 'kds' ? 5_000 : visibleTab === 'pos' ? 8_000 : 15_000;
       if (!fallbackDelay || Date.now() - lastFallbackAt < fallbackDelay) return;
       lastFallbackAt = Date.now();
       refresh();
-    }, 5_000);
+    }, 4_000);
     const reconcileVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('focus', reconcileVisible);
     window.addEventListener('online', reconcileVisible);
