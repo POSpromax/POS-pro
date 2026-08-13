@@ -1377,14 +1377,23 @@ export default function App() {
     showPushToast('Meja Baru Ditambahkan', `Meja ${tableNumber} (Kapasitas ${capacity} orang) berhasil dibuat.`);
   };
 
-  const persistBranchOperationalConfig = (updates: Partial<BranchOperationalConfig>) => {
+  const persistBranchOperationalConfig = async (updates: Partial<BranchOperationalConfig>) => {
+    const previous = branchOperationalConfig;
     const next = { ...branchOperationalConfig, ...updates, branchId: currentBranch.id };
     setBranchOperationalConfig(next);
     setIsSelfOrderSystemEnabled(next.selfOrderEnabled);
-    if (!cloudReadiness.supabase) return;
-    void saveCloudBranchOperationalConfig(next)
-      .then(setBranchOperationalConfig)
-      .catch((error) => showPushToast('Konfigurasi Cabang Gagal Disimpan', error instanceof Error ? error.message : 'Pengaturan cabang gagal disimpan.'));
+    if (!cloudReadiness.supabase) return next;
+    try {
+      const saved = await saveCloudBranchOperationalConfig(next);
+      setBranchOperationalConfig(saved);
+      setIsSelfOrderSystemEnabled(saved.selfOrderEnabled);
+      return saved;
+    } catch (error) {
+      setBranchOperationalConfig(previous);
+      setIsSelfOrderSystemEnabled(previous.selfOrderEnabled);
+      showPushToast('Konfigurasi Cabang Gagal Disimpan', error instanceof Error ? error.message : 'Pengaturan cabang gagal disimpan.');
+      throw error;
+    }
   };
 
   const saveScopedRestaurantProfile = (nextProfile: RestaurantProfile) => {
@@ -1394,7 +1403,7 @@ export default function App() {
       return;
     }
     const { name, logoUrl, instagram, tiktok, ...branchProfile } = nextProfile;
-    persistBranchOperationalConfig({ profileOverrides: branchProfile });
+    void persistBranchOperationalConfig({ profileOverrides: branchProfile }).catch(() => undefined);
     if (['SUPER_OWNER', 'OWNER'].includes(activeUser.role)) {
       void saveCloudTenantBrand({ name, logoUrl, instagram, tiktok })
         .catch((error) => showPushToast('Brand Pusat Gagal Disimpan', error instanceof Error ? error.message : 'Identitas brand gagal disimpan.'));
@@ -2096,7 +2105,7 @@ export default function App() {
               onToggleTableSelfOrder={handleToggleTableSelfOrder}
               onToggleAllTables={handleToggleAllTables}
               onToggleSystemSelfOrder={(enabled) => {
-                persistBranchOperationalConfig({ selfOrderEnabled: enabled });
+                void persistBranchOperationalConfig({ selfOrderEnabled: enabled }).catch(() => undefined);
               }}
               onClearTransactions={() => {
                 if (cloudReadiness.supabase) {
@@ -2163,7 +2172,7 @@ export default function App() {
         onToggleAllTables={handleToggleAllTables}
         isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
         onToggleSystemSelfOrder={(enabled) => {
-          persistBranchOperationalConfig({ selfOrderEnabled: enabled });
+          void persistBranchOperationalConfig({ selfOrderEnabled: enabled }).catch(() => undefined);
         }}
       />
 

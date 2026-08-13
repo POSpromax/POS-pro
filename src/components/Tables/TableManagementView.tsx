@@ -52,19 +52,36 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   const [copiedTableNumber, setCopiedTableNumber] = useState<string | null>(null);
   const [busyTable, setBusyTable] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSavingUrl, setIsSavingUrl] = useState(false);
+  const [urlSaveState, setUrlSaveState] = useState<'IDLE' | 'DIRTY' | 'SAVED'>('IDLE');
 
   useEffect(() => {
     setCustomBaseUrl(selfOrderBaseUrl || window.location.origin);
-  }, [branchId, selfOrderBaseUrl]);
+    setUrlSaveState('IDLE');
+    setErrorMessage(null);
+  }, [branchId]);
+
+  useEffect(() => {
+    if (urlSaveState !== 'DIRTY' && !isSavingUrl) {
+      setCustomBaseUrl(selfOrderBaseUrl || window.location.origin);
+    }
+  }, [selfOrderBaseUrl, urlSaveState, isSavingUrl]);
 
   const saveBaseUrl = async (value: string) => {
+    setIsSavingUrl(true);
     try {
       const normalized = new URL(value).origin;
-      setCustomBaseUrl(normalized);
       await onSelfOrderBaseUrlChange?.(normalized);
+      setCustomBaseUrl(normalized);
       setErrorMessage(null);
-    } catch {
-      setErrorMessage('Domain QR harus berupa URL lengkap, contoh https://order-nama-outlet.com');
+      setUrlSaveState('SAVED');
+    } catch (error) {
+      setErrorMessage(error instanceof Error
+        ? `URL gagal disimpan: ${error.message}`
+        : 'URL gagal disimpan. Gunakan URL lengkap seperti https://order-nama-outlet.com.');
+      setUrlSaveState('DIRTY');
+    } finally {
+      setIsSavingUrl(false);
     }
   };
 
@@ -134,18 +151,34 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari meja: 17, 38, A7..." className="ui-input w-full !pl-9 !pr-3 text-xs font-bold" />
         </label>
-        <label className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Domain QR</span>
+        <label className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Domain dasar</span>
           <input
             value={customBaseUrl}
-            onChange={(event) => setCustomBaseUrl(event.target.value)}
-            onBlur={() => void saveBaseUrl(customBaseUrl)}
+            onChange={(event) => {
+              setCustomBaseUrl(event.target.value);
+              setUrlSaveState('DIRTY');
+              setErrorMessage(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void saveBaseUrl(customBaseUrl);
+            }}
             className="ui-input min-w-0 px-3 text-[11px] font-semibold"
           />
           <button
             type="button"
+            disabled={isSavingUrl || urlSaveState !== 'DIRTY'}
+            onClick={() => void saveBaseUrl(customBaseUrl)}
+            className="ui-button ui-button-primary px-3 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSavingUrl ? 'Menyimpan…' : urlSaveState === 'SAVED' ? 'Tersimpan' : 'Simpan URL'}
+          </button>
+          <button
+            type="button"
             onClick={() => {
-              void saveBaseUrl(window.location.origin);
+              setCustomBaseUrl(window.location.origin);
+              setUrlSaveState('DIRTY');
+              setErrorMessage(null);
             }}
             className="ui-button ui-button-secondary px-3 text-[11px]"
           >
@@ -153,7 +186,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
           </button>
         </label>
         <p className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-bold text-sky-800">
-          Link QR khusus outlet ini: {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug)}
+          URL QR cabang (path otomatis): {buildBranchSelfOrderUrl(customBaseUrl, branchId, tenantId, branchCode, publicOrderSlug)}
         </p>
       </div>
 

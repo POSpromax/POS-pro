@@ -17,20 +17,9 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
 
   let { data, error } = await getSupabase()
     .from('branch_operational_config')
-    .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,public_order_slug,profile_overrides')
+    .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
     .eq('branch_id', branchId)
     .maybeSingle();
-
-  // Kompatibel sebelum migrasi public_order_slug diterapkan.
-  if (error?.code === '42703' || error?.code === 'PGRST204') {
-    const legacy = await getSupabase()
-      .from('branch_operational_config')
-      .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
-      .eq('branch_id', branchId)
-      .maybeSingle();
-    data = legacy.data as typeof data;
-    error = legacy.error;
-  }
 
   // Backwards-compatible while the migration is being deployed.
   if (error?.code === '42P01' || error?.code === 'PGRST205') return fallback;
@@ -42,7 +31,10 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
     tenantId: data.tenant_id,
     selfOrderEnabled: data.self_order_enabled !== false,
     selfOrderBaseUrl: data.self_order_base_url || fallback.selfOrderBaseUrl,
-    publicOrderSlug: (data as any).public_order_slug || undefined,
+    // URL QR tetap diturunkan dari kode cabang. Public catalog di server
+    // memvalidasi slug dari database, tetapi UI tidak perlu meminta kolom baru
+    // ini sehingga instalasi yang sedang migrasi tidak menghasilkan HTTP 400.
+    publicOrderSlug: undefined,
     profileOverrides: (data.profile_overrides || {}) as BranchOperationalConfig['profileOverrides'],
   };
 }
@@ -61,18 +53,19 @@ export async function saveCloudBranchOperationalConfig(
   if (profileError || !profile?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
 
   const payload = {
-    branch_id: config.branchId,
-    tenant_id: profile.tenant_id,
     self_order_enabled: config.selfOrderEnabled,
     self_order_base_url: config.selfOrderBaseUrl.trim() || null,
     profile_overrides: config.profileOverrides || {},
   };
   const { data, error } = await supabase
     .from('branch_operational_config')
-    .upsert(payload, { onConflict: 'branch_id' })
+    .update(payload)
+    .eq('branch_id', config.branchId)
+    .eq('tenant_id', profile.tenant_id)
     .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Konfigurasi cabang tidak ditemukan atau akun tidak memiliki akses untuk mengubahnya');
 
   return {
     branchId: data.branch_id,
