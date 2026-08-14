@@ -7,6 +7,7 @@ export interface PublicCatalogContext {
   menuItems: MenuItem[];
   tables: RestaurantTable[];
   condimentGroups: CondimentGroup[];
+  isShiftActive: boolean;
 }
 
 export async function getPublicCatalogContext(branchId?: string, tenantId?: string, branchCode?: string): Promise<PublicCatalogContext> {

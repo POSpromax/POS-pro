@@ -30,6 +30,9 @@ Gunakan `npm.cmd run clean` untuk menghapus output build secara portable.
 - POS/KDS memakai realtime per cabang dengan polling cadangan hemat free-tier.
 - Shift memakai realtime dan rekonsiliasi database; tidak memakai cache browser sebagai status pusat.
 - QR self-order permanen per cabang. Kasir mengaktifkan atau menonaktifkan meja dari server.
+- Status buka Self-order dibaca dari shift aktif cabang di server, bukan dari sesi terminal kasir yang membuka halaman.
+- POS mempertahankan status shift terakhir yang sudah terkonfirmasi selama rekonsiliasi sehingga tidak menampilkan layar terkunci sesaat ketika berpindah halaman.
+- KDS operasional memakai dua aksi petugas: **Terima pesanan** dan **Selesai**. Order baru masuk riwayat kasir setelah dapur selesai dan pembayaran lunas.
 - Checkout cloud, payment key, nomor order harian, stock ledger, dan konsistensi shift tersedia melalui migration.
 - `localStorage` hanya untuk mode demo tanpa konfigurasi Supabase; `sessionStorage` hanya untuk sesi terminal perangkat.
 
@@ -57,6 +60,7 @@ Migration harus diterapkan berurutan. Lihat `supabase/README.md` sebelum menjala
 - Cabang BGR-02 sudah memiliki 53 menu.
 - Resep bahan cabang masih perlu dilengkapi sebelum deduksi stok otomatis dianggap siap.
 - Gunakan panel **Kesiapan Inventory Cabang** untuk melihat tahapan menu, bahan konsumsi, resep, HPP, dan batas stok.
+- Fee marketplace (GoFood, GrabFood, ShopeeFood, TikTok, dan kanal lain) disimpan sebagai konfigurasi profil per cabang; nilai kontrak aktual tetap harus diisi oleh Owner.
 
 ## Handoff editor
 

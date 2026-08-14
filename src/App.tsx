@@ -313,6 +313,7 @@ export default function App() {
   );
   const [isSelfOrderSystemEnabled, setIsSelfOrderSystemEnabled] = useState<boolean>(() => DBStorage.getProfile().isSelfOrderEnabled !== false);
   const [selfOrderCatalogState, setSelfOrderCatalogState] = useState<{ loading: boolean; error: string | null }>({ loading: isSelfOrderUrlParam && cloudReadiness.supabase, error: null });
+  const [publicSelfOrderShiftActive, setPublicSelfOrderShiftActive] = useState(false);
 
   useEffect(() => {
     if (!isSelfOrderUrlParam || !cloudReadiness.supabase) return;
@@ -322,7 +323,7 @@ export default function App() {
     }
     let active = true;
     setSelfOrderCatalogState({ loading: true, error: null });
-    void getPublicCatalogContext(requestedSelfOrderBranchId || undefined, requestedSelfOrderTenantId || undefined, requestedSelfOrderRouteCode || undefined)
+    const refreshPublicCatalog = () => getPublicCatalogContext(requestedSelfOrderBranchId || undefined, requestedSelfOrderTenantId || undefined, requestedSelfOrderRouteCode || undefined)
       .then((context) => {
         if (!active) return;
         setCurrentBranch((branch) => ({ ...branch, ...context.branch }));
@@ -331,6 +332,7 @@ export default function App() {
         setCondimentGroups(context.condimentGroups);
         setBranchOperationalConfig(context.operationalConfig || defaultBranchOperationalConfig(context.branch.id));
         setIsSelfOrderSystemEnabled(context.operationalConfig?.selfOrderEnabled !== false);
+        setPublicSelfOrderShiftActive(context.isShiftActive === true);
         if (context.profile) setProfile((current) => ({ ...current, ...context.profile }));
         setSelfOrderCatalogState({ loading: false, error: null });
       })
@@ -340,7 +342,11 @@ export default function App() {
         setSelfOrderCatalogState({ loading: false, error: message });
         showPushToast('Self-order Belum Siap', message);
       });
-    return () => { active = false; };
+    void refreshPublicCatalog();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshPublicCatalog();
+    }, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderTenantId, requestedSelfOrderRouteCode]);
 
   const handleAddBranch = (newBranch: Branch) => {
@@ -372,6 +378,7 @@ export default function App() {
     rawMaterials: RawMaterial[];
   }>({ branchIds: [], orders: [], tables: [], rawMaterials: [] });
   const [currentShift, setCurrentShift] = useState<Shift>(() => cloudReadiness.supabase ? createInactiveShift(currentBranch.id) : DBStorage.getCurrentShift(currentBranch.id));
+  const [isShiftStatusLoading, setIsShiftStatusLoading] = useState<boolean>(cloudReadiness.supabase);
   const [shiftHistory, setShiftHistory] = useState<Shift[]>(() => cloudReadiness.supabase ? [] : DBStorage.getShiftHistory());
   const [expenseRecords, setExpenseRecords] = useState<ExpenseIncomeRecord[]>(() => cloudReadiness.supabase ? [] : DBStorage.getExpenseRecords());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
@@ -701,9 +708,10 @@ export default function App() {
     let realtimeState: RealtimeConnectionState = 'CONNECTING';
     let lastFallbackAt = 0;
 
-    // Jangan percaya cache shift saat sesi/outlet berubah. POS tetap terkunci
-    // sampai server pusat mengonfirmasi apakah ada shift aktif.
-    setCurrentShift(createInactiveShift(currentBranch.id));
+    // Pertahankan hasil server terakhir untuk cabang yang sama ketika pindah tab.
+    // Saat cabang berubah, tampilkan status verifikasi tanpa sempat memakai shift cabang lama.
+    setIsShiftStatusLoading(true);
+    setCurrentShift((current) => current.branchId === currentBranch.id ? current : createInactiveShift(currentBranch.id));
 
     const syncShiftFromCloud = async () => {
       // Block sync during the close-shift window to prevent race condition:
@@ -717,6 +725,7 @@ export default function App() {
         if (isClosingShiftRef.current) return;
         const nextShift = cloudShift || createInactiveShift(currentBranch.id);
         setCurrentShift(nextShift);
+        setIsShiftStatusLoading(false);
         setShiftSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         syncErrorShown = false;
       } catch (error) {
@@ -1009,6 +1018,7 @@ export default function App() {
   const [selectedSelfOrderTable, setSelectedSelfOrderTable] = useState<string>('1');
 
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState<boolean>(false);
+  const [isQuickAccessMenuOpen, setIsQuickAccessMenuOpen] = useState(false);
 
   // Listen to Online/Offline events
   useEffect(() => {
@@ -1094,6 +1104,7 @@ export default function App() {
         setOrders((current) => [saved, ...current.filter((order) => order.id !== draftOrder.id && order.id !== saved.id)]);
         await refreshBranchTables(saved.branchId);
       } catch (error) {
+        setIsShiftStatusLoading(false);
         showPushToast('Order Gagal Disimpan', error instanceof Error ? error.message : 'Cloud belum menerima transaksi. Silakan coba kembali.');
         return;
       }
@@ -1241,6 +1252,26 @@ export default function App() {
     setTables(DBStorage.getTables());
     setRawMaterials(DBStorage.getRawMaterials());
     showPushToast('Order Baru dari HP Customer!', `Meja ${orderToSave.tableNumber} memesan order ${orderToSave.orderNumber}. Meja dikunci (RED).`);
+  };
+
+  const handleVoidOrder = async (orderId: string, reason: string) => {
+    const found = orders.find((order) => order.id === orderId);
+    const label = found ? formatOrderLabel(found, orders) : orderId;
+    if (cloudReadiness.supabase) {
+      if (!isOnline || !isCloudOrderId(orderId)) throw new Error('Void membutuhkan koneksi dan order cloud yang valid.');
+      try {
+        await updateCloudOrderStatus(currentBranch.id, orderId, 'CANCELLED', currentShift.id, reason);
+        const [cloudOrders] = await Promise.all([listCloudOrders(currentBranch.id), refreshBranchTables(currentBranch.id)]);
+        setOrders(cloudOrders);
+        showPushToast('Pesanan Berhasil Divoid', `${label} dibatalkan dan stok dikembalikan.`);
+      } catch (error) {
+        showPushToast('Void Pesanan Gagal', error instanceof Error ? error.message : 'Pesanan tidak dapat dibatalkan.');
+      }
+      return;
+    }
+    DBStorage.updateOrderStatus(orderId, 'CANCELLED');
+    setOrders(DBStorage.getOrders());
+    showPushToast('Pesanan Berhasil Divoid', `${label} dibatalkan pada mode demo.`);
   };
 
   // Condiments Management
@@ -1494,7 +1525,7 @@ export default function App() {
               onSubmitCustomerOrder={handleSubmitCustomerOrder}
               initialTableNumber={tableFromUrl}
               onShowToast={showPushToast}
-              isShiftActive={currentShift?.status === 'OPEN'}
+              isShiftActive={publicSelfOrderShiftActive}
             />
           </Suspense>
         </div>
@@ -1651,6 +1682,8 @@ export default function App() {
         onLogout={() => void logoutTerminal()}
         pendingSyncCount={pendingSyncCount}
         accessRule={activeAccessRule}
+        menuOpen={isQuickAccessMenuOpen}
+        onMenuOpenChange={setIsQuickAccessMenuOpen}
       />
 
       {/* Main App Canvas */}
@@ -1684,6 +1717,7 @@ export default function App() {
             activeUser={activeUser}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            onToggleQuickAccess={() => setIsQuickAccessMenuOpen((open) => !open)}
           />
         )}
 
@@ -1716,6 +1750,7 @@ export default function App() {
                   activeUser={activeUser}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
+                  onToggleQuickAccess={() => setIsQuickAccessMenuOpen((open) => !open)}
                 />
               }
               menuItems={menuItems}
@@ -1724,11 +1759,13 @@ export default function App() {
               activeUser={activeUser}
               currentBranch={currentBranch}
               currentShift={currentShift}
+              isShiftStatusLoading={isShiftStatusLoading}
               searchTerm={searchTerm}
               condimentGroups={condimentGroups}
               onOpenCheckoutModal={handleOpenCheckoutModal}
               onSaveHoldOrder={handleSaveHoldOrder}
               onCompleteOrder={(orderId) => handleUpdateOrderStatus(orderId, 'COMPLETED')}
+              onVoidOrder={handleVoidOrder}
               onPrintPreBill={handlePrintPreBill}
               onSelectExistingOrderToEdit={(ord) => {
                 showPushToast('Order Dimuat', `Order ${formatOrderLabel(ord)} dibuka di Kasir.`);
@@ -1852,7 +1889,7 @@ export default function App() {
           {activeTab === 'shift' && (
             <ShiftMonitorView
               currentShift={currentShift}
-              orders={branchOrders}
+              orders={branchOrders.filter((order) => (order.createdShiftId || order.shiftId) === currentShift.id)}
               expenseRecords={expenseRecords.filter((r) => r.shiftId === currentShift.id)}
               shiftHistory={shiftHistory}
               activeUser={activeUser}

@@ -21,12 +21,13 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   if (tenantId) branchQuery = branchQuery.eq('tenant_id', tenantId);
   const { data: branch } = await branchQuery.eq('is_active', true).limit(1).maybeSingle();
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
-  const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }] = await Promise.all([
+  const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }, { data: activeShift }] = await Promise.all([
     admin.from('menu_items').select('*').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
     admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).neq('status', 'DISABLED').order('number'),
     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
     admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
+    admin.from('cashier_shifts').select('id,status,opened_at').eq('branch_id', branch.id).in('status', ['OPEN', 'HANDOVER']).order('opened_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   const scopes = branchConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {};
   const tenantProfile = config ? {
@@ -78,6 +79,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
         publicOrderSlug: normalizedRouteCode || '',
         profileOverrides: branchConfig?.profile_overrides || {},
       },
+      isShiftActive: Boolean(activeShift?.id),
       profile: publicProfile,
       menuItems: availableMenus.filter((row) => !/^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim())).map((row) => ({
         id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CreditCard, QrCode, Banknote, Printer, X, Check } from 'lucide-react';
 import { Order, PaymentMethod, RestaurantProfile } from '../../types/pos';
 
@@ -20,10 +20,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [cashPaid, setCashPaid] = useState<number>(order?.total || 0);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setPaymentMethod('CASH');
+    setCashPaid(order?.total || 0);
+  }, [isOpen, order?.id, order?.total]);
+
   if (!isOpen || !order) return null;
 
   const totalAmount = order.total || 0;
   const changeAmount = Math.max(0, cashPaid - totalAmount);
+  const canProcessPayment = paymentMethod !== 'CASH' || cashPaid >= totalAmount;
 
   // Quick Nominals matching Image 5
   const nominals = [
@@ -38,15 +45,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4 font-sans select-none text-[var(--text-primary)]">
-      <div className="bg-[var(--surface-card)] w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden border border-[var(--panel-border)] flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-3 font-sans text-[var(--text-primary)] backdrop-blur-sm select-none">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-[var(--surface-card)] shadow-2xl">
         {/* Top Header Banner */}
-        <div className="bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] p-6 text-white text-center relative shrink-0 border-b-2 border-[var(--primary)]">
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-2">
+        <div className="relative shrink-0 border-b border-emerald-800 bg-gradient-to-r from-emerald-800 to-emerald-700 px-6 py-4 text-center text-white">
+          <div className="mx-auto mb-1 flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-2xl font-extrabold">Konfirmasi Pembayaran</h2>
-          <p className="text-3xl font-extrabold text-amber-200 my-1">
+          <h2 className="text-lg font-extrabold">Konfirmasi Pembayaran</h2>
+          <p className="my-0.5 text-2xl font-black text-amber-200">
             Rp {totalAmount.toLocaleString('id-ID')}
           </p>
           <p className="text-xs text-[var(--brand-300)] font-bold">
@@ -62,9 +69,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto">
+        <div className="grid grid-cols-1 gap-5 overflow-y-auto p-5 md:grid-cols-5">
           {/* Left Column: Payment Configuration (2 cols) */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="space-y-4 md:col-span-3">
             {/* Payment Method Tabs */}
             <div>
               <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-2">
@@ -188,22 +195,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
 
           {/* Right Column: Live Receipt Preview */}
-          <div className="bg-[var(--surface-card)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm flex flex-col justify-between font-mono text-[11px] leading-relaxed">
+          <div className="flex flex-col justify-between rounded-2xl border border-[var(--panel-border)] bg-white p-4 font-mono text-[11px] leading-relaxed shadow-sm md:col-span-2">
             <div className="space-y-2">
               <div className="text-center pb-2 border-b border-dashed border-[var(--panel-border-strong)]">
+                {profile.logoUrl && <img src={profile.logoUrl} alt="Logo" className="mx-auto mb-1.5 h-10 w-10 object-contain" />}
                 <p className="font-bold text-sm text-[var(--text-primary)]">{profile.name}</p>
-                <p className="text-[11px] text-[var(--text-secondary)] font-sans">{profile.address}</p>
+                <p className="text-[10px] font-bold text-[var(--text-tertiary)]">NOTA {order.orderNumber || ''}</p>
+                <p className="text-[10px] text-[var(--text-secondary)] font-sans">{profile.address}</p>
                 <p className="text-[11px] text-[var(--text-secondary)] font-sans">{profile.phone}</p>
               </div>
 
               <div className="py-1 border-b border-dashed border-[var(--panel-border-strong)] space-y-0.5">
                 <div className="flex justify-between text-[var(--text-secondary)]">
-                  <span>TGL</span>
-                  <span>{new Date().toLocaleDateString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between text-[var(--text-secondary)]">
-                  <span>JAM</span>
-                  <span>{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>TGL / JAM</span>
+                  <span>{new Date().toLocaleDateString('id-ID')} · {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="flex justify-between text-[var(--text-secondary)]">
                   <span>KASIR</span>
@@ -255,6 +260,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="flex items-center gap-3">
             <button
               onClick={() => onProcessPayment(paymentMethod, cashPaid, false)}
+              disabled={!canProcessPayment}
               className="ui-button ui-button-secondary px-5 py-3 text-xs flex items-center gap-1.5"
             >
               <Check className="w-4 h-4 text-[var(--text-secondary)]" /> Bayar Tanpa Cetak
@@ -262,6 +268,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             <button
               onClick={() => onProcessPayment(paymentMethod, cashPaid, true)}
+              disabled={!canProcessPayment}
               className="ui-button ui-button-primary px-6 py-3 text-xs flex items-center gap-1.5"
             >
               <Printer className="w-4 h-4" /> Bayar & Cetak Struk

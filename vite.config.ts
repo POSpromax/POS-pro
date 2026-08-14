@@ -12,6 +12,10 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
+        // Service worker hanya diperlukan pada build produksi. Mengaktifkannya
+        // pada Vite dev membuat /dev-sw.js jatuh ke SPA fallback (text/html)
+        // dan menghasilkan error MIME yang menyesatkan saat audit lokal.
+        devOptions: {enabled: false},
         manifest: {
           name: 'Bakso Ujo POS',
           short_name: 'Bakso Ujo',

@@ -36,6 +36,7 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Header selalu harus menampilkan kode/nama cabang aktif.
 - Owner dashboard boleh menggabungkan monitoring, tetapi mutation tetap diarahkan ke satu cabang eksplisit.
 - URL self-order dibangun oleh `src/utils/selfOrderUrl.ts`; jangan merakit URL cabang manual di komponen.
+- Katalog publik membawa `isShiftActive` dari query `cashier_shifts` cabang. Jangan menggantinya dengan `currentShift` milik sesi terminal.
 
 ## 4. Penyimpanan dan realtime
 
@@ -45,6 +46,7 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Shift: realtime saat modul operasi aktif; fallback sekitar satu menit saat koneksi turun.
 - Katalog/meja/config: event realtime memicu satu refresh ter-debounce, bukan stream state penuh.
 - Owner monitoring lintas cabang memakai interval lebih longgar dan hanya ketika layar owner aktif.
+- Saat route Self-order terbuka, status publik disegarkan ketika tab kembali aktif dan setiap 60 detik. Submit order tetap melakukan validasi shift dan meja sekali lagi di server.
 
 ## 5. Database
 
@@ -62,6 +64,8 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Jangan menambahkan shadow berwarna yang tidak sesuai dengan warna tombol.
 - Semua aksi harus memiliki hover, focus-visible, disabled, loading, success/error state.
 - Self Order akan didesain ulang terpisah; hindari refactor visual besar di modul tersebut sekarang.
+- Sidebar quick-access adalah satu controlled state di `App.tsx`. Wrapper fixed harus `pointer-events-none`; hanya panel terbuka dan tombol launcher yang boleh menerima pointer agar header tidak tertutup lapisan transparan.
+- PWA/service worker dinonaktifkan di Vite development dan tetap aktif pada build produksi.
 
 ## 7. Urutan perubahan aman
 
@@ -79,4 +83,3 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Stock opname dan transfer antar-cabang masih perlu workflow khusus.
 - Error boundary dan correlation ID API belum menyeluruh.
 - Automated integration/E2E test belum tersedia; lint/build bukan pengganti uji transaksi.
-

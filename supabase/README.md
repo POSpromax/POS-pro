@@ -1,5 +1,10 @@
 # Supabase setup
 
+Perbaikan UI/workflow 14 Agustus 2026 tidak menambah migration baru. Status buka
+Self-order memakai tabel `cashier_shifts` yang sudah ada, konfigurasi fee merchant
+masuk ke override profil cabang yang sudah tersedia, dan void tetap memakai RPC
+`void_order`. Jangan membuat atau mengulang SQL hanya untuk perubahan tersebut.
+
 1. Create a Supabase project in the same/nearest region as Vercel Functions.
 2. Run migrations in filename order with the Supabase CLI or SQL editor.
 3. Migration `001` creates the cloud foundation. Migration `002` adds tenant

@@ -187,6 +187,7 @@ export interface Order {
   isOfflineCreated?: boolean;
   syncStatus?: 'SYNCED' | 'PENDING';
   source?: 'POS' | 'SELF_ORDER';
+  condimentsEnabled?: boolean;
   parentOrderId?: string;
 }
 
@@ -254,6 +255,15 @@ export interface PrinterConfig {
   bluetoothAddress?: string;
 }
 
+export type MerchantChannel = 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD' | 'TIKTOK' | 'LAINNYA';
+
+export interface MerchantFeeConfig {
+  platformFeePercent: number;
+  promotionPercent: number;
+  additionalPercent: number;
+  rounding: 100 | 500 | 1000;
+}
+
 export interface RestaurantProfile {
   name: string;
   tagline: string;
@@ -262,6 +272,11 @@ export interface RestaurantProfile {
   instagram: string;
   tiktok: string;
   logoUrl: string;
+  merchantFees?: Partial<Record<MerchantChannel, MerchantFeeConfig>>;
+  receiptHeader?: string;
+  receiptFooter?: string;
+  taxPercentage?: number;
+  serviceChargePercentage?: number;
   
   // Landing Page Config
   promoBannerTitle?: string;

@@ -35,7 +35,9 @@ import {
   UserCheck,
   Phone,
   Building2,
-  MonitorCog
+  MonitorCog,
+  Upload,
+  ImageIcon
 } from 'lucide-react';
 import {
   RestaurantProfile,
@@ -52,6 +54,7 @@ import {
 import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
 import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
 import { playNewOrderSound, playSelfOrderAlertSound } from '../../utils/audioNotification';
+import { uploadImage } from '../../services/cloudinaryMedia';
 
 interface SettingsViewProps {
   profile: RestaurantProfile;
@@ -117,6 +120,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [editingOptionValue, setEditingOptionValue] = useState('');
 
   const [formProfile, setFormProfile] = useState<RestaurantProfile>(() => ({ ...profile }));
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
 
@@ -518,11 +522,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Logo Preview */}
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-[var(--panel-border)] rounded-2xl p-4 bg-[var(--surface-card)]">
                     <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase mb-3">LOGO BRAND</p>
-                    <img
-                      src={formProfile.logoUrl}
-                      alt="Logo"
-                      className="w-36 h-36 object-contain rounded-2xl border bg-white p-2 shadow-sm mb-3"
-                    />
+                    {formProfile.logoUrl ? (
+                      <img
+                        src={formProfile.logoUrl}
+                        alt="Logo"
+                        className="mb-3 h-36 w-36 rounded-2xl border bg-white p-2 object-contain shadow-sm"
+                      />
+                    ) : (
+                      <div className="mb-3 flex h-36 w-36 items-center justify-center rounded-2xl border bg-white text-slate-300 shadow-sm">
+                        <ImageIcon className="h-12 w-12" />
+                      </div>
+                    )}
                     <input
                       type="text"
                       placeholder="URL Logo Image..."
@@ -531,6 +541,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       onChange={(e) => setFormProfile({ ...formProfile, logoUrl: e.target.value })}
                       className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-1.5 text-[11px] text-[var(--text-secondary)] outline-none focus:border-[var(--primary)] font-medium disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                     />
+                    {canManageTenant && (
+                      <label className="ui-button ui-button-secondary mt-2 w-full cursor-pointer py-2 text-[11px]">
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>{isUploadingLogo ? 'Mengunggah…' : 'Upload dari perangkat'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="sr-only"
+                          disabled={isUploadingLogo}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            event.target.value = '';
+                            if (!file) return;
+                            setIsUploadingLogo(true);
+                            void uploadImage(file, 'branding', currentBranch.id)
+                              .then((uploaded) => {
+                                setFormProfile((current) => ({ ...current, logoUrl: uploaded.secureUrl }));
+                                toast('Logo Berhasil Diunggah', 'Klik Simpan agar logo Cloudinary dipakai seluruh cabang.');
+                              })
+                              .catch((error) => toast('Upload Logo Gagal', error instanceof Error ? error.message : 'Logo tidak dapat diunggah.'))
+                              .finally(() => setIsUploadingLogo(false));
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
 
                   {/* Brand Fields */}

@@ -11,6 +11,17 @@ export const PWAUpdatePrompt: React.FC = () => {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
+    if (import.meta.env.DEV) {
+      // Bersihkan registrasi dev lama yang pernah dibuat ketika PWA dev masih
+      // aktif. Tanpa ini browser terus mencoba /dev-sw.js walaupun plugin sudah
+      // dinonaktifkan untuk development, lalu melaporkan MIME text/html.
+      void navigator.serviceWorker.getRegistrations().then((registrations) => Promise.all(
+        registrations
+          .filter((registration) => registration.active?.scriptURL.includes('/dev-sw.js'))
+          .map((registration) => registration.unregister()),
+      ));
+      return;
+    }
     let reloading = false;
     const reloadOnControllerChange = () => {
       if (reloading) return;

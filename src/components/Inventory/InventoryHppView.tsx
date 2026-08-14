@@ -912,11 +912,17 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                             className="p-2.5 md:p-3.5 flex items-center justify-between hover:bg-[var(--surface-card)] transition-colors gap-2"
                           >
                             <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover shrink-0 border border-[var(--panel-border)]"
-                              />
+                              {item.image ? (
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover shrink-0 border border-[var(--panel-border)]"
+                                />
+                              ) : (
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--panel-border)] bg-slate-100 text-[10px] font-black text-slate-400 md:h-10 md:w-10">
+                                  {item.name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1 md:gap-2 flex-wrap">
                                   <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{item.name}</span>

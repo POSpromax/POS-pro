@@ -27,6 +27,7 @@ interface HeaderBarProps {
   onClearCart?: () => void;
   isCondimentsEnabled?: boolean;
   onToggleCondiments?: () => void;
+  onToggleQuickAccess?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -54,6 +55,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onClearCart,
   isCondimentsEnabled = true,
   onToggleCondiments,
+  onToggleQuickAccess,
 }) => {
   const [timeStr, setTimeStr] = useState('14.35');
   const [dateStr, setDateStr] = useState('RAB, 12 AGU 2025');
@@ -103,8 +105,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Hamburger Menu Button — Toggles Quick Access Sidebar */}
         <button
+          id="btn-header-quick-access"
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent('toggle-quick-access-menu'))}
+          onClick={onToggleQuickAccess}
           className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors shrink-0"
           title="Buka / Tutup Menu Navigasi"
         >

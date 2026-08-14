@@ -46,6 +46,7 @@ const mapOrder = (row: any, items: any[] = []) => {
   branchId: row.branch_id,
   cashierName: row.cashier_name || metadata.cashierName || 'Staff',
   source: row.source,
+  condimentsEnabled: metadata.condimentsEnabled !== false,
   syncStatus: 'SYNCED',
   });
 };
@@ -178,6 +179,7 @@ export async function handleOrderRequest(
   const input = payload.order;
   if (!input || !Array.isArray(input.items) || input.items.length < 1 || input.items.length > 60) return fail(400, 'Isi pesanan tidak valid');
   const source = input.source === 'SELF_ORDER' ? 'SELF_ORDER' : 'POS';
+  const condimentsEnabled = source === 'SELF_ORDER' || input.condimentsEnabled !== false;
   if (source === 'POS' && !actor) return fail(401, 'Sesi telah berakhir');
   if (source === 'POS' && actor && !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'].includes(actor.role)) {
     return fail(403, 'Role tidak memiliki izin membuat atau membayar order POS');
@@ -314,7 +316,7 @@ export async function handleOrderRequest(
       const applicable = targetIds.includes(menu.id) ||
         targetNames.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID'))) ||
         categoryTargets.includes('ALL') || categoryTargets.includes(menu.category);
-      if (applicable && group.required && !selectedGroupIds.has(group.id)) return fail(400, `${group.name} wajib dipilih`);
+      if (condimentsEnabled && applicable && group.required && !selectedGroupIds.has(group.id)) return fail(400, `${group.name} wajib dipilih`);
     }
     const unitPrice = isManual && actor ? Math.max(0, Math.floor(Number(item.price) || 0)) : Number(menu.price || 0) + extras;
     normalizedItems.push({
@@ -420,6 +422,7 @@ export async function handleOrderRequest(
       change,
       tableNumber: tableNumStr,
       customerNotes: input.notes ? String(input.notes).trim().slice(0, 500) : undefined,
+      condimentsEnabled,
     }),
     payment_method: paymentMethod,
     paid_amount: cashPaid,

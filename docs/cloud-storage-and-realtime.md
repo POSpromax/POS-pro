@@ -90,6 +90,12 @@ Saat Realtime sehat, rekonsiliasi order berjalan maksimal sekali per 5 menit
 dan shift per 10 menit sebagai safety net. Saat channel terganggu, POS fallback
 5 detik, KDS 10 detik, dan shift 60 detik. Tab tersembunyi tidak melakukan polling.
 
+Katalog publik Self-order tidak bergantung pada state shift dari terminal kasir.
+Endpoint katalog membaca shift `OPEN/HANDOVER` cabang langsung dari database,
+kemudian halaman publik menyegarkannya saat kembali visible dan setiap 60 detik.
+Endpoint submit mengulang validasi shift serta meja, sehingga polling ini hanya
+untuk respons UI dan bukan batas keamanan transaksi.
+
 ## Verifikasi minimum
 
 - buka cabang yang sama pada dua browser;

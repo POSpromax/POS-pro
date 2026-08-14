@@ -1,6 +1,6 @@
 # Handoff Aktif POS-PRO
 
-Terakhir diperbarui: 13 Agustus 2026.
+Terakhir diperbarui: 14 Agustus 2026.
 
 ## Status stabil saat ini
 
@@ -16,7 +16,8 @@ Terakhir diperbarui: 13 Agustus 2026.
 - Transaksi cloud tidak lagi dianggap berhasil atau dimasukkan ke antrean
   `localStorage` ketika API/jaringan gagal; pengguna harus mencoba ulang sampai
   server mengakui operasi.
-- KDS memakai alur `NEW -> COOKING -> READY -> COMPLETED`.
+- UI KDS memakai dua aksi operasional: `NEW -> Terima pesanan`, lalu
+  `COOKING/READY -> Selesai`. Status data lama `READY` tetap dapat diselesaikan.
 - Riwayat Kasir memakai syarat ganda: `status=COMPLETED` dan
   `payment_status=PAID`; selesai di KDS saja tidak menutup Queue Kasir.
 - Order `SELF_ORDER` diberi badge HP di POS/KDS dan memakai suara cabang yang
@@ -35,6 +36,22 @@ Terakhir diperbarui: 13 Agustus 2026.
   ini wajib diterapkan sebelum deployment berikutnya.
 - Master inventory BGR-01 sudah disalin idempoten ke BGR-02 pada 13 Agustus
   2026: 8 Bahan Menu dan 25 Stok Dapur, seluruh stok awal BGR-02 bernilai nol.
+- Self-order membaca status shift publik langsung dari database per cabang;
+  state terminal lokal tidak lagi dapat membuat halaman publik keliru "Kasir tutup".
+- Rekonsiliasi shift POS tidak lagi mengosongkan shift terkonfirmasi selama request
+  berlangsung, sehingga flash layar terkunci saat masuk kasir dihilangkan.
+- Halaman Shift membatasi statistik dan transaksi pada `created_shift_id/shift_id`
+  shift aktif. Rekap lintas shift tetap berada di Laporan.
+- Topping OFF melewati validasi kuah/topping wajib untuk order kasir; Self-order
+  tetap mengikuti aturan condiment. Toggle ganda di keranjang dihapus.
+- Preview dan cetak nota kini menampilkan nomor nota, alamat, tanggal dan jam satu
+  baris, logo opsional Cloudinary, serta jarak kertas yang lebih hemat.
+- Void tersedia saat order aktif dimuat di POS untuk Owner/Manager/Admin dan wajib
+  menyimpan alasan melalui RPC audit server.
+- Fee marketplace disimpan per cabang untuk GoFood, GrabFood, ShopeeFood, TikTok,
+  dan kanal lain; harga aman dihitung dari total fee dan pembulatan konfigurasi.
+- Quick-access header dan launcher bawah memakai satu state; overlay sidebar tidak
+  lagi mencegat klik ketika panel tertutup.
 
 ## Data yang belum siap operasional penuh
 
@@ -77,6 +94,8 @@ npm.cmd run copy:branch-inventory -- <source-branch-uuid> <target-branch-uuid>
 2. Correlation/request ID API yang bisa ditampilkan pada error operasional.
 3. Structured log dengan redaction PIN, token, foto, dan data pribadi.
 4. Pagination laporan, attendance, payroll, dan ledger besar.
+5. Tambahkan E2E otomatis untuk flash shift, Self-order status publik, dua tahap
+   KDS, void beralasan, dan isolasi konfigurasi fee antar-cabang.
 
 ### P2 — UI/UX
 

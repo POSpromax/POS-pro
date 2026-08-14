@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Boxes,
   Building2,
@@ -27,6 +27,8 @@ interface SidebarProps {
   onLogout: () => void;
   pendingSyncCount: number;
   accessRule?: AccessControlRule;
+  menuOpen: boolean;
+  onMenuOpenChange: (open: boolean) => void;
 }
 
 interface NavigationItem {
@@ -63,8 +65,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   pendingSyncCount,
   accessRule,
+  menuOpen,
+  onMenuOpenChange,
 }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
   const quickAccessRef = useRef<HTMLDivElement>(null);
   const isOwnerMode = systemPortal === 'OWNER';
 
@@ -93,28 +96,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (quickAccessRef.current?.contains(document.activeElement)) {
       document.getElementById('btn-quick-access')?.focus();
     }
-    setMenuOpen(false);
+    onMenuOpenChange(false);
   }, [activeTab, systemPortal]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!quickAccessRef.current?.contains(event.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    return () => document.removeEventListener('pointerdown', closeOnOutsidePress);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    const handleToggle = () => setMenuOpen((prev) => !prev);
-    window.addEventListener('toggle-quick-access-menu', handleToggle);
-    return () => window.removeEventListener('toggle-quick-access-menu', handleToggle);
-  }, []);
 
   const selectTab = (tab: string) => {
     document.getElementById('btn-quick-access')?.focus();
     setActiveTab(tab);
-    setMenuOpen(false);
+    onMenuOpenChange(false);
   };
 
   const BubbleLabel = ({ children }: { children: React.ReactNode }) => (
@@ -124,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   return (
-    <div ref={quickAccessRef} className="fixed bottom-3 left-3 z-[80] flex flex-col items-start gap-2 md:bottom-4 md:left-4 font-sans select-none">
+    <div ref={quickAccessRef} className="pointer-events-none fixed bottom-3 left-3 z-[80] flex flex-col items-start gap-2 md:bottom-4 md:left-4 font-sans select-none">
       <div
         id="quick-access-menu"
         className={`flex w-[224px] flex-row-reverse flex-wrap-reverse items-center justify-end gap-2 overflow-visible rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur-xl transition-all duration-200 md:w-auto md:flex-col-reverse md:flex-nowrap ${
@@ -201,8 +189,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         id="btn-quick-access"
         type="button"
-        onClick={() => setMenuOpen((value) => !value)}
-        className={`group relative flex h-[54px] w-[54px] items-center justify-center rounded-2xl border text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer border-[#047857] bg-gradient-to-b from-[#059669] to-[#047857] shadow-[0_8px_24px_rgba(4,120,87,0.32)]`}
+        onClick={() => onMenuOpenChange(!menuOpen)}
+        className={`pointer-events-auto group relative flex h-[54px] w-[54px] items-center justify-center rounded-2xl border text-white transition duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer border-[#047857] bg-gradient-to-b from-[#059669] to-[#047857] shadow-[0_8px_24px_rgba(4,120,87,0.32)]`}
         aria-label={menuOpen ? 'Tutup quick access menu' : 'Buka quick access menu'}
         aria-expanded={menuOpen}
         aria-controls="quick-access-menu"

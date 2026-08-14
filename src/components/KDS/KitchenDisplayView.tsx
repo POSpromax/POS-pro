@@ -219,8 +219,10 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               ));
               const productGroups = groupKitchenItems(visibleItems);
               const isNew = order.status === 'NEW';
-              const isReady = order.status === 'READY';
-              const nextStatus: OrderStatus = isNew ? 'COOKING' : isReady ? 'COMPLETED' : 'READY';
+              // Alur dapur sengaja dua langkah: terima pesanan, lalu selesai.
+              // Status COMPLETED berarti pekerjaan kitchen selesai; order belum
+              // pindah dari antrean kasir sampai paymentStatus juga PAID.
+              const nextStatus: OrderStatus = isNew ? 'COOKING' : 'COMPLETED';
               const originShiftId = order.createdShiftId || order.shiftId;
               const isCarryOver = Boolean(
                 currentShiftId && originShiftId && originShiftId !== currentShiftId
@@ -265,14 +267,14 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                       </div>
                     )}
 
-                    <div className="mt-2.5 space-y-2">
+                    <div className="mt-2 space-y-1.5">
                       {productGroups.map((product) => (
-                        <section key={product.key} className="rounded-xl border border-[var(--panel-border-light)] bg-white p-2.5">
+                        <section key={product.key} className="rounded-lg border border-[var(--panel-border-light)] bg-white p-2">
                           <div className="flex items-start justify-between gap-2">
                             <h2 className="text-[12px] font-bold leading-snug text-[var(--text-primary)]">{product.menuName}</h2>
                             <span className="shrink-0 rounded-lg bg-[var(--primary)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-inverse)]">×{product.totalQuantity}</span>
                           </div>
-                          <div className="mt-1.5 space-y-1.5">
+                          <div className="mt-1 space-y-1">
                             {product.modifierGroups.map((subgroup, index) => {
                               const hasDetails = subgroup.selectedCondiments.length > 0 || subgroup.note;
                               return (
@@ -297,10 +299,8 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
                   <div className="border-t border-[var(--panel-border)] bg-[var(--surface-main)] p-2">
                     <button type="button" onClick={() => onUpdateOrderStatus(order.id, nextStatus)} className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-bold text-[var(--text-inverse)] transition active:scale-[0.99] ${isNew ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--accent-green)] hover:opacity-90'}`}>
                       {isNew
-                        ? <><Flame className="h-3.5 w-3.5" /> Mulai masak</>
-                        : isReady
-                          ? <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai disajikan</>
-                          : <><CheckCircle2 className="h-3.5 w-3.5" /> Siap disajikan</>}
+                        ? <><Flame className="h-3.5 w-3.5" /> Terima pesanan</>
+                        : <><CheckCircle2 className="h-3.5 w-3.5" /> Selesai</>}
                     </button>
                   </div>
                 </article>

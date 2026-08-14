@@ -95,17 +95,16 @@ export class BluetoothPrinterService {
     text += '\x1B\x40'; // Init
     text += '\x1B\x61\x01'; // Center align
     text += centerText(profile.name.toUpperCase());
+    text += centerText(`NOTA ${order.orderNumber}`);
     text += centerText(profile.address);
-    text += centerText(`Telp: ${profile.phone}`);
+    if (profile.phone) text += centerText(`Telp: ${profile.phone}`);
     text += separator;
 
     text += '\x1B\x61\x00'; // Left align
     const dateStr = new Date(order.createdAt).toLocaleDateString('id-ID');
     const timeStr = new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-    text += justifyText('TGL', dateStr);
-    text += justifyText('JAM', timeStr);
-    text += justifyText('NO ORDER', order.orderNumber);
+    text += justifyText('TGL / JAM', `${dateStr} ${timeStr}`);
     text += justifyText('TIPE / MEJA', `${order.type === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'} (Meja ${order.tableNumber})`);
     text += justifyText('KASIR', order.cashierName);
     text += justifyText('PELANGGAN', order.customerName);
@@ -137,9 +136,8 @@ export class BluetoothPrinterService {
 
     text += separator;
     text += '\x1B\x61\x01'; // Center align
-    text += centerText('TERIMA KASIH ATAS KUNJUNGAN ANDA');
-    text += centerText('Powered by Nusantara POS');
-    text += '\n\n\n';
+    text += centerText(profile.receiptFooter || 'TERIMA KASIH ATAS KUNJUNGAN ANDA');
+    text += '\n\n';
     text += '\x1D\x56\x41\x03'; // Cut paper command
 
     return encoder.encode(text);

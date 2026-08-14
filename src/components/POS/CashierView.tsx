@@ -27,7 +27,8 @@ import {
   Percent,
   Bookmark,
   MessageSquare,
-  Smartphone
+  Smartphone,
+  Ban
 } from 'lucide-react';
 import {
   MenuItem,
@@ -203,11 +204,13 @@ interface CashierViewProps {
   onOpenCheckoutModal: (order: Partial<Order>) => void;
   onSaveHoldOrder: (order: Order) => void;
   onCompleteOrder?: (orderId: string) => void;
+  onVoidOrder?: (orderId: string, reason: string) => void | Promise<void>;
   onPrintPreBill: (order: Order) => void;
   onSelectExistingOrderToEdit: (order: Order) => void;
   onOpenTableModal?: () => void;
   currentBranch: Branch;
   currentShift: Shift;
+  isShiftStatusLoading?: boolean;
   headerElement?: React.ReactNode;
   onOpenShiftTab?: () => void;
   confirmBeforeSaveOrder?: boolean;
@@ -224,11 +227,13 @@ export const CashierView: React.FC<CashierViewProps> = ({
   onOpenCheckoutModal,
   onSaveHoldOrder,
   onCompleteOrder,
+  onVoidOrder,
   onPrintPreBill,
   onSelectExistingOrderToEdit,
   onOpenTableModal,
   currentBranch,
   currentShift,
+  isShiftStatusLoading = false,
   headerElement,
   onOpenShiftTab,
   confirmBeforeSaveOrder = false,
@@ -256,6 +261,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [taxValue, setTaxValue] = useState<number>(0);
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
+  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
 
   // Condiment Selection Modal State
   const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
@@ -281,14 +288,22 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const isLoadedPaidActive = currentEditingOrder?.paymentStatus === 'PAID' && !isLoadedClosed; // LUNAS, menunggu diselesaikan
   // Order terkunci (tidak bisa diedit/bayar ulang) bila sudah dibayar atau selesai.
   const isPaidOrder = Boolean(currentEditingOrder && (isLoadedPaidActive || isLoadedClosed));
-  const isShiftActiveForCurrentContext = currentShift.status === 'OPEN';
+  const isShiftActiveForCurrentContext = currentShift.status === 'OPEN' && currentShift.branchId === currentBranch.id;
 
   if (!isShiftActiveForCurrentContext) {
     return (
-      <div className="flex-1 flex items-center justify-center select-none min-h-0 bg-[#F8FAFC]">
-        <p className="font-extrabold text-xs md:text-sm tracking-widest uppercase text-slate-500">
-          POS TERKUNCI – BUKA SHIFT DULU
-        </p>
+      <div className="flex min-h-0 flex-1 flex-col bg-[#F8FAFC]">
+        {headerElement}
+        <div className="flex flex-1 items-center justify-center select-none">
+          <div className="rounded-2xl border border-slate-200 bg-white px-7 py-5 text-center shadow-sm">
+            <p className="font-extrabold text-xs md:text-sm tracking-widest uppercase text-slate-600">
+              {isShiftStatusLoading ? 'MEMASTIKAN STATUS SHIFT…' : 'POS TERKUNCI – BUKA SHIFT DULU'}
+            </p>
+            {!isShiftStatusLoading && onOpenShiftTab && (
+              <button type="button" onClick={onOpenShiftTab} className="ui-button ui-button-primary mt-3 px-4 py-2 text-xs">Buka halaman shift</button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -370,6 +385,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setSelectedTable(order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-');
     setOrderType(order.type || 'DINE_IN');
     setDiscountValue(order.discount || 0);
+    setIsCondimentsEnabled(order.condimentsEnabled !== false);
     onSelectExistingOrderToEdit(order);
   };
 
@@ -445,7 +461,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
     tax: taxAmount,
     total,
     createdAt: currentEditingOrder?.createdAt || new Date().toISOString(),
-    cashierName: activeUser.name
+    cashierName: activeUser.name,
+    condimentsEnabled: isCondimentsEnabled,
   });
 
   return (
@@ -729,36 +746,15 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
             {/* Cart Header Top Row with Live Customer Name & Pure Text Table Number Input */}
             <div className="shrink-0 p-3 border-b border-slate-100 space-y-2">
-              {/* Top Row: Order Number Badge + Saklar Topping ON/OFF */}
+              {/* Top Row: identity only. Topping has one source of control in HeaderBar. */}
               <div className="flex items-center justify-between gap-2">
                 <span className="px-2.5 py-1 rounded-xl font-extrabold text-xs font-mono shrink-0" style={{ background: '#DCFCE7', color: '#166534' }}>
                   {currentEditingOrder ? formatOrderLabel(currentEditingOrder, orders) : 'Baru'}
                 </span>
 
-                {/* Saklar ON / OFF Condiment/Topping Global di Panel Kasir */}
-                <button
-                  type="button"
-                  onClick={() => setIsCondimentsEnabled(!isCondimentsEnabled)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-extrabold text-xs cursor-pointer whitespace-nowrap shrink-0 transition-all border h-7 ${
-                    isCondimentsEnabled
-                      ? 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]'
-                      : 'bg-slate-100 text-slate-500 border-slate-300'
-                  }`}
-                  title={isCondimentsEnabled ? 'Saklar Topping Global AKTIF' : 'Saklar Topping Global NONAKTIF'}
-                >
-                  <span className="text-[10px] uppercase font-black tracking-wide">Topping</span>
-                  <div
-                    className={`relative inline-flex h-3.5 w-6 shrink-0 items-center rounded-full transition-colors duration-200 ${
-                      isCondimentsEnabled ? 'bg-[#047857]' : 'bg-slate-400'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition duration-200 ${
-                        isCondimentsEnabled ? 'translate-x-3' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </div>
-                </button>
+                <span className={`rounded-lg border px-2 py-1 text-[9px] font-black uppercase ${isCondimentsEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                  Topping {isCondimentsEnabled ? 'aktif' : 'nonaktif'}
+                </span>
               </div>
 
               {/* Bottom Row: Customer Name & Table Number Inputs (Matching Pill Aesthetic, Smooth Emerald Focus) */}
@@ -903,6 +899,17 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
               {/* Bottom Action Buttons */}
               <div className="flex items-center gap-2 pt-0.5">
+                {currentEditingOrder && !isLoadedClosed && onVoidOrder && ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsVoidModalOpen(true)}
+                    className="flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
+                    title="Void pesanan dengan persetujuan"
+                    aria-label="Void pesanan"
+                  >
+                    <Ban className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={cartItems.length === 0}
@@ -991,6 +998,22 @@ export const CashierView: React.FC<CashierViewProps> = ({
           ]));
         }}
       />
+
+      {isVoidModalOpen && currentEditingOrder && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700"><Ban className="h-5 w-5" /></div>
+              <div><h3 className="font-extrabold text-slate-900">Void {formatOrderLabel(currentEditingOrder, orders)}</h3><p className="mt-1 text-xs text-slate-500">Stok akan dikembalikan dan tindakan dicatat atas akun approver.</p></div>
+            </div>
+            <textarea autoFocus value={voidReason} onChange={(event) => setVoidReason(event.target.value)} className="ui-input mt-4 min-h-24 resize-none" placeholder="Alasan void wajib diisi…" />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => { setIsVoidModalOpen(false); setVoidReason(''); }} className="ui-button ui-button-secondary px-4 py-2 text-xs">Batal</button>
+              <button type="button" disabled={!voidReason.trim()} onClick={() => { void Promise.resolve(onVoidOrder(currentEditingOrder.id, voidReason.trim())); setIsVoidModalOpen(false); setVoidReason(''); handleClearCart(); }} className="ui-button ui-button-danger px-4 py-2 text-xs disabled:opacity-40">Konfirmasi Void</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {manualItemSource && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm bg-black/40">

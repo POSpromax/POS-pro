@@ -38,7 +38,9 @@ import {
   RestaurantTable,
   Branch,
   PrinterConfig,
-  MenuItem
+  MenuItem,
+  MerchantChannel,
+  MerchantFeeConfig
 } from '../../types/pos';
 
 interface BlueprintArchitectureViewProps {
@@ -91,8 +93,17 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
 
   const [isSavedNotice, setIsSavedNotice] = useState<boolean>(false);
 
-  // Price Markup Blueprint State
-  const [onlinePriceMarkup, setOnlinePriceMarkup] = useState<number>(20); // 20% for GoFood/GrabFood
+  const merchantDefaults: Record<MerchantChannel, MerchantFeeConfig> = {
+    GOFOOD: { platformFeePercent: 0, promotionPercent: 0, additionalPercent: 0, rounding: 500 },
+    GRABFOOD: { platformFeePercent: 0, promotionPercent: 0, additionalPercent: 0, rounding: 500 },
+    SHOPEEFOOD: { platformFeePercent: 0, promotionPercent: 0, additionalPercent: 0, rounding: 500 },
+    TIKTOK: { platformFeePercent: 0, promotionPercent: 0, additionalPercent: 0, rounding: 500 },
+    LAINNYA: { platformFeePercent: 0, promotionPercent: 0, additionalPercent: 0, rounding: 500 },
+  };
+  const [selectedMerchant, setSelectedMerchant] = useState<MerchantChannel>('GOFOOD');
+  const [merchantFees, setMerchantFees] = useState<Record<MerchantChannel, MerchantFeeConfig>>(() => ({ ...merchantDefaults, ...profile.merchantFees }));
+  const selectedFee = merchantFees[selectedMerchant];
+  const onlinePriceMarkup = selectedFee.platformFeePercent + selectedFee.promotionPercent + selectedFee.additionalPercent;
   const [pb1TaxRate, setPb1TaxRate] = useState<number>(profile.taxPercentage || 11);
   const [serviceChargeRate, setServiceChargeRate] = useState<number>(profile.serviceChargePercentage || 5);
 
@@ -117,7 +128,8 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
       receiptHeader,
       receiptFooter,
       taxPercentage: pb1TaxRate,
-      serviceChargePercentage: serviceChargeRate
+      serviceChargePercentage: serviceChargeRate,
+      merchantFees,
     });
 
     setIsSavedNotice(true);
@@ -556,32 +568,34 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
             {/* Price Markup Blueprint Card */}
             <div className="bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl p-5 mb-6">
               <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-[var(--primary-hover)]" /> Auto-Markup Harga Online (GoFood / GrabFood)
+                <Sliders className="w-4 h-4 text-[var(--primary-hover)]" /> Kalkulator Harga Merchant per Cabang
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">
-                    Persentase Auto-Markup Harga Online (%)
+              <div className="grid grid-cols-1 gap-4 items-end lg:grid-cols-5">
+                <label className="space-y-1 text-xs font-bold text-[var(--text-secondary)]">Merchant
+                  <select value={selectedMerchant} onChange={(event) => setSelectedMerchant(event.target.value as MerchantChannel)} className="ui-input">
+                    <option value="GOFOOD">GoFood</option>
+                    <option value="GRABFOOD">GrabFood</option>
+                    <option value="SHOPEEFOOD">ShopeeFood</option>
+                    <option value="TIKTOK">TikTok</option>
+                    <option value="LAINNYA">Lainnya</option>
+                  </select>
+                </label>
+                {([
+                  ['platformFeePercent', 'Fee platform'],
+                  ['promotionPercent', 'Kontribusi promo'],
+                  ['additionalPercent', 'Biaya tambahan'],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="space-y-1 text-xs font-bold text-[var(--text-secondary)]">{label} (%)
+                    <input type="number" min={0} max={95} step="0.1" value={selectedFee[key]} onChange={(event) => setMerchantFees((current) => ({ ...current, [selectedMerchant]: { ...current[selectedMerchant], [key]: Math.max(0, Math.min(95, Number(event.target.value) || 0)) } }))} className="ui-input" />
                   </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={onlinePriceMarkup}
-                      onChange={(e) => setOnlinePriceMarkup(Number(e.target.value))}
-                      className="bg-white border border-[var(--panel-border)] text-[var(--primary-hover)] font-bold text-sm rounded-xl px-3 py-2 outline-none w-28 text-center"
-                    />
-                    <span className="text-xs font-bold text-[var(--text-tertiary)]">% dari Harga Normal</span>
-                  </div>
-                </div>
+                ))}
 
                 <div className="bg-white border border-[var(--panel-border)] p-3 rounded-xl">
                   <p className="text-[11px] text-[var(--text-tertiary)] font-medium">Contoh Simulasi Harga Menu:</p>
                   <p className="text-xs font-semibold text-[var(--text-primary)] mt-1">
                     Harga Normal: <span className="text-emerald-600">Rp 25.000</span> → Online (+{onlinePriceMarkup}%):{' '}
                     <span className="text-amber-600">
-                      Rp {Math.round(25000 * (1 + onlinePriceMarkup / 100)).toLocaleString('id-ID')}
+                      Rp {(onlinePriceMarkup >= 95 ? 0 : Math.ceil((25000 / (1 - onlinePriceMarkup / 100)) / selectedFee.rounding) * selectedFee.rounding).toLocaleString('id-ID')}
                     </span>
                   </p>
                 </div>
@@ -592,7 +606,7 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                     onClick={handleSaveBlueprintSettings}
                     className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
                   >
-                    Terapkan Markup
+                    Simpan Fee Cabang
                   </button>
                 </div>
               </div>
@@ -612,13 +626,21 @@ export const BlueprintArchitectureView: React.FC<BlueprintArchitectureViewProps>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {menuItems.map((item) => {
-                    const onlinePrice = Math.round(item.price * (1 + onlinePriceMarkup / 100));
+                    const onlinePrice = onlinePriceMarkup >= 95
+                      ? 0
+                      : Math.ceil((item.price / (1 - onlinePriceMarkup / 100)) / selectedFee.rounding) * selectedFee.rounding;
 
                     return (
                       <tr key={item.id} className="hover:bg-[var(--surface-card)] transition-colors">
                         <td className="p-3 font-semibold text-[var(--text-primary)] flex items-center gap-2">
                           <div className="w-7 h-7 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-[var(--panel-border)]">
-                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-slate-400">
+                                <UtensilsCrossed className="h-3.5 w-3.5" />
+                              </div>
+                            )}
                           </div>
                           <span>{item.name}</span>
                         </td>
