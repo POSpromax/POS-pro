@@ -23,7 +23,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
   const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }, { data: activeShift }] = await Promise.all([
     admin.from('menu_items').select('*').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
-    admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).neq('status', 'DISABLED').order('number'),
+    admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).eq('status', 'READY').order('number'),
     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
     admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),

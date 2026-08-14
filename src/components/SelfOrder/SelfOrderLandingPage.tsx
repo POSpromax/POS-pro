@@ -141,7 +141,6 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const selectedTableObj = availableTables.find(
     (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
   );
-  const isSelectedTableEnabled = Boolean(selectedTableObj?.isSelfOrderEnabled !== false);
   const liveSubmittedOrder = orders.find((order) => order.id === submittedOrderId) || submittedOrderSnapshot;
 
   const filteredMenu = useMemo(() => menuItems.filter((item) => {
@@ -164,17 +163,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Shift Kasir Tutup', 'Outlet belum menerima Self-order. Silakan hubungi kasir.');
       return;
     }
-    if (!isSelfOrderSystemEnabled) {
-      toast('Self-order Nonaktif', 'Pemesanan QR sedang dinonaktifkan sementara oleh kasir.');
-      return;
-    }
     setActiveStep('TABLE_INPUT');
   };
 
   const handleProceedToMenu = () => {
     setTableErrorMsg('');
-    if (!isShiftActive || !isSelfOrderSystemEnabled) {
-      setTableErrorMsg('Outlet belum dapat menerima Self-order. Silakan hubungi kasir.');
+    if (!isShiftActive) {
+      setTableErrorMsg('Shift kasir outlet ini sedang tutup. Silakan hubungi kasir.');
       return;
     }
     if (!customerName.trim()) {
@@ -185,8 +180,33 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setTableErrorMsg('Pilih nomor meja yang diberikan oleh kasir.');
       return;
     }
-    // Server-side validation akan memastikan meja tersedia dengan atomic locking.
-    // Client hanya perlu validasi format nomor meja sudah diisi.
+    
+    // Validasi awal: cek apakah meja tersedia di list
+    const tableObj = tables.find(
+      (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable) 
+        && table.branchId === currentBranch.id
+    );
+    
+    if (!tableObj) {
+      setTableErrorMsg(`Meja ${selectedTable} tidak tersedia atau belum diaktifkan oleh kasir. Silakan periksa nomor meja atau hubungi kasir.`);
+      return;
+    }
+    
+    if (tableObj.status !== 'READY') {
+      if (tableObj.status === 'OCCUPIED') {
+        setTableErrorMsg(`Meja ${selectedTable} sedang digunakan pelanggan lain. Minta nomor meja lain kepada kasir.`);
+      } else {
+        setTableErrorMsg(`Meja ${selectedTable} belum dapat digunakan. Silakan hubungi kasir.`);
+      }
+      return;
+    }
+    
+    if (!tableObj.isSelfOrderEnabled) {
+      setTableErrorMsg(`Meja ${selectedTable} belum diaktifkan untuk self-order. Silakan hubungi kasir.`);
+      return;
+    }
+    
+    // Semua validasi lolos - lanjut ke menu
     setActiveStep('MENU');
   };
 
@@ -273,14 +293,21 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
   const handleSubmitOrder = async () => {
     if (isSubmitting) return;
-    if (!isShiftActive || !isSelfOrderSystemEnabled) {
-      toast('Pesanan Belum Dapat Dikirim', 'Outlet belum menerima Self-order. Silakan hubungi kasir.');
+    if (!isShiftActive) {
+      toast('Pesanan Belum Dapat Dikirim', 'Shift kasir sedang tutup. Silakan hubungi kasir.');
       return;
     }
-    if (!customerName.trim() || !selectedTableObj || !isSelectedTableEnabled || cartItems.length === 0) {
-      toast('Periksa Pesanan', 'Nama, meja aktif, dan isi keranjang wajib tersedia sebelum pesanan dikirim.');
+    if (!customerName.trim() || !selectedTableObj || cartItems.length === 0) {
+      toast('Periksa Pesanan', 'Nama, nomor meja, dan isi keranjang wajib tersedia sebelum pesanan dikirim.');
       return;
     }
+    
+    // Re-validate table status sebelum submit (bisa berubah sejak input)
+    if (selectedTableObj.status !== 'READY') {
+      toast('Meja Sudah Terpakai', `Meja ${selectedTable} baru saja digunakan pelanggan lain. Silakan pilih meja lain.`);
+      return;
+    }
+    
     const draftOrder: Order = {
       id: crypto.randomUUID(),
       orderNumber: `#${Math.floor(100 + Math.random() * 900)}`,
@@ -337,7 +364,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     toast(order ? 'Ringkasan Disalin' : 'Link Disalin', order ? 'Ringkasan pesanan berhasil disalin.' : 'Link outlet berhasil disalin.');
   };
 
-  const serviceOpen = isShiftActive && isSelfOrderSystemEnabled;
+  const serviceOpen = isShiftActive;
   const supportPhone = (currentBranch.phone || profile.phone || '').replace(/[^0-9]/g, '');
   const statusIndex = liveSubmittedOrder?.status === 'NEW' ? 0
     : liveSubmittedOrder?.status === 'COOKING' ? 1
@@ -409,7 +436,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               {!serviceOpen && (
                 <div className="flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
                   <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div><p className="text-xs font-black">Self-order sedang berhenti</p><p className="mt-1 text-[11px] font-medium leading-relaxed">{!isShiftActive ? 'Shift kasir outlet ini belum aktif.' : 'Kasir menonaktifkan pemesanan QR sementara.'} Hubungi petugas untuk bantuan.</p></div>
+                  <div><p className="text-xs font-black">Self-order sedang berhenti</p><p className="mt-1 text-[11px] font-medium leading-relaxed">Shift kasir outlet ini belum aktif. Hubungi petugas untuk bantuan.</p></div>
                 </div>
               )}
 
