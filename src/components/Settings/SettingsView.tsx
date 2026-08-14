@@ -77,8 +77,6 @@ interface SettingsViewProps {
   tables?: RestaurantTable[];
   onToggleTableSelfOrder?: (tableId: string, enabled: boolean) => void;
   onToggleAllTables?: (enabled: boolean) => void;
-  isSelfOrderSystemEnabled?: boolean;
-  onToggleSystemSelfOrder?: (enabled: boolean) => void;
   onShowToast?: (title: string, message: string) => void;
 }
 
@@ -103,8 +101,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   tables = [],
   onToggleTableSelfOrder = () => {},
   onToggleAllTables = () => {},
-  isSelfOrderSystemEnabled = true,
-  onToggleSystemSelfOrder = (_enabled: boolean) => {},
   onShowToast
 }) => {
   const toast = (title: string, message: string) => {
@@ -2005,16 +2001,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase">AKTIFKAN</span>
-                      <input
-                        type="checkbox"
-                        checked={isSelfOrderSystemEnabled ?? (formProfile.isSelfOrderEnabled !== false)}
-                        onChange={(e) => {
-                          if (onToggleSystemSelfOrder) onToggleSystemSelfOrder(e.target.checked);
-                          setFormProfile({ ...formProfile, isSelfOrderEnabled: e.target.checked });
-                        }}
-                        className="w-4.5 h-4.5 rounded accent-[var(--primary-solid)] cursor-pointer"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsTableModalOpen(true)}
+                        className="py-2 px-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all"
+                      >
+                        Buka Manajemen Meja
+                      </button>
                     </label>
                   </div>
 
@@ -2510,8 +2503,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         tables={tables}
         onToggleTableSelfOrder={onToggleTableSelfOrder}
         onToggleAllTables={onToggleAllTables}
-        isSelfOrderSystemEnabled={isSelfOrderSystemEnabled ?? (formProfile.isSelfOrderEnabled !== false)}
-        onToggleSystemSelfOrder={onToggleSystemSelfOrder}
       />
     </div>
   );

@@ -2254,9 +2254,6 @@ export default function App() {
               tables={branchTables}
               onToggleTableSelfOrder={handleToggleTableSelfOrder}
               onToggleAllTables={handleToggleAllTables}
-              onToggleSystemSelfOrder={(enabled) => {
-                void persistBranchOperationalConfig({ selfOrderEnabled: enabled }).catch(() => undefined);
-              }}
               onClearTransactions={() => {
                 if (cloudReadiness.supabase) {
                   showPushToast('Pembersihan Cloud Dibatasi', 'Data transaksi cloud tidak dapat dihapus melalui pembersihan cache perangkat.');
@@ -2320,10 +2317,6 @@ export default function App() {
         tables={branchTables}
         onToggleTableSelfOrder={handleToggleTableById}
         onToggleAllTables={handleToggleAllTables}
-        isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
-        onToggleSystemSelfOrder={(enabled) => {
-          void persistBranchOperationalConfig({ selfOrderEnabled: enabled }).catch(() => undefined);
-        }}
       />
 
       <QuickTableModal

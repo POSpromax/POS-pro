@@ -8,8 +8,6 @@ interface CustomerTableManagementModalProps {
   tables: RestaurantTable[];
   onToggleTableSelfOrder: (tableId: string, enabled: boolean) => void;
   onToggleAllTables: (enabled: boolean) => void;
-  isSelfOrderSystemEnabled: boolean;
-  onToggleSystemSelfOrder: (enabled: boolean) => void;
 }
 
 export const CustomerTableManagementModal: React.FC<CustomerTableManagementModalProps> = ({
@@ -18,8 +16,6 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
   tables,
   onToggleTableSelfOrder,
   onToggleAllTables,
-  isSelfOrderSystemEnabled,
-  onToggleSystemSelfOrder
 }) => {
   if (!isOpen) return null;
 
@@ -53,37 +49,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
         {/* Modal Body */}
         <div className="px-6 pb-6 space-y-4 overflow-y-auto max-h-[80vh]">
           
-          {/* Card 1: Master Restriction Toggle matching Image 2 */}
-          <div className="bg-[var(--surface-secondary)] rounded-2xl p-4 flex items-center justify-between border border-black/5 shadow-sm">
-            <span className="font-extrabold text-xs text-slate-800">
-              Pembatasan meja customer order
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onToggleSystemSelfOrder(!isSelfOrderSystemEnabled)}
-                className={`w-12 h-6.5 rounded-full transition-colors relative flex items-center p-0.5 cursor-pointer ${
-                  isSelfOrderSystemEnabled ? 'bg-[var(--primary)]' : 'bg-slate-300'
-                }`}
-              >
-                <div
-                  className={`w-5.5 h-5.5 rounded-full bg-white shadow-md transform transition-transform ${
-                    isSelfOrderSystemEnabled ? 'translate-x-5.5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-              <span
-                className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-lg tracking-wider ${
-                  isSelfOrderSystemEnabled ? 'bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'bg-slate-200 text-slate-600'
-                }`}
-              >
-                {isSelfOrderSystemEnabled ? 'ON' : 'OFF'}
-              </span>
-            </div>
-          </div>
-
-          {/* Card 2: Table Control & Badge Pills Grid matching Image 2 */}
+          {/* Card: Table Control & Badge Pills Grid */}
           <div className="bg-[var(--surface-main)] rounded-2xl p-5 border border-slate-200/80 space-y-4">
             
             {/* Control & Active Counter Header */}
