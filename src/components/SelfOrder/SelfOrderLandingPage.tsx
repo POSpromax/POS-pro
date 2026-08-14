@@ -487,7 +487,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <p id="self-order-table-help" className="mt-2 text-[10px] font-medium leading-relaxed text-slate-400">Masukkan nomor yang diinformasikan kasir. Server akan memvalidasi ketersediaan meja saat pesanan dikirim.</p>
               </label>
 
-              <button type="button" onClick={handleProceedToMenu} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#17130f] py-4 text-sm font-black text-white shadow-xl transition hover:bg-orange-600 active:scale-[.985]">Lanjut pilih menu <ArrowRight className="h-4 w-4" /></button>
+              <button type="button" onClick={handleProceedToMenu} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#17130f] to-[#2a1f1a] py-4 text-sm font-black text-white shadow-xl transition hover:shadow-2xl active:scale-[.985]">
+                Lanjut pilih menu <ArrowRight className="h-4 w-4" />
+              </button>
             </section>
           </main>
         )}

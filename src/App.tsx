@@ -689,12 +689,17 @@ export default function App() {
       () => {
         setOrderSyncHealth((current) => ({ ...current, lastRealtimeEvent: Date.now() }));
         refresh();
+        // CRITICAL FIX: Refresh tables after order changes to update table status (READY → OCCUPIED → DISABLED)
+        void refreshBranchTables(currentBranch.id);
       },
       (state) => {
         const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
         realtimeState = state;
         setOrderSyncHealth((current) => ({ ...current, connectionState: state }));
-        if (recovered) refresh();
+        if (recovered) {
+          refresh();
+          void refreshBranchTables(currentBranch.id);
+        }
       },
     );
     const fallbackTimer = window.setInterval(() => {
