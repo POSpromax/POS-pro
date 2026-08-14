@@ -124,12 +124,23 @@ export async function handleAttendanceRequest(
   if (!payload.requestId || !UUID_PATTERN.test(payload.requestId)) return fail(400, 'Request ID tidak valid');
   if (payload.type !== 'CLOCK_IN' && payload.type !== 'CLOCK_OUT') return fail(400, 'Jenis absensi tidak valid');
 
-  const { data: tenantConfig } = await admin
-    .from('tenant_config')
-    .select('attendance_config')
-    .eq('tenant_id', profile.tenant_id)
-    .maybeSingle();
-  const config = (tenantConfig?.attendance_config || {}) as Record<string, unknown>;
+  const [{ data: tenantConfig }, { data: branchConfig }] = await Promise.all([
+    admin
+      .from('tenant_config')
+      .select('attendance_config')
+      .eq('tenant_id', profile.tenant_id)
+      .maybeSingle(),
+    admin
+      .from('branch_operational_config')
+      .select('profile_overrides')
+      .eq('tenant_id', profile.tenant_id)
+      .eq('branch_id', payload.branchId)
+      .maybeSingle(),
+  ]);
+  const config = {
+    ...((tenantConfig?.attendance_config || {}) as Record<string, unknown>),
+    ...((branchConfig?.profile_overrides || {}) as Record<string, unknown>),
+  };
   if (config.isAttendanceEnabled === false) return fail(403, 'Fitur absensi sedang dinonaktifkan');
 
   const requireGps = config.requireGpsActive === true;

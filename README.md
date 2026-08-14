@@ -35,6 +35,9 @@ Gunakan `npm.cmd run clean` untuk menghapus output build secara portable.
 - KDS operasional memakai dua aksi petugas: **Terima pesanan** dan **Selesai**. Order baru masuk riwayat kasir setelah dapur selesai dan pembayaran lunas.
 - Self-order memakai alur mobile **Beranda → Identitas/Meja → Menu → Konfirmasi → Status**. Layar sukses hanya muncul setelah server mengembalikan order resmi; pembayaran tetap dilakukan langsung kepada kasir.
 - Gambar katalog Self-order memakai transformasi Cloudinary 480px dan lazy loading. Motion memakai CSS singkat tanpa library/asset tambahan.
+- Printer thermal memakai transport berlapis: Web Bluetooth BLE untuk PWA dan
+  kontrak native Android Classic/SPP untuk RPP02N lama, VSC, serta Panda. Setup
+  menyediakan reconnect, disconnect, test print, dan ukuran paket BLE adaptif.
 - Checkout cloud, payment key, nomor order harian, stock ledger, dan konsistensi shift tersedia melalui migration.
 - `localStorage` hanya untuk mode demo tanpa konfigurasi Supabase; `sessionStorage` hanya untuk sesi terminal perangkat.
 

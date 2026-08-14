@@ -253,6 +253,15 @@ export interface PrinterConfig {
   autoPrintOnPayment: boolean;
   isConnected: boolean;
   bluetoothAddress?: string;
+  /** AUTO memilih native Android lebih dahulu, lalu Web Bluetooth BLE. */
+  transport?: 'AUTO' | 'WEB_BLE' | 'ANDROID_NATIVE';
+  /** ID izin Web Bluetooth; dipakai untuk reconnect tanpa membuka chooser lagi. */
+  deviceId?: string;
+  serviceUuid?: string;
+  characteristicUuid?: string;
+  /** Ukuran paket BLE. Nilai kecil lebih kompatibel dengan printer thermal murah. */
+  chunkSize?: 20 | 64 | 128 | 256;
+  lastConnectedAt?: string;
 }
 
 export type MerchantChannel = 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD' | 'TIKTOK' | 'LAINNYA';

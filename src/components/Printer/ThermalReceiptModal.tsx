@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Printer, Bluetooth, X, CheckCircle2, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bluetooth, CheckCircle2, PlugZap, Printer, RefreshCw, ShieldAlert, Smartphone, Unplug, X } from 'lucide-react';
 import { PrinterConfig } from '../../types/pos';
-import { BluetoothPrinterService } from '../../services/bluetoothPrinter';
+import { BluetoothPrinterService, PrinterRuntimeStatus } from '../../services/bluetoothPrinter';
 
 interface ThermalReceiptModalProps {
   isOpen: boolean;
@@ -10,140 +10,194 @@ interface ThermalReceiptModalProps {
   onSaveConfig: (config: PrinterConfig) => void;
 }
 
-export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
-  isOpen,
-  onClose,
-  config,
-  onSaveConfig
-}) => {
+const IDLE_STATUS: PrinterRuntimeStatus = { connected: false, connecting: false, transport: null };
+
+export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({ isOpen, onClose, config, onSaveConfig }) => {
   const [formConfig, setFormConfig] = useState<PrinterConfig>(config);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [runtimeStatus, setRuntimeStatus] = useState<PrinterRuntimeStatus>(IDLE_STATUS);
+  const [capabilities, setCapabilities] = useState({ webBle: false, androidNative: false, secureContext: false });
+  const [isTesting, setIsTesting] = useState(false);
+  const [message, setMessage] = useState<{ type: 'ERROR' | 'SUCCESS'; text: string } | null>(null);
+
+  useEffect(() => BluetoothPrinterService.subscribe(setRuntimeStatus), []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormConfig(config);
+    setMessage(null);
+    void BluetoothPrinterService.getCapabilities().then(setCapabilities);
+    void BluetoothPrinterService.getStatus().then((status) => {
+      if (status.connected) setFormConfig((current) => ({ ...current, isConnected: true }));
+    });
+  }, [isOpen, config]);
 
   if (!isOpen) return null;
 
-  const handleConnectBluetooth = async () => {
-    setIsConnecting(true);
-    setErrorMsg('');
-    const res = await BluetoothPrinterService.connectBluetoothDevice();
-    setIsConnecting(false);
+  const saveRuntimeConfig = (next: PrinterConfig) => {
+    setFormConfig(next);
+    onSaveConfig(next);
+  };
 
-    if (res.success) {
-      const updated: PrinterConfig = {
-        ...formConfig,
-        deviceName: res.deviceName || 'Thermal BT 58mm',
-        isConnected: true
-      };
-      setFormConfig(updated);
-      onSaveConfig(updated);
+  const handleConnectBluetooth = async () => {
+    setMessage(null);
+    const result = await BluetoothPrinterService.connectBluetoothDevice(formConfig);
+    if (!result.success) {
+      setMessage({ type: 'ERROR', text: result.error || 'Gagal terhubung dengan printer Bluetooth.' });
+      return;
+    }
+    const updated: PrinterConfig = {
+      ...formConfig,
+      ...result.configPatch,
+      deviceName: result.deviceName || formConfig.deviceName,
+      isConnected: true,
+    };
+    saveRuntimeConfig(updated);
+    setMessage({
+      type: 'SUCCESS',
+      text: result.transport === 'ANDROID_NATIVE'
+        ? 'Printer terhubung melalui driver Android Classic/SPP.'
+        : 'Printer terhubung melalui Web Bluetooth BLE.',
+    });
+  };
+
+  const handleReconnect = async () => {
+    setMessage(null);
+    const connected = await BluetoothPrinterService.reconnect(formConfig);
+    if (connected) {
+      const updated = { ...formConfig, isConnected: true, lastConnectedAt: new Date().toISOString() };
+      saveRuntimeConfig(updated);
+      setMessage({ type: 'SUCCESS', text: 'Koneksi printer berhasil dipulihkan.' });
     } else {
-      setErrorMsg(res.error || 'Gagal terhubung dengan Bluetooth printer');
+      setMessage({ type: 'ERROR', text: 'Reconnect gagal. Nyalakan printer lalu gunakan tombol Pilih Printer.' });
     }
   };
 
+  const handleDisconnect = async () => {
+    await BluetoothPrinterService.disconnect();
+    saveRuntimeConfig({ ...formConfig, isConnected: false });
+    setMessage({ type: 'SUCCESS', text: 'Printer telah diputuskan dari terminal ini.' });
+  };
+
+  const handleTestPrint = async () => {
+    setIsTesting(true);
+    setMessage(null);
+    const result = await BluetoothPrinterService.testPrint(formConfig);
+    setIsTesting(false);
+    setMessage(result.success
+      ? { type: 'SUCCESS', text: 'Test print berhasil dikirim.' }
+      : { type: 'ERROR', text: result.error || 'Test print gagal.' });
+  };
+
+  const actualConnected = runtimeStatus.connected;
+  const environmentLabel = capabilities.androidNative
+    ? 'APK Android · Classic/SPP + BLE'
+    : capabilities.webBle
+      ? 'PWA · BLE/GATT'
+      : 'Browser tanpa dukungan Bluetooth';
+
   return (
-    <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--surface-card)] w-full max-w-md rounded-2xl p-6 shadow-xl space-y-5 border border-[var(--panel-border)]">
-        <div className="flex justify-between items-center border-b border-[var(--panel-border-light)] pb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--primary)] text-white flex items-center justify-center">
-              <Printer className="w-5 h-5" />
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-md sm:p-4">
+      <div className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-[var(--panel-border)] bg-[var(--surface-card)] shadow-2xl">
+        <header className="flex items-start justify-between border-b border-[var(--panel-border-light)] bg-[var(--primary)] p-5 text-white">
+          <div className="flex gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15"><Printer className="h-5 w-5" /></div>
             <div>
-              <h2 className="font-extrabold text-[var(--text-primary)] text-base">Setup Printer Thermal Bluetooth</h2>
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">Pencetakan Struk Otomatis Kasir</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Printer operasional</p>
+              <h2 className="mt-0.5 text-base font-extrabold">Thermal ESC/POS</h2>
+              <p className="mt-1 text-[11px] font-semibold text-white/65">{environmentLabel}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-full">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          <button type="button" onClick={onClose} className="rounded-xl bg-white/10 p-2 transition hover:bg-white/20" aria-label="Tutup setup printer"><X className="h-5 w-5" /></button>
+        </header>
 
-        {/* Connection Status Box */}
-        <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-          formConfig.isConnected
-            ? 'bg-[var(--success-soft)] border-[#bbf7d0] text-[var(--accent-green)]'
-            : 'bg-[var(--warning-soft)] border-[#fde68a] text-[#b45309]'
-        }`}>
-          <div>
-            <p className="font-bold text-xs">{formConfig.deviceName}</p>
-            <p className="text-[11px] font-bold opacity-80">
-              {formConfig.isConnected ? 'Terhubung via Web Bluetooth' : 'Belum Terhubung'}
-            </p>
-          </div>
-          <button
-            onClick={handleConnectBluetooth}
-            disabled={isConnecting}
-            className="ui-button ui-button-primary px-3.5 py-2 text-xs font-bold shadow-sm"
-          >
-            <Bluetooth className="w-3.5 h-3.5" />
-            <span>{isConnecting ? 'Mencari...' : 'Hubungkan'}</span>
-          </button>
-        </div>
-
-        {errorMsg && (
-          <p className="text-xs font-bold text-[var(--accent-red)] bg-[var(--danger-soft)] p-2.5 rounded-xl border border-[#fecaca]">
-            {errorMsg}
-          </p>
-        )}
-
-        {/* Paper Format & Auto-Print Settings */}
-        <div className="space-y-3">
-          <div>
-            <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">Ukuran Kertas Thermal:</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setFormConfig({ ...formConfig, paperSize: '58mm' })}
-                className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                  formConfig.paperSize === '58mm'
-                    ? 'bg-[var(--brand-50)] border-[var(--primary)] text-[var(--primary-hover)] ring-2 ring-[var(--primary)]/20'
-                    : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-secondary)]'
-                }`}
-              >
-                58mm (Standar Portable)
-              </button>
-              <button
-                onClick={() => setFormConfig({ ...formConfig, paperSize: '80mm' })}
-                className={`py-2.5 rounded-xl border font-bold text-xs transition-all ${
-                  formConfig.paperSize === '80mm'
-                    ? 'bg-[var(--brand-50)] border-[var(--primary)] text-[var(--primary-hover)] ring-2 ring-[var(--primary)]/20'
-                    : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-secondary)]'
-                }`}
-              >
-                80mm (Desktop Resto)
-              </button>
+        <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
+          <section className={`rounded-2xl border p-4 ${actualConnected ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${actualConnected ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                  {actualConnected ? <CheckCircle2 className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-extrabold text-slate-900">{runtimeStatus.deviceName || formConfig.deviceName}</p>
+                  <p className={`mt-0.5 text-[11px] font-bold ${actualConnected ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {runtimeStatus.connecting ? 'Menghubungkan…' : actualConnected ? `Aktif · ${runtimeStatus.transport === 'ANDROID_NATIVE' ? 'Android SPP' : 'Web BLE'}` : 'Belum terhubung pada sesi ini'}
+                  </p>
+                </div>
+              </div>
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${actualConnected ? 'bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,.12)]' : 'bg-amber-400'}`} />
             </div>
-          </div>
+          </section>
 
-          <div className="flex items-center justify-between bg-[var(--surface-secondary)] p-3 rounded-2xl border border-[var(--panel-border)]">
-            <div>
-              <p className="font-extrabold text-xs text-[var(--text-primary)]">Cetak Otomatis Setelah Bayar</p>
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium">Kirim perintah cetak langsung saat checkout</p>
+          <section className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3.5">
+            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-tertiary)]">Mode koneksi</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ['AUTO', PlugZap, 'Otomatis'],
+                ['WEB_BLE', Bluetooth, 'PWA BLE'],
+                ['ANDROID_NATIVE', Smartphone, 'Android SPP'],
+              ] as const).map(([value, Icon, label]) => {
+                const disabled = value === 'ANDROID_NATIVE' && !capabilities.androidNative;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setFormConfig({ ...formConfig, transport: value })}
+                    className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-2 text-[10px] font-bold transition ${formConfig.transport === value ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'} disabled:cursor-not-allowed disabled:opacity-35`}
+                  >
+                    <Icon className="h-4 w-4" />{label}
+                  </button>
+                );
+              })}
             </div>
-            <button
-              onClick={() => setFormConfig({ ...formConfig, autoPrintOnPayment: !formConfig.autoPrintOnPayment })}
-              className={`w-12 h-6 rounded-full p-1 transition-colors ${
-                formConfig.autoPrintOnPayment ? 'bg-[var(--primary)]' : 'bg-[var(--panel-border-strong)]'
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                formConfig.autoPrintOnPayment ? 'translate-x-6' : 'translate-x-0'
-              }`} />
+            {!capabilities.secureContext && !capabilities.androidNative && <p className="mt-2 text-[10px] font-bold text-rose-600">PWA Bluetooth memerlukan HTTPS.</p>}
+          </section>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => void handleConnectBluetooth()} disabled={runtimeStatus.connecting} className="ui-button ui-button-primary min-h-11 justify-center text-xs">
+              <Bluetooth className="h-4 w-4" />{runtimeStatus.connecting ? 'Mencari…' : 'Pilih Printer'}
+            </button>
+            <button type="button" onClick={() => void handleReconnect()} disabled={runtimeStatus.connecting} className="ui-button ui-button-secondary min-h-11 justify-center text-xs">
+              <RefreshCw className="h-4 w-4" />Reconnect
+            </button>
+            <button type="button" onClick={() => void handleTestPrint()} disabled={isTesting} className="ui-button ui-button-secondary min-h-11 justify-center text-xs">
+              <Printer className="h-4 w-4" />{isTesting ? 'Mengirim…' : 'Test Print'}
+            </button>
+            <button type="button" onClick={() => void handleDisconnect()} disabled={!actualConnected} className="ui-button min-h-11 justify-center border border-rose-200 bg-rose-50 text-xs font-bold text-rose-700 disabled:opacity-40">
+              <Unplug className="h-4 w-4" />Putuskan
             </button>
           </div>
+
+          {message && <p className={`rounded-xl border p-3 text-[11px] font-bold ${message.type === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>{message.text}</p>}
+
+          <section className="space-y-3 rounded-2xl border border-[var(--panel-border)] p-4">
+            <div>
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Ukuran kertas</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['58mm', '80mm'] as const).map((size) => <button key={size} type="button" onClick={() => setFormConfig({ ...formConfig, paperSize: size })} className={`rounded-xl border py-2.5 text-xs font-bold ${formConfig.paperSize === size ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]'}`}>{size}</button>)}
+              </div>
+            </div>
+
+            {formConfig.transport !== 'ANDROID_NATIVE' && <div>
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Paket BLE</label>
+              <select value={formConfig.chunkSize || 128} onChange={(event) => setFormConfig({ ...formConfig, chunkSize: Number(event.target.value) as PrinterConfig['chunkSize'] })} className="ui-input w-full text-xs">
+                <option value={20}>20 byte · kompatibilitas maksimum</option>
+                <option value={64}>64 byte · aman</option>
+                <option value={128}>128 byte · seimbang</option>
+                <option value={256}>256 byte · printer modern</option>
+              </select>
+            </div>}
+
+            <div className="flex items-center justify-between rounded-xl bg-[var(--surface-secondary)] p-3">
+              <div><p className="text-xs font-extrabold">Cetak otomatis setelah bayar</p><p className="mt-0.5 text-[10px] font-medium text-[var(--text-secondary)]">Pembayaran tetap sukses jika printer gagal.</p></div>
+              <button type="button" onClick={() => setFormConfig({ ...formConfig, autoPrintOnPayment: !formConfig.autoPrintOnPayment })} className={`h-6 w-12 rounded-full p-1 transition ${formConfig.autoPrintOnPayment ? 'bg-[var(--primary)]' : 'bg-[var(--panel-border-strong)]'}`} aria-pressed={formConfig.autoPrintOnPayment}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${formConfig.autoPrintOnPayment ? 'translate-x-6' : ''}`} /></button>
+            </div>
+          </section>
         </div>
 
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={() => {
-              onSaveConfig(formConfig);
-              onClose();
-            }}
-            className="ui-button ui-button-primary w-full py-3 text-xs font-bold shadow-md"
-          >
-            Simpan Konfigurasi
-          </button>
-        </div>
+        <footer className="border-t border-[var(--panel-border)] bg-white p-4">
+          <button type="button" onClick={() => { saveRuntimeConfig({ ...formConfig, isConnected: actualConnected }); onClose(); }} className="ui-button ui-button-primary w-full justify-center py-3 text-xs">Simpan Konfigurasi</button>
+        </footer>
       </div>
     </div>
   );

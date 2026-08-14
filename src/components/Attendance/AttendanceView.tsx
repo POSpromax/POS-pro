@@ -14,6 +14,7 @@ interface AttendanceViewProps {
   profile: RestaurantProfile;
   currentBranch: Branch;
   terminalMode?: boolean;
+  configReady?: boolean;
   onShowToast: (title: string, message: string) => void;
 }
 
@@ -27,6 +28,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   profile,
   currentBranch,
   terminalMode = false,
+  configReady = true,
   onShowToast,
 }) => {
   const eligibleStaff = useMemo(
@@ -163,6 +165,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
   const lastAttendance = todayRecords[todayRecords.length - 1];
   const clockType: 'CLOCK_IN' | 'CLOCK_OUT' = lastAttendance?.type === 'CLOCK_IN' ? 'CLOCK_OUT' : 'CLOCK_IN';
+  const hasEligibleIdentity = terminalMode ? activeUser.isActive !== false : eligibleStaff.length > 0;
 
   const getScheduledStart = () => {
     if (selectedStaff.shiftStart) return selectedStaff.shiftStart;
@@ -177,9 +180,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       setIsGpsValid(true);
       return true;
     }
-    const outletLatitude = currentBranch.gpsLatitude ?? (currentBranch.isMainBranch ? profile.gpsLatitude : undefined);
-    const outletLongitude = currentBranch.gpsLongitude ?? (currentBranch.isMainBranch ? profile.gpsLongitude : undefined);
-    const outletRadius = currentBranch.gpsRadiusMeters ?? (currentBranch.isMainBranch ? profile.gpsRadiusMeters : undefined) ?? 50;
+    // `profile` already contains the effective branch override loaded from
+    // Supabase. Branch columns win when a deployment stores GPS there.
+    const outletLatitude = currentBranch.gpsLatitude ?? profile.gpsLatitude;
+    const outletLongitude = currentBranch.gpsLongitude ?? profile.gpsLongitude;
+    const outletRadius = currentBranch.gpsRadiusMeters ?? profile.gpsRadiusMeters ?? 50;
     if (!navigator.geolocation || outletLatitude === undefined || outletLongitude === undefined) {
       setGpsMessage('Konfigurasi GPS outlet belum lengkap');
       setIsGpsValid(false);
@@ -522,11 +527,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 {uploadMessage && <p className="text-[11px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
               </div>
 
-              <button onClick={handleClockAction} disabled={profile.isAttendanceEnabled === false || eligibleStaff.length === 0 || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
+              <button onClick={handleClockAction} disabled={!configReady || profile.isAttendanceEnabled === false || !hasEligibleIdentity || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
                 className="w-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] py-3.5 text-xs font-bold text-white transition-all shadow-[var(--shadow-md)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
                 {isSubmitting ? 'MENYIMPAN PRESENSI...' : clockType === 'CLOCK_IN' ? 'CLOCK IN SEKARANG' : 'CLOCK OUT SEKARANG'}
               </button>
-              {!isSubmitting && ((profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)) && (
+              {!configReady && (
+                <p className="text-center text-[10px] font-semibold text-amber-700">Memuat aturan absensi outlet...</p>
+              )}
+              {configReady && !isSubmitting && ((profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)) && (
                 <p className="text-center text-[11px] font-bold text-slate-500">
                   {profile.requireSelfiePhoto && !selfieFile ? 'Ambil selfie langsung terlebih dahulu. ' : ''}
                   {profile.requireGpsActive && !isGpsValid ? 'Pastikan GPS valid di area outlet.' : ''}

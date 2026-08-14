@@ -29,6 +29,8 @@ Supabase Realtime
 
 Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi handler bisnis tetap berada di `src/server/` agar perilakunya sama.
 
+Mode `ATTENDANCE` memakai shell terisolasi; jangan memuat query order, shift, meja, katalog, atau realtime operasional dari terminal ini. Konfigurasi absensi efektif berasal dari `tenant_config.attendance_config`, lalu ditimpa `branch_operational_config.profile_overrides`. Client dan `src/server/attendanceManagement.ts` harus mempertahankan urutan merge yang sama.
+
 ## 3. Konteks cabang
 
 - ID cabang harus UUID canonical. Normalisasi ada di `src/utils/branchId.ts`.
@@ -36,6 +38,9 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Header selalu harus menampilkan kode/nama cabang aktif.
 - Owner dashboard boleh menggabungkan monitoring, tetapi mutation tetap diarahkan ke satu cabang eksplisit.
 - URL self-order dibangun oleh `src/utils/selfOrderUrl.ts`; jangan merakit URL cabang manual di komponen.
+- Semua pencetakan ESC/POS melewati `src/services/bluetoothPrinter.ts`. Driver APK
+  Classic/SPP wajib mengikuti `docs/PRINTER_ANDROID_BRIDGE.md`; jangan memanggil
+  plugin native langsung dari komponen POS.
 - Katalog publik membawa `isShiftActive` dari query `cashier_shifts` cabang. Jangan menggantinya dengan `currentShift` milik sesi terminal.
 
 ## 4. Penyimpanan dan realtime

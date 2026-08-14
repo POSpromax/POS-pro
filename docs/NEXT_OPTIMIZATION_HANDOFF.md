@@ -4,6 +4,8 @@ Terakhir diperbarui: 14 Agustus 2026.
 
 ## Status stabil saat ini
 
+- Terminal absensi memuat kebijakan GPS/selfie efektif dari Supabase per cabang sebelum tombol clock-in diaktifkan. Shell absensi tidak menjalankan query atau subscription POS, KDS, order, shift, meja, dan katalog.
+- Penyimpanan presensi cloud tetap fail-closed: tidak ada fallback `localStorage` ketika Supabase aktif. PIN membentuk sesi Auth dan API memvalidasi tenant, membership, cabang, GPS, selfie, serta idempotency request.
 - Login cloud dua cabang berfungsi.
 - BGR-01 dan BGR-02 memakai UUID cabang canonical.
 - Order, shift, meja, katalog, konfigurasi, staff, dan monitoring membaca data cloud.
@@ -64,6 +66,11 @@ Terakhir diperbarui: 14 Agustus 2026.
   PIN cloud membuat sesi Supabase Auth; token kedaluwarsa direfresh satu kali dan
   HTTP 401 mengunci terminal untuk login ulang. Mode ini tidak memasang subscription
   order atau shift yang tidak diperlukan.
+- Service printer sekarang memilih Android native Classic/SPP atau Web BLE,
+  mendeteksi disconnect, mencoba reconnect perangkat yang pernah diizinkan,
+  menyerialkan antrean cetak, menurunkan ukuran paket BLE secara adaptif, dan
+  menyediakan test print. Shell APK/driver SPP fisik masih harus dibangun dan
+  diverifikasi mengikuti `docs/PRINTER_ANDROID_BRIDGE.md`.
 
 ## Data yang belum siap operasional penuh
 

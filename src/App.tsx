@@ -55,7 +55,7 @@ import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudS
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
 import { defaultBranchOperationalConfig, getCloudBranchOperationalConfig, saveCloudBranchOperationalConfig } from './services/branchConfigService';
-import { getCloudTenantBrand, saveCloudTenantBrand } from './services/tenantConfigService';
+import { getCloudAttendanceConfig, getCloudTenantBrand, saveCloudTenantBrand } from './services/tenantConfigService';
 import { listCloudExpenseRecords, saveCloudExpenseRecord } from './services/expenseService';
 import { subscribeBranchOperations } from './services/operationalRealtimeService';
 import { createCloudBranch, listCloudBranches } from './services/branchService';
@@ -275,7 +275,9 @@ export default function App() {
     () => sessionStorage.getItem(TERMINAL_SESSION_KEY) !== 'unlocked'
   );
   const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
-  const [isAttendanceMode, setIsAttendanceMode] = useState<boolean>(false);
+  const [isAttendanceMode, setIsAttendanceMode] = useState<boolean>(
+    () => sessionStorage.getItem(TERMINAL_MODE_KEY) === 'ATTENDANCE',
+  );
   const isAttendanceTerminal = isAttendanceMode || (typeof window !== 'undefined' && (
     window.location.pathname === '/attendance' ||
     new URLSearchParams(window.location.search).get('mode') === 'attendance'
@@ -387,6 +389,7 @@ export default function App() {
   const [expenseRecords, setExpenseRecords] = useState<ExpenseIncomeRecord[]>(() => cloudReadiness.supabase ? [] : DBStorage.getExpenseRecords());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
+  const [isAttendanceConfigReady, setIsAttendanceConfigReady] = useState<boolean>(() => !cloudReadiness.supabase);
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(() => DBStorage.getPrinterConfig());
   const [staffAccounts, setStaffAccounts] = useState<UserAccount[]>(() => DBStorage.getStaff());
   const [accessControl, setAccessControl] = useState<AccessControlRule[]>(() => DBStorage.getAccessControl());
@@ -439,7 +442,7 @@ export default function App() {
   }, [isSessionValidated, isTerminalUnlocked, currentBranch.id, activeUser.id]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal) return;
     let cancelled = false;
     void listCloudBranches()
       .then((cloudBranches) => {
@@ -454,10 +457,10 @@ export default function App() {
         if (!cancelled) showPushToast('Daftar Cabang Belum Tersinkron', error instanceof Error ? error.message : 'Cabang cloud gagal dibaca.');
       });
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, activeUser.id]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, activeUser.id]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal) return;
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     if (!['settings', 'attendance', 'payroll', 'shift'].includes(activeTab)) return;
     let cancelled = false;
@@ -471,10 +474,11 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isTerminalUnlocked, activeUser.id, activeUser.role, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, activeUser.id, activeUser.role, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !['attendance', 'payroll'].includes(activeTab)) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id) return;
+    if (!isAttendanceTerminal && !['attendance', 'payroll'].includes(activeTab)) return;
     let cancelled = false;
     void listCloudAttendance(currentBranch.id)
       .then((records) => {
@@ -486,7 +490,27 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isTerminalUnlocked, currentBranch.id, activeUser.id, activeUser.role, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeUser.id, activeUser.role, activeTab]);
+
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !isAttendanceTerminal || !currentBranch.id) return;
+    let cancelled = false;
+    setIsAttendanceConfigReady(false);
+    void getCloudAttendanceConfig(currentBranch.id)
+      .then((config) => {
+        if (!cancelled) {
+          setProfile((current) => ({ ...current, ...config }));
+          setIsAttendanceConfigReady(true);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) showPushToast(
+          'Konfigurasi Absensi Belum Siap',
+          error instanceof Error ? error.message : 'Aturan GPS outlet gagal dimuat.',
+        );
+      });
+    return () => { cancelled = true; };
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id]);
 
   const refreshCloudCatalog = async () => {
     const catalog = await listCloudCatalog(currentBranch.id);
@@ -495,7 +519,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !['pos', 'inventory', 'settings', 'selforder'].includes(activeTab)) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'inventory', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     void listCloudCatalog(currentBranch.id)
       .then((catalog) => {
@@ -507,10 +531,10 @@ export default function App() {
         if (!cancelled) showPushToast('Katalog Belum Tersinkron', error instanceof Error ? error.message : 'Master data cloud gagal dibaca.');
       });
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, currentBranch.id, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || systemPortal !== 'OWNER' || activeTab !== 'superowner') return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || activeTab !== 'superowner') return;
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     let cancelled = false;
     let running = false;
@@ -558,10 +582,10 @@ export default function App() {
       window.clearInterval(timer);
       window.removeEventListener('focus', refreshWhenVisible);
     };
-  }, [isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !['pos', 'tables', 'settings', 'selforder'].includes(activeTab)) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'tables', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     const mergeCloudTables = (cloudTables: RestaurantTable[]) => {
       if (cancelled) return;
@@ -583,7 +607,7 @@ export default function App() {
       if (!cancelled) showPushToast('Konfigurasi Cabang Belum Tersinkron', error instanceof Error ? error.message : 'Meja dan self-order cabang gagal dibaca.');
     });
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, currentBranch.id, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
     const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
@@ -785,7 +809,7 @@ export default function App() {
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeUser.id, systemPortal, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !['pos', 'settings', 'selforder'].includes(activeTab)) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     void listCloudCondiments(currentBranch.id).then((groups) => {
       if (!cancelled && groups.length) {
@@ -795,11 +819,11 @@ export default function App() {
       if (!cancelled) showPushToast('Condiment Belum Tersinkron', error instanceof Error ? error.message : 'Konfigurasi condiment cloud gagal dibaca.');
     });
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, currentBranch.id, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
     const needsFinance = activeTab === 'shift' || activeTab === 'analytics';
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsFinance) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !needsFinance) return;
     let cancelled = false;
     const refreshFinance = () => void Promise.all([
       listCloudExpenseRecords(currentBranch.id),
@@ -816,11 +840,11 @@ export default function App() {
       });
     refreshFinance();
     return () => { cancelled = true; };
-  }, [isTerminalUnlocked, currentBranch.id, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
     const needsOperations = ['pos', 'shift', 'inventory', 'tables', 'settings', 'selforder'].includes(activeTab);
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsOperations) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !needsOperations) return;
     let cancelled = false;
     const timers = new Map<string, number>();
     const debounce = (key: string, action: () => void) => {
@@ -861,7 +885,7 @@ export default function App() {
       timers.forEach((timer) => window.clearTimeout(timer));
       unsubscribe();
     };
-  }, [isTerminalUnlocked, currentBranch.id, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   const refreshCloudStaff = async () => {
     const staff = await listCloudStaff();
@@ -1176,15 +1200,13 @@ export default function App() {
   };
 
   const printOrder = async (order: Order) => {
-    if (BluetoothPrinterService.isConnected) {
-      const result = await BluetoothPrinterService.printReceipt(order, profile, printerConfig);
-      if (result.success) {
-        showPushToast('Struk Tercetak', `Struk ${order.orderNumber} berhasil dicetak.`);
-      } else {
-        showPushToast('Cetak Gagal', result.error || 'Gagal mencetak struk.');
-      }
+    // Coba pulihkan koneksi yang pernah diizinkan sebelum meminta operator
+    // memilih ulang printer. Pembayaran tetap sah ketika proses cetak gagal.
+    const result = await BluetoothPrinterService.printReceipt(order, profile, printerConfig);
+    if (result.success) {
+      showPushToast('Struk Tercetak', `Struk ${order.orderNumber} berhasil dikirim ke printer.`);
     } else {
-      showPushToast('Cetak Struk', `Struk ${order.orderNumber} — hubungkan printer Bluetooth untuk cetak otomatis.`);
+      showPushToast('Cetak Gagal', result.error || `Struk ${order.orderNumber} belum tercetak. Buka Setup Printer lalu coba ulang.`);
     }
   };
 
@@ -1656,6 +1678,7 @@ export default function App() {
           profile={profile}
           currentBranch={currentBranch}
           terminalMode
+          configReady={isAttendanceConfigReady}
           onShowToast={showPushToast}
         />
       </div>

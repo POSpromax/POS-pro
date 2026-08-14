@@ -691,12 +691,23 @@ export class DBStorage {
   }
 
   static getPrinterConfig(): PrinterConfig {
-    return getStoredItem<PrinterConfig>(STORAGE_KEYS.PRINTER, {
+    const stored = getStoredItem<PrinterConfig>(STORAGE_KEYS.PRINTER, {
       deviceName: 'Thermal Printer BT-58',
       paperSize: '58mm',
       autoPrintOnPayment: true,
-      isConnected: false
+      isConnected: false,
+      transport: 'AUTO',
+      chunkSize: 128,
     });
+    // Status koneksi GATT/SPP adalah state runtime dan selalu hilang ketika
+    // browser/APK ditutup. Jangan menampilkan status hijau hanya karena nilai
+    // tersebut pernah tersimpan pada sesi sebelumnya.
+    return {
+      ...stored,
+      isConnected: false,
+      transport: stored.transport || 'AUTO',
+      chunkSize: stored.chunkSize || 128,
+    };
   }
 
   static savePrinterConfig(config: PrinterConfig): void {
