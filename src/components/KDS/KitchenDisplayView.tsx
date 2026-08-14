@@ -193,7 +193,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
               {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
               {soundEnabled ? 'Suara aktif' : 'Suara mati'}
             </button>
-            <button type="button" onClick={playNewOrderSound} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]" aria-label="Tes suara notifikasi" title="Tes suara notifikasi">
+            <button type="button" onClick={() => playNewOrderSound()} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--panel-border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)]" aria-label="Tes suara notifikasi" title="Tes suara notifikasi">
               <Bell className="h-4 w-4" />
             </button>
             <LiveClock />

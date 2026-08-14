@@ -62,6 +62,7 @@ import { createCloudBranch, listCloudBranches } from './services/branchService';
 import { formatOrderLabel } from './utils/orderNumber';
 import { buildBranchSelfOrderUrl } from './utils/selfOrderUrl';
 import { normalizeBranchId } from './utils/branchId';
+import { recoverFromAssetVersionError } from './utils/versionRecovery';
 
 const lazyWithVersionRecovery = <T extends React.ComponentType<any>>(
   key: string,
@@ -72,13 +73,8 @@ const lazyWithVersionRecovery = <T extends React.ComponentType<any>>(
     sessionStorage.removeItem(`omnipos_chunk_recovery_${key}`);
     return module;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const isVersionMismatch = /dynamically imported module|failed to fetch|module script|importing a module script/i.test(message);
-    const storageKey = `omnipos_chunk_recovery_${key}`;
-    const lastReloadAt = Number(sessionStorage.getItem(storageKey) || 0);
-    if (isVersionMismatch && Date.now() - lastReloadAt > 60_000) {
-      sessionStorage.setItem(storageKey, String(Date.now()));
-      window.location.reload();
+    const started = await recoverFromAssetVersionError(error);
+    if (started) {
       return new Promise<never>(() => undefined);
     }
     throw error;
@@ -1877,7 +1873,9 @@ export default function App() {
               tenantId={branchOperationalConfig.tenantId}
               branchName={currentBranch.name}
               selfOrderBaseUrl={branchOperationalConfig.selfOrderBaseUrl}
-              onSelfOrderBaseUrlChange={(selfOrderBaseUrl) => persistBranchOperationalConfig({ selfOrderBaseUrl })}
+              onSelfOrderBaseUrlChange={async (selfOrderBaseUrl) => {
+                await persistBranchOperationalConfig({ selfOrderBaseUrl });
+              }}
               onToggleSelfOrder={handleToggleTableSelfOrder}
               onClearTableStatus={handleClearTableStatus}
               onOpenCustomerSelfOrderModal={(tblNum) => {

@@ -4,6 +4,7 @@ Terakhir diperbarui: 14 Agustus 2026.
 
 ## Status stabil saat ini
 
+- PWA tidak lagi melakukan precache bundle JS/CSS ber-hash. Kegagalan lazy chunk akibat pergantian deployment ditangkap secara global, cache kode lama dibersihkan tanpa menghapus sesi/data, lalu HTML terbaru dimuat dari jaringan. Navigasi Vercel menggunakan `no-store` untuk mencegah app-shell lintas versi.
 - Terminal absensi memuat kebijakan GPS/selfie efektif dari Supabase per cabang sebelum tombol clock-in diaktifkan. Shell absensi tidak menjalankan query atau subscription POS, KDS, order, shift, meja, dan katalog.
 - Penyimpanan presensi cloud tetap fail-closed: tidak ada fallback `localStorage` ketika Supabase aktif. PIN membentuk sesi Auth dan API memvalidasi tenant, membership, cabang, GPS, selfie, serta idempotency request.
 - Login cloud dua cabang berfungsi.

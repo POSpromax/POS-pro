@@ -114,12 +114,12 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             name: item.menuName,
             category: cat,
             qty: item.quantity,
-            revenue: item.totalPrice,
+            revenue: item.price * item.quantity,
             hppCost: hpp
           };
         } else {
           map[item.menuName].qty += item.quantity;
-          map[item.menuName].revenue += item.totalPrice;
+          map[item.menuName].revenue += item.price * item.quantity;
           map[item.menuName].hppCost += hpp;
         }
       });

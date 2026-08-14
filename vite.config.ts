@@ -10,7 +10,7 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         injectRegister: 'auto',
         // Service worker hanya diperlukan pada build produksi. Mengaktifkannya
         // pada Vite dev membuat /dev-sw.js jatuh ke SPA fallback (text/html)
@@ -41,17 +41,21 @@ export default defineConfig(() => {
           // dapat menunjuk ke chunk yang sudah tidak ada dan membuat perubahan
           // cabang/QR tampak tidak pernah terdeploy. Navigasi tetap tersedia
           // offline dari cache NetworkFirst setelah pernah dibuka.
+          // Jangan precache bundle JS/CSS ber-hash. Vercel hanya menyimpan aset
+          // deployment aktif; instalasi SW lama yang terjadi setelah deploy
+          // dapat menerima 404 dan gagal total bila chunk ikut diprecache.
+          globPatterns: ['**/*.{svg,png,webmanifest}'],
           globIgnores: ['**/index.html'],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
-          clientsClaim: true,
-          skipWaiting: true,
+          clientsClaim: false,
+          skipWaiting: false,
           runtimeCaching: [
             {
               urlPattern: ({request}) => request.mode === 'navigate',
               handler: 'NetworkFirst',
               options: {
-                cacheName: 'pos-navigation-v2',
+                cacheName: 'pos-navigation-v3',
                 networkTimeoutSeconds: 4,
                 cacheableResponse: {statuses: [0, 200]},
                 expiration: {
