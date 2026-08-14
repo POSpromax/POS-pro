@@ -23,9 +23,16 @@ export async function updateCloudTableSession(params: {
   force?: boolean;
 }): Promise<TableSessionResponse> {
   const token = await accessToken();
+  
+  // Public self-order URLs should not call this management API
+  // They get table data from /api/public-catalog instead
+  if (!token) {
+    throw new Error('Operasi manajemen meja memerlukan autentikasi');
+  }
+  
   const response = await fetch('/api/self-order-token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(params),
   });
   const data = await response.json().catch(() => ({}));
