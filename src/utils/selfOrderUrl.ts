@@ -24,7 +24,8 @@ export function buildBranchSelfOrderUrl(
     // Konfigurasi domain dapat kosong/tidak lengkap ketika sedang diedit.
     // QR tetap memakai origin aplikasi supaya render halaman tidak terputus.
   }
-  const url = new URL(routeCode ? `/${routeCode}` : '/', safeBaseUrl);
+  // Changed from /{code} to /pesan/{code} to avoid Chrome phishing warning
+  const url = new URL(routeCode ? `/pesan/${routeCode}` : '/', safeBaseUrl);
   if (routeCode) return url.toString();
   url.searchParams.set('selforder', 'true');
   if (tenantId) url.searchParams.set('tenant', tenantId);

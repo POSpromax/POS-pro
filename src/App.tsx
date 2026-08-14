@@ -192,12 +192,14 @@ export default function App() {
     ? normalizeBranchId(new URLSearchParams(window.location.search).get('tenant'))
     : null;
   const requestedSelfOrderRouteCode = typeof window !== 'undefined'
-    ? window.location.pathname.match(/^\/(\d{2,4})\/?$/)?.[1] || null
+    ? window.location.pathname.match(/^\/(?:order|menu|pesan)\/(\d{2,4})\/?$/)?.[1] || null
     : null;
   const isSelfOrderUrlParam = typeof window !== 'undefined' && (
     window.location.search.includes('selforder') ||
     window.location.search.includes('table=') ||
-    window.location.pathname.startsWith('/order') ||
+    window.location.pathname.startsWith('/order/') ||
+    window.location.pathname.startsWith('/menu/') ||
+    window.location.pathname.startsWith('/pesan/') ||
     window.location.pathname.startsWith('/self-order') ||
     Boolean(requestedSelfOrderRouteCode) ||
     window.location.hash.includes('self-order') ||

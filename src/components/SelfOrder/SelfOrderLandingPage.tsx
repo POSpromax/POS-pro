@@ -453,21 +453,45 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             </div>
 
             <div className="pb-6 pt-9 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-[#17130f] text-orange-400 shadow-xl"><UserRound className="h-7 w-7" /></div>
-              <p className="mt-5 text-[10px] font-black uppercase tracking-[.2em] text-orange-600">Identitas pesanan</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight">Siapa dan di meja mana?</h2>
-              <p className="mx-auto mt-2 max-w-xs text-xs font-medium leading-relaxed text-slate-500">Data ini membantu kasir mengantar pesanan ke meja yang tepat.</p>
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[2rem] bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-2xl shadow-orange-500/50 ring-4 ring-orange-100">
+                <UserRound className="h-9 w-9" />
+              </div>
+              <p className="mt-6 text-[11px] font-black uppercase tracking-[.24em] text-orange-600">Langkah 1 dari 3</p>
+              <h2 className="mt-2 text-[28px] font-black leading-tight tracking-tight">Siapa dan di<br/>meja mana?</h2>
+              <p className="mx-auto mt-3 max-w-[280px] text-[13px] font-semibold leading-relaxed text-slate-500">Kasir akan antar pesanan ke meja yang Anda pilih</p>
             </div>
 
-            <section className="space-y-5 rounded-[2rem] border border-orange-100 bg-white p-5 shadow-[0_18px_50px_rgba(124,45,18,.08)]">
-              {tableErrorMsg && <div role="alert" className="flex gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-[11px] font-bold leading-relaxed text-rose-700"><Info className="mt-0.5 h-4 w-4 shrink-0" />{tableErrorMsg}</div>}
+            <section className="space-y-6 rounded-[2.5rem] border border-orange-100 bg-white p-6 shadow-[0_24px_60px_rgba(124,45,18,.12)]">
+              {tableErrorMsg && (
+                <div role="alert" className="flex gap-3 rounded-[1.5rem] border-2 border-rose-300 bg-rose-50 p-4 animate-shake">
+                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+                  <p className="text-[12px] font-bold leading-relaxed text-rose-700">{tableErrorMsg}</p>
+                </div>
+              )}
+              
               <label className="block">
-                <span className="mb-2 flex items-center gap-2 text-[11px] font-black text-slate-700"><UserRound className="h-3.5 w-3.5 text-orange-500" /> Nama pemesan</span>
-                <input autoComplete="name" value={customerName} onChange={(event) => setCustomerName(event.target.value.slice(0, 60))} placeholder="Contoh: Rere" className="w-full rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3.5 text-sm font-bold outline-none transition placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100" />
+                <span className="mb-3 flex items-center gap-2.5 text-[12px] font-black text-slate-800">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50">
+                    <UserRound className="h-4 w-4 text-orange-600" />
+                  </div>
+                  Nama Pemesan
+                </span>
+                <input 
+                  autoComplete="name" 
+                  value={customerName} 
+                  onChange={(event) => setCustomerName(event.target.value.slice(0, 60))} 
+                  placeholder="Contoh: Rere" 
+                  className="w-full rounded-[1.25rem] border-2 border-orange-100 bg-orange-50/40 px-5 py-4 text-[15px] font-bold outline-none transition-all placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100/50" 
+                />
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center gap-2 text-[11px] font-black text-slate-700"><Store className="h-3.5 w-3.5 text-orange-500" /> Nomor meja dari kasir</span>
+                <span className="mb-3 flex items-center gap-2.5 text-[12px] font-black text-slate-800">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50">
+                    <Store className="h-4 w-4 text-orange-600" />
+                  </div>
+                  Nomor Meja dari Kasir
+                </span>
                 <div className="relative">
                   <input
                     inputMode="numeric"
@@ -478,17 +502,26 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       setSelectedTable(event.target.value.replace(/[^0-9]/g, '').slice(0, 4));
                       setTableErrorMsg('');
                     }}
-                    placeholder="Contoh: 2"
+                    placeholder="Masukkan nomor meja"
                     aria-describedby="self-order-table-help"
-                    className="w-full rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3.5 pr-24 text-lg font-black outline-none transition placeholder:text-sm placeholder:font-bold placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
+                    className="w-full rounded-[1.25rem] border-2 border-orange-100 bg-orange-50/40 px-5 py-4 pr-28 text-[18px] font-black outline-none transition-all placeholder:text-[15px] placeholder:font-bold placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100/50"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-orange-600 shadow-sm">Meja</span>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-lg">Meja</span>
                 </div>
-                <p id="self-order-table-help" className="mt-2 text-[10px] font-medium leading-relaxed text-slate-400">Masukkan nomor yang diinformasikan kasir. Server akan memvalidasi ketersediaan meja saat pesanan dikirim.</p>
+                <p id="self-order-table-help" className="mt-3 flex items-start gap-2 text-[11px] font-semibold leading-relaxed text-slate-400">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                  Server akan validasi ketersediaan meja saat pesanan dikirim
+                </p>
               </label>
 
-              <button type="button" onClick={handleProceedToMenu} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#17130f] to-[#2a1f1a] py-4 text-sm font-black text-white shadow-xl transition hover:shadow-2xl active:scale-[.985]">
-                Lanjut pilih menu <ArrowRight className="h-4 w-4" />
+              <button 
+                type="button" 
+                onClick={handleProceedToMenu} 
+                className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 bg-size-200 py-5 text-[15px] font-black text-white shadow-2xl shadow-orange-500/40 transition-all duration-300 hover:bg-pos-100 hover:shadow-orange-500/60 active:scale-[.98]"
+              >
+                <span className="relative z-10">Lanjut Pilih Menu</span>
+                <ArrowRight className="relative z-10 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             </section>
           </main>
