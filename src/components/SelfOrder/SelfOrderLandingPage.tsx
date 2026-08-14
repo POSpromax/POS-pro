@@ -337,7 +337,34 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setSubmittedOrderSnapshot(savedOrder);
       setActiveStep('ORDER_SUCCESS');
     } catch (error) {
-      if (!onShowToast) toast('Pesanan Belum Terkirim', error instanceof Error ? error.message : 'Silakan coba kirim ulang.');
+      // Detailed logging untuk debugging
+      console.error('[SelfOrder] Submit Error:', {
+        error: error instanceof Error ? error.message : String(error),
+        table: selectedTable,
+        tableObj: selectedTableObj ? {
+          id: selectedTableObj.id,
+          status: selectedTableObj.status,
+          enabled: selectedTableObj.isSelfOrderEnabled
+        } : null,
+        branch: currentBranch.id,
+        items: cartItems.length,
+        total: totalAmount,
+        draftOrder: {
+          tableNumber: draftOrder.tableNumber,
+          branchId: draftOrder.branchId,
+          source: draftOrder.source
+        }
+      });
+      
+      const errorMsg = error instanceof Error ? error.message : 'Silakan coba kirim ulang.';
+      if (!onShowToast) {
+        toast('Pesanan Belum Terkirim', errorMsg);
+      }
+      
+      // Specific error handling
+      if (errorMsg.includes('sudah digunakan') || errorMsg.includes('sedang digunakan')) {
+        toast('Meja Sudah Terpakai', 'Meja ini baru saja digunakan pelanggan lain. Silakan pilih meja lain atau hubungi kasir.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -592,7 +619,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               ) : <div className="rounded-[1.7rem] border border-dashed border-orange-200 bg-white p-10 text-center"><Search className="mx-auto h-7 w-7 text-orange-200" /><p className="mt-3 text-xs font-black">Menu tidak ditemukan</p><p className="mt-1 text-[10px] font-medium text-slate-400">Coba kategori atau kata kunci lainnya.</p></div>}
             </div>
 
-            {totalCartQty > 0 && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-4"><button type="button" onClick={() => setIsCartModalOpen(true)} className="pointer-events-auto flex w-full items-center gap-3 rounded-[1.4rem] bg-[#17130f] p-3 text-white shadow-[0_18px_45px_rgba(23,19,15,.35)] transition active:scale-[.985]"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-xs font-black">{totalCartQty}</span><span className="min-w-0 flex-1 text-left"><span className="block text-[9px] font-black uppercase tracking-widest text-white/45">Keranjang</span><span className="block text-sm font-black">{formatMoney(totalAmount)}</span></span><span className="flex items-center gap-1 text-[10px] font-black text-orange-300">Periksa <ChevronRight className="h-4 w-4" /></span></button></div>}
+            {totalCartQty > 0 && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 py-4 pb-6"><button type="button" onClick={() => setIsCartModalOpen(true)} className="pointer-events-auto flex w-full items-center gap-3 rounded-[1.4rem] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 p-3 text-white shadow-[0_20px_50px_rgba(234,88,12,.4)] transition hover:shadow-[0_25px_60px_rgba(234,88,12,.5)] active:scale-[.985]"><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-orange-600 text-base font-black shadow-lg">{totalCartQty}</span><span className="min-w-0 flex-1 text-left"><span className="block text-[10px] font-black uppercase tracking-widest opacity-90">Keranjang</span><span className="block text-base font-black">{formatMoney(totalAmount)}</span></span><span className="flex items-center gap-1 text-xs font-black">Periksa <ChevronRight className="h-5 w-5" /></span></button></div>}
           </main>
         )}
 
