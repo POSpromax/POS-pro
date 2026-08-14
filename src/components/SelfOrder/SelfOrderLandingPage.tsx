@@ -302,9 +302,24 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       return;
     }
     
-    // Re-validate table status sebelum submit (bisa berubah sejak input)
-    if (selectedTableObj.status !== 'READY') {
+    // CRITICAL: Re-validate with FRESH data from tables state (not memoized availableTables)
+    // Real-time subscription may have updated table status after user started filling cart
+    const freshTable = tables.find(
+      (t) => t.branchId === currentBranch.id && normalizeTableNum(t.number) === normalizeTableNum(selectedTable)
+    );
+    
+    if (!freshTable) {
+      toast('Meja Tidak Ditemukan', `Meja ${selectedTable} tidak tersedia. Silakan hubungi kasir.`);
+      return;
+    }
+    
+    if (freshTable.status !== 'READY') {
       toast('Meja Sudah Terpakai', `Meja ${selectedTable} baru saja digunakan pelanggan lain. Silakan pilih meja lain.`);
+      return;
+    }
+    
+    if (!freshTable.isSelfOrderEnabled) {
+      toast('Meja Belum Diaktifkan', `Meja ${selectedTable} belum diaktifkan untuk self-order. Silakan hubungi kasir.`);
       return;
     }
     
@@ -328,7 +343,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       branchId: currentBranch.id,
       cashierName: `Self Order - ${currentBranch.code || currentBranch.name}`,
       source: 'SELF_ORDER',
-      parentOrderId: selectedTableObj.activeOrderId,
+      parentOrderId: freshTable.activeOrderId,
     };
     setIsSubmitting(true);
     try {
@@ -341,10 +356,10 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       console.error('[SelfOrder] Submit Error:', {
         error: error instanceof Error ? error.message : String(error),
         table: selectedTable,
-        tableObj: selectedTableObj ? {
-          id: selectedTableObj.id,
-          status: selectedTableObj.status,
-          enabled: selectedTableObj.isSelfOrderEnabled
+        tableObj: freshTable ? {
+          id: freshTable.id,
+          status: freshTable.status,
+          enabled: freshTable.isSelfOrderEnabled
         } : null,
         branch: currentBranch.id,
         items: cartItems.length,

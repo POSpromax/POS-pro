@@ -859,11 +859,22 @@ export default function App() {
     const unsubscribe = subscribeBranchOperations(currentBranch.id, (table) => {
       if (cancelled) return;
       if (table === 'restaurant_tables') {
-        debounce('tables', () => void listCloudTables(currentBranch.id).then((cloudTables) => {
-          if (!cancelled) setTables((existing) => [...existing.filter((item) => item.branchId !== currentBranch.id), ...cloudTables]);
-        }).catch((error) => {
-          if (!cancelled) showPushToast('Meja Belum Tersinkron', error instanceof Error ? error.message : 'Daftar meja gagal dimuat.');
-        }));
+        debounce('tables', () => {
+          // Use public catalog API for self-order URLs (no auth token)
+          if (isSelfOrderUrlParam) {
+            void getPublicCatalogContext(currentBranch.id).then((ctx) => {
+              if (!cancelled) setTables((existing) => [...existing.filter((item) => item.branchId !== currentBranch.id), ...ctx.tables]);
+            }).catch((error) => {
+              if (!cancelled) showPushToast('Meja Belum Tersinkron', error instanceof Error ? error.message : 'Daftar meja gagal dimuat.');
+            });
+          } else {
+            void listCloudTables(currentBranch.id).then((cloudTables) => {
+              if (!cancelled) setTables((existing) => [...existing.filter((item) => item.branchId !== currentBranch.id), ...cloudTables]);
+            }).catch((error) => {
+              if (!cancelled) showPushToast('Meja Belum Tersinkron', error instanceof Error ? error.message : 'Daftar meja gagal dimuat.');
+            });
+          }
+        });
       } else if (table === 'menu_items' || table === 'menu_item_ingredients' || table === 'raw_materials') {
         debounce('catalog', () => void refreshCloudCatalog());
       } else if (table === 'condiment_groups' || table === 'condiment_options') {
@@ -1286,16 +1297,31 @@ export default function App() {
       try {
         const saved = await submitCloudOrder(orderToSave);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);
-        await refreshBranchTables(targetBranchId);
+        
+        // CRITICAL FIX: Don't call refreshBranchTables for public self-order URLs (no auth)
+        // Instead, refresh tables using public catalog API
+        if (isSelfOrderUrlParam) {
+          void getPublicCatalogContext(targetBranchId).then((ctx) => {
+            setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
+          }).catch(() => undefined);
+        } else {
+          await refreshBranchTables(targetBranchId);
+        }
+        
         showPushToast('Order Baru dari HP Customer!', `Meja ${saved.tableNumber} memesan order ${saved.orderNumber}.`);
         return saved;
       } catch (error) {
+        // Recovery attempt: refresh orders and tables even on error
         void Promise.all([
           listCloudOrders(targetBranchId).then((cloudOrders) => setOrders((current) => [
             ...current.filter((order) => order.branchId !== targetBranchId),
             ...cloudOrders,
           ])),
-          refreshBranchTables(targetBranchId),
+          isSelfOrderUrlParam 
+            ? getPublicCatalogContext(targetBranchId).then((ctx) => {
+                setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
+              })
+            : refreshBranchTables(targetBranchId),
         ]).catch(() => undefined);
         showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.');
         throw error instanceof Error ? error : new Error('Pesanan belum terkirim. Silakan coba lagi.');
