@@ -1,11 +1,23 @@
 import type { AttendanceRecord } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
 
+export class AttendanceSessionError extends Error {
+  constructor(message = 'Sesi absensi telah berakhir. Masukkan PIN kembali.') {
+    super(message);
+    this.name = 'AttendanceSessionError';
+  }
+}
+
 async function getAccessToken() {
-  const { data } = await getSupabase().auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sesi absensi telah berakhir');
-  return token;
+  const supabase = getSupabase();
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.access_token) return data.session.access_token;
+
+  // PIN cloud membuat sesi Auth penuh. Jika access token kedaluwarsa tetapi
+  // refresh token masih ada, pulihkan satu kali sebelum memaksa login ulang.
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  if (!error && refreshed.session?.access_token) return refreshed.session.access_token;
+  throw new AttendanceSessionError();
 }
 
 export async function listCloudAttendance(branchId: string, userId?: string): Promise<AttendanceRecord[]> {
@@ -16,6 +28,7 @@ export async function listCloudAttendance(branchId: string, userId?: string): Pr
     headers: { Authorization: `Bearer ${token}` },
   });
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 401) throw new AttendanceSessionError();
   if (!response.ok) throw new Error(payload.error || 'Riwayat presensi gagal dimuat');
   return payload.records || [];
 }
@@ -37,6 +50,7 @@ export async function saveCloudAttendance(record: AttendanceRecord): Promise<Att
     }),
   });
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 401) throw new AttendanceSessionError();
   if (!response.ok) throw new Error(payload.error || 'Absensi gagal disimpan');
   return { ...record, ...payload };
 }

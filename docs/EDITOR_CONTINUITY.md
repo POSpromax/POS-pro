@@ -63,7 +63,9 @@ Server lokal dirakit oleh `server.ts`. Vercel memakai wrapper di `api/`, tetapi 
 - Gunakan emerald sebagai brand/action utama, slate/white sebagai permukaan, amber untuk warning, red untuk destructive, dan warna lain hanya untuk membedakan informasi.
 - Jangan menambahkan shadow berwarna yang tidak sesuai dengan warna tombol.
 - Semua aksi harus memiliki hover, focus-visible, disabled, loading, success/error state.
-- Self Order akan didesain ulang terpisah; hindari refactor visual besar di modul tersebut sekarang.
+- Self Order sudah memasuki fase desain khusus. Pertahankan tema orange/charcoal,
+  alur lima state di `SelfOrderLandingPage.tsx`, gambar Cloudinary teroptimasi,
+  dan prinsip bahwa sukses hanya boleh tampil setelah Promise submit server selesai.
 - Sidebar quick-access adalah satu controlled state di `App.tsx`. Wrapper fixed harus `pointer-events-none`; hanya panel terbuka dan tombol launcher yang boleh menerima pointer agar header tidak tertutup lapisan transparan.
 - PWA/service worker dinonaktifkan di Vite development dan tetap aktif pada build produksi.
 

@@ -20,7 +20,7 @@ interface CustomerSelfOrderModalProps {
   condimentGroups: CondimentGroup[];
   isSelfOrderSystemEnabled?: boolean;
   orders?: Order[];
-  onSubmitCustomerOrder: (order: Order) => void;
+  onSubmitCustomerOrder: (order: Order) => Promise<Order>;
   currentBranch: Branch;
   isShiftActive?: boolean;
 }

@@ -47,7 +47,7 @@ import {
   listCloudStaff,
   updateCloudStaff,
 } from './services/staffService';
-import { listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
+import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
@@ -276,6 +276,10 @@ export default function App() {
   );
   const [isSessionValidated, setIsSessionValidated] = useState<boolean>(() => !cloudReadiness.supabase);
   const [isAttendanceMode, setIsAttendanceMode] = useState<boolean>(false);
+  const isAttendanceTerminal = isAttendanceMode || (typeof window !== 'undefined' && (
+    window.location.pathname === '/attendance' ||
+    new URLSearchParams(window.location.search).get('mode') === 'attendance'
+  ));
 
   const clearTerminalSessionState = () => {
     sessionStorage.removeItem(TERMINAL_SESSION_KEY);
@@ -582,7 +586,7 @@ export default function App() {
   }, [isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    const needsLiveOrders = systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
+    const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsLiveOrders) return;
     let active = true;
     let knownItemQuantities = new Map<string, number>(orders.map((order) => [
@@ -695,12 +699,12 @@ export default function App() {
       document.removeEventListener('visibilitychange', reconcileVisible);
       unsubscribe();
     };
-  }, [isTerminalUnlocked, currentBranch.id, systemPortal, activeTab, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, systemPortal, activeTab, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
 
   // Database adalah sumber tunggal status shift. Realtime memberi respons
   // cepat; polling/focus menjadi pengaman saat websocket terputus.
   useEffect(() => {
-    const needsLiveShift = systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
+    const needsLiveShift = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsLiveShift) return;
     let cancelled = false;
     let requestSequence = 0;
@@ -778,7 +782,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', syncWhenVisible);
       unsubscribe();
     };
-  }, [isTerminalUnlocked, currentBranch.id, activeUser.id, systemPortal, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeUser.id, systemPortal, activeTab]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !['pos', 'settings', 'selforder'].includes(activeTab)) return;
@@ -1220,19 +1224,20 @@ export default function App() {
   };
 
   // Customer Self-Order Submission from Meja QR Code
-  const handleSubmitCustomerOrder = async (newOrder: Order) => {
+  const handleSubmitCustomerOrder = async (newOrder: Order): Promise<Order> => {
     const targetBranchId = newOrder.branchId || currentBranch.id;
     const orderToSave = { ...newOrder, branchId: targetBranchId };
     if (cloudReadiness.supabase) {
       if (!isOnline) {
         showPushToast('Self-order Belum Terkirim', 'Perangkat sedang offline. Sambungkan internet lalu kirim ulang.');
-        return;
+        throw new Error('Perangkat sedang offline. Sambungkan internet lalu kirim ulang.');
       }
       try {
         const saved = await submitCloudOrder(orderToSave);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);
         await refreshBranchTables(targetBranchId);
         showPushToast('Order Baru dari HP Customer!', `Meja ${saved.tableNumber} memesan order ${saved.orderNumber}.`);
+        return saved;
       } catch (error) {
         void Promise.all([
           listCloudOrders(targetBranchId).then((cloudOrders) => setOrders((current) => [
@@ -1242,8 +1247,8 @@ export default function App() {
           refreshBranchTables(targetBranchId),
         ]).catch(() => undefined);
         showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.');
+        throw error instanceof Error ? error : new Error('Pesanan belum terkirim. Silakan coba lagi.');
       }
-      return;
     }
 
     DBStorage.saveOrder(orderToSave, isOnline);
@@ -1252,6 +1257,7 @@ export default function App() {
     setTables(DBStorage.getTables());
     setRawMaterials(DBStorage.getRawMaterials());
     showPushToast('Order Baru dari HP Customer!', `Meja ${orderToSave.tableNumber} memesan order ${orderToSave.orderNumber}. Meja dikunci (RED).`);
+    return orderToSave;
   };
 
   const handleVoidOrder = async (orderId: string, reason: string) => {
@@ -1456,12 +1462,6 @@ export default function App() {
     }
   };
 
-  // URL Search Parameter & Path check for isolated Standalone Self-Order Web Link
-  const isAttendanceTerminal = isAttendanceMode || (typeof window !== 'undefined' && (
-    window.location.pathname === '/attendance' ||
-    new URLSearchParams(window.location.search).get('mode') === 'attendance'
-  ));
-
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
   // Hanya order dari shift aktif saat ini — untuk CashierView dan KitchenDisplayView
   const isOrderOperationallyClosed = (order: Order) => (
@@ -1478,13 +1478,17 @@ export default function App() {
 
   if (isSelfOrderUrlParam && cloudReadiness.supabase && (selfOrderCatalogState.loading || selfOrderCatalogState.error)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
-        <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-7 shadow-xl">
-          <div className={`mx-auto mb-4 h-3 w-3 rounded-full ${selfOrderCatalogState.loading ? 'animate-pulse bg-emerald-500' : 'bg-rose-500'}`} />
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#fff7ed] p-5 text-center">
+        <div className="relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-[#17130f] p-7 text-white shadow-[0_28px_80px_rgba(124,45,18,.22)] [&_h1]:relative [&_h1]:mt-5 [&_h1]:text-xl [&_h1]:font-black [&_h1]:text-white">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-orange-500/25 blur-3xl" />
+          <div className={`relative mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] ${selfOrderCatalogState.loading ? 'bg-orange-500' : 'bg-rose-500'}`}>
+            {selfOrderCatalogState.loading ? <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <span className="text-xl font-black">!</span>}
+          </div>
           <h1 className="text-lg font-extrabold text-slate-900">{selfOrderCatalogState.loading ? 'Memuat outlet…' : 'Link Self-order Tidak Valid'}</h1>
-          <p className="mt-2 text-sm font-medium text-slate-500">
+          <p className="relative mt-2 text-xs font-medium leading-relaxed text-white/50">
             {selfOrderCatalogState.loading ? 'Memastikan tenant dan cabang tujuan QR.' : selfOrderCatalogState.error}
           </p>
+          {selfOrderCatalogState.loading && <div className="relative mt-6 flex justify-center gap-1.5">{[0, 1, 2].map((item) => <span key={item} className={`h-1.5 rounded-full bg-orange-400 ${item === 0 ? 'w-8 animate-pulse' : 'w-3 opacity-20'}`} />)}</div>}
         </div>
       </div>
     );
@@ -1498,7 +1502,7 @@ export default function App() {
     const selfOrderTables = tables.filter((table) => table.branchId === selfOrderBranch.id);
     const selfOrderOrders = orders.filter((order) => !order.branchId || order.branchId === selfOrderBranch.id);
     return (
-      <div className="w-screen h-screen overflow-hidden bg-[var(--canvas-bg)] flex flex-col relative">
+      <div className="relative flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#fff7ed]">
         {/* Cashier return floating bar if logged in as cashier */}
         {!isSelfOrderUrlParam && (
           <div className="bg-white border-b border-[var(--panel-border)] px-4 py-2 flex items-center justify-between text-xs text-[var(--text-secondary)] z-50">
@@ -1625,9 +1629,20 @@ export default function App() {
         <AttendanceView
           attendanceRecords={branchAttendanceRecords}
           onSaveAttendance={async (record) => {
+            // PIN cloud harus menghasilkan sesi Supabase Auth penuh. Presensi cloud
+            // tidak pernah dialihkan ke penyimpanan browser agar tidak hilang,
+            // terduplikasi, atau hanya tercatat pada satu perangkat.
             if (cloudReadiness.supabase) {
-              const saved = await saveCloudAttendance(record);
-              setAttendanceRecords((current) => [...current, saved]);
+              try {
+                const saved = await saveCloudAttendance(record);
+                setAttendanceRecords((current) => [...current, saved]);
+              } catch (error) {
+                // Sesi kedaluwarsa mengunci terminal; gangguan lain tetap dapat dicoba ulang.
+                if (error instanceof AttendanceSessionError) {
+                  window.setTimeout(() => void logoutTerminal(), 300);
+                }
+                throw error;
+              }
             } else {
               DBStorage.saveAttendance(record);
               setAttendanceRecords(DBStorage.getAttendanceRecords());

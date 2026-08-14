@@ -52,6 +52,18 @@ Terakhir diperbarui: 14 Agustus 2026.
   dan kanal lain; harga aman dihitung dari total fee dan pembulatan konfigurasi.
 - Quick-access header dan launcher bawah memakai satu state; overlay sidebar tidak
   lagi mencegat klik ketika panel tertutup.
+- Self-order telah didesain ulang end-to-end dengan tema orange/charcoal:
+  landing, identitas/meja, katalog, varian, keranjang, konfirmasi, dan pelacakan
+  status. Tidak ada tahap pembayaran online.
+- Submit Self-order kini menunggu pengakuan server. Request gagal tetap berada
+  di halaman konfirmasi dan tidak pernah menampilkan sukses palsu.
+- Katalog memakai gambar Cloudinary 480px dengan lazy loading; motion hanya CSS
+  dan menghormati preferensi reduced-motion sehingga tidak menambah dependency.
+- Bug urutan hook modal condiment dan tampilan opsi string kosong telah diperbaiki.
+- Terminal absensi cloud tidak lagi menyimpan fallback operasional ke browser.
+  PIN cloud membuat sesi Supabase Auth; token kedaluwarsa direfresh satu kali dan
+  HTTP 401 mengunci terminal untuk login ulang. Mode ini tidak memasang subscription
+  order atau shift yang tidak diperlukan.
 
 ## Data yang belum siap operasional penuh
 
@@ -102,7 +114,8 @@ npm.cmd run copy:branch-inventory -- <source-branch-uuid> <target-branch-uuid>
 1. Migrasikan komponen lama ke primitive `ui-*` dan token global.
 2. Samakan empty/loading/error/retry state.
 3. Audit keyboard, focus-visible, kontras, dan target sentuh mobile.
-4. Redesign Self Order dilakukan terakhir sebagai fase terpisah.
+4. Lanjutkan penyelarasan visual modul internal; redesign Self-order sudah selesai
+   dan tinggal melewati verifikasi E2E pengguna.
 
 ## Validasi wajib
 

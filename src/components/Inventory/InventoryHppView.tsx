@@ -509,10 +509,12 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 onClick={() => setSubTab(key)}
                 className={`flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-[11px] font-bold transition-all md:px-4 md:text-xs ${
                   subTab === key
-                    ? 'bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-[0_6px_16px_rgba(4,120,87,0.22)]'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                    ? 'text-white shadow-sm'
+                    : 'hover:bg-[var(--surface-secondary)]'
                 }`}
-                style={subTab === key ? { color: '#ffffff' } : undefined}
+                style={subTab === key
+                  ? { background: 'var(--primary)', boxShadow: '0 4px 12px rgb(234 88 12 / 22%)' }
+                  : { color: 'var(--text-secondary)' }}
               >
                 <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" /> {label}
               </button>
@@ -529,7 +531,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               placeholder="Cari Item..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-xs font-bold text-slate-900 shadow-[0_6px_18px_rgba(15,23,42,0.05)] outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="ui-input pl-9 text-[12px]"
             />
           </div>
 
@@ -558,8 +560,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
             <button
               onClick={handleExportCSV}
-              className="flex cursor-pointer items-center gap-1 rounded-xl bg-slate-800 px-3 py-2 text-[11px] font-bold shadow-[0_6px_16px_rgba(15,23,42,0.16)] transition-all hover:bg-slate-700 active:scale-95 md:px-4 md:text-xs"
-              style={{ color: '#ffffff' }}
+              className="ui-button ui-button-secondary gap-1 text-[11px]"
             >
               <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
             </button>
@@ -567,16 +568,14 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             {subTab === 'MENU' ? (
               <button
                 onClick={() => handleOpenEditMenuModal()}
-                className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-700 px-3 py-2 text-[11px] font-bold shadow-[0_7px_18px_rgba(4,120,87,0.24)] transition-all hover:from-emerald-600 hover:to-emerald-800 active:scale-95 sm:flex-initial md:px-4 md:text-xs"
-                style={{ color: '#ffffff' }}
+                className="ui-button ui-button-primary flex-1 gap-1 text-[11px] sm:flex-initial"
               >
                 <Plus className="w-3.5 h-3.5" /> TAMBAH MENU
               </button>
             ) : (
               <button
                 onClick={() => handleOpenRawModal()}
-                className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-700 px-3 py-2 text-[11px] font-bold shadow-[0_7px_18px_rgba(4,120,87,0.24)] transition-all hover:from-emerald-600 hover:to-emerald-800 active:scale-95 sm:flex-initial md:px-4 md:text-xs"
-                style={{ color: '#ffffff' }}
+                className="ui-button ui-button-primary flex-1 gap-1 text-[11px] sm:flex-initial"
               >
                 <Plus className="w-3.5 h-3.5" /> TAMBAH {subTab === 'KEMASAN' ? 'KEMASAN' : subTab === 'DAPUR' ? 'STOK DAPUR' : 'BAHAN'}
               </button>
@@ -594,42 +593,52 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       </div>
 
       {/* Metric Cards — 2 cols on mobile, 4 on desktop */}
-      <section className={`mb-4 overflow-hidden rounded-2xl border shadow-[0_10px_30px_rgba(15,23,42,0.07)] ${isInventoryOperationalReady ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-white'}`}>
+      <section className={`mb-4 overflow-hidden rounded-2xl border shadow-sm ${isInventoryOperationalReady ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : 'border-[var(--panel-border)] bg-[var(--surface-card)]'}`}>
         <button
           type="button"
           onClick={() => setIsSetupPanelOpen((open) => !open)}
           className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left md:px-5"
           aria-expanded={isSetupPanelOpen}
         >
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm ${isInventoryOperationalReady ? 'bg-emerald-600' : 'bg-slate-900'}`}>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm`}
+            style={{ background: isInventoryOperationalReady ? 'var(--accent-green)' : 'var(--primary)' }}>
             {isInventoryOperationalReady ? <ShieldCheck className="h-5 w-5" /> : <ClipboardCheck className="h-5 w-5" />}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-extrabold text-slate-950">Kesiapan Inventory Cabang</p>
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${isInventoryOperationalReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+              <p className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>Kesiapan Inventory Cabang</p>
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide`}
+                style={isInventoryOperationalReady
+                  ? { background: 'var(--success-soft)', color: 'var(--accent-green)' }
+                  : { background: 'var(--warning-soft)', color: '#b45309' }}>
                 {isInventoryOperationalReady ? 'Siap operasional' : 'Perlu dilengkapi'}
               </span>
             </div>
-            <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">
+            <p className="mt-0.5 truncate text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>
               {currentBranch?.name || 'Outlet aktif'} · {completedSetupSteps}/{inventorySetupSteps.length} tahap selesai
             </p>
           </div>
           <div className="hidden w-28 items-center gap-2 sm:flex">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${inventoryReadinessPercent}%` }} />
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--surface-secondary)' }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${inventoryReadinessPercent}%`, background: isInventoryOperationalReady ? 'var(--accent-green)' : 'var(--primary)' }} />
             </div>
-            <span className="text-[10px] font-extrabold text-slate-700">{inventoryReadinessPercent}%</span>
+            <span className="text-[10px] font-extrabold" style={{ color: 'var(--text-primary)' }}>{inventoryReadinessPercent}%</span>
           </div>
-          {isSetupPanelOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          {isSetupPanelOpen ? <ChevronUp className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} /> : <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />}
         </button>
 
         {isSetupPanelOpen && (
-          <div className="border-t border-slate-200/80 px-4 py-4 md:px-5">
+          <div className="border-t px-4 py-4 md:px-5" style={{ borderColor: 'var(--panel-border-light)' }}>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {inventorySetupSteps.map((step, index) => (
-                <div key={step.id} className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 ${step.done ? 'border-emerald-200 bg-emerald-50/80' : 'border-slate-200 bg-slate-50'}`}>
-                  <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${step.done ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-400'}`}>
+                <div key={step.id} className="flex items-start gap-2.5 rounded-xl border px-3 py-2.5"
+                  style={step.done
+                    ? { borderColor: 'var(--primary-border)', background: 'var(--primary-soft)' }
+                    : { borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                    style={step.done
+                      ? { background: 'var(--accent-green)', color: '#fff' }
+                      : { border: '1px solid var(--panel-border-strong)', background: 'var(--surface-card)', color: 'var(--text-tertiary)' }}>
                     {step.done ? <Check className="h-3 w-3" /> : <span className="text-[9px] font-extrabold">{index + 1}</span>}
                   </div>
                   <div className="min-w-0">
@@ -691,43 +700,47 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4 mb-4 md:mb-6">
-        <div className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/80 p-3 shadow-[0_10px_28px_rgba(4,120,87,0.09)] md:p-5">
+        <div className="ui-card-feature flex items-center justify-between p-3 md:p-5">
           <div>
-            <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">MENU</p>
-            <p className="text-xl md:text-3xl font-bold text-[var(--text-primary)] mt-0.5 md:mt-1">{menuItems.length}</p>
+            <p className="ui-stat-label">MENU</p>
+            <p className="ui-stat-value text-white" style={{ fontSize: '28px' }}>{menuItems.length}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_8px_18px_rgba(4,120,87,0.24)] md:h-12 md:w-12">
-            <Utensils className="w-4 h-4 md:w-6 md:h-6 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/20 md:h-12 md:w-12">
+            <Utensils className="h-4 w-4 text-white md:h-6 md:w-6" />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/80 p-3 shadow-[0_10px_28px_rgba(37,99,235,0.08)] md:p-5">
+        <div className="ui-card flex items-center justify-between p-3 md:p-5">
           <div>
-            <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">TOTAL BAHAN</p>
-            <p className="text-xl md:text-3xl font-bold text-[var(--text-primary)] mt-0.5 md:mt-1">{totalAssetsCount}</p>
+            <p className="ui-stat-label">TOTAL BAHAN</p>
+            <p className="ui-stat-value" style={{ fontSize: '28px' }}>{totalAssetsCount}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-blue-200 bg-blue-100 text-blue-700 md:h-12 md:w-12">
-            <Boxes className="w-4 h-4 md:w-6 md:h-6" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl md:h-12 md:w-12"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
+            <Boxes className="h-4 w-4 md:h-6 md:w-6" />
           </div>
         </div>
 
-        <div className={`flex items-center justify-between rounded-2xl border p-3 shadow-[0_10px_28px_rgba(245,158,11,0.09)] md:p-5 ${restockNeedCount > 0 ? 'border-amber-300 bg-gradient-to-br from-white to-amber-50' : 'border-amber-200 bg-gradient-to-br from-white to-amber-50/60'}`}>
+        <div className="ui-card flex items-center justify-between p-3 md:p-5"
+          style={restockNeedCount > 0 ? { borderColor: '#fde68a', background: 'var(--warning-soft)' } : undefined}>
           <div>
-            <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">PERLU BELANJA</p>
-            <p className="mt-0.5 text-xl font-bold text-amber-700 md:mt-1 md:text-3xl">{restockNeedCount}</p>
+            <p className="ui-stat-label">PERLU BELANJA</p>
+            <p className="ui-stat-value" style={{ fontSize: '28px', color: restockNeedCount > 0 ? '#b45309' : undefined }}>{restockNeedCount}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-[0_8px_18px_rgba(245,158,11,0.22)] md:h-12 md:w-12">
-            <AlertTriangle className="w-4 h-4 md:w-6 md:h-6 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl text-white md:h-12 md:w-12"
+            style={{ background: restockNeedCount > 0 ? 'var(--accent-amber)' : 'var(--surface-secondary)', color: restockNeedCount > 0 ? '#fff' : 'var(--text-tertiary)' }}>
+            <AlertTriangle className="h-4 w-4 md:h-6 md:w-6" />
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-violet-200 bg-gradient-to-br from-white to-violet-50/80 p-3 shadow-[0_10px_28px_rgba(124,58,237,0.08)] md:p-5">
+        <div className="ui-card flex items-center justify-between p-3 md:p-5">
           <div>
-            <p className="text-[11px] md:text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">KATEGORI</p>
-            <p className="text-xl md:text-3xl font-bold text-[var(--text-primary)] mt-0.5 md:mt-1">{categoriesList.length}</p>
+            <p className="ui-stat-label">KATEGORI</p>
+            <p className="ui-stat-value" style={{ fontSize: '28px' }}>{categoriesList.length}</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-violet-200 bg-violet-100 text-violet-700 md:h-12 md:w-12">
-            <Layers className="w-4 h-4 md:w-6 md:h-6" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl md:h-12 md:w-12"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
+            <Layers className="h-4 w-4 md:h-6 md:w-6" />
           </div>
         </div>
       </div>
@@ -836,7 +849,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             />
             <button
               onClick={handleAddCategory}
-              className="px-4 py-2 bg-[var(--primary-solid)] hover:bg-[var(--primary-hover)] text-white rounded-full text-xs font-bold shadow-sm flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="ui-button ui-button-primary gap-1"
             >
               <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Tambah</span>
             </button>
@@ -849,32 +862,37 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             const isExpanded = searchTerm.trim().length > 0 || showOnlyMissingRecipes ? true : (expandedCategories[cat] ?? true);
 
             return (
-              <div key={cat} className="bg-[var(--surface-card)] rounded-2xl border border-[var(--panel-border)]/90 shadow-sm overflow-hidden">
+              <div key={cat} className="overflow-hidden rounded-2xl border shadow-sm"
+                style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-card)' }}>
+                {/* Category header — full row clickable for expand/collapse */}
                 <div
-                  className="p-3 md:p-4 bg-[var(--surface-card)] flex items-center justify-between border-b border-[var(--panel-border-light)] hover:bg-[var(--surface-secondary)]/60 transition-colors"
+                  role="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedCategories((prev) => ({ ...prev, [cat]: !(prev[cat] ?? true) }))}
+                  className="flex cursor-pointer items-center justify-between border-b p-3 transition-colors hover:bg-[var(--surface-secondary)] md:p-4"
+                  style={{ borderColor: 'var(--panel-border-light)' }}
                 >
-                  <div
-                    onClick={() =>
-                      setExpandedCategories((prev) => ({ ...prev, [cat]: !(prev[cat] ?? true) }))
-                    }
-                    className="flex items-center gap-2 md:gap-3 cursor-pointer flex-1 min-w-0"
-                  >
-                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4 text-[var(--text-tertiary)]" />}
-                    <h3 className="font-bold text-xs md:text-sm text-[var(--text-primary)] uppercase truncate">{cat}</h3>
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold shrink-0"
+                  {/* Left: chevron + name + count */}
+                  <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
+                    {isExpanded
+                      ? <ChevronUp className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" style={{ color: 'var(--text-tertiary)' }} />
+                      : <ChevronDown className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" style={{ color: 'var(--text-tertiary)' }} />}
+                    <h3 className="truncate text-xs font-bold uppercase md:text-sm" style={{ color: 'var(--text-primary)' }}>{cat}</h3>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
                       style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
                       {categoryItems.length}
                     </span>
                   </div>
 
-                  {/* Pengelolaan Kategori Actions */}
-                  <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                  {/* Right: category management actions — stopPropagation so row click still toggles */}
+                  <div className="ml-2 flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setEditingCategory({ oldName: cat, newName: cat })}
-                      className="p-1.5 text-slate-400 hover:text-[var(--primary-hover)] hover:bg-[var(--brand-50)] rounded-lg transition-colors cursor-pointer"
+                      className="rounded-lg p-1.5 transition-colors cursor-pointer hover:bg-[var(--brand-50)]"
+                      style={{ color: 'var(--text-tertiary)' }}
                       title="Edit Nama Kategori"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     {cat !== 'TAMBAHAN' && (
                       <button
@@ -886,12 +904,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                             setTimeout(() => setConfirmingDeleteCat(null), 3000);
                           }
                         }}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                          confirmingDeleteCat === cat ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                        className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                          confirmingDeleteCat === cat
+                            ? 'bg-[var(--accent-red)] text-white'
+                            : 'hover:bg-[var(--danger-soft)]'
                         }`}
+                        style={confirmingDeleteCat === cat ? undefined : { color: 'var(--accent-red)' }}
                         title={confirmingDeleteCat === cat ? 'Klik lagi untuk hapus' : 'Hapus Kategori'}
                       >
-                        {confirmingDeleteCat === cat ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        {confirmingDeleteCat === cat ? <Check className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     )}
                   </div>

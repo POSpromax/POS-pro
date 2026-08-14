@@ -18,6 +18,7 @@ mengambil ulang data resmi; payload realtime tidak menjadi database kedua.
 | Konfigurasi cabang | `branch_operational_config` | operations lalu re-fetch |
 | Pengeluaran/pemasukan | `expense_income_records` | operations lalu re-fetch |
 | Staff dan akses | `user_profiles`, `branch_members` | API staff dan validasi membership |
+| Presensi | `attendance_events` | API attendance dengan sesi Auth staff |
 
 Semua query operasional wajib menyertakan `branch_id`. API server dan RLS tetap
 menjadi pengaman; penyembunyian menu UI bukan pengganti otorisasi.
@@ -29,6 +30,12 @@ menjadi pengaman; penyembunyian menu UI bukan pengganti otorisasi.
 - preferensi portal/tab pada sesi browser;
 - tidak ada antrean transaksi offline ketika Supabase aktif;
 - data demo hanya ketika Supabase tidak dikonfigurasi.
+
+Terminal absensi cloud tidak mempunyai fallback presensi ke `localStorage`.
+Login PIN cloud membentuk sesi Supabase Auth, token kedaluwarsa dicoba dipulihkan
+satu kali, dan HTTP 401 mengunci terminal agar staff memasukkan PIN kembali.
+Gangguan jaringan mempertahankan form untuk dicoba ulang tanpa menampilkan sukses
+palsu atau membuat antrean presensi tersembunyi pada satu perangkat.
 
 Data lokal di atas tidak boleh disiarkan ke perangkat lain. Saat cloud aktif,
 menu, stok, meja, order, shift, condiment, konfigurasi outlet, dan kas tidak

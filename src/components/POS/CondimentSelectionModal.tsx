@@ -15,6 +15,7 @@ interface CondimentSelectionModalProps {
   onShowToast?: (title: string, message: string) => void;
   initialSelectedCondiments?: SelectedCondimentGroup[];
   initialNotes?: string;
+  visualMode?: 'DEFAULT' | 'SELF_ORDER';
 }
 
 export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = ({
@@ -26,11 +27,12 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   onShowToast,
   initialSelectedCondiments = EMPTY_SELECTED_CONDIMENTS,
   initialNotes = '',
+  visualMode = 'DEFAULT',
 }) => {
-  if (!isOpen || !menuItem) return null;
-
   // Filter active condiment groups for this menuItem
-  const applicableGroups = condimentGroups.filter((g) => g.isActive !== false && isGroupApplicable(g, menuItem));
+  const applicableGroups = menuItem
+    ? condimentGroups.filter((g) => g.isActive !== false && isGroupApplicable(g, menuItem))
+    : [];
 
   // State for selections: { [groupId]: string[] (selected option names) }
   const [selections, setSelections] = useState<Record<string, string[]>>({});
@@ -53,6 +55,11 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     setSelections(initialSel);
     setNotes(initialNotes);
   }, [menuItem, initialNotes, initialSelectedCondiments]);
+
+  // Semua hook harus tetap dipanggil pada setiap render. Conditional return
+  // ditempatkan setelah hook agar membuka/menutup modal tidak mengubah urutan
+  // hook React dan memicu "Expected static flag was missing".
+  if (!isOpen || !menuItem) return null;
 
   const toggleOption = (group: CondimentGroup, optionName: string) => {
     setSelections((prev) => {
@@ -100,6 +107,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   });
 
   const finalUnitPrice = menuItem.price + extraPriceTotal;
+  const isSelfOrder = visualMode === 'SELF_ORDER';
 
   const handleSave = () => {
     // Validate required groups
@@ -123,8 +131,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fadeIn">
-      <div className="bg-[var(--surface-card)] w-full max-w-md rounded-2xl overflow-hidden shadow-xl border border-[var(--panel-border)] flex flex-col max-h-[92vh] font-sans text-[var(--text-primary)]">
+    <div className={`fixed inset-0 flex items-end justify-center p-0 backdrop-blur-sm sm:items-center sm:p-4 z-50 animate-fadeIn ${isSelfOrder ? 'bg-slate-950/60' : 'bg-slate-600/30'}`}>
+      <div className={`bg-[var(--surface-card)] w-full max-w-md overflow-hidden shadow-xl border border-[var(--panel-border)] flex flex-col max-h-[92dvh] font-sans text-[var(--text-primary)] ${isSelfOrder ? 'rounded-t-[2rem] sm:rounded-[2rem]' : 'rounded-2xl'}`}>
         
         {/* Top Banner Image with Dark Gradient Overlay matching Screenshots 3 & 4 */}
         <div className="relative h-48 sm:h-52 w-full bg-[var(--surface-secondary)] overflow-hidden shrink-0">
@@ -153,7 +161,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
             <h2 className="text-lg sm:text-xl font-extrabold text-white leading-tight drop-shadow-md min-w-0 flex-1">
               {menuItem.name}
             </h2>
-            <div className="bg-[var(--primary)] text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-md shrink-0 font-mono">
+            <div className={`${isSelfOrder ? 'bg-orange-500' : 'bg-[var(--primary)]'} text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-md shrink-0 font-mono`}>
               Rp {finalUnitPrice.toLocaleString('id-ID')}
             </div>
           </div>
@@ -175,7 +183,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                   {/* Group Header matching Screenshots 3 & 4 */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${isRequired ? 'bg-[var(--primary-solid)]' : 'bg-[var(--accent-green)]'}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${isSelfOrder ? (isRequired ? 'bg-orange-500' : 'bg-amber-400') : (isRequired ? 'bg-[var(--primary-solid)]' : 'bg-[var(--accent-green)]')}`} />
                       <h3 className="font-extrabold text-xs text-[var(--text-primary)] uppercase tracking-wider">
                         {group.name}
                       </h3>
@@ -220,8 +228,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                             !isAvailable
                               ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                               : isSelected
-                              ? 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30 cursor-pointer'
-                              : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800 cursor-pointer'
+                              ? (isSelfOrder ? 'bg-orange-50 border-orange-500 text-orange-800 shadow-sm ring-1 ring-orange-200 cursor-pointer' : 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30 cursor-pointer')
+                              : (isSelfOrder ? 'bg-white border-slate-200 hover:border-orange-400 text-slate-800 cursor-pointer' : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800 cursor-pointer')
                           }`}
                         >
                           {/* Kotak checkbox */}
@@ -235,7 +243,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           <span
                             aria-hidden="true"
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                              isSelected ? 'bg-[#047857] border-[#047857] text-white' : 'bg-white border-slate-300'
+                              isSelected ? (isSelfOrder ? 'bg-orange-500 border-orange-500 text-white' : 'bg-[#047857] border-[#047857] text-white') : 'bg-white border-slate-300'
                             }`}
                           >
                             {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
@@ -244,7 +252,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                           <span className="truncate min-w-0 flex-1">
                             <span className="block font-black text-[#111827] uppercase tracking-wide text-xs">{option.name}</span>
                             {option.price > 0 && (
-                              <span className="block text-[11px] font-extrabold text-[#047857] mt-0.5 font-mono">
+                              <span className={`block text-[11px] font-extrabold mt-0.5 font-mono ${isSelfOrder ? 'text-orange-600' : 'text-[#047857]'}`}>
                                 +Rp {option.price.toLocaleString('id-ID')}
                               </span>
                             )}
@@ -275,7 +283,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <button
             type="button"
             onClick={handleSave}
-            className="ui-button ui-button-primary w-full py-4 text-sm font-extrabold flex items-center justify-center gap-2"
+            className={`w-full rounded-2xl py-4 text-sm font-extrabold flex items-center justify-center gap-2 text-white transition ${isSelfOrder ? 'bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-200' : 'ui-button ui-button-primary'}`}
           >
             <span>+ Tambahkan Pesanan</span>
           </button>

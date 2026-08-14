@@ -352,7 +352,10 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
     description: 'Input harga & keterangan manual untuk permintaan khusus.',
     hppCost: 0,
     isAvailable: true,
-    ingredients: []
+    ingredients: [],
+    isManualPrice: true,
+    isSticky: true,
+    trackStock: false
   },
   {
     id: 'menu-21',
@@ -765,8 +768,11 @@ export const INITIAL_CONDIMENT_GROUPS: CondimentGroup[] = [
     isActive: true,
     allSelectedLabel: 'CAMPUR',
     options: [
+      // BAKSO AJA = pilih tanpa mie/kwetiaw apapun (label khusus, price 0)
+      { id: 'opt-200', name: 'BAKSO AJA', price: 0, isAvailable: true },
       { id: 'opt-201', name: 'MIE', price: 0, isAvailable: true },
       { id: 'opt-202', name: 'BIHUN', price: 0, isAvailable: true },
+      // KWETIAW muncul di daftar checkbox tapi tidak otomatis tercentang (default = tidak dipilih)
       { id: 'opt-203', name: 'KWETIAW', price: 0, isAvailable: true },
       { id: 'opt-204', name: 'SAWI', price: 0, isAvailable: true },
       { id: 'opt-205', name: 'TAUGE', price: 0, isAvailable: true },
