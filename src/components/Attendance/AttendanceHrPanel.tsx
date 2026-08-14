@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, ChevronRight, FileCheck2, MessageCircle, Minus,
-  Paperclip, Plus, Send, UserRoundSearch, WalletCards, X,
+  AlertTriangle, CalendarDays, ChevronRight, Clock3, FileCheck2, MessageCircle, Minus,
+  Paperclip, Plus, Save, Send, Settings2, UserRoundSearch, Users, WalletCards, X,
 } from 'lucide-react';
 import type { AttendanceRecord, Branch, UserAccount } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
@@ -14,8 +14,10 @@ import {
   reviewKasbon,
   reviewLeave,
   savePayrollProfile,
+  saveHrConfig,
   submitLeave,
   type HrData,
+  type HrConfig,
   type KasbonRecord,
   type PayrollProfile,
 } from '../../services/hrService';
@@ -32,6 +34,16 @@ interface Props {
 
 const MANAGEMENT = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'];
 const money = (value: number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+const DEFAULT_HR_CONFIG: HrConfig = {
+  leaveReasons: [
+    { code: 'SICK', label: 'Sakit', enabled: true, paid: true },
+    { code: 'PERMIT', label: 'Izin pribadi', enabled: true, paid: true },
+    { code: 'ANNUAL', label: 'Cuti tahunan', enabled: true, paid: true },
+    { code: 'UNPAID', label: 'Izin tanpa dibayar', enabled: true, paid: false },
+  ],
+  latePenaltyGraceMinutes: 0,
+  workingDays: [1, 2, 3, 4, 5, 6],
+};
 
 export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, attendanceRecords, terminalMode, onShowToast, initialTab = 'HISTORY' }: Props) {
   const canManage = MANAGEMENT.includes(activeUser.role) && !terminalMode;
@@ -44,6 +56,10 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   const [attachment, setAttachment] = useState<File | null>(null);
   const [payrollStaff, setPayrollStaff] = useState<UserAccount | null>(null);
   const [payroll, setPayroll] = useState({ baseSalary: 0, mealAllowance: 0, transportAllowance: 0, overtimeHourlyRate: 0, lateDeductionPerMinute: 0 });
+  const [attendanceRange, setAttendanceRange] = useState<'MONTH' | 'WEEK' | 'DATE'>('MONTH');
+  const [attendanceMonth, setAttendanceMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [hrConfigDraft, setHrConfigDraft] = useState<HrConfig>(DEFAULT_HR_CONFIG);
 
   // ── Kasbon state ────────────────────────────────────────────────────────────
   const [kasbonStaff, setKasbonStaff]   = useState<UserAccount | null>(null);
@@ -68,9 +84,58 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   };
 
   useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id]);
+  useEffect(() => { setHrConfigDraft(data.hrConfig || DEFAULT_HR_CONFIG); }, [data.hrConfig]);
 
   const branchStaff = useMemo(() => staffAccounts.filter((staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id))), [staffAccounts, currentBranch.id]);
   const recordsByStaff = useMemo(() => new Map(branchStaff.map((staff) => [staff.id, attendanceRecords.filter((record) => record.staffId === staff.id)])), [branchStaff, attendanceRecords]);
+
+  const visibleStaff = canManage ? branchStaff : branchStaff.filter((staff) => staff.id === activeUser.id);
+  const rangeRecords = useMemo(() => {
+    const selected = new Date(`${attendanceDate}T00:00:00`);
+    const weekStart = new Date(selected);
+    weekStart.setDate(selected.getDate() - ((selected.getDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    return attendanceRecords.filter((record) => {
+      const date = new Date(record.timestamp);
+      if (attendanceRange === 'MONTH') return record.timestamp.slice(0, 7) === attendanceMonth;
+      if (attendanceRange === 'DATE') return record.timestamp.slice(0, 10) === attendanceDate;
+      return date >= weekStart && date < weekEnd;
+    });
+  }, [attendanceDate, attendanceMonth, attendanceRange, attendanceRecords]);
+
+  const monitoring = useMemo(() => ({
+    staff: visibleStaff.length,
+    present: new Set(rangeRecords.filter((record) => record.type === 'CLOCK_IN').map((record) => record.staffId)).size,
+    late: rangeRecords.filter((record) => record.type === 'CLOCK_IN' && record.status === 'LATE').length,
+    pendingLeave: data.leaveRequests.filter((request) => request.status === 'PENDING').length,
+  }), [data.leaveRequests, rangeRecords, visibleStaff.length]);
+
+  const matrixDays = useMemo(() => {
+    const [year, month] = attendanceMonth.split('-').map(Number);
+    return Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => index + 1);
+  }, [attendanceMonth]);
+
+  const matrixCell = (staffId: string, day: number) => {
+    const dateKey = `${attendanceMonth}-${String(day).padStart(2, '0')}`;
+    const records = attendanceRecords.filter((record) => record.staffId === staffId && record.timestamp.slice(0, 10) === dateKey);
+    const clockIn = records.find((record) => record.type === 'CLOCK_IN');
+    const clockOut = records.find((record) => record.type === 'CLOCK_OUT');
+    if (!clockIn) return { label: '-', tone: 'bg-slate-50 text-slate-300', title: 'Tidak ada presensi' };
+    if (clockIn.status === 'LATE') return { label: 'T', tone: 'bg-amber-100 text-amber-700', title: `Terlambat ${clockIn.minutesLate || 0} menit` };
+    if (!clockOut) return { label: 'IN', tone: 'bg-sky-100 text-sky-700', title: 'Sudah masuk, belum clock out' };
+    return { label: 'H', tone: 'bg-emerald-100 text-emerald-700', title: 'Hadir lengkap' };
+  };
+
+  const saveHrPolicy = async () => {
+    setLoading(true);
+    try {
+      await saveHrConfig({ branchId: currentBranch.id, ...hrConfigDraft });
+      await refresh();
+      onShowToast('Kebijakan HR Disimpan', 'Alasan izin, hari kerja, dan toleransi telat diperbarui untuk outlet ini.');
+    } catch (err) { onShowToast('Konfigurasi Gagal', err instanceof Error ? err.message : 'Kebijakan HR tidak dapat disimpan.'); }
+    finally { setLoading(false); }
+  };
 
   const sendLeave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -183,9 +248,10 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       const d = new Date(r.timestamp);
       return d.getFullYear() === yr && d.getMonth() + 1 === mo;
     });
+    const grace = data.hrConfig?.latePenaltyGraceMinutes || 0;
     const lateMinutes = staffRecords
       .filter((r) => r.type === 'CLOCK_IN' && r.status === 'LATE')
-      .reduce((s, r) => s + (r.minutesLate || 0), 0);
+      .reduce((s, r) => s + Math.max(0, (r.minutesLate || 0) - grace), 0);
     const attendanceCount = staffRecords.filter((r) => r.type === 'CLOCK_IN').length;
 
     // Kasbon yang dipotong bulan ini
@@ -220,22 +286,51 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       </div>
       {error && <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{error}</div>}
 
-      {tab === 'HISTORY' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {(canManage ? branchStaff : branchStaff.filter((staff) => staff.id === activeUser.id)).map((staff) => {
-          const records = recordsByStaff.get(staff.id) || [];
-          const last = records.slice().sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))[0];
-          return <button key={staff.id} onClick={() => setDetailStaff(staff)} className="flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 text-left transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)]/40">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] font-bold text-white">{staff.name.slice(0, 2).toUpperCase()}</div>
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{staff.name}</p><p className="text-[11px] font-bold text-slate-400">{staff.role} - {records.length} catatan / 30 hari</p><p className={`mt-1 text-[11px] font-bold ${last ? 'text-[var(--primary-hover)]' : 'text-slate-400'}`}>{last ? `${last.type.replace('_', ' ')} - ${new Date(last.timestamp).toLocaleString('id-ID')}` : 'Belum ada presensi'}</p></div>
-            <ChevronRight className="h-4 w-4 text-slate-400" />
-          </button>;
-        })}
+      {tab === 'HISTORY' && <div className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4">
+          <div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Periode monitoring</p><h3 className="mt-1 text-sm font-bold">Matriks Kehadiran Outlet</h3></div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-xl bg-slate-100 p-1 text-[10px] font-bold">
+              {(['MONTH', 'WEEK', 'DATE'] as const).map((range) => <button key={range} type="button" onClick={() => setAttendanceRange(range)} className={`rounded-lg px-3 py-2 ${attendanceRange === range ? 'bg-white text-[var(--primary-hover)] shadow-sm' : 'text-slate-400'}`}>{range === 'MONTH' ? 'Bulan' : range === 'WEEK' ? 'Minggu' : 'Tanggal'}</button>)}
+            </div>
+            {attendanceRange === 'MONTH'
+              ? <input type="month" value={attendanceMonth} onChange={(event) => setAttendanceMonth(event.target.value)} className="ui-input w-auto text-xs" />
+              : <input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} className="ui-input w-auto text-xs" />}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Staff aktif', value: monitoring.staff, icon: Users, tone: 'bg-emerald-50 text-emerald-700' },
+            { label: 'Hadir periode', value: monitoring.present, icon: CalendarDays, tone: 'bg-sky-50 text-sky-700' },
+            { label: 'Kejadian telat', value: monitoring.late, icon: Clock3, tone: 'bg-amber-50 text-amber-700' },
+            { label: 'Izin menunggu', value: monitoring.pendingLeave, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
+          ].map((metric) => <div key={metric.label} className="rounded-2xl border border-[var(--panel-border)] bg-white p-4"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${metric.tone}`}><metric.icon className="h-4 w-4" /></div><p className="mt-4 text-2xl font-black tabular-nums">{metric.value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-wider text-slate-400">{metric.label}</p></div>)}
+        </div>
+
+        {attendanceRange === 'MONTH' && <div className="overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--panel-border)] p-4"><div><h3 className="text-sm font-bold">Matriks 1 Bulan</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">H = hadir lengkap, T = terlambat, IN = belum clock out.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-500">{attendanceMonth}</span></div>
+          <div className="overflow-x-auto">
+            <table className="min-w-max border-collapse text-[10px]">
+              <thead><tr className="bg-slate-50"><th className="sticky left-0 z-10 min-w-44 border-b border-r border-slate-200 bg-slate-50 px-3 py-2 text-left font-black">Karyawan</th>{matrixDays.map((day) => <th key={day} className="h-9 w-9 border-b border-slate-200 text-center font-black text-slate-400">{day}</th>)}</tr></thead>
+              <tbody>{visibleStaff.map((staff) => <tr key={staff.id} className="border-b border-slate-100 last:border-0"><td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2"><button type="button" onClick={() => setDetailStaff(staff)} className="text-left"><span className="block max-w-36 truncate font-black">{staff.name}</span><span className="text-[9px] font-bold text-slate-400">{staff.role}</span></button></td>{matrixDays.map((day) => { const cell = matrixCell(staff.id, day); return <td key={day} className="p-1 text-center"><span title={cell.title} className={`flex h-7 min-w-7 items-center justify-center rounded-lg font-black ${cell.tone}`}>{cell.label}</span></td>; })}</tr>)}</tbody>
+            </table>
+          </div>
+        </div>}
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleStaff.map((staff) => {
+            const records = (recordsByStaff.get(staff.id) || []).filter((record) => rangeRecords.some((visible) => visible.id === record.id));
+            const last = records.slice().sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))[0];
+            return <button key={staff.id} onClick={() => setDetailStaff(staff)} className="flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 text-left transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)]/40"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] font-bold text-white">{staff.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{staff.name}</p><p className="text-[11px] font-bold text-slate-400">{staff.role} · {records.filter((record) => record.type === 'CLOCK_IN').length} hari hadir</p><p className={`mt-1 truncate text-[11px] font-bold ${last ? 'text-[var(--primary-hover)]' : 'text-slate-400'}`}>{last ? `${last.type.replace('_', ' ')} · ${new Date(last.timestamp).toLocaleString('id-ID')}` : 'Belum ada presensi pada periode'}</p></div><ChevronRight className="h-4 w-4 text-slate-400" /></button>;
+          })}
+        </div>
       </div>}
 
       {tab === 'LEAVE' && <div className="grid gap-5 lg:grid-cols-[minmax(280px,420px)_1fr]">
         <form onSubmit={sendLeave} className="space-y-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4">
           <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-[var(--primary-hover)]"/><h3 className="text-sm font-bold">Pengajuan Izin Tidak Masuk</h3></div>
-          <select value={leave.leaveType} onChange={(e) => setLeave({ ...leave, leaveType: e.target.value })} className="w-full rounded-xl border border-[var(--panel-border)] bg-white p-3 text-xs font-bold"><option value="SICK">Sakit</option><option value="PERMIT">Izin pribadi</option><option value="ANNUAL">Cuti tahunan</option><option value="UNPAID">Izin tanpa dibayar</option></select>
+          <select value={leave.leaveType} onChange={(e) => setLeave({ ...leave, leaveType: e.target.value })} className="w-full rounded-xl border border-[var(--panel-border)] bg-white p-3 text-xs font-bold">{(data.hrConfig?.leaveReasons || DEFAULT_HR_CONFIG.leaveReasons).filter((reason) => reason.enabled).map((reason) => <option key={reason.code} value={reason.code}>{reason.label}{reason.paid ? '' : ' (tidak dibayar)'}</option>)}</select>
           <div className="grid grid-cols-2 gap-2"><label className="text-[11px] font-bold text-slate-500">MULAI<input type="date" value={leave.startDate} onChange={(e) => setLeave({ ...leave, startDate: e.target.value })} className="mt-1 w-full rounded-xl border border-[var(--panel-border)] bg-white p-3 text-xs"/></label><label className="text-[11px] font-bold text-slate-500">SAMPAI<input type="date" value={leave.endDate} min={leave.startDate} onChange={(e) => setLeave({ ...leave, endDate: e.target.value })} className="mt-1 w-full rounded-xl border border-[var(--panel-border)] bg-white p-3 text-xs"/></label></div>
           <textarea value={leave.reason} onChange={(e) => setLeave({ ...leave, reason: e.target.value })} maxLength={500} placeholder="Keterangan izin..." className="min-h-24 w-full rounded-xl border border-[var(--panel-border)] bg-white p-3 text-xs"/>
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--brand-200)] bg-[var(--brand-50)] p-3 text-xs font-bold text-[var(--primary-text)]"><Paperclip className="h-4 w-4"/>{attachment ? attachment.name : 'Lampirkan surat / bukti (opsional)'}<input type="file" accept="image/*" className="hidden" onChange={(e) => setAttachment(e.target.files?.[0] || null)}/></label>
@@ -246,6 +341,17 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
 
       {tab === 'PAYROLL' && canManage && (
         <div className="space-y-6">
+
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 md:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary-hover)]"><Settings2 className="h-4 w-4" /></span><div><h3 className="text-sm font-bold">Kebijakan HR Outlet</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">Ditampilkan kepada karyawan dan dipakai untuk kalkulasi payroll.</p></div></div>
+              <button type="button" onClick={() => void saveHrPolicy()} disabled={loading} className="ui-button ui-button-primary gap-2"><Save className="h-3.5 w-3.5" /> Simpan kebijakan</button>
+            </div>
+            <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_320px]">
+              <div><p className="ui-form-label mb-2">Alasan tidak masuk yang tersedia</p><div className="grid gap-2 sm:grid-cols-2">{hrConfigDraft.leaveReasons.map((reason, index) => <div key={reason.code} className="rounded-xl border border-[var(--panel-border)] bg-white p-3"><div className="flex items-center gap-2"><input value={reason.label} maxLength={40} onChange={(event) => setHrConfigDraft((current) => ({ ...current, leaveReasons: current.leaveReasons.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) }))} className="ui-input min-w-0 flex-1 text-xs font-bold" /><label className="flex items-center gap-1 text-[9px] font-bold text-slate-500"><input type="checkbox" checked={reason.enabled} onChange={(event) => setHrConfigDraft((current) => ({ ...current, leaveReasons: current.leaveReasons.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item) }))} /> Aktif</label></div><label className="mt-2 flex items-center gap-1 text-[9px] font-bold text-slate-400"><input type="checkbox" checked={reason.paid} onChange={(event) => setHrConfigDraft((current) => ({ ...current, leaveReasons: current.leaveReasons.map((item, itemIndex) => itemIndex === index ? { ...item, paid: event.target.checked } : item) }))} /> Tetap dibayar</label></div>)}</div></div>
+              <div className="space-y-4"><label className="ui-form-group"><span className="ui-form-label">Toleransi telat sebelum penalti</span><div className="relative"><input type="number" min="0" max="180" value={hrConfigDraft.latePenaltyGraceMinutes} onChange={(event) => setHrConfigDraft((current) => ({ ...current, latePenaltyGraceMinutes: Number(event.target.value) }))} className="ui-input pr-16 font-mono" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">menit</span></div></label><div><p className="ui-form-label mb-2">Hari kerja</p><div className="flex flex-wrap gap-1.5">{['Min','Sen','Sel','Rab','Kam','Jum','Sab'].map((label, day) => { const active = hrConfigDraft.workingDays.includes(day); return <button type="button" key={label} onClick={() => setHrConfigDraft((current) => ({ ...current, workingDays: active ? current.workingDays.filter((value) => value !== day) : [...current.workingDays, day].sort() }))} className={`h-9 min-w-10 rounded-xl border px-2 text-[9px] font-black ${active ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-slate-200 bg-white text-slate-400'}`}>{label}</button>; })}</div></div></div>
+            </div>
+          </div>
 
           {/* ── Rekap Payroll Bulanan ── */}
           <div>

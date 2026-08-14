@@ -39,6 +39,7 @@ import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
 import { cloudReadiness } from './lib/runtimeEnv';
 import { getSupabase } from './lib/supabase';
+import { watchSessionExpiry } from './lib/sessionGuard';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
 import { cloudSignOut } from './services/authService';
 import {
@@ -1056,6 +1057,22 @@ export default function App() {
     };
   }, []);
 
+  // Session expiry watcher: auto-lock terminal when session expires
+  useEffect(() => {
+    if (!cloudReadiness.supabase || !isTerminalUnlocked) return;
+    
+    const unsubscribe = watchSessionExpiry(() => {
+      // Session expired - lock terminal immediately
+      void logoutTerminal();
+      showPushToast(
+        'Sesi Berakhir',
+        'Sesi login telah berakhir. Terminal dikunci untuk keamanan. Silakan login kembali.'
+      );
+    });
+
+    return unsubscribe;
+  }, [isTerminalUnlocked]);
+
   const showPushToast = (title: string, message: string) => {
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     setToastNotification({ title, message });
@@ -1208,6 +1225,15 @@ export default function App() {
 
   const handlePrintPreBill = (order: Order) => {
     void printOrder(order);
+  };
+
+  const printKitchenTicket = async (order: Order) => {
+    const result = await BluetoothPrinterService.printKitchenTicket(order, profile, printerConfig);
+    if (result.success) {
+      showPushToast('Tiket Dapur Tercetak', `${formatOrderLabel(order)} dikirim tanpa harga ke printer kitchen.`);
+    } else {
+      showPushToast('Cetak Kitchen Gagal', result.error || 'Periksa koneksi printer kitchen lalu coba lagi.');
+    }
   };
 
   // Kitchen Status Update
@@ -1488,7 +1514,10 @@ export default function App() {
   const shiftOrders = currentShift.status === 'OPEN'
     ? branchOrders.filter((order) => (order.createdShiftId || order.shiftId) === currentShift.id || !isOrderOperationallyClosed(order))
     : [];
-  const branchTables = tables.filter((table) => table.branchId === currentBranch.id);
+  const branchTables = tables
+    .filter((table) => table.branchId === currentBranch.id)
+    .slice()
+    .sort((a, b) => a.number.localeCompare(b.number, 'id', { numeric: true, sensitivity: 'base' }));
   const branchRawMaterials = rawMaterials.filter((material) => material.branchId === currentBranch.id);
   const branchAttendanceRecords = attendanceRecords.filter(
     (record) => !record.branchId || record.branchId === currentBranch.id
@@ -1823,7 +1852,7 @@ export default function App() {
               newOrderSound={profile.soundOrderBaru}
               selfOrderSound={profile.soundCustomerOrder}
               onUpdateOrderStatus={handleUpdateOrderStatus}
-              onPrintKitchenTicket={(ord) => showPushToast('Tiket Dapur', `Tiket dapur ${formatOrderLabel(ord)} dicetak.`)}
+              onPrintKitchenTicket={(ord) => void printKitchenTicket(ord)}
             />
           )}
 

@@ -35,7 +35,10 @@ export async function updateCloudTableSession(params: {
 
 export async function listCloudTables(branchId: string): Promise<RestaurantTable[]> {
   const response = await updateCloudTableSession({ action: 'LIST', branchId, tableNumber: '' });
-  return response.tables || [];
+  return (response.tables || []).slice().sort((a, b) => a.number.localeCompare(b.number, 'id', {
+    numeric: true,
+    sensitivity: 'base',
+  }));
 }
 
 export async function createCloudTable(branchId: string, tableNumber: string, capacity: number): Promise<RestaurantTable> {

@@ -134,7 +134,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     .filter((table) => (
       (!table.branchId || table.branchId === currentBranch.id)
       && table.isSelfOrderEnabled !== false
-      && table.status !== 'DISABLED'
+      && table.status === 'READY'
     ))
     .sort((a, b) => a.number.localeCompare(b.number, 'id', {numeric: true})), [tables, currentBranch.id]);
 
@@ -185,14 +185,8 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setTableErrorMsg('Pilih nomor meja yang diberikan oleh kasir.');
       return;
     }
-    const foundTable = availableTables.find(
-      (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
-    );
-    if (!foundTable) {
-      setTableErrorMsg(`Meja ${selectedTable} belum aktif untuk Self-order. Silakan konfirmasi kepada kasir.`);
-      return;
-    }
-    setSelectedTable(foundTable.number);
+    // Server-side validation akan memastikan meja tersedia dengan atomic locking.
+    // Client hanya perlu validasi format nomor meja sudah diisi.
     setActiveStep('MENU');
   };
 
@@ -472,19 +466,28 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <input autoComplete="name" value={customerName} onChange={(event) => setCustomerName(event.target.value.slice(0, 60))} placeholder="Contoh: Rere" className="w-full rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3.5 text-sm font-bold outline-none transition placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100" />
               </label>
 
-              <div>
-                <span className="mb-2 flex items-center gap-2 text-[11px] font-black text-slate-700"><Store className="h-3.5 w-3.5 text-orange-500" /> Pilih meja aktif</span>
-                {availableTables.length ? (
-                  <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1">
-                    {availableTables.map((table) => {
-                      const selected = normalizeTableNum(table.number) === normalizeTableNum(selectedTable);
-                      return <button key={table.id} type="button" onClick={() => setSelectedTable(table.number)} className={`rounded-2xl border p-3 text-left transition active:scale-95 ${selected ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-200' : 'border-orange-100 bg-orange-50/50 text-slate-800 hover:border-orange-300'}`}><span className="block text-[9px] font-black uppercase tracking-wider opacity-60">Meja</span><span className="mt-0.5 block text-lg font-black">{table.number}</span><span className="mt-1 block text-[8px] font-bold opacity-60">{table.status === 'OCCUPIED' ? 'Order aktif' : 'Siap dipilih'}</span></button>;
-                    })}
-                  </div>
-                ) : <div className="rounded-2xl border border-dashed border-slate-200 p-5 text-center text-xs font-bold text-slate-400">Belum ada meja yang diaktifkan kasir.</div>}
-              </div>
+              <label className="block">
+                <span className="mb-2 flex items-center gap-2 text-[11px] font-black text-slate-700"><Store className="h-3.5 w-3.5 text-orange-500" /> Nomor meja dari kasir</span>
+                <div className="relative">
+                  <input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    value={selectedTable}
+                    onChange={(event) => {
+                      setSelectedTable(event.target.value.replace(/[^0-9]/g, '').slice(0, 4));
+                      setTableErrorMsg('');
+                    }}
+                    placeholder="Contoh: 2"
+                    aria-describedby="self-order-table-help"
+                    className="w-full rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-3.5 pr-24 text-lg font-black outline-none transition placeholder:text-sm placeholder:font-bold placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-orange-600 shadow-sm">Meja</span>
+                </div>
+                <p id="self-order-table-help" className="mt-2 text-[10px] font-medium leading-relaxed text-slate-400">Masukkan nomor yang diinformasikan kasir. Server akan memvalidasi ketersediaan meja saat pesanan dikirim.</p>
+              </label>
 
-              <button type="button" onClick={handleProceedToMenu} disabled={!availableTables.length} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#17130f] py-4 text-sm font-black text-white shadow-xl transition hover:bg-orange-600 active:scale-[.985] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">Lanjut pilih menu <ArrowRight className="h-4 w-4" /></button>
+              <button type="button" onClick={handleProceedToMenu} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#17130f] py-4 text-sm font-black text-white shadow-xl transition hover:bg-orange-600 active:scale-[.985]">Lanjut pilih menu <ArrowRight className="h-4 w-4" /></button>
             </section>
           </main>
         )}

@@ -93,6 +93,20 @@ Migrasi terbaru yang wajib diterapkan berurutan:
 
 1. `202608130021_atomic_paid_table_state.sql`
 2. `202608130022_shift_attribution_public_route.sql`
+3. `202608140023_atomic_self_order_table_claim.sql`
+4. `202608140024_branch_hr_configuration.sql`
+
+Perubahan 14 Agustus tahap akhir:
+
+- Supabase Auth memakai penyimpanan sesi per-tab dan logout lokal. Logout
+  terminal absensi tidak lagi mencabut sesi POS/perangkat lain. Setelah deploy,
+  setiap tab perlu login satu kali untuk berpindah dari storage key lama.
+- Self-order hanya menerima input angka meja yang diberikan kasir. Hanya meja
+  `READY` yang bisa dikirim; klaim dilakukan atomik dan berubah `OCCUPIED`.
+- Tiket kitchen benar-benar dicetak tanpa harga, subtotal, total, atau metode
+  bayar; isinya nomor antrean, meja, item, varian, dan catatan produksi.
+- HR memiliki filter tanggal/minggu/bulan, matriks presensi bulanan, monitoring,
+  konfigurasi alasan izin, hari kerja, toleransi telat, dan penalti per staff.
 
 Penyalinan master inventory dapat diulang tanpa membuat duplikat:
 

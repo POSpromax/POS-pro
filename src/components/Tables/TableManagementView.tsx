@@ -114,8 +114,13 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
 
   const filteredTables = useMemo(() => {
     const normalizedQuery = normalizeNumber(query);
-    if (!normalizedQuery) return tables;
-    return tables.filter((table) => normalizeNumber(table.number).includes(normalizedQuery));
+    return tables
+      .filter((table) => !normalizedQuery || normalizeNumber(table.number).includes(normalizedQuery))
+      .slice()
+      .sort((a, b) => normalizeNumber(a.number).localeCompare(normalizeNumber(b.number), 'id', {
+        numeric: true,
+        sensitivity: 'base',
+      }));
   }, [query, tables]);
 
   const copyLink = async (tableNumber: string, url: string) => {

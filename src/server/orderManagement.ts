@@ -204,8 +204,10 @@ export async function handleOrderRequest(
     if (branchConfig?.self_order_enabled === false) {
       return fail(403, 'Self-order outlet ini sedang dinonaktifkan. Silakan hubungi kasir.');
     }
-    if (!table || table.self_order_enabled === false || table.status === 'DISABLED') {
-      return fail(403, `Meja ${input.tableNumber || ''} tidak aktif untuk self-order. Silakan hubungi kasir.`);
+    if (!table || table.self_order_enabled !== true || table.status !== 'READY') {
+      return fail(409, table?.status === 'OCCUPIED'
+        ? `Meja ${input.tableNumber || ''} sedang digunakan. Minta nomor meja lain kepada kasir.`
+        : `Meja ${input.tableNumber || ''} belum diaktifkan untuk self-order. Silakan hubungi kasir.`);
     }
   }
 
@@ -339,26 +341,6 @@ export async function handleOrderRequest(
     }
   }
 
-  // Tambahan self-order masuk sebagai item PENDING pada bill aktif yang sama.
-  // Item lama tidak dihapus atau dikirim ulang ke Kitchen.
-  if (source === 'SELF_ORDER' && table.status === 'OCCUPIED' && table.active_order_id) {
-    const increment = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
-    const appendedItems = normalizedItems.map((item, index) => {
-      const orderNote = input.notes ? String(input.notes).trim().slice(0, 500) : '';
-      if (index !== 0 || !orderNote) return item;
-      return { ...item, notes: item.notes ? `${item.notes} · Catatan order: ${orderNote}` : `Catatan order: ${orderNote}` };
-    });
-    const { error: appendError } = await admin.rpc('append_self_order_items', {
-      p_order_id: table.active_order_id,
-      p_branch_id: branchId,
-      p_items: appendedItems.map(({ category: _category, ...item }) => item),
-      p_total_increment: increment,
-    });
-    if (appendError) return fail(500, 'Tambahan pesanan gagal dimasukkan ke bill aktif');
-    const orders = await readOrders(branchId, admin, table.active_order_id);
-    return { status: 200, data: orders[0] };
-  }
-
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
   const discount = Math.max(0, Math.min(subtotal, Math.floor(Number(input.discount) || 0)));
   const tax = Math.max(0, Math.floor(Number(input.tax) || 0));
@@ -442,16 +424,28 @@ export async function handleOrderRequest(
       }
     : null;
 
-  // Satu transaksi: order, item, payment, status meja, dan potong stok.
-  const { data: checkout, error: checkoutError } = await admin.rpc('checkout_order', {
-    p_order: orderPayload,
-    p_items: normalizedItems.map(({ category: _category, ...item }) => item),
-    p_payment: paymentPayload,
-  });
+  // Self-order memakai RPC khusus yang mengunci row meja sebelum membuat order.
+  // POS tetap memakai checkout umum karena kasir boleh mengelola bill aktif.
+  const checkoutItems = normalizedItems.map(({ category: _category, ...item }) => item);
+  const { data: checkout, error: checkoutError } = source === 'SELF_ORDER'
+    ? await admin.rpc('checkout_self_order', {
+      p_order: orderPayload,
+      p_items: checkoutItems,
+    })
+    : await admin.rpc('checkout_order', {
+      p_order: orderPayload,
+      p_items: checkoutItems,
+      p_payment: paymentPayload,
+    });
   const savedOrderId = (checkout as any)?.order_id;
-  if (checkoutError || !savedOrderId) return fail(500, 'Pesanan gagal disimpan');
+  if (checkoutError || !savedOrderId) {
+    if (source === 'SELF_ORDER' && checkoutError?.message?.includes('SELF_ORDER_TABLE_UNAVAILABLE')) {
+      return fail(409, `Meja ${input.tableNumber || ''} baru saja digunakan pelanggan lain. Minta nomor meja lain kepada kasir.`);
+    }
+    return fail(500, 'Pesanan gagal disimpan');
+  }
 
-  if (table?.id) {
+  if (table?.id && source !== 'SELF_ORDER') {
     const isClosed = paymentStatus === 'PAID' && orderPayload.status === 'COMPLETED';
     const tableUpdate = isClosed
       ? await admin.from('restaurant_tables').update({

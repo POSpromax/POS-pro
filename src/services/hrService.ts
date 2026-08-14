@@ -27,6 +27,19 @@ export interface PayrollProfile {
   late_deduction_per_minute: number;
 }
 
+export interface HrLeaveReason {
+  code: 'SICK' | 'PERMIT' | 'ANNUAL' | 'UNPAID';
+  label: string;
+  enabled: boolean;
+  paid: boolean;
+}
+
+export interface HrConfig {
+  leaveReasons: HrLeaveReason[];
+  latePenaltyGraceMinutes: number;
+  workingDays: number[];
+}
+
 // ── Kasbon (pinjaman gaji di muka) ───────────────────────────────────────────
 
 export type KasbonStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
@@ -73,6 +86,7 @@ export interface HrData {
   leaveRequests: LeaveRequest[];
   payrollProfiles: PayrollProfile[];
   kasbonRecords?: KasbonRecord[];
+  hrConfig?: HrConfig;
 }
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
@@ -108,6 +122,9 @@ export const reviewLeave = (payload: Record<string, unknown>) =>
 
 export const savePayrollProfile = (payload: Record<string, unknown>) =>
   requestHr('PATCH', { action: 'SAVE_PAYROLL_PROFILE', ...payload });
+
+export const saveHrConfig = (payload: Record<string, unknown>) =>
+  requestHr('PATCH', { action: 'SAVE_HR_CONFIG', ...payload });
 
 // ── Kasbon endpoints ──────────────────────────────────────────────────────────
 

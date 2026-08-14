@@ -28,3 +28,12 @@ array data atau listener `storage` sebagai mekanisme sinkronisasi antarperangkat
 
 Migrasi `202608130018_operational_realtime.sql` menutup policy kanal sinkronisasi
 localStorage lama dan menggantinya dengan event database privat per cabang.
+
+Migrasi operasional terbaru harus dijalankan berurutan setelah `021` dan `022`:
+
+1. `202608140023_atomic_self_order_table_claim.sql` mengunci meja `READY` dan
+   membuat Self-order dalam satu transaksi. Meja yang sudah `OCCUPIED` tidak
+   dapat dipakai ulang sampai order lunas dan selesai.
+2. `202608140024_branch_hr_configuration.sql` menyimpan kebijakan HR per cabang:
+   alasan izin yang tampil, status dibayar, hari kerja, dan toleransi penalti
+   keterlambatan.

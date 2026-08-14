@@ -6,7 +6,7 @@ const LEAVE_TYPES = new Set(['SICK', 'PERMIT', 'ANNUAL', 'UNPAID']);
 
 interface HrPayload {
   branchId?: string;
-  action?: 'SUBMIT_LEAVE' | 'REVIEW_LEAVE' | 'SAVE_PAYROLL_PROFILE';
+  action?: 'SUBMIT_LEAVE' | 'REVIEW_LEAVE' | 'SAVE_PAYROLL_PROFILE' | 'SAVE_HR_CONFIG';
   leaveType?: string;
   startDate?: string;
   endDate?: string;
@@ -22,6 +22,9 @@ interface HrPayload {
   transportAllowance?: number;
   overtimeHourlyRate?: number;
   lateDeductionPerMinute?: number;
+  leaveReasons?: Array<{ code?: string; label?: string; enabled?: boolean; paid?: boolean }>;
+  latePenaltyGraceMinutes?: number;
+  workingDays?: number[];
 }
 
 export interface HrRequestResult { status: number; data: unknown }
@@ -57,9 +60,10 @@ export async function handleHrRequest(
       leaveQuery = leaveQuery.eq('user_id', actorId);
       payrollQuery = payrollQuery.eq('user_id', actorId);
     }
-    const [{ data: leaveRequests, error: leaveError }, { data: payrollProfiles, error: payrollError }] = await Promise.all([
+    const [{ data: leaveRequests, error: leaveError }, { data: payrollProfiles, error: payrollError }, { data: hrConfig }] = await Promise.all([
       leaveQuery,
       payrollQuery,
+      admin.from('branch_hr_config').select('leave_reasons,late_penalty_grace_minutes,working_days').eq('branch_id', payload.branchId).maybeSingle(),
     ]);
     if (leaveError || payrollError) return fail(500, 'Data HR belum siap. Terapkan migrasi HR terbaru di Supabase.');
     const userIds = [...new Set([...(leaveRequests || []).map((row) => row.user_id), ...(payrollProfiles || []).map((row) => row.user_id)])];
@@ -73,6 +77,16 @@ export async function handleHrRequest(
         canManage: isManagement,
         leaveRequests: (leaveRequests || []).map((row) => ({ ...row, staffName: names.get(row.user_id) || 'Staff' })),
         payrollProfiles: (payrollProfiles || []).map((row) => ({ ...row, staffName: names.get(row.user_id) || 'Staff' })),
+        hrConfig: {
+          leaveReasons: hrConfig?.leave_reasons || [
+            { code: 'SICK', label: 'Sakit', enabled: true, paid: true },
+            { code: 'PERMIT', label: 'Izin pribadi', enabled: true, paid: true },
+            { code: 'ANNUAL', label: 'Cuti tahunan', enabled: true, paid: true },
+            { code: 'UNPAID', label: 'Izin tanpa dibayar', enabled: true, paid: false },
+          ],
+          latePenaltyGraceMinutes: Number(hrConfig?.late_penalty_grace_minutes || 0),
+          workingDays: hrConfig?.working_days || [1, 2, 3, 4, 5, 6],
+        },
       },
     };
   }
@@ -132,6 +146,37 @@ export async function handleHrRequest(
     }, { onConflict: 'tenant_id,branch_id,user_id' }).select('*').single();
     if (error) return fail(500, 'Konfigurasi payroll tidak dapat disimpan');
     return { status: 200, data };
+  }
+
+  if (method === 'PATCH' && payload.action === 'SAVE_HR_CONFIG') {
+    if (!isManagement) return fail(403, 'Hanya manajemen yang dapat mengatur kebijakan HR');
+    const reasons = Array.isArray(payload.leaveReasons) ? payload.leaveReasons : [];
+    if (!reasons.length || reasons.length > 4 || reasons.some((reason) => (
+      !reason.code || !LEAVE_TYPES.has(reason.code)
+      || !reason.label?.trim() || reason.label.trim().length > 40
+    ))) return fail(400, 'Konfigurasi alasan izin tidak valid');
+    const grace = Math.round(Number(payload.latePenaltyGraceMinutes));
+    const workingDays = [...new Set((payload.workingDays || []).map(Number))].sort();
+    if (!Number.isFinite(grace) || grace < 0 || grace > 180 || !workingDays.length || workingDays.some((day) => day < 0 || day > 6)) {
+      return fail(400, 'Konfigurasi hari kerja atau toleransi telat tidak valid');
+    }
+    const normalizedReasons = reasons.map((reason) => ({
+      code: reason.code,
+      label: reason.label!.trim(),
+      enabled: reason.enabled !== false,
+      paid: reason.paid !== false,
+    }));
+    const { error } = await admin.from('branch_hr_config').upsert({
+      tenant_id: profile.tenant_id,
+      branch_id: payload.branchId,
+      leave_reasons: normalizedReasons,
+      late_penalty_grace_minutes: grace,
+      working_days: workingDays,
+      updated_by: actorId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'tenant_id,branch_id' });
+    if (error) return fail(500, 'Konfigurasi HR tidak dapat disimpan');
+    return { status: 200, data: { success: true } };
   }
 
   return fail(400, 'Aksi HR tidak valid');

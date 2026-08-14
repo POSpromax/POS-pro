@@ -56,5 +56,7 @@ export async function cloudPinLogin(branchId: string, pin: string, signal?: Abor
 
 export async function cloudSignOut(): Promise<void> {
   const supabase = getSupabase();
-  await supabase.auth.signOut({ scope: 'global' });
+  // Hanya sesi tab/terminal ini. Scope global mencabut refresh token seluruh
+  // perangkat milik staf yang sama dan menjadi akar logout mendadak.
+  await supabase.auth.signOut({ scope: 'local' });
 }

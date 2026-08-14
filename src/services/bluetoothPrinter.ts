@@ -257,6 +257,10 @@ export class BluetoothPrinterService {
     return this.enqueuePrint(() => this.performPrint(this.generateReceiptBytes(order, profile, config), config));
   }
 
+  static async printKitchenTicket(order: Order, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
+    return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config), config));
+  }
+
   static async testPrint(config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
     const width = config.paperSize === '80mm' ? 48 : 32;
     const now = new Date().toLocaleString('id-ID');
@@ -373,6 +377,80 @@ export class BluetoothPrinterService {
     text += separator;
     text += '\x1B\x61\x01';
     text += centerText(profile.receiptFooter || 'TERIMA KASIH ATAS KUNJUNGAN ANDA');
+    text += '\n\n\n';
+    if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
+    return encoder.encode(text);
+  }
+
+  /**
+   * Tiket produksi sengaja tidak membawa harga, total, ataupun metode bayar.
+   * Kertas dapur hanya memuat informasi yang diperlukan untuk memasak dan
+   * mengantar, dengan kuantitas/item dibuat lebih besar agar cepat dipindai.
+   */
+  static generateKitchenTicketBytes(order: Order, profile: RestaurantProfile, config: PrinterConfig): Uint8Array {
+    const encoder = new TextEncoder();
+    const lineWidth = config.paperSize === '80mm' ? 48 : 32;
+    const separator = '-'.repeat(lineWidth) + '\n';
+    const center = (value: string) => {
+      const text = value.slice(0, lineWidth);
+      return `${' '.repeat(Math.max(0, Math.floor((lineWidth - text.length) / 2)))}${text}\n`;
+    };
+    const wrap = (value: string, prefix = '') => {
+      const width = Math.max(8, lineWidth - prefix.length);
+      const words = value.trim().split(/\s+/);
+      const lines: string[] = [];
+      let current = '';
+      for (const word of words) {
+        if (`${current} ${word}`.trim().length > width && current) {
+          lines.push(prefix + current);
+          current = word;
+        } else {
+          current = `${current} ${word}`.trim();
+        }
+      }
+      if (current) lines.push(prefix + current);
+      return lines.join('\n') + (lines.length ? '\n' : '');
+    };
+
+    const createdAt = new Date(order.createdAt);
+    const dateTime = createdAt.toLocaleString('id-ID', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const orderLabel = order.dailyNumber ? `#${String(order.dailyNumber).padStart(3, '0')}` : order.orderNumber;
+    let text = '\x1B\x40\x1B\x61\x01';
+    text += '\x1D\x21\x11';
+    text += center('TIKET DAPUR');
+    text += center(orderLabel);
+    text += '\x1D\x21\x00';
+    text += center(profile.name.toUpperCase());
+    text += separator;
+    text += '\x1B\x61\x00';
+    text += `WAKTU : ${dateTime}\n`;
+    text += `SUMBER: ${order.source === 'SELF_ORDER' ? 'SELF ORDER / HP' : 'POS KASIR'}\n`;
+    text += `TIPE  : ${order.type === 'DINE_IN' ? `DINE IN - MEJA ${order.tableNumber || '-'}` : 'TAKE AWAY'}\n`;
+    text += `NAMA  : ${order.customerName || 'Guest'}\n`;
+    text += separator;
+
+    order.items.forEach((item, index) => {
+      text += '\x1D\x21\x10';
+      text += wrap(`${item.quantity}x ${item.menuName}`);
+      text += '\x1D\x21\x00';
+      item.selectedCondiments?.forEach((group) => {
+        text += wrap(`${group.groupName}: ${group.options.join(', ')}`, '  + ');
+      });
+      if (item.notes) text += wrap(`CATATAN ITEM: ${item.notes}`, '  ! ');
+      if (index < order.items.length - 1) text += '. '.repeat(Math.floor(lineWidth / 2)) + '\n';
+    });
+
+    if (order.notes) {
+      text += separator;
+      text += '\x1B\x45\x01';
+      text += wrap(`CATATAN ORDER: ${order.notes}`);
+      text += '\x1B\x45\x00';
+    }
+    text += separator;
+    text += '\x1B\x61\x01' + center('CEK ITEM SEBELUM SELESAI');
     text += '\n\n\n';
     if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
     return encoder.encode(text);
