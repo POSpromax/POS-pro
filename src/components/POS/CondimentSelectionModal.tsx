@@ -393,18 +393,18 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   };
 
   return (
-    <div className="theme-self-order fixed inset-0 z-50 flex items-end justify-center bg-[#1b120e]/55 backdrop-blur-[3px] sm:items-center sm:p-4 animate-fadeIn">
-      <section className="flex max-h-[96dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[2rem] border border-[var(--so-border)] bg-[var(--so-canvas)] shadow-[0_-18px_70px_rgba(34,24,18,.22)] sm:rounded-[2rem] animate-slideUp">
+    <div className="theme-self-order fixed inset-0 z-50 flex items-end justify-center bg-[#0f172a]/45 backdrop-blur-[3px] sm:items-center sm:p-4 animate-fadeIn">
+      <section className="flex max-h-[96dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[2rem] border border-[var(--so-border)] bg-[var(--so-canvas)] shadow-[0_-18px_70px_rgba(15,23,42,.18)] sm:rounded-[2rem] animate-slideUp">
         <header className="shrink-0 border-b border-[var(--so-border)] bg-white">
-          <div className="relative h-[182px] overflow-hidden bg-[var(--so-surface-soft)] sm:h-[205px]">
+          <div className="relative h-[210px] overflow-hidden bg-white sm:h-[232px]">
             {menuItem.image ? (
-              <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="h-full w-full object-contain p-3" />
+              <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="so-food-photo h-full w-full object-contain px-6 py-3 sm:px-8" />
             ) : (
               <div className="flex h-full items-center justify-center"><Utensils className="h-12 w-12 text-[var(--so-text-faint)]" /></div>
             )}
             <button type="button" onClick={onClose} aria-label="Tutup detail menu" className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--so-border)] bg-white/95 text-[var(--so-text)] shadow-sm transition active:scale-95"><X className="h-5 w-5" /></button>
           </div>
-          <div className="flex items-start justify-between gap-4 px-4 pb-4 pt-3.5">
+          <div className="flex items-start justify-between gap-4 px-4 pb-4 pt-2.5">
             <div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[.17em] text-[var(--so-brand)]">Atur Pesanan</p><h2 className="mt-1 line-clamp-2 text-[17px] font-black leading-tight tracking-[-.02em] text-[var(--so-text)]">{menuItem.name}</h2></div>
             <span className="shrink-0 rounded-full bg-[var(--so-brand-soft)] px-3 py-1.5 text-[9px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</span>
           </div>
@@ -425,9 +425,9 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                   {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset) : false},
                   {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], campurPreset) : false},
                 ]).map((preset) => (
-                  <button key={preset.key} type="button" onClick={() => applyInstantPreset(preset.key)} className={`min-h-[72px] rounded-[1.1rem] border p-3 text-left transition active:scale-[.985] ${preset.active ? 'border-[var(--so-brand)] bg-[var(--so-brand)] text-white shadow-[0_10px_24px_rgba(237,95,30,.16)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
-                    <span className="flex items-center justify-between gap-2"><span className="text-[11px] font-black">{preset.title}</span><span className={`flex h-5 w-5 items-center justify-center rounded-full ${preset.active ? 'bg-white text-[var(--so-brand)]' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{preset.active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span></span>
-                    <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-white/72' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
+                  <button key={preset.key} type="button" onClick={() => applyInstantPreset(preset.key)} className={`min-h-[72px] rounded-[1.1rem] border p-3 text-left transition active:scale-[.985] ${preset.active ? 'border-[var(--so-brand)] bg-[var(--so-brand-soft)] text-[var(--so-text)] shadow-[0_8px_20px_rgba(15,23,42,.04)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
+                    <span className="flex items-center justify-between gap-2"><span className="text-[11px] font-black">{preset.title}</span><span className={`flex h-5 w-5 items-center justify-center rounded-full ${preset.active ? 'bg-[var(--so-brand)] text-white' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{preset.active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span></span>
+                    <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-[var(--so-brand-strong)]' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
                   </button>
                 ))}
               </div>

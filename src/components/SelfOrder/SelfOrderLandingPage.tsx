@@ -222,13 +222,6 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const wallpaperUrl = profile.wallpaperBackgroundUrl
     ? optimizeCloudinaryImage(profile.wallpaperBackgroundUrl, 1100)
     : '';
-  const heroMenuItem = menuItems.find((item) =>
-    item.isAvailable !== false
-      && item.category === 'BAKSO'
-      && /komplit|urat|bakso/i.test(item.name)
-      && Boolean(item.image),
-  ) || menuItems.find((item) => item.isAvailable !== false && item.category === 'BAKSO' && Boolean(item.image));
-
   const statusIndex = liveSubmittedOrder?.status === 'NEW' ? 0
     : liveSubmittedOrder?.status === 'COOKING' ? 1
       : liveSubmittedOrder?.status === 'READY' || liveSubmittedOrder?.status === 'COMPLETED' ? 2 : 0;
@@ -675,32 +668,30 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       {localToast && (
         <div
           role="status"
-          className="fixed left-1/2 top-4 z-[100] w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-[var(--so-border)] bg-white/95 px-4 py-3 text-center text-xs font-bold text-[var(--so-text-soft)] shadow-[0_18px_55px_rgba(34,24,18,.12)] backdrop-blur-xl animate-slideUp"
+          className="fixed left-1/2 top-4 z-[100] w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-[var(--so-border)] bg-white/95 px-4 py-3 text-center text-xs font-bold text-[var(--so-text-soft)] shadow-[0_18px_55px_rgba(15,23,42,.10)] backdrop-blur-xl animate-slideUp"
         >
           {localToast}
         </div>
       )}
 
-      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[540px] overflow-hidden bg-[var(--so-canvas)] shadow-[0_0_70px_rgba(45,31,22,.08)]">
+      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[540px] overflow-hidden bg-[var(--so-canvas)] shadow-[0_0_70px_rgba(15,23,42,.08)]">
         {activeStep === 'LANDING' && (
           <main className="min-h-[100dvh] pb-8 animate-fadeIn">
-            <section className="relative min-h-[43dvh] overflow-hidden bg-[#1c120d] px-5 pb-11 pt-5 text-white">
+            <section className="relative min-h-[43dvh] overflow-hidden bg-[#111315] px-5 pb-11 pt-5 text-white">
               {wallpaperUrl && (
                 <img
                   src={wallpaperUrl}
                   alt=""
                   aria-hidden="true"
                   decoding="async"
-                  className="absolute inset-0 h-full w-full object-cover opacity-38 motion-safe:animate-[selfOrderHeroZoom_16s_ease-in-out_infinite_alternate]"
+                  className="absolute inset-0 h-full w-full object-cover opacity-46 motion-safe:animate-[selfOrderHeroZoom_18s_ease-in-out_infinite_alternate]"
                 />
               )}
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,12,8,.38)_0%,rgba(24,13,8,.66)_45%,rgba(25,15,10,.95)_100%)]" />
-              <div className="so-tech-grid absolute inset-0 opacity-20" />
-              <div className="pointer-events-none absolute -right-28 top-8 h-60 w-60 rounded-full bg-orange-500/20 blur-3xl" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,15,.34)_0%,rgba(10,12,15,.58)_46%,rgba(10,12,15,.94)_100%)]" />
 
               <div className="relative z-10 flex items-center justify-between gap-3 so-reveal-1">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.18em] text-white/85 backdrop-blur-md">
-                  <QrCode className="h-3.5 w-3.5 text-orange-400" /> Dine-in Self Order
+                  <QrCode className="h-3.5 w-3.5 text-[#ff8a55]" /> Dine-in Self Order
                 </span>
                 <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${serviceOpen ? 'border-emerald-300/20 bg-emerald-400/12 text-emerald-200' : 'border-rose-300/20 bg-rose-400/12 text-rose-200'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${serviceOpen ? 'bg-emerald-400' : 'bg-rose-400'}`} />
@@ -712,13 +703,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.65rem] border border-white/15 bg-white/10 shadow-[0_18px_45px_rgba(0,0,0,.18)] backdrop-blur-md so-reveal-2">
                   {profile.logoUrl
                     ? <img src={optimizeCloudinaryImage(profile.logoUrl, 220)} alt={profile.name} decoding="async" className="h-full w-full object-contain p-2" />
-                    : <Store className="h-8 w-8 text-orange-300" />}
+                    : <Store className="h-8 w-8 text-[#ffb08b]" />}
                 </div>
-                <p className="mt-5 text-[9px] font-black uppercase tracking-[.26em] text-orange-300 so-reveal-3">{currentBranch.code || 'Bakso Ujo'}</p>
+                <p className="mt-5 text-[9px] font-black uppercase tracking-[.26em] text-[#ffb08b] so-reveal-3">{currentBranch.code || 'Bakso Ujo'}</p>
                 <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-.04em] so-reveal-3">{profile.name || 'BAKSO UJO'}</h1>
                 <p className="mx-auto mt-3 max-w-[310px] text-[12px] font-semibold leading-relaxed text-white/68 so-reveal-4">Pesan langsung dari meja kamu. Cepat, praktis, dan langsung masuk ke kasir &amp; dapur.</p>
                 <div className="mt-6 inline-flex items-center gap-2 text-[9px] font-bold text-white/42 so-reveal-4">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange-400" /> Scan · Pilih · Kirim · Santai
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#ff7a3d]" /> Scan · Pilih · Kirim · Santai
                 </div>
               </div>
             </section>
@@ -941,7 +932,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
 
         {activeStep === 'SENDING' && (
           <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[var(--so-canvas)] px-6 text-center animate-fadeIn" aria-live="polite">
-            <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-200/18 blur-3xl" />
+            <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--so-brand-soft)]/60 blur-3xl" />
             <div className="relative"><div className="absolute inset-[-22px] rounded-full border border-[var(--so-border)] motion-safe:animate-[selfOrderOrbit_6s_linear_infinite]" /><span className="relative flex h-20 w-20 items-center justify-center rounded-[1.6rem] bg-[var(--so-brand)] text-white shadow-[0_20px_50px_rgba(237,95,30,.24)]"><ChefHat className="h-8 w-8" /></span></div>
             <p className="mt-12 text-[9px] font-black uppercase tracking-[.22em] text-[var(--so-brand)]">Menghubungkan ke outlet</p><h2 className="mt-2 text-[22px] font-black tracking-[-.04em]">Mengirim pesanan...</h2><p className="mt-2 max-w-[280px] text-[10px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Mohon tunggu sebentar. Jangan tutup halaman sampai pesanan berhasil diterima.</p><div className="mt-7 flex items-center gap-2">{[0, 1, 2].map((index) => <span key={index} className="h-2.5 w-2.5 rounded-full bg-[var(--so-brand)] motion-safe:animate-[selfOrderDot_1.2s_ease-in-out_infinite]" style={{animationDelay: `${index * 150}ms`}} />)}</div><div className="mt-9 flex items-center gap-2 rounded-full border border-[var(--so-border)] bg-white px-4 py-2.5 text-[8px] font-bold text-[var(--so-text-muted)] shadow-sm"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Proteksi duplikasi aktif</div>
           </main>
@@ -952,13 +943,13 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             <section className="rounded-[1.8rem] bg-[var(--so-text)] p-5 text-white shadow-[0_20px_55px_rgba(34,24,18,.18)]">
               <div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-400 text-[#173020] so-success-pop"><Check className="h-7 w-7 stroke-[3]" /></span><span className="rounded-full border border-white/10 bg-white/[.08] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-white/65">{liveSubmittedOrder?.orderNumber}</span></div>
               <p className="mt-5 text-[8px] font-black uppercase tracking-[.18em] text-emerald-300">Pesanan diterima</p><h2 className="mt-1 text-[25px] font-black tracking-[-.04em]">Pesanan berhasil!</h2><p className="mt-2 text-[10px] font-medium leading-relaxed text-white/58">Pesanan sudah masuk ke {currentBranch.name}. Silakan tetap di meja dan pantau statusnya.</p>
-              <div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Order</p><p className="mt-1 text-[12px] font-black text-orange-300">{liveSubmittedOrder?.orderNumber}</p></div><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Meja</p><p className="mt-1 text-[12px] font-black text-orange-300">{selectedTable}</p></div></div>
+              <div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Order</p><p className="mt-1 text-[12px] font-black text-[#ffb08b]">{liveSubmittedOrder?.orderNumber}</p></div><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Meja</p><p className="mt-1 text-[12px] font-black text-[#ffb08b]">{selectedTable}</p></div></div>
             </section>
 
             <section className="so-card mt-4 p-4">
               <div className="flex items-center justify-between"><div><p className="so-meta-label">Status pesanan · Live</p><p className="mt-1 text-[13px] font-black">{statusIndex === 0 ? 'Pesanan diterima' : statusIndex === 1 ? 'Sedang disiapkan' : 'Siap disajikan'}</p></div><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${statusIndex === 2 ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]'}`}><ChefHat className="h-5 w-5" /></span></div>
               <div className="mt-5 grid grid-cols-3 gap-2">{['Diterima', 'Disiapkan', 'Siap'].map((label, index) => <div key={label} className="text-center"><span className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-black transition ${index <= statusIndex ? 'bg-[var(--so-brand)] text-white' : 'bg-[var(--so-surface-soft)] text-[var(--so-text-faint)]'}`}>{index < statusIndex ? <Check className="h-3.5 w-3.5" /> : index + 1}</span><p className={`mt-2 text-[8px] font-black ${index <= statusIndex ? 'text-[var(--so-text)]' : 'text-[var(--so-text-faint)]'}`}>{label}</p></div>)}</div>
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#fff7df] px-3 py-2.5 text-[8px] font-bold text-[#9a6c00]"><Clock3 className="h-3.5 w-3.5 shrink-0" /> Pembayaran dilakukan langsung kepada kasir.</div>
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[8px] font-bold text-[var(--so-text-soft)]"><Clock3 className="h-3.5 w-3.5 shrink-0" /> Pembayaran dilakukan langsung kepada kasir.</div>
             </section>
 
             <section className="so-card mt-4 p-4">
@@ -971,11 +962,11 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             <section className="mt-4 grid grid-cols-2 gap-3">
               <button type="button" onClick={handleSaveReceiptPng} className="so-action-card"><Download className="h-5 w-5 text-[var(--so-brand)]" /><span>Simpan Struk PNG</span></button>
               <a href={whatsappOrderUrl || undefined} onClick={(event) => {if (!whatsappOrderUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-action-card ${whatsappOrderUrl ? '' : 'pointer-events-none opacity-50'}`}><MessageCircle className="h-5 w-5 text-emerald-600" /><span>WhatsApp Kami</span></a>
-              <a href={googleReviewUrl || undefined} onClick={(event) => {if (!googleReviewUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-action-card ${googleReviewUrl ? '' : 'pointer-events-none opacity-50'}`}><ExternalLink className="h-5 w-5 text-[#4d5560]" /><span>Beri Ulasan Google</span></a>
+              <a href={googleReviewUrl || undefined} onClick={(event) => {if (!googleReviewUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-action-card ${googleReviewUrl ? '' : 'pointer-events-none opacity-50'}`}><ExternalLink className="h-5 w-5 text-[#4d5560]" /><span>Ulas Bakso Ujo di Google</span></a>
               <button type="button" onClick={() => void handleShare()} className="so-action-card"><Share2 className="h-5 w-5 text-[#4d5560]" /><span>Bagikan Pesanan</span></button>
             </section>
 
-            <button type="button" onClick={handleResetToLanding} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[1.25rem] bg-[var(--so-text)] py-4 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(34,24,18,.14)] transition active:scale-[.988]"><Home className="h-4 w-4" /> Kembali ke Landing Page</button>
+            <button type="button" onClick={handleResetToLanding} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[1.25rem] bg-[#111827] py-4 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(15,23,42,.12)] transition active:scale-[.988]"><Home className="h-4 w-4" /> Kembali ke Landing Page</button>
             {googleReviewUrl && <a href={googleReviewUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 py-2 text-[8px] font-bold text-[var(--so-text-muted)]">Bagikan pengalaman makanmu <ExternalLink className="h-3 w-3" /></a>}
           </main>
         )}
