@@ -56,6 +56,56 @@ import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManageme
 import { playNewOrderSound, playSelfOrderAlertSound } from '../../utils/audioNotification';
 import { uploadImage } from '../../services/cloudinaryMedia';
 
+const normalizeCondimentName = (value: string) =>
+  value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const inferSelfOrderRole = (group: CondimentGroup): 'NONE' | 'BROTH' | 'FILLING' => {
+  if (group.selfOrderRole === 'NONE' || group.selfOrderRole === 'BROTH' || group.selfOrderRole === 'FILLING') return group.selfOrderRole;
+  const normalized = normalizeCondimentName(group.name);
+  if (normalized.includes('KUAH')) return 'BROTH';
+  if (normalized.includes('ISIAN')) return 'FILLING';
+  return 'NONE';
+};
+
+const existingConfiguredOptions = (group: CondimentGroup, configured?: string[]) => {
+  const wanted = new Set((configured || []).map(normalizeCondimentName));
+  if (!wanted.size) return [];
+  return group.options
+    .filter((option) => option.isAvailable !== false && wanted.has(normalizeCondimentName(option.name)))
+    .map((option) => option.name);
+};
+
+const defaultBrothConfig = (group: CondimentGroup) => {
+  const configured = existingConfiguredOptions(group, group.selfOrderDefaultOptions);
+  if (configured.length) return configured.slice(0, 1);
+  const original = group.options.find((option) => option.isAvailable !== false && normalizeCondimentName(option.name) === 'ORIGINAL');
+  return original ? [original.name] : [];
+};
+
+const defaultBaksoOnlyConfig = (group: CondimentGroup) => {
+  const configured = existingConfiguredOptions(group, group.selfOrderBaksoOnlyOptions);
+  if (configured.length) return configured;
+  return group.options
+    .filter((option) => {
+      if (option.isAvailable === false) return false;
+      const name = normalizeCondimentName(option.name);
+      return name === 'BAWANG' || name === 'SLEDRI' || name === 'SELEDRI';
+    })
+    .map((option) => option.name);
+};
+
+const defaultCampurConfig = (group: CondimentGroup) => {
+  const configured = existingConfiguredOptions(group, group.selfOrderCampurOptions);
+  if (configured.length) return configured;
+  return group.options
+    .filter((option) => {
+      if (option.isAvailable === false) return false;
+      const name = normalizeCondimentName(option.name);
+      return name !== 'KWETIAW' && name !== 'BAKSOAJA' && name !== 'BAKSOSAJA';
+    })
+    .map((option) => option.name);
+};
+
 interface SettingsViewProps {
   profile: RestaurantProfile;
   onSaveProfile: (profile: RestaurantProfile) => void;
@@ -274,8 +324,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       name: newGroupName.trim(),
       mode: newGroupMode,
       required: newGroupRequired,
+      isRequired: newGroupRequired,
       minSelect: newGroupRequired ? 1 : 0,
-      maxSelect: 10,
+      maxSelect: newGroupMode === 'PAKET' ? 1 : 10,
       targetCategories: [newGroupCategory],
       isActive: true,
       options: []
@@ -657,22 +708,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Konfigurasi tampilan banner, wallpaper, dan review Google HP pelanggan.</p>
                 </div>
 
-                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Aktifkan Customer Self-Order</p>
-                    <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Kontrol utama untuk seluruh QR meja di outlet aktif.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormProfile({ ...formProfile, isSelfOrderEnabled: formProfile.isSelfOrderEnabled === false })}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold border ${
-                      formProfile.isSelfOrderEnabled !== false
-                        ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                        : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border)]'
-                    }`}
-                  >
-                    {formProfile.isSelfOrderEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
-                  </button>
+                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4">
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Kontrol Self-Order per Meja</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Akses customer order tidak memakai saklar global. Aktif/nonaktif ditentukan dari Manajemen Meja & QR untuk setiap meja atau aksi semua meja.</p>
                 </div>
 
                 {/* Banner Promo Utama Card */}
@@ -1338,25 +1376,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        const defaultGroup: CondimentGroup = {
-                          id: 'cg-preset-' + Date.now(),
-                          name: 'Pilihan Kuah',
-                          mode: 'PAKET',
-                          isRequired: true,
-                          targetCategory: 'BAKSO',
-                          isActive: true,
-                          options: [
-                            { id: 'opt-1', name: 'Original', price: 0, isAvailable: true },
-                            { id: 'opt-2', name: 'Kuah Mercon Pedas', price: 2000, isAvailable: true }
-                          ]
-                        };
-                        onSaveCondimentGroup(defaultGroup);
-                        toast('Preset Ditambahkan', 'Preset grup kuah standar berhasil ditambahkan!');
+                        const hasBroth = condimentGroups.some((group) => inferSelfOrderRole(group) === 'BROTH');
+                        const hasFilling = condimentGroups.some((group) => inferSelfOrderRole(group) === 'FILLING');
+                        let created = 0;
+                        const stamp = Date.now();
+
+                        if (!hasBroth) {
+                          onSaveCondimentGroup({
+                            id: `cg-preset-kuah-${stamp}`,
+                            name: 'KUAH',
+                            mode: 'PAKET',
+                            required: true,
+                            isRequired: true,
+                            minSelect: 1,
+                            maxSelect: 1,
+                            targetCategories: ['BAKSO'],
+                            isActive: true,
+                            selfOrderRole: 'BROTH',
+                            selfOrderDefaultOptions: ['ORIGINAL'],
+                            options: [
+                              { id: `opt-kuah-original-${stamp}`, name: 'ORIGINAL', price: 0, isAvailable: true },
+                              { id: `opt-kuah-misdasem-${stamp}`, name: 'MISDASEM', price: 0, isAvailable: true },
+                            ],
+                          });
+                          created += 1;
+                        }
+
+                        if (!hasFilling) {
+                          onSaveCondimentGroup({
+                            id: `cg-preset-isian-${stamp + 1}`,
+                            name: 'ISIAN',
+                            mode: 'ADD_ON',
+                            required: true,
+                            isRequired: true,
+                            minSelect: 1,
+                            maxSelect: 7,
+                            targetCategories: ['BAKSO'],
+                            isActive: true,
+                            selfOrderRole: 'FILLING',
+                            selfOrderBaksoOnlyOptions: ['BAWANG', 'SLEDRI'],
+                            selfOrderCampurOptions: ['MIE', 'BIHUN', 'SAWI', 'TAUGE', 'BAWANG', 'SLEDRI'],
+                            allSelectedLabel: 'CAMPUR',
+                            options: [
+                              { id: `opt-isian-mie-${stamp}`, name: 'MIE', price: 0, isAvailable: true },
+                              { id: `opt-isian-bihun-${stamp}`, name: 'BIHUN', price: 0, isAvailable: true },
+                              { id: `opt-isian-kwetiaw-${stamp}`, name: 'KWETIAW', price: 0, isAvailable: true },
+                              { id: `opt-isian-sawi-${stamp}`, name: 'SAWI', price: 0, isAvailable: true },
+                              { id: `opt-isian-tauge-${stamp}`, name: 'TAUGE', price: 0, isAvailable: true },
+                              { id: `opt-isian-bawang-${stamp}`, name: 'BAWANG', price: 0, isAvailable: true },
+                              { id: `opt-isian-sledri-${stamp}`, name: 'SLEDRI', price: 0, isAvailable: true },
+                            ],
+                          });
+                          created += 1;
+                        }
+
+                        toast(
+                          created ? 'Preset Self Order Dibuat' : 'Preset Sudah Ada',
+                          created
+                            ? `${created} grup standar ditambahkan. Periksa target menu dan opsi sebelum digunakan.`
+                            : 'Grup Kuah dan Isian untuk self-order sudah tersedia. Tidak ada duplikasi yang dibuat.',
+                        );
                       }}
                       className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Sparkles className="w-4 h-4 text-amber-600" />
-                      <span>Standar</span>
+                      <span>Preset Self Order</span>
                     </button>
 
                     <button
@@ -1378,6 +1462,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     const selectedProductIds = group.targetProductIds || [];
                     const selectedProductNames = group.targetProductNames || [];
                     const targetCount = selectedCategories.length + selectedProductIds.length + selectedProductNames.length;
+                    const selfOrderRole = inferSelfOrderRole(group);
+                    const activeOptionNames = group.options.filter((option) => option.isAvailable !== false).map((option) => option.name);
+                    const brothDefaults = defaultBrothConfig(group);
+                    const baksoOnlyDefaults = defaultBaksoOnlyConfig(group);
+                    const campurDefaults = defaultCampurConfig(group);
                     return (
                       <div key={group.id} className="border border-[var(--panel-border)] rounded-2xl overflow-hidden bg-white shadow-sm">
                         {/* Group Header */}
@@ -1447,21 +1536,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               </div>
 
                               <div>
-                                <label className="text-[13px]-bold-1">TIPE PILIHAN</label>
-                                <div className="flex items-center gap-2 bg-[var(--surface-secondary)] p-1 rounded-2xl border border-[var(--panel-border)]">
+                                <label className="text-[13px]-bold-1">MODE PILIHAN</label>
+                                <p className="mb-2 text-[10px] font-semibold text-[var(--text-tertiary)]">
+                                  Atur jumlah opsi yang boleh dipilih. Ini terpisah dari status Wajib / Opsional.
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1">
                                   <button
                                     type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
+                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET', maxSelect: 1 })}
+                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-white text-[var(--text-secondary)]'}`}
                                   >
-                                    Pilih 1 (Wajib)
+                                    <span className="block text-[10px] font-black uppercase tracking-wider">SINGLE</span>
+                                    <span className={`mt-0.5 block text-[9px] font-semibold ${group.mode === 'PAKET' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Hanya boleh pilih 1</span>
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON' })}
-                                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
+                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON', maxSelect: Math.max(2, group.maxSelect || group.options.length || 2) })}
+                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-white text-[var(--text-secondary)]'}`}
                                   >
-                                    Pilih Banyak (Opsi)
+                                    <span className="block text-[10px] font-black uppercase tracking-wider">MULTIPLE</span>
+                                    <span className={`mt-0.5 block text-[9px] font-semibold ${group.mode === 'ADD_ON' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Bisa memilih lebih dari 1</span>
                                   </button>
                                 </div>
                               </div>
@@ -1470,21 +1564,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             {/* Mode Pilihan & Berlaku Untuk */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <label className="text-[13px]-bold-1">MODE PILIHAN</label>
-                                <div className="flex items-center gap-2 bg-[var(--surface-secondary)] p-1 rounded-2xl border border-[var(--panel-border)]">
+                                <label className="text-[13px]-bold-1">KEWAJIBAN PILIHAN</label>
+                                <p className="mb-2 text-[10px] font-semibold text-[var(--text-tertiary)]">
+                                  Tentukan apakah pelanggan harus mengisi grup ini atau boleh melewatinya.
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1">
                                   <button
                                     type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, isRequired: true })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired !== false ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-md)]' : 'text-[var(--text-secondary)]'}`}
+                                    onClick={() => onSaveCondimentGroup({ ...group, required: true, isRequired: true, minSelect: Math.max(1, group.minSelect || 1) })}
+                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${(group.isRequired ?? group.required ?? false) ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-md)]' : 'bg-white text-[var(--text-secondary)]'}`}
                                   >
-                                    Wajib Pilih (Harus Ada)
+                                    <span className="block text-[10px] font-black uppercase tracking-wider">WAJIB PILIH</span>
+                                    <span className={`mt-0.5 block text-[9px] font-semibold ${(group.isRequired ?? group.required ?? false) ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Harus ada pilihan</span>
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, isRequired: false })}
-                                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${group.isRequired === false ? 'bg-white text-slate-900 shadow-sm' : 'text-[var(--text-secondary)]'}`}
+                                    onClick={() => onSaveCondimentGroup({ ...group, required: false, isRequired: false, minSelect: 0 })}
+                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${!(group.isRequired ?? group.required ?? false) ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-[var(--text-secondary)]'}`}
                                   >
-                                    Opsional (Boleh Kosong)
+                                    <span className="block text-[10px] font-black uppercase tracking-wider">OPSIONAL</span>
+                                    <span className="mt-0.5 block text-[9px] font-semibold text-[var(--text-tertiary)]">Boleh kosong</span>
                                   </button>
                                 </div>
                               </div>
@@ -1516,6 +1615,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               </div>
                             </div>
 
+                            <section className="rounded-2xl border border-orange-200 bg-orange-50/40 p-4 space-y-4">
+                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-orange-600" />
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-900">Peran di Self Order</h4>
+                                  </div>
+                                  <p className="mt-1 text-[11px] font-semibold text-orange-800/70">
+                                    Aturan ini hanya mengatur customer QR order. POS kasir tetap mengikuti konfigurasi grup normal.
+                                  </p>
+                                </div>
+                                {selfOrderRole !== 'NONE' && (
+                                  <span className="w-fit rounded-full bg-orange-600 px-2.5 py-1 text-[9px] font-black text-white">
+                                    SELF ORDER · {selfOrderRole === 'BROTH' ? 'KUAH' : 'ISIAN'}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                {[
+                                  { key: 'NONE' as const, label: 'Normal', detail: 'Tanpa preset' },
+                                  { key: 'BROTH' as const, label: 'Kuah', detail: 'Default otomatis' },
+                                  { key: 'FILLING' as const, label: 'Isian', detail: 'Bakso Saja / Campur' },
+                                ].map((role) => (
+                                  <button
+                                    key={role.key}
+                                    type="button"
+                                    onClick={() => {
+                                      if (role.key === 'NONE') {
+                                        onSaveCondimentGroup({ ...group, selfOrderRole: 'NONE' });
+                                        return;
+                                      }
+                                      if (role.key === 'BROTH') {
+                                        const defaults = brothDefaults.length ? brothDefaults : activeOptionNames.slice(0, 1);
+                                        onSaveCondimentGroup({
+                                          ...group,
+                                          selfOrderRole: 'BROTH',
+                                          selfOrderDefaultOptions: defaults,
+                                          mode: 'PAKET',
+                                          required: true,
+                                          isRequired: true,
+                                          minSelect: 1,
+                                          maxSelect: 1,
+                                        });
+                                        return;
+                                      }
+                                      const nextBaksoOnly = baksoOnlyDefaults;
+                                      const nextCampur = campurDefaults;
+                                      onSaveCondimentGroup({
+                                        ...group,
+                                        selfOrderRole: 'FILLING',
+                                        selfOrderBaksoOnlyOptions: nextBaksoOnly,
+                                        selfOrderCampurOptions: nextCampur,
+                                        mode: 'ADD_ON',
+                                        required: true,
+                                        isRequired: true,
+                                        minSelect: 1,
+                                        maxSelect: Math.max(group.maxSelect || 1, nextBaksoOnly.length, nextCampur.length),
+                                        allSelectedLabel: group.allSelectedLabel || 'CAMPUR',
+                                      });
+                                    }}
+                                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                                      selfOrderRole === role.key
+                                        ? 'border-orange-500 bg-orange-500 text-white shadow-md'
+                                        : 'border-orange-100 bg-white text-slate-700 hover:border-orange-300'
+                                    }`}
+                                  >
+                                    <span className="block text-[11px] font-black">{role.label}</span>
+                                    <span className={`mt-0.5 block text-[9px] font-semibold ${selfOrderRole === role.key ? 'text-white/75' : 'text-slate-400'}`}>
+                                      {role.detail}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {selfOrderRole === 'BROTH' && (
+                                <div className="rounded-xl border border-orange-100 bg-white p-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-[10px] font-black text-slate-800">DEFAULT KUAH CUSTOMER</p>
+                                      <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
+                                        Customer langsung mendapat pilihan ini. Rekomendasi: ORIGINAL.
+                                      </p>
+                                    </div>
+                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-black text-emerald-700">1 PILIHAN</span>
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {group.options.filter((option) => option.isAvailable !== false).map((option) => {
+                                      const selected = brothDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
+                                      return (
+                                        <button
+                                          key={`broth-${option.id}`}
+                                          type="button"
+                                          onClick={() => onSaveCondimentGroup({
+                                            ...group,
+                                            selfOrderRole: 'BROTH',
+                                            selfOrderDefaultOptions: [option.name],
+                                            mode: 'PAKET',
+                                            required: true,
+                                            isRequired: true,
+                                            minSelect: 1,
+                                            maxSelect: 1,
+                                          })}
+                                          className={`rounded-full border px-3 py-1.5 text-[10px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                                        >
+                                          {selected ? '✓ ' : ''}{option.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {selfOrderRole === 'FILLING' && (
+                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                  <div className="rounded-xl border border-orange-100 bg-white p-3">
+                                    <p className="text-[10px] font-black text-slate-800">PRESET “BAKSO SAJA”</p>
+                                    <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
+                                      Default Bakso Ujo: hanya BAWANG + SLEDRI.
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-1.5">
+                                      {group.options.filter((option) => option.isAvailable !== false && !['BAKSOAJA', 'BAKSOSAJA'].includes(normalizeCondimentName(option.name))).map((option) => {
+                                        const selected = baksoOnlyDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
+                                        return (
+                                          <button
+                                            key={`bakso-only-${option.id}`}
+                                            type="button"
+                                            onClick={() => {
+                                              const next = selected
+                                                ? baksoOnlyDefaults.filter((name) => normalizeCondimentName(name) !== normalizeCondimentName(option.name))
+                                                : [...baksoOnlyDefaults, option.name];
+                                              onSaveCondimentGroup({
+                                                ...group,
+                                                selfOrderRole: 'FILLING',
+                                                selfOrderBaksoOnlyOptions: next,
+                                                maxSelect: Math.max(group.maxSelect || 1, next.length, campurDefaults.length),
+                                              });
+                                            }}
+                                            className={`rounded-full border px-2.5 py-1.5 text-[9px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
+                                          >
+                                            {selected ? '✓ ' : ''}{option.name}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-xl border border-orange-100 bg-white p-3">
+                                    <p className="text-[10px] font-black text-slate-800">PRESET “CAMPUR”</p>
+                                    <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
+                                      Default: semua isian aktif kecuali KWETIAW.
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-1.5">
+                                      {group.options.filter((option) => option.isAvailable !== false && !['BAKSOAJA', 'BAKSOSAJA'].includes(normalizeCondimentName(option.name))).map((option) => {
+                                        const selected = campurDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
+                                        return (
+                                          <button
+                                            key={`campur-${option.id}`}
+                                            type="button"
+                                            onClick={() => {
+                                              const next = selected
+                                                ? campurDefaults.filter((name) => normalizeCondimentName(name) !== normalizeCondimentName(option.name))
+                                                : [...campurDefaults, option.name];
+                                              onSaveCondimentGroup({
+                                                ...group,
+                                                selfOrderRole: 'FILLING',
+                                                selfOrderCampurOptions: next,
+                                                maxSelect: Math.max(group.maxSelect || 1, next.length, baksoOnlyDefaults.length),
+                                                allSelectedLabel: group.allSelectedLabel || 'CAMPUR',
+                                              });
+                                            }}
+                                            className={`rounded-full border px-2.5 py-1.5 text-[9px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
+                                          >
+                                            {selected ? '✓ ' : ''}{option.name}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-800">
+                                    Opsi lama bernama “BAKSO AJA / BAKSO SAJA” tidak dipakai sebagai isian pada UI customer baru. Tombol preset menjadi shortcut, sedangkan isi sebenarnya mengikuti pilihan di atas.
+                                  </div>
+                                </div>
+                              )}
+                            </section>
+
                             <div>
                               <label className="text-[13px]-bold-1">LABEL RINGKAS DI DAPUR</label>
                               <input
@@ -1526,7 +1812,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
                               />
                               <p className="mt-1 text-[11px] font-bold text-[var(--text-tertiary)]">
-                                Saat kasir memilih semua opsi grup ini, tiket dapur hanya menampilkan label tersebut.
+                                Jika pilihan sama persis dengan preset Campur (atau semua opsi bila preset belum diatur), tiket dapur menampilkan label ini.
                               </p>
                             </div>
 
@@ -2154,14 +2440,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Mode Pilihan</label>
-                <select
-                  value={newGroupMode}
-                  onChange={(e) => setNewGroupMode(e.target.value as 'ADD_ON' | 'PAKET')}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)]"
-                >
-                  <option value="ADD_ON">ADD_ON (Bisa pilih beberapa)</option>
-                  <option value="PAKET">PAKET (Pilih salah satu)</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupMode('PAKET')}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupMode === 'PAKET' ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
+                  >
+                    <span className="block text-[10px] font-black uppercase">SINGLE</span>
+                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupMode === 'PAKET' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Hanya 1 pilihan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupMode('ADD_ON')}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupMode === 'ADD_ON' ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
+                  >
+                    <span className="block text-[10px] font-black uppercase">MULTIPLE</span>
+                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupMode === 'ADD_ON' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Bisa lebih dari 1</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Kewajiban Pilihan</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupRequired(true)}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupRequired ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
+                  >
+                    <span className="block text-[10px] font-black uppercase">WAJIB PILIH</span>
+                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupRequired ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Harus ada pilihan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupRequired(false)}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition ${!newGroupRequired ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
+                  >
+                    <span className="block text-[10px] font-black uppercase">OPSIONAL</span>
+                    <span className="mt-0.5 block text-[9px] font-semibold text-[var(--text-tertiary)]">Boleh kosong</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -2446,14 +2764,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="space-y-2 mt-3">
                   <div className="bg-amber-50/60 border border-amber-200/80 p-3 rounded-2xl">
                     <span className="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">SINGLE</span>
-                    <strong className="text-xs font-bold text-slate-900">Pilih 1 (Wajib)</strong>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Pelanggan HARUS memilih satu opsi. Cocok untuk varian rasa, level pedas, atau jenis kuah.</p>
+                    <strong className="text-xs font-bold text-slate-900">Hanya boleh memilih 1</strong>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Mengatur jumlah pilihan, bukan kewajibannya. SINGLE dapat dibuat Wajib maupun Opsional.</p>
                   </div>
 
                   <div className="bg-[var(--brand-50)]/60 border border-[var(--brand-200)]/80 p-3 rounded-2xl">
                     <span className="bg-[var(--primary)] text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">MULTIPLE</span>
-                    <strong className="text-xs font-bold text-slate-900">Pilih Banyak (Opsional)</strong>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Pelanggan bisa memilih lebih dari satu atau tidak sama sekali. Cocok untuk topping atau isian.</p>
+                    <strong className="text-xs font-bold text-slate-900">Bisa memilih lebih dari 1</strong>
+                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">MULTIPLE juga dapat Wajib atau Opsional. Cocok untuk isian, topping, dan kombinasi beberapa opsi.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <strong className="text-[10px] font-black text-emerald-800">WAJIB PILIH</strong>
+                      <p className="mt-1 text-[10px] font-semibold text-emerald-700/75">Harus ada minimal satu pilihan sebelum order dapat dikirim.</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <strong className="text-[10px] font-black text-slate-700">OPSIONAL</strong>
+                      <p className="mt-1 text-[10px] font-semibold text-slate-500">Pelanggan boleh melewati grup tanpa memilih.</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2473,12 +2802,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <Info className="w-4 h-4 text-[var(--primary-hover)]" />
                   <span>Tips Konfigurasi Kuah</span>
                 </h4>
-                <p className="text-[11px] text-[var(--text-secondary)] font-bold">Untuk menu dengan varian kuah (misal: Bakso):</p>
+                <p className="text-[11px] text-[var(--text-secondary)] font-bold">Contoh konfigurasi yang disarankan:</p>
                 <ol className="text-xs text-[var(--text-primary)] space-y-1 list-decimal pl-5 font-medium">
-                  <li>Buat Grup tipe <strong>SINGLE</strong> (misal: "Pilihan Kuah").</li>
-                  <li>Isi opsi kuah (misal: Original, Mercon).</li>
-                  <li>Targetkan ke kategori menu yang sesuai.</li>
-                  <li>Sistem akan memaksa pelanggan memilih salah satu saat order.</li>
+                  <li><strong>Kuah Bakso:</strong> SINGLE + Wajib Pilih. Set default Self Order ke ORIGINAL.</li>
+                  <li><strong>Teh Manis Dingin / Panas:</strong> SINGLE + Wajib Pilih.</li>
+                  <li><strong>Air Mineral Dingin / Reguler:</strong> SINGLE + Wajib Pilih.</li>
+                  <li><strong>Isian Bakso Ujo:</strong> MULTIPLE + Wajib Pilih, lalu atur preset Bakso Saja dan Campur.</li>
+                  <li><strong>Topping tambahan:</strong> umumnya MULTIPLE + Opsional.</li>
                 </ol>
               </div>
             </div>

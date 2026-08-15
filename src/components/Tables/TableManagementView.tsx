@@ -130,7 +130,12 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
   };
 
   const toggleSelfOrder = async (table: RestaurantTable) => {
-    const enabled = !table.isSelfOrderEnabled;
+    const accessEnabled = table.isSelfOrderEnabled === true && table.status !== 'DISABLED';
+    const enabled = !accessEnabled;
+    if (!enabled && table.activeOrderId) {
+      setErrorMessage(`Meja ${table.number} masih memiliki bill aktif. Selesaikan order terlebih dahulu.`);
+      return;
+    }
     setBusyTable(table.id);
     setErrorMessage(null);
     try {
@@ -238,6 +243,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
             const status = legacyInactive ? 'DISABLED' : table.status;
             const ready = status === 'READY';
             const occupied = status === 'OCCUPIED';
+            const accessEnabled = table.isSelfOrderEnabled === true && status !== 'DISABLED';
             const busy = busyTable === table.id;
             const statusStyle = occupied
               ? 'border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]'
@@ -307,14 +313,15 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     <button
                       type="button"
                       onClick={() => void toggleSelfOrder(table)}
-                      disabled={busy}
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:opacity-50 ${table.isSelfOrderEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`}
+                      disabled={busy || Boolean(table.activeOrderId)}
+                      title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah akses self-order' : undefined}
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${accessEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`}
                     >
-                      {table.isSelfOrderEnabled ? 'ON' : 'OFF'}
+                      {accessEnabled ? 'ON' : 'OFF'}
                     </button>
                   </div>
 
-                  {occupied && (
+                  {occupied && !table.activeOrderId && (
                     <button
                       type="button"
                       onClick={() => onClearTableStatus(tableNumber)}

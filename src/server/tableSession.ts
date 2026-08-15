@@ -65,25 +65,30 @@ export async function handleTableSessionRequest(
   }
 
   // Aktifkan / nonaktifkan self-order untuk SEMUA meja cabang sekaligus.
+  // active_order_id is the bill lock; bulk actions never clear or reopen a table
+  // that still owns an active bill, even if its status field is temporarily stale.
   if (action === 'SET_ENABLED_ALL') {
     const enabled = payload.enabled === true;
     if (enabled) {
       const { error: enableError } = await admin.from('restaurant_tables')
         .update({ self_order_enabled: true })
-        .eq('branch_id', branchId);
+        .eq('branch_id', branchId)
+        .is('active_order_id', null);
       if (enableError) return { status: 500, data: { error: 'Status self-order semua meja gagal diaktifkan' } };
       const { error: readyError } = await admin.from('restaurant_tables')
         .update({ status: 'READY' })
         .eq('branch_id', branchId)
-        .neq('status', 'OCCUPIED');
+        .is('active_order_id', null);
       if (readyError) return { status: 500, data: { error: 'Status operasional meja belum siap. Jalankan migrasi meja terbaru.' } };
     } else {
-      // Jangan ganggu meja yang sedang terisi bill aktif.
       const { error: disableError } = await admin.from('restaurant_tables').update({
         self_order_enabled: false, status: 'DISABLED', active_order_id: null,
-      }).eq('branch_id', branchId).neq('status', 'OCCUPIED');
+      }).eq('branch_id', branchId).is('active_order_id', null);
       if (disableError) return { status: 500, data: { error: 'Struktur meja belum lengkap. Jalankan migrasi meja terbaru.' } };
     }
+    // Repair any row that owns a bill but carries a stale visual status.
+    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
+      .eq('branch_id', branchId).not('active_order_id', 'is', null);
     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Pengaturan self-order semua meja gagal disimpan' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
@@ -95,10 +100,12 @@ export async function handleTableSessionRequest(
     }
     await admin.from('restaurant_tables').update({
       status: 'READY', active_order_id: null,
-    }).eq('branch_id', branchId).eq('self_order_enabled', true).neq('status', 'OCCUPIED');
+    }).eq('branch_id', branchId).eq('self_order_enabled', true).is('active_order_id', null);
     await admin.from('restaurant_tables').update({
       status: 'DISABLED', active_order_id: null,
-    }).eq('branch_id', branchId).eq('self_order_enabled', false).neq('status', 'OCCUPIED');
+    }).eq('branch_id', branchId).eq('self_order_enabled', false).is('active_order_id', null);
+    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
+      .eq('branch_id', branchId).not('active_order_id', 'is', null);
     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Status meja gagal direkonsiliasi' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
@@ -107,15 +114,16 @@ export async function handleTableSessionRequest(
   const { data: table } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
   if (!table) return { status: 404, data: { error: `Meja ${tableNumber} tidak ditemukan` } };
 
-  // Aktivasi self-order = flag self_order_enabled. Mengaktifkan meja yang
-  // sebelumnya DISABLED juga mengangkat statusnya kembali ke READY.
+  // Aktivasi self-order = flag self_order_enabled. active_order_id, bukan
+  // warna/status UI semata, menjadi bukti bahwa meja masih memiliki bill aktif.
   if (action === 'SET_ENABLED') {
     const enabled = payload.enabled === true;
-    if (!enabled && table.status === 'OCCUPIED') {
-      return { status: 409, data: { error: 'Meja masih memiliki bill aktif dan tidak boleh dinonaktifkan' } };
+    const hasActiveBill = Boolean(table.active_order_id);
+    if (!enabled && hasActiveBill) {
+      return { status: 409, data: { error: 'Meja masih memiliki bill aktif. Selesaikan pembayaran/order terlebih dahulu.' } };
     }
     const changes = enabled
-      ? { self_order_enabled: true, ...(table.status !== 'OCCUPIED' ? { status: 'READY' } : {}) }
+      ? { self_order_enabled: true, status: hasActiveBill ? 'OCCUPIED' : 'READY' }
       : { self_order_enabled: false, status: 'DISABLED', active_order_id: null };
     const { data: updated, error } = await admin.from('restaurant_tables').update(changes).eq('id', table.id).select('*').single();
     if (error) return { status: 500, data: { error: 'Pengaturan meja gagal disimpan. Pastikan migrasi meja terbaru sudah dijalankan.' } };
@@ -130,9 +138,14 @@ export async function handleTableSessionRequest(
     if (table.active_order_id && requestedStatus !== 'OCCUPIED' && payload.force !== true) {
       return { status: 409, data: { error: 'Meja masih memiliki bill aktif dan tidak dapat dikosongkan' } };
     }
+    // READY is only meaningful for a table whose self-order access is ON.
+    // Otherwise a manual clear must remain DISABLED, not create READY + OFF drift.
+    const normalizedStatus = requestedStatus === 'READY' && table.self_order_enabled !== true
+      ? 'DISABLED'
+      : requestedStatus;
     const { data: updated, error } = await admin.from('restaurant_tables').update({
-      status: requestedStatus,
-      ...(requestedStatus === 'OCCUPIED' ? {} : { active_order_id: null }),
+      status: normalizedStatus,
+      ...(normalizedStatus === 'OCCUPIED' ? {} : { active_order_id: null }),
     }).eq('id', table.id).select('*').single();
     if (error) return { status: 500, data: { error: 'Status meja gagal disimpan' } };
     return { status: 200, data: { table: mapTable(updated) } };

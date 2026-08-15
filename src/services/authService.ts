@@ -51,6 +51,14 @@ export async function cloudPinLogin(branchId: string, pin: string, signal?: Abor
     return { success: false, error: 'Sesi tidak dapat dibuat' };
   }
 
+  // Private Realtime Broadcast memakai JWT pada socket. Sinkronkan token
+  // segera setelah PIN login agar outlet kedua/ketiga tidak menunggu reload
+  // browser sebelum channel privat mendapat otorisasi yang benar.
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData.session?.access_token) {
+    await supabase.realtime.setAuth(sessionData.session.access_token);
+  }
+
   return { success: true, user: data.user };
 }
 

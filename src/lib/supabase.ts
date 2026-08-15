@@ -1,7 +1,32 @@
-import {createClient, type SupabaseClient} from '@supabase/supabase-js';
+import {createClient, type Session, type SupabaseClient} from '@supabase/supabase-js';
 import {runtimeEnv} from './runtimeEnv';
 
 let singleton: SupabaseClient | null = null;
+let realtimeAuthBridgeInitialized = false;
+
+const applyRealtimeSession = async (client: SupabaseClient, session: Session | null) => {
+  try {
+    // Private Broadcast authorization is evaluated with the JWT attached to
+    // the Realtime socket. Keep it explicit so switching branches does not
+    // depend on an old/stale socket token.
+    await client.realtime.setAuth(session?.access_token ?? null);
+  } catch (error) {
+    console.warn('[Realtime] auth sync deferred', error);
+  }
+};
+
+const attachRealtimeAuthBridge = (client: SupabaseClient) => {
+  if (realtimeAuthBridgeInitialized) return;
+  realtimeAuthBridgeInitialized = true;
+
+  void client.auth.getSession()
+    .then(({data}) => applyRealtimeSession(client, data.session))
+    .catch(() => undefined);
+
+  client.auth.onAuthStateChange((_event, session) => {
+    void applyRealtimeSession(client, session);
+  });
+};
 
 export const getSupabase = (): SupabaseClient => {
   if (!runtimeEnv.supabaseUrl || !runtimeEnv.supabasePublishableKey) {
@@ -20,9 +45,6 @@ export const getSupabase = (): SupabaseClient => {
         detectSessionInUrl: false,
         storage: authStorage,
         storageKey: 'omnipos_supabase_auth_v2',
-        // Perpanjang durasi session dan refresh lebih awal untuk mencegah logout mendadak.
-        // Token default Supabase expire 1 jam; refresh 5 menit sebelum expire.
-        // Dengan setting ini, session efektif bisa bertahan beberapa jam selama tab aktif.
         flowType: 'pkce',
         debug: false,
       },
@@ -33,9 +55,18 @@ export const getSupabase = (): SupabaseClient => {
         headers: {'x-client-info': 'omnipos-web'},
       },
     });
+
+    attachRealtimeAuthBridge(singleton);
   }
 
   return singleton;
+};
+
+export const ensureRealtimeAuth = async (): Promise<void> => {
+  if (!singleton) getSupabase();
+  if (!singleton) return;
+  const {data} = await singleton.auth.getSession();
+  await applyRealtimeSession(singleton, data.session);
 };
 
 export const isSupabaseConfigured = (): boolean =>

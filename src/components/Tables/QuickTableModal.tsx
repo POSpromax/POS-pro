@@ -119,7 +119,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
   if (!isOpen) return null;
 
-  const activeOrders = orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
+  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED' && !(o.status === 'COMPLETED' && o.paymentStatus === 'PAID'));
 
   const freeTablesCount = tables.filter((t) => {
     const isOccupiedByOrder = activeOrders.some((o) => o.tableNumber === t.number);
@@ -434,10 +434,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                       {selfOrderOn ? (
                         <button
                           type="button"
-                          disabled={isBusy}
+                          disabled={isBusy || Boolean(table.activeOrderId)}
                           onClick={() => void runSession(table, 'SET_ENABLED', false)}
                           className="px-2.5 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
-                          title="Matikan self-order untuk meja ini"
+                          title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah self-order' : 'Matikan self-order untuk meja ini'}
                         >
                           {isBusy ? '…' : 'MATIKAN'}
                         </button>
@@ -459,7 +459,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                   <div className="grid grid-cols-2 gap-1.5 pt-1">
                     {isOccupied ? (
                       <>
-                        <button
+                        {!table.activeOrderId && <button
                           type="button"
                           onClick={() => onClearTableStatus(table.number)}
                           className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
@@ -467,7 +467,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                         >
                           <Unlock className="w-3 h-3" />
                           <span>KOSONGKAN</span>
-                        </button>
+                        </button>}
 
                         <button
                           type="button"

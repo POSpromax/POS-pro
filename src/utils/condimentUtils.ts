@@ -21,18 +21,35 @@ export const isGroupApplicable = (group: CondimentGroup, menuItem: MenuItem): bo
   return matchesId || matchesName || matchesCategory;
 };
 
-// Ganti daftar panjang dengan satu label ringkas (mis. "CAMPUR") saat seluruh opsi
-// yang tersedia dipilih, supaya tiket dapur tetap terbaca sekilas.
+const normalizeName = (value: string) => value.trim().toLocaleUpperCase('id-ID');
+
+// Ringkas daftar panjang dengan label seperti "CAMPUR".
+// Jika preset Campur dikonfigurasi khusus di Pengaturan, label hanya aktif
+// ketika pilihan customer sama persis dengan isi preset Campur tersebut.
 export const summarizeCondimentOptions = (
   selected: SelectedCondimentGroup,
   groups: CondimentGroup[]
 ): string => {
-  const group = groups.find((g) => g.name === selected.groupName);
+  const group = groups.find((g) => normalizeName(g.name) === normalizeName(selected.groupName));
   if (!group?.allSelectedLabel) return selected.options.join(', ');
 
-  const availableNames = group.options.filter((o) => o.isAvailable).map((o) => o.name);
-  if (availableNames.length < 2) return selected.options.join(', ');
+  const availableNames = new Set(
+    group.options.filter((o) => o.isAvailable).map((o) => normalizeName(o.name)),
+  );
+  const configuredCampur = (group.selfOrderCampurOptions || [])
+    .map(normalizeName)
+    .filter((name) => Boolean(name) && availableNames.has(name));
 
-  const allChosen = availableNames.every((name) => selected.options.includes(name));
-  return allChosen ? group.allSelectedLabel : selected.options.join(', ');
+  const summaryTarget = configuredCampur.length > 0
+    ? configuredCampur
+    : [...availableNames];
+
+  if (summaryTarget.length < 2) return selected.options.join(', ');
+
+  const chosen = selected.options.map(normalizeName).sort();
+  const target = [...summaryTarget].sort();
+  const isExactPreset = chosen.length === target.length
+    && target.every((name, index) => chosen[index] === name);
+
+  return isExactPreset ? group.allSelectedLabel : selected.options.join(', ');
 };

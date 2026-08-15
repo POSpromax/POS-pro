@@ -1,17 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import { X, Utensils, Check } from 'lucide-react';
-import { MenuItem, CondimentGroup, SelectedCondimentGroup } from '../../types/pos';
-import { isGroupApplicable } from '../../utils/condimentUtils';
-import { optimizeCloudinaryImage } from '../../utils/imageUrl';
+import React, {useEffect, useMemo, useState} from 'react';
+import {Check, Sparkles, Utensils, X} from 'lucide-react';
+import {CondimentGroup, MenuItem, SelectedCondimentGroup} from '../../types/pos';
+import {isGroupApplicable} from '../../utils/condimentUtils';
+import {optimizeCloudinaryImage} from '../../utils/imageUrl';
 
 const EMPTY_SELECTED_CONDIMENTS: SelectedCondimentGroup[] = [];
+
+const normalizeChoice = (value: string) =>
+  value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+type SelfOrderRole = 'NONE' | 'BROTH' | 'FILLING';
+
+const resolveSelfOrderRole = (group: CondimentGroup): SelfOrderRole => {
+  if (
+    group.selfOrderRole === 'NONE' ||
+    group.selfOrderRole === 'BROTH' ||
+    group.selfOrderRole === 'FILLING'
+  ) {
+    return group.selfOrderRole;
+  }
+
+  // Compatibility for older branches that were created before selfOrderRole
+  // was persisted in branch_operational_config.
+  const normalized = normalizeChoice(group.name);
+  if (normalized.includes('KUAH')) return 'BROTH';
+  if (normalized.includes('ISIAN')) return 'FILLING';
+  return 'NONE';
+};
+
+const isLegacyPresetOption = (name: string) => {
+  const normalized = normalizeChoice(name);
+  return normalized === 'BAKSOAJA' || normalized === 'BAKSOSAJA';
+};
+
+const configuredNames = (group: CondimentGroup, names?: string[]) => {
+  const wanted = new Set((names || []).map(normalizeChoice));
+  if (!wanted.size) return [];
+
+  return group.options
+    .filter(
+      (option) =>
+        option.isAvailable !== false &&
+        wanted.has(normalizeChoice(option.name)),
+    )
+    .map((option) => option.name);
+};
+
+const defaultBrothOptions = (group: CondimentGroup) => {
+  const configured = configuredNames(group, group.selfOrderDefaultOptions);
+  if (configured.length) return configured.slice(0, 1);
+
+  const original = group.options.find(
+    (option) =>
+      option.isAvailable !== false &&
+      normalizeChoice(option.name) === 'ORIGINAL',
+  );
+
+  return original ? [original.name] : [];
+};
+
+const defaultBaksoOnlyOptions = (group: CondimentGroup) => {
+  const configured = configuredNames(group, group.selfOrderBaksoOnlyOptions);
+  if (configured.length) return configured;
+
+  return group.options
+    .filter((option) => {
+      if (option.isAvailable === false || isLegacyPresetOption(option.name)) return false;
+      const name = normalizeChoice(option.name);
+      return name === 'BAWANG' || name === 'SLEDRI' || name === 'SELEDRI';
+    })
+    .map((option) => option.name);
+};
+
+const defaultCampurOptions = (group: CondimentGroup) => {
+  const configured = configuredNames(group, group.selfOrderCampurOptions);
+  if (configured.length) return configured;
+
+  return group.options
+    .filter((option) => {
+      if (option.isAvailable === false || isLegacyPresetOption(option.name)) return false;
+      return normalizeChoice(option.name) !== 'KWETIAW';
+    })
+    .map((option) => option.name);
+};
+
+const isGroupRequired = (
+  group: CondimentGroup,
+  isSelfOrder: boolean,
+): boolean => {
+  const configuredRequired =
+    group.required === true ||
+    group.isRequired === true ||
+    Number(group.minSelect || 0) > 0;
+
+  // Broth is a hard safety rule in QR self-order: a Bakso order must always
+  // carry one broth choice. FILLING and all other groups follow Settings.
+  return configuredRequired || (isSelfOrder && resolveSelfOrderRole(group) === 'BROTH');
+};
+
+const isSingleGroup = (group: CondimentGroup): boolean =>
+  group.mode === 'PAKET' || Number(group.maxSelect || 0) === 1;
+
+const visibleOptions = (group: CondimentGroup, isSelfOrder: boolean) =>
+  group.options.filter(
+    (option) =>
+      option.isAvailable !== false &&
+      !(isSelfOrder && isLegacyPresetOption(option.name)),
+  );
+
+const limitPreset = (group: CondimentGroup, names: string[]) => {
+  if (isSingleGroup(group)) return names.slice(0, 1);
+  const max = Number(group.maxSelect || 0);
+  return max > 0 ? names.slice(0, max) : names;
+};
+
+const sameSelection = (a: string[], b: string[]) => {
+  const left = a.map(normalizeChoice).sort();
+  const right = b.map(normalizeChoice).sort();
+  return (
+    left.length > 0 &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+};
 
 interface CondimentSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   menuItem: MenuItem | null;
   condimentGroups: CondimentGroup[];
-  onConfirm: (menuItem: MenuItem, selectedCondiments: SelectedCondimentGroup[], notes: string, extraPrice: number) => void;
+  onConfirm: (
+    menuItem: MenuItem,
+    selectedCondiments: SelectedCondimentGroup[],
+    notes: string,
+    extraPrice: number,
+  ) => void;
   onShowToast?: (title: string, message: string) => void;
   initialSelectedCondiments?: SelectedCondimentGroup[];
   initialNotes?: string;
@@ -29,266 +152,298 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   initialNotes = '',
   visualMode = 'DEFAULT',
 }) => {
-  // Filter active condiment groups for this menuItem
-  const applicableGroups = menuItem
-    ? condimentGroups.filter((g) => g.isActive !== false && isGroupApplicable(g, menuItem))
-    : [];
-
-  // State for selections: { [groupId]: string[] (selected option names) }
-  const [selections, setSelections] = useState<Record<string, string[]>>({});
-  const [notes, setNotes] = useState<string>('');
-
-  // Pre-select defaults (e.g., required groups select first available option)
-  useEffect(() => {
-    const initialSel: Record<string, string[]> = {};
-    applicableGroups.forEach((group) => {
-      const availableOptions = group.options.filter((o) => o.isAvailable);
-      const existing = initialSelectedCondiments.find((selection) => selection.groupName === group.name);
-      if (existing) {
-        initialSel[group.id] = existing.options;
-      } else if (group.required && availableOptions.length > 0) {
-        initialSel[group.id] = [availableOptions[0].name];
-      } else {
-        initialSel[group.id] = [];
-      }
-    });
-    setSelections(initialSel);
-    setNotes(initialNotes);
-  }, [menuItem, initialNotes, initialSelectedCondiments]);
-
-  // Semua hook harus tetap dipanggil pada setiap render. Conditional return
-  // ditempatkan setelah hook agar membuka/menutup modal tidak mengubah urutan
-  // hook React dan memicu "Expected static flag was missing".
-  if (!isOpen || !menuItem) return null;
-
-  const toggleOption = (group: CondimentGroup, optionName: string) => {
-    setSelections((prev) => {
-      const current = prev[group.id] || [];
-      if (group.maxSelect === 1) {
-        // Radio behavior (single choice)
-        return { ...prev, [group.id]: [optionName] };
-      }
-      // Checkbox / multi-select behavior
-      if (current.includes(optionName)) {
-        return { ...prev, [group.id]: current.filter((n) => n !== optionName) };
-      } else {
-        if (group.maxSelect && current.length >= group.maxSelect) {
-          return prev; // Reached max
-        }
-        return { ...prev, [group.id]: [...current, optionName] };
-      }
-    });
-  };
-
-  const handleSelectAllGroup = (group: CondimentGroup) => {
-    const availableOptionNames = group.options.filter((o) => o.isAvailable).map((o) => o.name);
-    setSelections((prev) => ({
-      ...prev,
-      [group.id]: availableOptionNames
-    }));
-  };
-
-  const handleResetGroup = (group: CondimentGroup) => {
-    setSelections((prev) => ({
-      ...prev,
-      [group.id]: group.required && group.options.length > 0 ? [group.options[0].name] : []
-    }));
-  };
-
-  // Calculate extra cost from selected options
-  let extraPriceTotal = 0;
-  applicableGroups.forEach((group) => {
-    const selectedNames = selections[group.id] || [];
-    group.options.forEach((opt) => {
-      if (selectedNames.includes(opt.name) && opt.price > 0) {
-        extraPriceTotal += opt.price;
-      }
-    });
-  });
-
-  const finalUnitPrice = menuItem.price + extraPriceTotal;
   const isSelfOrder = visualMode === 'SELF_ORDER';
 
+  const applicableGroups = useMemo(
+    () =>
+      menuItem
+        ? condimentGroups.filter(
+            (group) =>
+              group.isActive !== false && isGroupApplicable(group, menuItem),
+          )
+        : [],
+    [condimentGroups, menuItem],
+  );
+
+  const brothGroup = useMemo(
+    () =>
+      isSelfOrder
+        ? applicableGroups.find((group) => resolveSelfOrderRole(group) === 'BROTH')
+        : undefined,
+    [applicableGroups, isSelfOrder],
+  );
+
+  const fillingGroup = useMemo(
+    () =>
+      isSelfOrder
+        ? applicableGroups.find((group) => resolveSelfOrderRole(group) === 'FILLING')
+        : undefined,
+    [applicableGroups, isSelfOrder],
+  );
+
+  const standardGroups = useMemo(
+    () =>
+      applicableGroups.filter(
+        (group) => group.id !== brothGroup?.id && group.id !== fillingGroup?.id,
+      ),
+    [applicableGroups, brothGroup?.id, fillingGroup?.id],
+  );
+
+  const [selections, setSelections] = useState<Record<string, string[]>>({});
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    const initial: Record<string, string[]> = {};
+
+    applicableGroups.forEach((group) => {
+      const available = visibleOptions(group, isSelfOrder);
+      const valid = new Set(available.map((option) => normalizeChoice(option.name)));
+      const existing = initialSelectedCondiments.find(
+        (selection) =>
+          normalizeChoice(selection.groupName) === normalizeChoice(group.name),
+      );
+
+      if (existing) {
+        initial[group.id] = existing.options.filter((name) =>
+          valid.has(normalizeChoice(name)),
+        );
+        return;
+      }
+
+      if (isSelfOrder && resolveSelfOrderRole(group) === 'BROTH') {
+        initial[group.id] = defaultBrothOptions(group);
+        return;
+      }
+
+      if (isSelfOrder) {
+        // Generic required groups (e.g. Teh Manis Dingin/Panas) intentionally
+        // start empty so the customer makes a conscious choice. Only broth has
+        // a configured self-order default.
+        initial[group.id] = [];
+        return;
+      }
+
+      initial[group.id] =
+        isGroupRequired(group, false) && isSingleGroup(group) && available[0]
+          ? [available[0].name]
+          : [];
+    });
+
+    setSelections(initial);
+    setNotes(initialNotes);
+  }, [applicableGroups, initialNotes, initialSelectedCondiments, isSelfOrder]);
+
+  if (!isOpen || !menuItem) return null;
+
+  const baksoOnlyPreset = fillingGroup
+    ? limitPreset(fillingGroup, defaultBaksoOnlyOptions(fillingGroup))
+    : [];
+  const campurPreset = fillingGroup
+    ? limitPreset(fillingGroup, defaultCampurOptions(fillingGroup))
+    : [];
+
+  const toggleOption = (group: CondimentGroup, optionName: string) => {
+    setSelections((current) => {
+      const selected = current[group.id] || [];
+
+      if (isSingleGroup(group)) {
+        return {...current, [group.id]: [optionName]};
+      }
+
+      if (selected.includes(optionName)) {
+        return {
+          ...current,
+          [group.id]: selected.filter((name) => name !== optionName),
+        };
+      }
+
+      const max = Number(group.maxSelect || 0);
+      if (max > 0 && selected.length >= max) {
+        onShowToast?.(
+          'Pilihan Maksimal',
+          `Maksimal ${max} pilihan untuk ${group.name}.`,
+        );
+        return current;
+      }
+
+      return {...current, [group.id]: [...selected, optionName]};
+    });
+  };
+
+  const applyInstantPreset = (preset: 'BAKSO_ONLY' | 'CAMPUR') => {
+    if (!fillingGroup) return;
+
+    const names = preset === 'BAKSO_ONLY' ? baksoOnlyPreset : campurPreset;
+    if (!names.length) {
+      onShowToast?.(
+        'Preset Belum Dikonfigurasi',
+        `Atur preset ${preset === 'BAKSO_ONLY' ? 'Bakso Saja' : 'Campur'} di Pengaturan → Daftar Isian / Topping.`,
+      );
+      return;
+    }
+
+    setSelections((current) => ({...current, [fillingGroup.id]: names}));
+  };
+
+  const extraPriceTotal = applicableGroups.reduce((groupTotal, group) => {
+    const selected = selections[group.id] || [];
+    return (
+      groupTotal +
+      group.options.reduce(
+        (optionTotal, option) =>
+          optionTotal +
+          (selected.includes(option.name) ? Number(option.price || 0) : 0),
+        0,
+      )
+    );
+  }, 0);
+
+  const finalUnitPrice = menuItem.price + extraPriceTotal;
+
   const handleSave = () => {
-    // Validate required groups
     for (const group of applicableGroups) {
-      if (group.required && (!selections[group.id] || selections[group.id].length === 0)) {
-        if (onShowToast) onShowToast('Pilihan Wajib', `Silakan pilih opsi untuk ${group.name}`);
+      const selected = selections[group.id] || [];
+      const required = isGroupRequired(group, isSelfOrder);
+      const min = required ? Math.max(1, Number(group.minSelect || 1)) : 0;
+      const max = isSingleGroup(group) ? 1 : Number(group.maxSelect || 0);
+
+      if (selected.length < min) {
+        const role = isSelfOrder ? resolveSelfOrderRole(group) : 'NONE';
+        onShowToast?.(
+          'Pilihan Belum Lengkap',
+          role === 'FILLING'
+            ? 'Pilih Bakso Saja, Campur, atau tentukan isian secara manual.'
+            : `${group.name} wajib dipilih sebelum menambahkan pesanan.`,
+        );
+        return;
+      }
+
+      if (max > 0 && selected.length > max) {
+        onShowToast?.(
+          'Pilihan Terlalu Banyak',
+          `${group.name} maksimal ${max} pilihan.`,
+        );
         return;
       }
     }
 
-    // Format selectedCondiments
     const formatted: SelectedCondimentGroup[] = applicableGroups
-      .map((g) => ({
-        groupName: g.name,
-        options: selections[g.id] || []
+      .map((group) => ({
+        groupName: group.name,
+        options: selections[group.id] || [],
       }))
-      .filter((g) => g.options.length > 0);
+      .filter((group) => group.options.length > 0);
 
-    onConfirm(menuItem, formatted, notes, extraPriceTotal);
+    onConfirm(menuItem, formatted, notes.trim(), extraPriceTotal);
     onClose();
   };
 
+  const renderGroup = (group: CondimentGroup) => {
+    const selected = selections[group.id] || [];
+    const required = isGroupRequired(group, isSelfOrder);
+    const single = isSingleGroup(group);
+    const options = visibleOptions(group, isSelfOrder);
+    const role = isSelfOrder ? resolveSelfOrderRole(group) : 'NONE';
+
+    return (
+      <section key={group.id} className="so-card p-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-[11px] font-black uppercase tracking-[.12em] text-[var(--so-text)]">{group.name}</h3>
+            <p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">
+              {single ? 'Pilih satu opsi.' : `Bisa pilih lebih dari satu${group.maxSelect ? ` · maksimal ${group.maxSelect}` : ''}.`}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1.5">
+            <span className="rounded-full bg-[var(--so-surface-soft)] px-2 py-1 text-[7px] font-black uppercase tracking-wider text-[var(--so-text-soft)]">{single ? 'Single' : 'Multiple'}</span>
+            <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-wider ${required ? 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]' : 'bg-[var(--so-surface-soft)] text-[var(--so-text-muted)]'}`}>{required ? 'Wajib' : 'Opsional'}</span>
+          </div>
+        </div>
+
+        {role === 'BROTH' && selected.length > 0 && (
+          <div className="mb-3 flex items-center justify-between rounded-xl bg-[var(--so-surface-soft)] px-3 py-2 text-[8px] font-bold text-[var(--so-text-soft)]">
+            <span>Default customer</span>
+            <span className="rounded-full bg-white px-2 py-1 font-black text-[var(--so-brand)]">{selected.join(', ')}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {options.map((option) => {
+            const active = selected.includes(option.name);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => toggleOption(group, option.name)}
+                className={`flex min-h-[50px] items-center gap-2.5 rounded-[1rem] border px-3 py-2.5 text-left transition duration-150 active:scale-[.985] ${active ? 'border-[var(--so-brand-weak)] bg-[var(--so-brand-soft)] text-[var(--so-text)]' : 'border-[var(--so-border)] bg-white text-[var(--so-text-soft)] hover:border-[var(--so-brand-weak)]'}`}
+              >
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition ${single ? 'rounded-full' : 'rounded-md'} ${active ? 'border-[var(--so-brand)] bg-[var(--so-brand)] text-white' : 'border-[#d7d1cb] bg-white'}`}>
+                  {active && (single ? <span className="h-2 w-2 rounded-full bg-white" /> : <Check className="h-3 w-3 stroke-[3]" />)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[10px] font-black uppercase leading-tight">{option.name}</span>
+                  {Number(option.price || 0) > 0 && <span className="mt-1 block text-[8px] font-black text-[var(--so-brand)]">+Rp {Number(option.price).toLocaleString('id-ID')}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
   return (
-    <div className={`fixed inset-0 flex items-end justify-center p-0 backdrop-blur-sm sm:items-center sm:p-4 z-50 animate-fadeIn ${isSelfOrder ? 'bg-slate-950/60' : 'bg-slate-600/30'}`}>
-      <div className={`bg-[var(--surface-card)] w-full max-w-md overflow-hidden shadow-xl border border-[var(--panel-border)] flex flex-col max-h-[92dvh] font-sans text-[var(--text-primary)] ${isSelfOrder ? 'rounded-t-[2rem] sm:rounded-[2rem]' : 'rounded-2xl'}`}>
-        
-        {/* Top Banner Image with Dark Gradient Overlay matching Screenshots 3 & 4 */}
-        <div className="relative h-48 sm:h-52 w-full bg-[var(--surface-secondary)] overflow-hidden shrink-0">
-          {menuItem.image ? (
-            <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-[var(--primary-solid)] via-[var(--primary)] to-[var(--primary-light)] flex items-center justify-center text-white">
-              <Utensils className="w-16 h-16 opacity-40" />
-            </div>
+    <div className="theme-self-order fixed inset-0 z-50 flex items-end justify-center bg-[#1b120e]/55 backdrop-blur-[3px] sm:items-center sm:p-4 animate-fadeIn">
+      <section className="flex max-h-[96dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[2rem] border border-[var(--so-border)] bg-[var(--so-canvas)] shadow-[0_-18px_70px_rgba(34,24,18,.22)] sm:rounded-[2rem] animate-slideUp">
+        <header className="shrink-0 border-b border-[var(--so-border)] bg-white">
+          <div className="relative h-[182px] overflow-hidden bg-[var(--so-surface-soft)] sm:h-[205px]">
+            {menuItem.image ? (
+              <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="h-full w-full object-contain p-3" />
+            ) : (
+              <div className="flex h-full items-center justify-center"><Utensils className="h-12 w-12 text-[var(--so-text-faint)]" /></div>
+            )}
+            <button type="button" onClick={onClose} aria-label="Tutup detail menu" className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--so-border)] bg-white/95 text-[var(--so-text)] shadow-sm transition active:scale-95"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="flex items-start justify-between gap-4 px-4 pb-4 pt-3.5">
+            <div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[.17em] text-[var(--so-brand)]">Atur Pesanan</p><h2 className="mt-1 line-clamp-2 text-[17px] font-black leading-tight tracking-[-.02em] text-[var(--so-text)]">{menuItem.name}</h2></div>
+            <span className="shrink-0 rounded-full bg-[var(--so-brand-soft)] px-3 py-1.5 text-[9px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</span>
+          </div>
+        </header>
+
+        <div className="flex-1 space-y-3 overflow-y-auto px-3.5 pb-4 pt-3 scrollbar-thin sm:px-4">
+          {brothGroup && renderGroup(brothGroup)}
+
+          {fillingGroup && (
+            <section className="so-card p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Sparkles className="h-4 w-4" /></span>
+                <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.13em] text-[var(--so-text)]">Racikan Cepat</p><p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Shortcut isian. Setelah memilih, kamu tetap bisa mengubah pilihan manual di bawah.</p></div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2.5">
+                {([
+                  {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset) : false},
+                  {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], campurPreset) : false},
+                ]).map((preset) => (
+                  <button key={preset.key} type="button" onClick={() => applyInstantPreset(preset.key)} className={`min-h-[72px] rounded-[1.1rem] border p-3 text-left transition active:scale-[.985] ${preset.active ? 'border-[var(--so-brand)] bg-[var(--so-brand)] text-white shadow-[0_10px_24px_rgba(237,95,30,.16)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
+                    <span className="flex items-center justify-between gap-2"><span className="text-[11px] font-black">{preset.title}</span><span className={`flex h-5 w-5 items-center justify-center rounded-full ${preset.active ? 'bg-white text-[var(--so-brand)]' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{preset.active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span></span>
+                    <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-white/72' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           )}
 
-          {/* Dark Overlay Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+          {fillingGroup && renderGroup(fillingGroup)}
+          {standardGroups.map(renderGroup)}
 
-          {/* Close Button Top Left */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 left-4 w-9 h-9 bg-[var(--surface-card)] text-[var(--text-primary)] rounded-full flex items-center justify-center shadow-md font-bold hover:bg-[var(--surface-secondary)] transition-all cursor-pointer z-10"
-          >
-            <X className="w-5 h-5 stroke-[2.5]" />
-          </button>
+          {applicableGroups.length === 0 && <div className="so-card px-4 py-8 text-center"><Utensils className="mx-auto h-6 w-6 text-[var(--so-text-faint)]" /><p className="mt-2 text-[10px] font-black text-[var(--so-text-soft)]">Menu ini tidak memiliki pilihan tambahan.</p></div>}
 
-          {/* Item Name & Price Pill Badge on Banner Bottom */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-            <h2 className="text-lg sm:text-xl font-extrabold text-white leading-tight drop-shadow-md min-w-0 flex-1">
-              {menuItem.name}
-            </h2>
-            <div className={`${isSelfOrder ? 'bg-orange-500' : 'bg-[var(--primary)]'} text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-md shrink-0 font-mono`}>
-              Rp {finalUnitPrice.toLocaleString('id-ID')}
-            </div>
-          </div>
+          <label className="so-card block p-4"><span className="text-[8px] font-black uppercase tracking-[.13em] text-[var(--so-text-muted)]">Catatan item · opsional</span><textarea value={notes} onChange={(event) => setNotes(event.target.value.slice(0, 240))} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea mt-2 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold text-[var(--so-text-soft)] outline-none transition placeholder:text-[var(--so-text-faint)] focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>
         </div>
 
-        {/* Condiments / Options Body */}
-        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 bg-[var(--surface-secondary)]">
-          {applicableGroups.length === 0 ? (
-            <div className="py-8 text-center text-[var(--text-tertiary)] font-bold text-xs">
-              Tidak ada opsi tambahan untuk menu ini.
-            </div>
-          ) : (
-            applicableGroups.map((group) => {
-              const selectedList = selections[group.id] || [];
-              const isRequired = group.required;
-
-              return (
-                <div key={group.id} className="bg-[var(--surface-card)] p-4 rounded-2xl border border-[var(--panel-border)] shadow-sm space-y-3">
-                  {/* Group Header matching Screenshots 3 & 4 */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${isSelfOrder ? (isRequired ? 'bg-orange-500' : 'bg-amber-400') : (isRequired ? 'bg-[var(--primary-solid)]' : 'bg-[var(--accent-green)]')}`} />
-                      <h3 className="font-extrabold text-xs text-[var(--text-primary)] uppercase tracking-wider">
-                        {group.name}
-                      </h3>
-                      {isRequired && (
-                        <span className="text-[11px] font-bold text-[var(--accent-red)] bg-[var(--danger-soft)] border border-rose-200 px-2 py-0.5 rounded-lg">
-                          *WAJIB
-                        </span>
-                      )}
-                    </div>
-
-                    {group.maxSelect > 1 && (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectAllGroup(group)}
-                          className="text-[11px] font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-secondary)] hover:bg-[var(--panel-border-light)] px-2.5 py-1 rounded-full cursor-pointer transition-colors"
-                        >
-                          Pilih Semua
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleResetGroup(group)}
-                          className="text-[11px] font-extrabold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-secondary)] hover:bg-[var(--panel-border-light)] px-2.5 py-1 rounded-full cursor-pointer transition-colors"
-                        >
-                          Bersihkan
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Opsi memakai CHECKBOX (multi-pilih; grup maxSelect=1 tetap
-                      berperilaku pilih-satu lewat toggleOption). */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {group.options.map((option) => {
-                      const isSelected = selectedList.includes(option.name);
-                      const isAvailable = option.isAvailable !== false;
-
-                      return (
-                        <label
-                          key={option.id}
-                          className={`p-3 rounded-2xl text-left border text-xs font-bold transition-all flex items-center gap-2.5 select-none ${
-                            !isAvailable
-                              ? 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
-                              : isSelected
-                              ? (isSelfOrder ? 'bg-orange-50 border-orange-500 text-orange-800 shadow-sm ring-1 ring-orange-200 cursor-pointer' : 'bg-[#ECFDF5] border-[#059669] text-[#047857] shadow-sm ring-1 ring-[#047857]/30 cursor-pointer')
-                              : (isSelfOrder ? 'bg-white border-slate-200 hover:border-orange-400 text-slate-800 cursor-pointer' : 'bg-white border-slate-200 hover:border-[#059669] text-slate-800 cursor-pointer')
-                          }`}
-                        >
-                          {/* Kotak checkbox */}
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={isSelected}
-                            disabled={!isAvailable}
-                            onChange={() => isAvailable && toggleOption(group, option.name)}
-                          />
-                          <span
-                            aria-hidden="true"
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                              isSelected ? (isSelfOrder ? 'bg-orange-500 border-orange-500 text-white' : 'bg-[#047857] border-[#047857] text-white') : 'bg-white border-slate-300'
-                            }`}
-                          >
-                            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                          </span>
-
-                          <span className="truncate min-w-0 flex-1">
-                            <span className="block font-black text-[#111827] uppercase tracking-wide text-xs">{option.name}</span>
-                            {option.price > 0 && (
-                              <span className={`block text-[11px] font-extrabold mt-0.5 font-mono ${isSelfOrder ? 'text-orange-600' : 'text-[#047857]'}`}>
-                                +Rp {option.price.toLocaleString('id-ID')}
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {/* Catatan (opsional)... Input Box matching Screenshots 3 & 4 */}
-          <div className="bg-[var(--surface-card)] p-3.5 rounded-2xl border border-[var(--panel-border)]">
-            <input
-              type="text"
-              placeholder="Catatan (opsional)..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="ui-input w-full px-3.5 py-3 text-xs font-bold"
-            />
-          </div>
-        </div>
-
-        {/* Footer Action Button + Tambahkan Pesanan matching Screenshots 3 & 4 */}
-        <div className="p-4 bg-[var(--surface-card)] border-t border-[var(--panel-border)] shrink-0">
-          <button
-            type="button"
-            onClick={handleSave}
-            className={`w-full rounded-2xl py-4 text-sm font-extrabold flex items-center justify-center gap-2 text-white transition ${isSelfOrder ? 'bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-200' : 'ui-button ui-button-primary'}`}
-          >
-            <span>+ Tambahkan Pesanan</span>
-          </button>
-        </div>
-      </div>
+        <footer className="shrink-0 border-t border-[var(--so-border)] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><button type="button" onClick={handleSave} className="so-primary-button">Tambahkan · Rp {finalUnitPrice.toLocaleString('id-ID')}</button></footer>
+      </section>
     </div>
   );
 };

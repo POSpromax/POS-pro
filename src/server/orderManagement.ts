@@ -166,7 +166,7 @@ export async function handleOrderRequest(
       const isClosed = updated.status === 'CANCELLED'
         || (updated.status === 'COMPLETED' && updated.payment_status === 'PAID');
       await admin.from('restaurant_tables').update(isClosed
-        ? { status: 'DISABLED', active_order_id: null }
+        ? { status: 'DISABLED', self_order_enabled: false, active_order_id: null }
         : { status: 'OCCUPIED', active_order_id: payload.orderId })
         .eq('id', updated.table_id)
         .eq('branch_id', branchId)
@@ -187,6 +187,23 @@ export async function handleOrderRequest(
   const { data: branch } = await admin.from('branches').select('tenant_id,is_active').eq('id', branchId).maybeSingle();
   if (!branch?.is_active || (actor && actor.tenantId !== branch.tenant_id)) return fail(403, 'Outlet tidak aktif');
 
+  // Resolve idempotency BEFORE checking current table availability. A successful
+  // self-order can already have changed the table to OCCUPIED while the HTTP
+  // response was lost. Retrying the same client UUID must return the original
+  // order instead of being rejected as a second order.
+  let existingOrderId = '';
+  if (UUID_PATTERN.test(String(input.id || ''))) {
+    const [{ data: byId }, { data: byRequest }] = await Promise.all([
+      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
+      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', input.id).maybeSingle(),
+    ]);
+    existingOrderId = byId?.id || byRequest?.id || '';
+  }
+  if (source === 'SELF_ORDER' && existingOrderId) {
+    const orders = await readOrders(branchId, admin, existingOrderId);
+    return { status: 200, data: orders[0] };
+  }
+
   let table: any = null;
   if (input.tableNumber) {
     const { data } = await admin.from('restaurant_tables')
@@ -197,13 +214,8 @@ export async function handleOrderRequest(
     table = data;
   }
   if (source === 'SELF_ORDER') {
-    const { data: branchConfig } = await admin.from('branch_operational_config')
-      .select('self_order_enabled')
-      .eq('branch_id', branchId)
-      .maybeSingle();
-    if (branchConfig?.self_order_enabled === false) {
-      return fail(403, 'Self-order outlet ini sedang dinonaktifkan. Silakan hubungi kasir.');
-    }
+    // Per-table self_order_enabled + READY is the only self-order gate.
+    // The legacy branch-wide flag is intentionally ignored.
     if (!table || table.self_order_enabled !== true || table.status !== 'READY') {
       return fail(409, table?.status === 'OCCUPIED'
         ? `Meja ${input.tableNumber || ''} sedang digunakan. Minta nomor meja lain kepada kasir.`
@@ -235,7 +247,7 @@ export async function handleOrderRequest(
   const menuIds = [...new Set(input.items.map((item: any) => String(item.menuId || '')).filter((id: string) => UUID_PATTERN.test(id)))];
   const [{ data: menus }, { data: groups }, { data: config }, { data: branchOrderConfig }] = await Promise.all([
     menuIds.length ? admin.from('menu_items').select('id,name,category,price,is_available,stock_count').eq('branch_id', branchId).in('id', menuIds) : Promise.resolve({ data: [] }),
-    admin.from('condiment_groups').select('id,name,required,min_select,max_select,target_categories').eq('branch_id', branchId).eq('is_active', true),
+    admin.from('condiment_groups').select('id,name,mode,required,min_select,max_select,target_categories').eq('branch_id', branchId).eq('is_active', true),
     admin.from('tenant_config').select('kds_config').eq('tenant_id', branch.tenant_id).maybeSingle(),
     admin.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
   ]);
@@ -261,7 +273,11 @@ export async function handleOrderRequest(
   const requiredRawStock = new Map<string, number>();
   const groupMap = new Map((groups || []).map((group) => [String(group.name).trim().toLocaleLowerCase('id-ID'), group]));
   const optionPrice = new Map((options || []).map((option) => [`${option.group_id}:${String(option.name).trim().toLocaleLowerCase('id-ID')}`, Number(option.price || 0)]));
-  const scopes = (branchOrderConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {}) as Record<string, { targetProductIds?: string[]; targetProductNames?: string[] }>;
+  const scopes = (branchOrderConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {}) as Record<string, {
+    targetProductIds?: string[];
+    targetProductNames?: string[];
+    selfOrderRole?: 'NONE' | 'BROTH' | 'FILLING';
+  }>;
 
   const normalizedItems: any[] = [];
   for (const item of input.items) {
@@ -301,9 +317,15 @@ export async function handleOrderRequest(
         (group.target_categories || []).includes(menu.category)
       );
       if (!applicable) return fail(400, `${group.name} tidak berlaku untuk menu ini`);
-      const names = Array.isArray(selection.options) ? selection.options : [];
-      if (names.length > Number(group.max_select || 1)) return fail(400, `Pilihan ${group.name} melebihi batas`);
-      selectedGroupIds.add(group.id);
+      const names = Array.isArray(selection.options)
+        ? selection.options.map((name: unknown) => String(name || '').trim()).filter(Boolean)
+        : [];
+      const required = Boolean(group.required) || Number(group.min_select || 0) > 0;
+      const effectiveMin = required ? Math.max(1, Number(group.min_select || 1)) : 0;
+      const effectiveMax = group.mode === 'PAKET' ? 1 : Math.max(1, Number(group.max_select || 1));
+      if (names.length > effectiveMax) return fail(400, `Pilihan ${group.name} melebihi batas`);
+      if (names.length < effectiveMin) return fail(400, `${group.name} belum memenuhi jumlah pilihan minimum`);
+      if (names.length > 0) selectedGroupIds.add(group.id);
       for (const name of names) {
         const key = `${group.id}:${String(name).trim().toLocaleLowerCase('id-ID')}`;
         if (!optionPrice.has(key)) return fail(400, `Pilihan ${name} tidak tersedia`);
@@ -318,7 +340,22 @@ export async function handleOrderRequest(
       const applicable = targetIds.includes(menu.id) ||
         targetNames.some((name) => normalizedMenuName.includes(String(name).toLocaleLowerCase('id-ID'))) ||
         categoryTargets.includes('ALL') || categoryTargets.includes(menu.category);
-      if (condimentsEnabled && applicable && group.required && !selectedGroupIds.has(group.id)) return fail(400, `${group.name} wajib dipilih`);
+      const configuredSelfOrderRole = scopes[group.id]?.selfOrderRole;
+      const normalizedGroupName = String(group.name || '').trim().toLocaleUpperCase('id-ID');
+      const selfOrderRole = configuredSelfOrderRole === 'NONE' || configuredSelfOrderRole === 'BROTH' || configuredSelfOrderRole === 'FILLING'
+        ? configuredSelfOrderRole
+        : normalizedGroupName.includes('KUAH')
+          ? 'BROTH'
+          : normalizedGroupName.includes('ISIAN')
+            ? 'FILLING'
+            : 'NONE';
+      // BROTH is the only self-order safety role that is always required.
+      // FILLING and every generic group follow Settings (required/min_select),
+      // so SINGLE/MULTIPLE remains independent from Wajib/Opsional.
+      const requiredForSelfOrder = source === 'SELF_ORDER' && selfOrderRole === 'BROTH';
+      if (condimentsEnabled && applicable && (group.required || Number(group.min_select || 0) > 0 || requiredForSelfOrder) && !selectedGroupIds.has(group.id)) {
+        return fail(400, `${group.name} wajib dipilih`);
+      }
     }
     const unitPrice = isManual && actor ? Math.max(0, Math.floor(Number(item.price) || 0)) : Number(menu.price || 0) + extras;
     normalizedItems.push({
@@ -347,23 +384,6 @@ export async function handleOrderRequest(
   const total = Math.max(0, subtotal - discount + tax);
   const orderNumber = `${source === 'SELF_ORDER' ? 'SO' : 'POS'}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
   const clientRequestId = UUID_PATTERN.test(String(input.id || '')) ? String(input.id) : crypto.randomUUID();
-
-  // Order tersimpan dikirim ulang memakai orders.id; retry offline hanya punya
-  // client_request_id. Cari keduanya supaya tidak lahir order kembar.
-  let existingOrderId = '';
-  if (UUID_PATTERN.test(String(input.id || ''))) {
-    const [{ data: byId }, { data: byRequest }] = await Promise.all([
-      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
-      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('client_request_id', input.id).maybeSingle(),
-    ]);
-    existingOrderId = byId?.id || byRequest?.id || '';
-  }
-
-  // Self-order tidak boleh menimpa pesanan yang sudah masuk; kembalikan apa adanya.
-  if (!actor && existingOrderId) {
-    const orders = await readOrders(branchId, admin, existingOrderId);
-    return { status: 200, data: orders[0] };
-  }
 
   // Self-order tidak pernah boleh menyatakan dirinya sudah dibayar. Tanpa
   // payment gateway, hanya terminal staff terautentikasi yang mengubah PAID.
@@ -449,7 +469,7 @@ export async function handleOrderRequest(
     const isClosed = paymentStatus === 'PAID' && orderPayload.status === 'COMPLETED';
     const tableUpdate = isClosed
       ? await admin.from('restaurant_tables').update({
-        status: 'DISABLED', active_order_id: null,
+        status: 'DISABLED', self_order_enabled: false, active_order_id: null,
       }).eq('id', table.id).eq('branch_id', branchId)
       : await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
         .eq('id', table.id).eq('branch_id', branchId);

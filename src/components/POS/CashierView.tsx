@@ -215,6 +215,7 @@ interface CashierViewProps {
   onOpenShiftTab?: () => void;
   confirmBeforeSaveOrder?: boolean;
   confirmBeforePayment?: boolean;
+  tableSelectionRequest?: { tableNumber: string; requestId: number };
 }
 
 export const CashierView: React.FC<CashierViewProps> = ({
@@ -237,7 +238,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   headerElement,
   onOpenShiftTab,
   confirmBeforeSaveOrder = false,
-  confirmBeforePayment = false
+  confirmBeforePayment = false,
+  tableSelectionRequest
 }) => {
   // Two-stage confirmation timer
   const [pendingConfirm, setPendingConfirm] = useState<'SAVE' | 'PAY' | null>(null);
@@ -388,6 +390,26 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setIsCondimentsEnabled(order.condimentsEnabled !== false);
     onSelectExistingOrderToEdit(order);
   };
+
+  // Quick Table is an operational shortcut, not a dead-end modal. If the
+  // selected table owns an open bill, load that bill; otherwise prepare a new
+  // dine-in order with the requested table already selected.
+  useEffect(() => {
+    if (!tableSelectionRequest) return;
+    const normalized = tableSelectionRequest.tableNumber.trim().replace(/^0+(?=\d)/, '');
+    const existing = orders.find((order) => {
+      const orderTable = String(order.tableNumber || '').trim().replace(/^0+(?=\d)/, '');
+      const closed = order.status === 'CANCELLED' || (order.status === 'COMPLETED' && order.paymentStatus === 'PAID');
+      return !closed && orderTable === normalized;
+    });
+    if (existing) {
+      handleLoadExistingOrder(existing);
+      return;
+    }
+    handleClearCart();
+    setOrderType('DINE_IN');
+    setSelectedTable(tableSelectionRequest.tableNumber);
+  }, [tableSelectionRequest?.requestId]);
 
   // Condiments Trigger Modal Handler
   const handleOpenCondimentModal = (item: MenuItem) => {

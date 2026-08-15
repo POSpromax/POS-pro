@@ -535,7 +535,11 @@ export class DBStorage {
       (t) => t.number === tableNumber && (!branchId || !t.branchId || t.branchId === branchId)
     );
     if (table) {
+      // Keep demo/local mode on the same invariant as cloud mode. An active bill
+      // owns the table and cannot be disabled from the self-order switch.
+      if (table.activeOrderId && !enabled) return;
       table.isSelfOrderEnabled = enabled;
+      if (!table.activeOrderId) table.status = enabled ? 'READY' : 'DISABLED';
       setStoredItem(STORAGE_KEYS.TABLES, tables);
     }
   }

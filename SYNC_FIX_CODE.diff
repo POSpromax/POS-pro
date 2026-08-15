@@ -1,0 +1,612 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 65cef16..3ba1fb5 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -1311,18 +1311,21 @@ export default function App() {
+         showPushToast('Order Baru dari HP Customer!', `Meja ${saved.tableNumber} memesan order ${saved.orderNumber}.`);
+         return saved;
+       } catch (error) {
+-        // Recovery attempt: refresh orders and tables even on error
+-        void Promise.all([
+-          listCloudOrders(targetBranchId).then((cloudOrders) => setOrders((current) => [
+-            ...current.filter((order) => order.branchId !== targetBranchId),
+-            ...cloudOrders,
+-          ])),
+-          isSelfOrderUrlParam 
+-            ? getPublicCatalogContext(targetBranchId).then((ctx) => {
+-                setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
+-              })
+-            : refreshBranchTables(targetBranchId),
+-        ]).catch(() => undefined);
++        // Public self-order has no staff token. Recovery must never call the
++        // authenticated branch order list, otherwise the error path creates a 401.
++        if (isSelfOrderUrlParam) {
++          void getPublicCatalogContext(targetBranchId).then((ctx) => {
++            setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
++          }).catch(() => undefined);
++        } else {
++          void Promise.all([
++            listCloudOrders(targetBranchId).then((cloudOrders) => setOrders((current) => [
++              ...current.filter((order) => order.branchId !== targetBranchId),
++              ...cloudOrders,
++            ])),
++            refreshBranchTables(targetBranchId),
++          ]).catch(() => undefined);
++        }
+         showPushToast('Self-order Belum Terkirim', error instanceof Error ? error.message : 'Silakan kirim ulang pesanan.');
+         throw error instanceof Error ? error : new Error('Pesanan belum terkirim. Silakan coba lagi.');
+       }
+@@ -1391,6 +1394,10 @@ export default function App() {
+   const handleToggleTableById = (tableId: string, enabled: boolean) => {
+     const target = tables.find((table) => table.id === tableId && table.branchId === currentBranch.id);
+     if (!target) return;
++    if (!enabled && target.activeOrderId) {
++      showPushToast('Meja Masih Memiliki Order', `Meja ${target.number} masih memiliki bill aktif. Selesaikan order terlebih dahulu.`);
++      return;
++    }
+     void updateCloudTableSession({ action: 'SET_ENABLED', branchId: currentBranch.id, tableNumber: target.number, enabled })
+       .then((result) => { if (result.table) handleTableSessionUpdated(result.table); })
+       .catch((error) => showPushToast('Meja Gagal Diperbarui', error instanceof Error ? error.message : 'Status meja gagal disimpan.'));
+@@ -1398,7 +1405,10 @@ export default function App() {
+ 
+   const handleToggleAllTables = (enabled: boolean) => {
+     if (!cloudReadiness.supabase) {
+-      const updated = tables.map((table) => table.branchId === currentBranch.id ? { ...table, isSelfOrderEnabled: enabled } : table);
++      const updated = tables.map((table) => {
++        if (table.branchId !== currentBranch.id || table.activeOrderId) return table;
++        return { ...table, isSelfOrderEnabled: enabled, status: enabled ? 'READY' as const : 'DISABLED' as const };
++      });
+       DBStorage.setTables(updated);
+       setTables(updated);
+       return;
+@@ -1414,6 +1424,11 @@ export default function App() {
+ 
+   // Table Control
+   const handleToggleTableSelfOrder = (tableNumber: string, enabled: boolean) => {
++    const target = tables.find((table) => table.branchId === currentBranch.id && table.number.replace(/^0+(?=\d)/, '') === tableNumber.replace(/^0+(?=\d)/, ''));
++    if (!enabled && target?.activeOrderId) {
++      showPushToast('Meja Masih Memiliki Order', `Meja ${target.number} masih memiliki bill aktif. Selesaikan order terlebih dahulu.`);
++      return;
++    }
+     if (!cloudReadiness.supabase) {
+       DBStorage.toggleTableSelfOrder(tableNumber, enabled, currentBranch.id);
+       setTables(DBStorage.getTables());
+@@ -1426,21 +1441,34 @@ export default function App() {
+ 
+   const handleTableSessionUpdated = (updatedTable: RestaurantTable) => {
+     const normalizedNumber = updatedTable.number.replace(/^0+(?=\d)/, '');
+-    const nextTables = tables.map((table) => {
+-      const sameBranch = table.branchId === updatedTable.branchId;
+-      const sameNumber = table.number.replace(/^0+(?=\d)/, '') === normalizedNumber;
+-      return table.id === updatedTable.id || (sameBranch && sameNumber) ? { ...table, ...updatedTable } : table;
++    setTables((current) => {
++      let matched = false;
++      const next = current.map((table) => {
++        const sameBranch = table.branchId === updatedTable.branchId;
++        const sameNumber = table.number.replace(/^0+(?=\d)/, '') === normalizedNumber;
++        if (table.id === updatedTable.id || (sameBranch && sameNumber)) {
++          matched = true;
++          return { ...table, ...updatedTable };
++        }
++        return table;
++      });
++      return matched ? next : [...next, updatedTable];
+     });
+-    setTables(nextTables);
+   };
+ 
+   const handleClearTableStatus = (tableNumber: string) => {
++    const target = tables.find((table) => table.branchId === currentBranch.id && table.number.replace(/^0+(?=\d)/, '') === tableNumber.replace(/^0+(?=\d)/, ''));
++    if (target?.activeOrderId) {
++      showPushToast('Meja Belum Bisa Dikosongkan', `Meja ${target.number} masih terhubung ke bill aktif. Selesaikan/void order terlebih dahulu.`);
++      return;
++    }
++    const nextStatus = target?.isSelfOrderEnabled ? 'READY' : 'DISABLED';
+     if (!cloudReadiness.supabase) {
+-      DBStorage.updateTableStatus(tableNumber, 'DISABLED', undefined, currentBranch.id);
++      DBStorage.updateTableStatus(tableNumber, nextStatus, undefined, currentBranch.id);
+       setTables(DBStorage.getTables());
+       return;
+     }
+-    void updateCloudTableSession({ action: 'SET_STATUS', branchId: currentBranch.id, tableNumber, status: 'READY' })
++    void updateCloudTableSession({ action: 'SET_STATUS', branchId: currentBranch.id, tableNumber, status: nextStatus })
+       .then((result) => {
+         if (result.table) handleTableSessionUpdated(result.table);
+         showPushToast('Status Meja', `Meja ${tableNumber} di ${currentBranch.name} telah kosong.`);
+@@ -1464,8 +1492,8 @@ export default function App() {
+ 
+   const handleResetAllTablesToFree = () => {
+     if (!cloudReadiness.supabase) {
+-      const updated = tables.map((table) => table.branchId === currentBranch.id
+-        ? { ...table, status: 'DISABLED' as const, activeOrderId: undefined }
++      const updated = tables.map((table) => table.branchId === currentBranch.id && !table.activeOrderId
++        ? { ...table, status: table.isSelfOrderEnabled ? 'READY' as const : 'DISABLED' as const, activeOrderId: undefined }
+         : table);
+       DBStorage.setTables(updated);
+       setTables(updated);
+@@ -1497,7 +1525,7 @@ export default function App() {
+       number: tableNumber,
+       capacity,
+       status: 'DISABLED',
+-      isSelfOrderEnabled: true,
++      isSelfOrderEnabled: false,
+       branchId: currentBranch.id
+     };
+     const updated = [...tables, created];
+@@ -1531,7 +1559,7 @@ export default function App() {
+       DBStorage.saveProfile(nextProfile);
+       return;
+     }
+-    const { name, logoUrl, instagram, tiktok, ...branchProfile } = nextProfile;
++    const { name, logoUrl, instagram, tiktok, isSelfOrderEnabled: _legacyGlobalSelfOrder, ...branchProfile } = nextProfile;
+     void persistBranchOperationalConfig({ profileOverrides: branchProfile }).catch(() => undefined);
+     if (['SUPER_OWNER', 'OWNER'].includes(activeUser.role)) {
+       void saveCloudTenantBrand({ name, logoUrl, instagram, tiktok })
+diff --git a/src/components/SelfOrder/CustomerTableManagementModal.tsx b/src/components/SelfOrder/CustomerTableManagementModal.tsx
+index 0d4f66a..1b44694 100644
+--- a/src/components/SelfOrder/CustomerTableManagementModal.tsx
++++ b/src/components/SelfOrder/CustomerTableManagementModal.tsx
+@@ -19,7 +19,7 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
+ }) => {
+   if (!isOpen) return null;
+ 
+-  const activeCount = tables.filter((t) => t.isSelfOrderEnabled ?? true).length;
++  const activeCount = tables.filter((t) => t.isSelfOrderEnabled === true && t.status === 'READY').length;
+   const totalCount = tables.length;
+ 
+   return (
+@@ -80,14 +80,17 @@ export const CustomerTableManagementModal: React.FC<CustomerTableManagementModal
+             {/* Grid of Table Badges Pills (5 Columns like Image 2) */}
+             <div className="grid grid-cols-5 gap-2.5 pt-1">
+               {tables.map((tbl) => {
+-                const isEnabled = tbl.isSelfOrderEnabled ?? true;
++                const hasActiveBill = Boolean(tbl.activeOrderId);
++                const isEnabled = tbl.isSelfOrderEnabled === true && tbl.status !== 'DISABLED';
+ 
+                 return (
+                   <button
+                     key={tbl.id}
+                     type="button"
++                    disabled={hasActiveBill}
+                     onClick={() => onToggleTableSelfOrder(tbl.id, !isEnabled)}
+-                    className={`py-2 px-1 rounded-2xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 select-none ${
++                    title={hasActiveBill ? 'Meja masih memiliki bill aktif' : undefined}
++                    className={`py-2 px-1 rounded-2xl border transition-all flex items-center justify-center gap-1.5 select-none disabled:cursor-not-allowed disabled:opacity-70 ${
+                       isEnabled
+                         ? 'bg-[var(--primary-soft)] text-[var(--primary-text)] border-[var(--brand-200)] hover:border-[var(--primary)] shadow-sm'
+                         : 'bg-white text-slate-400 border-slate-200 opacity-60 hover:opacity-100'
+diff --git a/src/components/SelfOrder/SelfOrderLandingPage.tsx b/src/components/SelfOrder/SelfOrderLandingPage.tsx
+index 2db6184..5cc018b 100644
+--- a/src/components/SelfOrder/SelfOrderLandingPage.tsx
++++ b/src/components/SelfOrder/SelfOrderLandingPage.tsx
+@@ -43,6 +43,7 @@ import {
+   RestaurantTable,
+   SelectedCondimentGroup,
+ } from '../../types/pos';
++import {getPublicOrder} from '../../services/orderService';
+ import {CondimentSelectionModal} from '../POS/CondimentSelectionModal';
+ 
+ export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'ORDER_SUCCESS';
+@@ -143,6 +144,38 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
+   );
+   const liveSubmittedOrder = orders.find((order) => order.id === submittedOrderId) || submittedOrderSnapshot;
+ 
++  // Public customers are not members of the private Supabase realtime channel.
++  // Once an order is accepted, poll only that UUID so the success screen really
++  // follows NEW -> COOKING -> READY/COMPLETED without exposing the branch order list.
++  useEffect(() => {
++    if (activeStep !== 'ORDER_SUCCESS' || !submittedOrderId || !currentBranch.id) return;
++    let active = true;
++    let refreshing = false;
++    const refreshSubmittedOrder = () => {
++      if (refreshing || document.visibilityState === 'hidden') return;
++      refreshing = true;
++      void getPublicOrder(currentBranch.id, submittedOrderId)
++        .then((order) => {
++          if (active && order) setSubmittedOrderSnapshot(order);
++        })
++        .catch(() => undefined)
++        .finally(() => { refreshing = false; });
++    };
++    refreshSubmittedOrder();
++    const timer = window.setInterval(refreshSubmittedOrder, 4_000);
++    const refreshWhenVisible = () => {
++      if (document.visibilityState === 'visible') refreshSubmittedOrder();
++    };
++    window.addEventListener('focus', refreshSubmittedOrder);
++    document.addEventListener('visibilitychange', refreshWhenVisible);
++    return () => {
++      active = false;
++      window.clearInterval(timer);
++      window.removeEventListener('focus', refreshSubmittedOrder);
++      document.removeEventListener('visibilitychange', refreshWhenVisible);
++    };
++  }, [activeStep, submittedOrderId, currentBranch.id]);
++
+   const filteredMenu = useMemo(() => menuItems.filter((item) => {
+     if (item.isManualPrice) return false;
+     const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+diff --git a/src/components/Settings/SettingsView.tsx b/src/components/Settings/SettingsView.tsx
+index bed4f81..ecbbdc3 100644
+--- a/src/components/Settings/SettingsView.tsx
++++ b/src/components/Settings/SettingsView.tsx
+@@ -657,22 +657,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
+                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Konfigurasi tampilan banner, wallpaper, dan review Google HP pelanggan.</p>
+                 </div>
+ 
+-                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4 flex items-center justify-between gap-4">
+-                  <div>
+-                    <p className="text-xs font-bold text-[var(--text-primary)]">Aktifkan Customer Self-Order</p>
+-                    <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Kontrol utama untuk seluruh QR meja di outlet aktif.</p>
+-                  </div>
+-                  <button
+-                    type="button"
+-                    onClick={() => setFormProfile({ ...formProfile, isSelfOrderEnabled: formProfile.isSelfOrderEnabled === false })}
+-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold border ${
+-                      formProfile.isSelfOrderEnabled !== false
+-                        ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+-                        : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] border-[var(--panel-border)]'
+-                    }`}
+-                  >
+-                    {formProfile.isSelfOrderEnabled !== false ? 'AKTIF' : 'NONAKTIF'}
+-                  </button>
++                <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4">
++                  <p className="text-xs font-bold text-[var(--text-primary)]">Kontrol Self-Order per Meja</p>
++                  <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Akses customer order tidak memakai saklar global. Aktif/nonaktif ditentukan dari Manajemen Meja & QR untuk setiap meja atau aksi semua meja.</p>
+                 </div>
+ 
+                 {/* Banner Promo Utama Card */}
+diff --git a/src/components/Tables/QuickTableModal.tsx b/src/components/Tables/QuickTableModal.tsx
+index 17b5a1c..615c5d9 100644
+--- a/src/components/Tables/QuickTableModal.tsx
++++ b/src/components/Tables/QuickTableModal.tsx
+@@ -119,7 +119,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
+ 
+   if (!isOpen) return null;
+ 
+-  const activeOrders = orders.filter((o) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
++  const activeOrders = orders.filter((o) => o.status !== 'CANCELLED' && !(o.status === 'COMPLETED' && o.paymentStatus === 'PAID'));
+ 
+   const freeTablesCount = tables.filter((t) => {
+     const isOccupiedByOrder = activeOrders.some((o) => o.tableNumber === t.number);
+@@ -434,10 +434,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
+                       {selfOrderOn ? (
+                         <button
+                           type="button"
+-                          disabled={isBusy}
++                          disabled={isBusy || Boolean(table.activeOrderId)}
+                           onClick={() => void runSession(table, 'SET_ENABLED', false)}
+                           className="px-2.5 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
+-                          title="Matikan self-order untuk meja ini"
++                          title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah self-order' : 'Matikan self-order untuk meja ini'}
+                         >
+                           {isBusy ? '…' : 'MATIKAN'}
+                         </button>
+@@ -459,7 +459,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
+                   <div className="grid grid-cols-2 gap-1.5 pt-1">
+                     {isOccupied ? (
+                       <>
+-                        <button
++                        {!table.activeOrderId && <button
+                           type="button"
+                           onClick={() => onClearTableStatus(table.number)}
+                           className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+@@ -467,7 +467,7 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
+                         >
+                           <Unlock className="w-3 h-3" />
+                           <span>KOSONGKAN</span>
+-                        </button>
++                        </button>}
+ 
+                         <button
+                           type="button"
+diff --git a/src/components/Tables/TableManagementView.tsx b/src/components/Tables/TableManagementView.tsx
+index 9b4dfa7..847d1d4 100644
+--- a/src/components/Tables/TableManagementView.tsx
++++ b/src/components/Tables/TableManagementView.tsx
+@@ -130,7 +130,12 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
+   };
+ 
+   const toggleSelfOrder = async (table: RestaurantTable) => {
+-    const enabled = !table.isSelfOrderEnabled;
++    const accessEnabled = table.isSelfOrderEnabled === true && table.status !== 'DISABLED';
++    const enabled = !accessEnabled;
++    if (!enabled && table.activeOrderId) {
++      setErrorMessage(`Meja ${table.number} masih memiliki bill aktif. Selesaikan order terlebih dahulu.`);
++      return;
++    }
+     setBusyTable(table.id);
+     setErrorMessage(null);
+     try {
+@@ -238,6 +243,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
+             const status = legacyInactive ? 'DISABLED' : table.status;
+             const ready = status === 'READY';
+             const occupied = status === 'OCCUPIED';
++            const accessEnabled = table.isSelfOrderEnabled === true && status !== 'DISABLED';
+             const busy = busyTable === table.id;
+             const statusStyle = occupied
+               ? 'border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]'
+@@ -307,14 +313,15 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
+                     <button
+                       type="button"
+                       onClick={() => void toggleSelfOrder(table)}
+-                      disabled={busy}
+-                      className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:opacity-50 ${table.isSelfOrderEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`}
++                      disabled={busy || Boolean(table.activeOrderId)}
++                      title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah akses self-order' : undefined}
++                      className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${accessEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`}
+                     >
+-                      {table.isSelfOrderEnabled ? 'ON' : 'OFF'}
++                      {accessEnabled ? 'ON' : 'OFF'}
+                     </button>
+                   </div>
+ 
+-                  {occupied && (
++                  {occupied && !table.activeOrderId && (
+                     <button
+                       type="button"
+                       onClick={() => onClearTableStatus(tableNumber)}
+diff --git a/src/server/orderManagement.ts b/src/server/orderManagement.ts
+index bb461ea..d40e184 100644
+--- a/src/server/orderManagement.ts
++++ b/src/server/orderManagement.ts
+@@ -166,7 +166,7 @@ export async function handleOrderRequest(
+       const isClosed = updated.status === 'CANCELLED'
+         || (updated.status === 'COMPLETED' && updated.payment_status === 'PAID');
+       await admin.from('restaurant_tables').update(isClosed
+-        ? { status: 'DISABLED', active_order_id: null }
++        ? { status: 'DISABLED', self_order_enabled: false, active_order_id: null }
+         : { status: 'OCCUPIED', active_order_id: payload.orderId })
+         .eq('id', updated.table_id)
+         .eq('branch_id', branchId)
+@@ -187,6 +187,23 @@ export async function handleOrderRequest(
+   const { data: branch } = await admin.from('branches').select('tenant_id,is_active').eq('id', branchId).maybeSingle();
+   if (!branch?.is_active || (actor && actor.tenantId !== branch.tenant_id)) return fail(403, 'Outlet tidak aktif');
+ 
++  // Resolve idempotency BEFORE checking current table availability. A successful
++  // self-order can already have changed the table to OCCUPIED while the HTTP
++  // response was lost. Retrying the same client UUID must return the original
++  // order instead of being rejected as a second order.
++  let existingOrderId = '';
++  if (UUID_PATTERN.test(String(input.id || ''))) {
++    const [{ data: byId }, { data: byRequest }] = await Promise.all([
++      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
++      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', input.id).maybeSingle(),
++    ]);
++    existingOrderId = byId?.id || byRequest?.id || '';
++  }
++  if (source === 'SELF_ORDER' && existingOrderId) {
++    const orders = await readOrders(branchId, admin, existingOrderId);
++    return { status: 200, data: orders[0] };
++  }
++
+   let table: any = null;
+   if (input.tableNumber) {
+     const { data } = await admin.from('restaurant_tables')
+@@ -197,13 +214,8 @@ export async function handleOrderRequest(
+     table = data;
+   }
+   if (source === 'SELF_ORDER') {
+-    const { data: branchConfig } = await admin.from('branch_operational_config')
+-      .select('self_order_enabled')
+-      .eq('branch_id', branchId)
+-      .maybeSingle();
+-    if (branchConfig?.self_order_enabled === false) {
+-      return fail(403, 'Self-order outlet ini sedang dinonaktifkan. Silakan hubungi kasir.');
+-    }
++    // Per-table self_order_enabled + READY is the only self-order gate.
++    // The legacy branch-wide flag is intentionally ignored.
+     if (!table || table.self_order_enabled !== true || table.status !== 'READY') {
+       return fail(409, table?.status === 'OCCUPIED'
+         ? `Meja ${input.tableNumber || ''} sedang digunakan. Minta nomor meja lain kepada kasir.`
+@@ -348,23 +360,6 @@ export async function handleOrderRequest(
+   const orderNumber = `${source === 'SELF_ORDER' ? 'SO' : 'POS'}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+   const clientRequestId = UUID_PATTERN.test(String(input.id || '')) ? String(input.id) : crypto.randomUUID();
+ 
+-  // Order tersimpan dikirim ulang memakai orders.id; retry offline hanya punya
+-  // client_request_id. Cari keduanya supaya tidak lahir order kembar.
+-  let existingOrderId = '';
+-  if (UUID_PATTERN.test(String(input.id || ''))) {
+-    const [{ data: byId }, { data: byRequest }] = await Promise.all([
+-      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
+-      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('client_request_id', input.id).maybeSingle(),
+-    ]);
+-    existingOrderId = byId?.id || byRequest?.id || '';
+-  }
+-
+-  // Self-order tidak boleh menimpa pesanan yang sudah masuk; kembalikan apa adanya.
+-  if (!actor && existingOrderId) {
+-    const orders = await readOrders(branchId, admin, existingOrderId);
+-    return { status: 200, data: orders[0] };
+-  }
+-
+   // Self-order tidak pernah boleh menyatakan dirinya sudah dibayar. Tanpa
+   // payment gateway, hanya terminal staff terautentikasi yang mengubah PAID.
+   const paymentStatus = source === 'SELF_ORDER'
+@@ -449,7 +444,7 @@ export async function handleOrderRequest(
+     const isClosed = paymentStatus === 'PAID' && orderPayload.status === 'COMPLETED';
+     const tableUpdate = isClosed
+       ? await admin.from('restaurant_tables').update({
+-        status: 'DISABLED', active_order_id: null,
++        status: 'DISABLED', self_order_enabled: false, active_order_id: null,
+       }).eq('id', table.id).eq('branch_id', branchId)
+       : await admin.from('restaurant_tables').update({ status: 'OCCUPIED', active_order_id: savedOrderId })
+         .eq('id', table.id).eq('branch_id', branchId);
+diff --git a/src/server/publicCatalog.ts b/src/server/publicCatalog.ts
+index 660e41f..74b5ae4 100644
+--- a/src/server/publicCatalog.ts
++++ b/src/server/publicCatalog.ts
+@@ -26,7 +26,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient,
+     admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).eq('status', 'READY').order('number'),
+     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
+     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
+-    admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
++    admin.from('branch_operational_config').select('self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
+     admin.from('cashier_shifts').select('id,status,opened_at').eq('branch_id', branch.id).in('status', ['OPEN', 'HANDOVER']).order('opened_at', { ascending: false }).limit(1).maybeSingle(),
+   ]);
+   const scopes = branchConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {};
+@@ -45,7 +45,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient,
+     ...((config.finance_config || {}) as Record<string, unknown>),
+   } : null;
+   const publicProfile = tenantProfile
+-    ? { ...tenantProfile, ...((branchConfig?.profile_overrides || {}) as Record<string, unknown>), isSelfOrderEnabled: branchConfig?.self_order_enabled !== false }
++    ? { ...tenantProfile, ...((branchConfig?.profile_overrides || {}) as Record<string, unknown>), isSelfOrderEnabled: true }
+     : null;
+   const menuIds = (menus || []).map((row) => row.id);
+   const { data: ingredientRows } = menuIds.length
+@@ -74,7 +74,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient,
+       operationalConfig: {
+         branchId: branch.id,
+         tenantId: branch.tenant_id,
+-        selfOrderEnabled: branchConfig?.self_order_enabled !== false,
++        selfOrderEnabled: true,
+         selfOrderBaseUrl: branchConfig?.self_order_base_url || '',
+         publicOrderSlug: normalizedRouteCode || '',
+         profileOverrides: branchConfig?.profile_overrides || {},
+diff --git a/src/server/tableSession.ts b/src/server/tableSession.ts
+index 315c089..c2251ab 100644
+--- a/src/server/tableSession.ts
++++ b/src/server/tableSession.ts
+@@ -65,25 +65,30 @@ export async function handleTableSessionRequest(
+   }
+ 
+   // Aktifkan / nonaktifkan self-order untuk SEMUA meja cabang sekaligus.
++  // active_order_id is the bill lock; bulk actions never clear or reopen a table
++  // that still owns an active bill, even if its status field is temporarily stale.
+   if (action === 'SET_ENABLED_ALL') {
+     const enabled = payload.enabled === true;
+     if (enabled) {
+       const { error: enableError } = await admin.from('restaurant_tables')
+         .update({ self_order_enabled: true })
+-        .eq('branch_id', branchId);
++        .eq('branch_id', branchId)
++        .is('active_order_id', null);
+       if (enableError) return { status: 500, data: { error: 'Status self-order semua meja gagal diaktifkan' } };
+       const { error: readyError } = await admin.from('restaurant_tables')
+         .update({ status: 'READY' })
+         .eq('branch_id', branchId)
+-        .neq('status', 'OCCUPIED');
++        .is('active_order_id', null);
+       if (readyError) return { status: 500, data: { error: 'Status operasional meja belum siap. Jalankan migrasi meja terbaru.' } };
+     } else {
+-      // Jangan ganggu meja yang sedang terisi bill aktif.
+       const { error: disableError } = await admin.from('restaurant_tables').update({
+         self_order_enabled: false, status: 'DISABLED', active_order_id: null,
+-      }).eq('branch_id', branchId).neq('status', 'OCCUPIED');
++      }).eq('branch_id', branchId).is('active_order_id', null);
+       if (disableError) return { status: 500, data: { error: 'Struktur meja belum lengkap. Jalankan migrasi meja terbaru.' } };
+     }
++    // Repair any row that owns a bill but carries a stale visual status.
++    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
++      .eq('branch_id', branchId).not('active_order_id', 'is', null);
+     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+     if (error) return { status: 500, data: { error: 'Pengaturan self-order semua meja gagal disimpan' } };
+     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
+@@ -95,10 +100,12 @@ export async function handleTableSessionRequest(
+     }
+     await admin.from('restaurant_tables').update({
+       status: 'READY', active_order_id: null,
+-    }).eq('branch_id', branchId).eq('self_order_enabled', true).neq('status', 'OCCUPIED');
++    }).eq('branch_id', branchId).eq('self_order_enabled', true).is('active_order_id', null);
+     await admin.from('restaurant_tables').update({
+       status: 'DISABLED', active_order_id: null,
+-    }).eq('branch_id', branchId).eq('self_order_enabled', false).neq('status', 'OCCUPIED');
++    }).eq('branch_id', branchId).eq('self_order_enabled', false).is('active_order_id', null);
++    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
++      .eq('branch_id', branchId).not('active_order_id', 'is', null);
+     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+     if (error) return { status: 500, data: { error: 'Status meja gagal direkonsiliasi' } };
+     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
+@@ -107,15 +114,16 @@ export async function handleTableSessionRequest(
+   const { data: table } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
+   if (!table) return { status: 404, data: { error: `Meja ${tableNumber} tidak ditemukan` } };
+ 
+-  // Aktivasi self-order = flag self_order_enabled. Mengaktifkan meja yang
+-  // sebelumnya DISABLED juga mengangkat statusnya kembali ke READY.
++  // Aktivasi self-order = flag self_order_enabled. active_order_id, bukan
++  // warna/status UI semata, menjadi bukti bahwa meja masih memiliki bill aktif.
+   if (action === 'SET_ENABLED') {
+     const enabled = payload.enabled === true;
+-    if (!enabled && table.status === 'OCCUPIED') {
+-      return { status: 409, data: { error: 'Meja masih memiliki bill aktif dan tidak boleh dinonaktifkan' } };
++    const hasActiveBill = Boolean(table.active_order_id);
++    if (!enabled && hasActiveBill) {
++      return { status: 409, data: { error: 'Meja masih memiliki bill aktif. Selesaikan pembayaran/order terlebih dahulu.' } };
+     }
+     const changes = enabled
+-      ? { self_order_enabled: true, ...(table.status !== 'OCCUPIED' ? { status: 'READY' } : {}) }
++      ? { self_order_enabled: true, status: hasActiveBill ? 'OCCUPIED' : 'READY' }
+       : { self_order_enabled: false, status: 'DISABLED', active_order_id: null };
+     const { data: updated, error } = await admin.from('restaurant_tables').update(changes).eq('id', table.id).select('*').single();
+     if (error) return { status: 500, data: { error: 'Pengaturan meja gagal disimpan. Pastikan migrasi meja terbaru sudah dijalankan.' } };
+@@ -130,9 +138,14 @@ export async function handleTableSessionRequest(
+     if (table.active_order_id && requestedStatus !== 'OCCUPIED' && payload.force !== true) {
+       return { status: 409, data: { error: 'Meja masih memiliki bill aktif dan tidak dapat dikosongkan' } };
+     }
++    // READY is only meaningful for a table whose self-order access is ON.
++    // Otherwise a manual clear must remain DISABLED, not create READY + OFF drift.
++    const normalizedStatus = requestedStatus === 'READY' && table.self_order_enabled !== true
++      ? 'DISABLED'
++      : requestedStatus;
+     const { data: updated, error } = await admin.from('restaurant_tables').update({
+-      status: requestedStatus,
+-      ...(requestedStatus === 'OCCUPIED' ? {} : { active_order_id: null }),
++      status: normalizedStatus,
++      ...(normalizedStatus === 'OCCUPIED' ? {} : { active_order_id: null }),
+     }).eq('id', table.id).select('*').single();
+     if (error) return { status: 500, data: { error: 'Status meja gagal disimpan' } };
+     return { status: 200, data: { table: mapTable(updated) } };
+diff --git a/src/services/branchConfigService.ts b/src/services/branchConfigService.ts
+index 033d61a..47bf4fd 100644
+--- a/src/services/branchConfigService.ts
++++ b/src/services/branchConfigService.ts
+@@ -29,7 +29,7 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
+   return {
+     branchId: data.branch_id,
+     tenantId: data.tenant_id,
+-    selfOrderEnabled: data.self_order_enabled !== false,
++    selfOrderEnabled: true,
+     selfOrderBaseUrl: data.self_order_base_url || fallback.selfOrderBaseUrl,
+     // URL QR tetap diturunkan dari kode cabang. Public catalog di server
+     // memvalidasi slug dari database, tetapi UI tidak perlu meminta kolom baru
+@@ -52,10 +52,13 @@ export async function saveCloudBranchOperationalConfig(
+     .single();
+   if (profileError || !profile?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
+ 
++  const { isSelfOrderEnabled: _legacyGlobalSelfOrder, ...profileOverrides } = (config.profileOverrides || {}) as Record<string, unknown>;
+   const payload = {
+-    self_order_enabled: config.selfOrderEnabled,
++    // Legacy schema column is pinned ON. Operational access is controlled only
++    // by restaurant_tables.self_order_enabled.
++    self_order_enabled: true,
+     self_order_base_url: config.selfOrderBaseUrl.trim() || null,
+-    profile_overrides: config.profileOverrides || {},
++    profile_overrides: profileOverrides,
+   };
+   const { data, error } = await supabase
+     .from('branch_operational_config')
+@@ -70,7 +73,7 @@ export async function saveCloudBranchOperationalConfig(
+   return {
+     branchId: data.branch_id,
+     tenantId: data.tenant_id,
+-    selfOrderEnabled: data.self_order_enabled !== false,
++    selfOrderEnabled: true,
+     selfOrderBaseUrl: data.self_order_base_url || defaultBaseUrl(),
+     publicOrderSlug: config.publicOrderSlug,
+     profileOverrides: (data.profile_overrides || {}) as BranchOperationalConfig['profileOverrides'],
+diff --git a/src/services/dbStorage.ts b/src/services/dbStorage.ts
+index fb16645..338dedb 100644
+--- a/src/services/dbStorage.ts
++++ b/src/services/dbStorage.ts
+@@ -535,7 +535,11 @@ export class DBStorage {
+       (t) => t.number === tableNumber && (!branchId || !t.branchId || t.branchId === branchId)
+     );
+     if (table) {
++      // Keep demo/local mode on the same invariant as cloud mode. An active bill
++      // owns the table and cannot be disabled from the self-order switch.
++      if (table.activeOrderId && !enabled) return;
+       table.isSelfOrderEnabled = enabled;
++      if (!table.activeOrderId) table.status = enabled ? 'READY' : 'DISABLED';
+       setStoredItem(STORAGE_KEYS.TABLES, tables);
+     }
+   }

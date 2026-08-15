@@ -1,5 +1,5 @@
 import type { Order, OrderStatus } from '../types/pos';
-import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { ensureRealtimeAuth, getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
 async function token(): Promise<string> {
   const { data } = await getSupabase().auth.getSession();
@@ -36,24 +36,42 @@ export function subscribeCloudOrders(
   onChange: () => void,
   onConnectionState?: (state: RealtimeConnectionState) => void,
 ): () => void {
-  if (!isSupabaseConfigured()) return () => undefined;
+  if (!isSupabaseConfigured() || !branchId) return () => undefined;
+
   const supabase = getSupabase();
   let timer = 0;
+  let disposed = false;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+
   const notify = () => {
     window.clearTimeout(timer);
-    timer = window.setTimeout(onChange, 250);
+    timer = window.setTimeout(onChange, 180);
   };
-  const channel = supabase.channel(`branch:${branchId}:orders`, { config: { private: true } })
-    .on('broadcast', { event: 'INSERT' }, notify)
-    .on('broadcast', { event: 'UPDATE' }, notify)
-    .on('broadcast', { event: 'DELETE' }, notify)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
-      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');
-      else onConnectionState?.('CONNECTING');
+
+  onConnectionState?.('CONNECTING');
+
+  void ensureRealtimeAuth()
+    .then(() => {
+      if (disposed) return;
+      channel = supabase
+        .channel(`branch:${branchId}:orders`, { config: { private: true } })
+        .on('broadcast', { event: 'INSERT' }, notify)
+        .on('broadcast', { event: 'UPDATE' }, notify)
+        .on('broadcast', { event: 'DELETE' }, notify)
+        .subscribe((status) => {
+          if (disposed) return;
+          if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');
+          else onConnectionState?.('CONNECTING');
+        });
+    })
+    .catch(() => {
+      if (!disposed) onConnectionState?.('DEGRADED');
     });
+
   return () => {
+    disposed = true;
     window.clearTimeout(timer);
-    void supabase.removeChannel(channel);
+    if (channel) void supabase.removeChannel(channel);
   };
 }

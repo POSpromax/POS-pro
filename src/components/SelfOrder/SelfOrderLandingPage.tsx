@@ -3,10 +3,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  CheckCircle2,
   ChefHat,
   ChevronRight,
   Clock3,
+  Download,
+  ExternalLink,
   Home,
   Info,
   Instagram,
@@ -15,15 +16,14 @@ import {
   MessageCircle,
   Minus,
   Pencil,
-  PhoneCall,
   Plus,
   QrCode,
   Receipt,
   Search,
   Share2,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
+  Star,
   Store,
   UserRound,
   Utensils,
@@ -43,9 +43,10 @@ import {
   RestaurantTable,
   SelectedCondimentGroup,
 } from '../../types/pos';
+import {getPublicOrder} from '../../services/orderService';
 import {CondimentSelectionModal} from '../POS/CondimentSelectionModal';
 
-export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'ORDER_SUCCESS';
+export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'SENDING' | 'ORDER_SUCCESS';
 
 interface SelfOrderLandingPageProps {
   tables: RestaurantTable[];
@@ -74,12 +75,35 @@ const categoryOptions: Array<{key: CategoryType; label: string}> = [
   {key: 'BUNDLING', label: 'Paket'},
 ];
 
+const normalizeWhatsappNumber = (value: string) => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  return digits;
+};
+
+const normalizeTableNum = (value: string) => {
+  if (!value) return '';
+  const normalized = value.trim().toUpperCase().replace(/^M-?/i, '').replace(/^0+/, '');
+  return normalized || value.trim().toUpperCase();
+};
+
+
+const normalizeCondimentLabel = (value: string) =>
+  value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const resolveSelfOrderRole = (group: CondimentGroup): 'NONE' | 'BROTH' | 'FILLING' => {
+  if (group.selfOrderRole === 'NONE' || group.selfOrderRole === 'BROTH' || group.selfOrderRole === 'FILLING') return group.selfOrderRole;
+  const normalized = normalizeCondimentLabel(group.name);
+  if (normalized.includes('KUAH')) return 'BROTH';
+  if (normalized.includes('ISIAN')) return 'FILLING';
+  return 'NONE';
+};
+
 export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   tables,
   menuItems,
   profile,
   condimentGroups,
-  isSelfOrderSystemEnabled = true,
   orders = [],
   onSubmitCustomerOrder,
   initialTableNumber = '',
@@ -97,11 +121,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [activeItemForCondiment, setActiveItemForCondiment] = useState<MenuItem | null>(null);
   const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
-  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
   const [submittedOrderSnapshot, setSubmittedOrderSnapshot] = useState<Order | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localToast, setLocalToast] = useState<string | null>(null);
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
+  const [showGeneralNote, setShowGeneralNote] = useState(false);
   const localToastTimerRef = useRef<number | null>(null);
 
   const toast = (title: string, message: string) => {
@@ -124,12 +149,6 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     if (localToastTimerRef.current) window.clearTimeout(localToastTimerRef.current);
   }, []);
 
-  const normalizeTableNum = (value: string) => {
-    if (!value) return '';
-    const normalized = value.trim().toUpperCase().replace(/^M-?/i, '').replace(/^0+/, '');
-    return normalized || value.trim().toUpperCase();
-  };
-
   const availableTables = useMemo(() => tables
     .filter((table) => (
       (!table.branchId || table.branchId === currentBranch.id)
@@ -141,7 +160,46 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const selectedTableObj = availableTables.find(
     (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
   );
+
+  const selectedTableState = tables.find(
+    (table) => (!table.branchId || table.branchId === currentBranch.id)
+      && normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
+  );
+
   const liveSubmittedOrder = orders.find((order) => order.id === submittedOrderId) || submittedOrderSnapshot;
+
+  useEffect(() => {
+    if (activeStep !== 'ORDER_SUCCESS' || !submittedOrderId || !currentBranch.id) return;
+    if (submittedOrderSnapshot?.status === 'READY' || submittedOrderSnapshot?.status === 'COMPLETED' || submittedOrderSnapshot?.status === 'CANCELLED') return;
+    let active = true;
+    let refreshing = false;
+
+    const refreshSubmittedOrder = () => {
+      if (refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      void getPublicOrder(currentBranch.id, submittedOrderId)
+        .then((order) => {
+          if (active && order) setSubmittedOrderSnapshot(order);
+        })
+        .catch(() => undefined)
+        .finally(() => { refreshing = false; });
+    };
+
+    refreshSubmittedOrder();
+    const timer = window.setInterval(refreshSubmittedOrder, 12_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshSubmittedOrder();
+    };
+    window.addEventListener('focus', refreshSubmittedOrder);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshSubmittedOrder);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [activeStep, submittedOrderId, currentBranch.id, submittedOrderSnapshot?.status]);
 
   const filteredMenu = useMemo(() => menuItems.filter((item) => {
     if (item.isManualPrice) return false;
@@ -157,6 +215,23 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
   const getItemCartQty = (menuId: string) => cartItems
     .filter((item) => item.menuId === menuId)
     .reduce((total, item) => total + item.quantity, 0);
+
+  const serviceOpen = isShiftActive;
+  const supportPhone = normalizeWhatsappNumber(currentBranch.phone || profile.phone || '');
+  const googleReviewUrl = profile.googleReviewUrl?.trim() || '';
+  const wallpaperUrl = profile.wallpaperBackgroundUrl
+    ? optimizeCloudinaryImage(profile.wallpaperBackgroundUrl, 1100)
+    : '';
+  const heroMenuItem = menuItems.find((item) =>
+    item.isAvailable !== false
+      && item.category === 'BAKSO'
+      && /komplit|urat|bakso/i.test(item.name)
+      && Boolean(item.image),
+  ) || menuItems.find((item) => item.isAvailable !== false && item.category === 'BAKSO' && Boolean(item.image));
+
+  const statusIndex = liveSubmittedOrder?.status === 'NEW' ? 0
+    : liveSubmittedOrder?.status === 'COOKING' ? 1
+      : liveSubmittedOrder?.status === 'READY' || liveSubmittedOrder?.status === 'COMPLETED' ? 2 : 0;
 
   const handleStartOrder = () => {
     if (!isShiftActive) {
@@ -177,36 +252,30 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       return;
     }
     if (!selectedTable.trim()) {
-      setTableErrorMsg('Pilih nomor meja yang diberikan oleh kasir.');
+      setTableErrorMsg('Masukkan nomor meja yang diberikan oleh kasir.');
       return;
     }
-    
-    // Validasi awal: cek apakah meja tersedia di list
+
     const tableObj = tables.find(
-      (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable) 
-        && table.branchId === currentBranch.id
+      (table) => normalizeTableNum(table.number) === normalizeTableNum(selectedTable)
+        && (!table.branchId || table.branchId === currentBranch.id),
     );
-    
+
     if (!tableObj) {
-      setTableErrorMsg(`Meja ${selectedTable} tidak tersedia atau belum diaktifkan oleh kasir. Silakan periksa nomor meja atau hubungi kasir.`);
+      setTableErrorMsg(`Meja ${selectedTable} tidak tersedia atau belum diaktifkan oleh kasir.`);
       return;
     }
-    
     if (tableObj.status !== 'READY') {
-      if (tableObj.status === 'OCCUPIED') {
-        setTableErrorMsg(`Meja ${selectedTable} sedang digunakan pelanggan lain. Minta nomor meja lain kepada kasir.`);
-      } else {
-        setTableErrorMsg(`Meja ${selectedTable} belum dapat digunakan. Silakan hubungi kasir.`);
-      }
+      setTableErrorMsg(tableObj.status === 'OCCUPIED'
+        ? `Meja ${selectedTable} sedang memiliki pesanan aktif. Silakan hubungi kasir.`
+        : `Meja ${selectedTable} belum dapat digunakan. Silakan hubungi kasir.`);
       return;
     }
-    
     if (!tableObj.isSelfOrderEnabled) {
       setTableErrorMsg(`Meja ${selectedTable} belum diaktifkan untuk self-order. Silakan hubungi kasir.`);
       return;
     }
-    
-    // Semua validasi lolos - lanjut ke menu
+
     setActiveStep('MENU');
   };
 
@@ -215,10 +284,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Menu Sedang Habis', `${item.name} belum tersedia. Silakan pilih menu lain.`);
       return;
     }
+
     if (condimentGroups.some((group) => isGroupApplicable(group, item))) {
       setActiveItemForCondiment(item);
       return;
     }
+
     setCartItems((current) => {
       const existingIndex = current.findIndex(
         (cartItem) => cartItem.menuId === item.id && !cartItem.selectedCondiments?.length && !cartItem.notes,
@@ -255,6 +326,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       setEditingCartItemId(null);
       return;
     }
+
     setCartItems((current) => [...current, {
       id: `cust-${crypto.randomUUID()}`,
       menuId: item.id,
@@ -267,20 +339,27 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     }]);
   };
 
+  const splitCartItemIntoSinglePortions = (cartItemId: string) => {
+    setCartItems((current) => current.flatMap((item) => {
+      if (item.id !== cartItemId || item.quantity <= 1) return [item];
+      return Array.from({length: item.quantity}, (_, index) => ({
+        ...item,
+        id: `${item.id}-p${index + 1}-${Date.now()}`,
+        quantity: 1,
+      }));
+    }));
+    toast('Porsi Dipisahkan', 'Setiap porsi sekarang dapat memiliki catatan yang berbeda.');
+  };
+
   const handleConfigureItem = (cartItem: OrderItem) => {
     if (cartItem.quantity > 1) {
-      setCartItems((current) => current.flatMap((item) => item.id !== cartItem.id ? [item] : Array.from(
-        {length: item.quantity},
-        (_, index) => ({...item, id: `${item.id}-p${index + 1}-${Date.now()}`, quantity: 1}),
-      )));
-      toast('Porsi Dipisahkan', 'Setiap porsi kini dapat memiliki varian dan catatan berbeda.');
+      splitCartItemIntoSinglePortions(cartItem.id);
       return;
     }
     const menuItem = menuItems.find((item) => item.id === cartItem.menuId);
     if (!menuItem) return;
     setEditingCartItemId(cartItem.id);
     setActiveItemForCondiment(menuItem);
-    setIsCartModalOpen(false);
   };
 
   const handleUpdateQty = (cartItemId: string, delta: number) => {
@@ -289,6 +368,21 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
         ? (item.quantity + delta > 0 ? {...item, quantity: item.quantity + delta} : null)
         : item)
       .filter(Boolean) as OrderItem[]);
+  };
+
+  const handleUpdateItemNote = (cartItemId: string, value: string) => {
+    setCartItems((current) => current.map((item) => item.id === cartItemId
+      ? {...item, notes: value.slice(0, 240) || undefined}
+      : item));
+  };
+
+  const toggleItemNote = (cartItemId: string) => {
+    setExpandedNoteIds((current) => {
+      const next = new Set(current);
+      if (next.has(cartItemId)) next.delete(cartItemId);
+      else next.add(cartItemId);
+      return next;
+    });
   };
 
   const handleSubmitOrder = async () => {
@@ -301,28 +395,61 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       toast('Periksa Pesanan', 'Nama, nomor meja, dan isi keranjang wajib tersedia sebelum pesanan dikirim.');
       return;
     }
-    
-    // CRITICAL: Re-validate with FRESH data from tables state (not memoized availableTables)
-    // Real-time subscription may have updated table status after user started filling cart
+
+    // Guard kedua di level checkout. Walaupun item pernah masuk dari state lama,
+    // KUAH / ISIAN yang berlaku untuk menu tidak boleh kosong.
+    for (const cartItem of cartItems) {
+      const menu = menuItems.find((item) => item.id === cartItem.menuId);
+      if (!menu) continue;
+
+      const applicableGroups = condimentGroups.filter((group) =>
+        group.isActive !== false && isGroupApplicable(group, menu),
+      );
+
+      const selectedGroups = cartItem.selectedCondiments || [];
+      const missingGroup = applicableGroups.find((group) => {
+        const normalizedGroup = normalizeCondimentLabel(group.name);
+        const role = resolveSelfOrderRole(group);
+        const mustChoose = group.required === true
+          || group.isRequired === true
+          || (group.minSelect || 0) > 0
+          || role === 'BROTH';
+
+        if (!mustChoose) return false;
+
+        const selected = selectedGroups.find(
+          (selection) => normalizeCondimentLabel(selection.groupName) === normalizedGroup,
+        );
+        const selectedCount = selected?.options?.filter(Boolean).length || 0;
+        return selectedCount === 0 || selectedCount < Number(group.minSelect || 0);
+      });
+
+      if (missingGroup) {
+        toast('Condiment Belum Lengkap', `${cartItem.menuName}: ${missingGroup.name} wajib dipilih.`);
+        setEditingCartItemId(cartItem.id);
+        setActiveItemForCondiment(menu);
+        return;
+      }
+    }
+
     const freshTable = tables.find(
-      (t) => t.branchId === currentBranch.id && normalizeTableNum(t.number) === normalizeTableNum(selectedTable)
+      (table) => (!table.branchId || table.branchId === currentBranch.id)
+        && normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
     );
-    
+
     if (!freshTable) {
       toast('Meja Tidak Ditemukan', `Meja ${selectedTable} tidak tersedia. Silakan hubungi kasir.`);
       return;
     }
-    
     if (freshTable.status !== 'READY') {
-      toast('Meja Sudah Terpakai', `Meja ${selectedTable} baru saja digunakan pelanggan lain. Silakan pilih meja lain.`);
+      toast('Meja Sudah Terpakai', `Meja ${selectedTable} baru saja digunakan. Silakan hubungi kasir.`);
       return;
     }
-    
     if (!freshTable.isSelfOrderEnabled) {
-      toast('Meja Belum Diaktifkan', `Meja ${selectedTable} belum diaktifkan untuk self-order. Silakan hubungi kasir.`);
+      toast('Meja Belum Diaktifkan', `Meja ${selectedTable} belum diaktifkan untuk self-order.`);
       return;
     }
-    
+
     const draftOrder: Order = {
       id: crypto.randomUUID(),
       orderNumber: `#${Math.floor(100 + Math.random() * 900)}`,
@@ -345,41 +472,27 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       source: 'SELF_ORDER',
       parentOrderId: freshTable.activeOrderId,
     };
+
     setIsSubmitting(true);
+    setActiveStep('SENDING');
+
     try {
       const savedOrder = await onSubmitCustomerOrder(draftOrder);
       setSubmittedOrderId(savedOrder.id);
       setSubmittedOrderSnapshot(savedOrder);
       setActiveStep('ORDER_SUCCESS');
     } catch (error) {
-      // Detailed logging untuk debugging
       console.error('[SelfOrder] Submit Error:', {
         error: error instanceof Error ? error.message : String(error),
         table: selectedTable,
-        tableObj: freshTable ? {
-          id: freshTable.id,
-          status: freshTable.status,
-          enabled: freshTable.isSelfOrderEnabled
-        } : null,
         branch: currentBranch.id,
         items: cartItems.length,
         total: totalAmount,
-        draftOrder: {
-          tableNumber: draftOrder.tableNumber,
-          branchId: draftOrder.branchId,
-          source: draftOrder.source
-        }
       });
-      
+
       const errorMsg = error instanceof Error ? error.message : 'Silakan coba kirim ulang.';
-      if (!onShowToast) {
-        toast('Pesanan Belum Terkirim', errorMsg);
-      }
-      
-      // Specific error handling
-      if (errorMsg.includes('sudah digunakan') || errorMsg.includes('sedang digunakan')) {
-        toast('Meja Sudah Terpakai', 'Meja ini baru saja digunakan pelanggan lain. Silakan pilih meja lain atau hubungi kasir.');
-      }
+      setActiveStep('CART');
+      toast('Pesanan Belum Terkirim', errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -390,318 +503,481 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     setSubmittedOrderSnapshot(null);
     setCartItems([]);
     setOrderNotes('');
+    setCustomerName('');
+    setSearchQuery('');
+    setSelectedCategory('ALL');
     setActiveStep('LANDING');
   };
 
   const handleShare = async () => {
     const order = liveSubmittedOrder;
     const text = order
-      ? `${profile.name} - ${order.orderNumber} - Meja ${selectedTable} - ${formatMoney(order.total)}`
-      : `${profile.name} - ${currentBranch.name}`;
+      ? `${profile.name} · ${order.orderNumber} · Meja ${selectedTable} · ${formatMoney(order.total)}`
+      : `${profile.name} · ${currentBranch.name}`;
+
     if (navigator.share) {
       await navigator.share({title: order ? 'Ringkasan pesanan' : profile.name, text, url: order ? undefined : window.location.href}).catch(() => undefined);
       return;
     }
+
     await navigator.clipboard.writeText(order ? text : window.location.href);
-    toast(order ? 'Ringkasan Disalin' : 'Link Disalin', order ? 'Ringkasan pesanan berhasil disalin.' : 'Link outlet berhasil disalin.');
+    toast('Berhasil Disalin', order ? 'Ringkasan pesanan disalin.' : 'Link outlet disalin.');
   };
 
-  const serviceOpen = isShiftActive;
-  const supportPhone = (currentBranch.phone || profile.phone || '').replace(/[^0-9]/g, '');
-  const statusIndex = liveSubmittedOrder?.status === 'NEW' ? 0
-    : liveSubmittedOrder?.status === 'COOKING' ? 1
-      : liveSubmittedOrder?.status === 'READY' || liveSubmittedOrder?.status === 'COMPLETED' ? 2 : 0;
+  const handleSaveReceiptPng = () => {
+    const order = liveSubmittedOrder;
+    if (!order) {
+      toast('Struk Belum Tersedia', 'Tunggu sampai data pesanan selesai dimuat.');
+      return;
+    }
+
+    const items = order.items || [];
+    const canvasWidth = 900;
+    const itemHeight = (item: OrderItem) => 96
+      + (item.selectedCondiments?.length || 0) * 32
+      + (item.notes ? 42 : 0);
+    const canvasHeight = 560 + items.reduce((sum, item) => sum + itemHeight(item), 0) + (order.notes ? 70 : 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      toast('Gagal Membuat Struk', 'Browser tidak mendukung pembuatan gambar struk.');
+      return;
+    }
+
+    const left = 70;
+    const right = canvasWidth - 70;
+    const drawLine = (y: number, color = '#fed7aa') => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+    };
+
+    ctx.fillStyle = '#fffaf5';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(0, 0, canvasWidth, 180);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 44px Arial, sans-serif';
+    ctx.fillText(profile.name || 'BAKSO UJO', left, 78);
+    ctx.font = '600 22px Arial, sans-serif';
+    ctx.fillText(currentBranch.name, left, 116);
+    ctx.font = '500 18px Arial, sans-serif';
+    ctx.fillText('SELF ORDER · DINE IN', left, 150);
+
+    let y = 235;
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '800 27px Arial, sans-serif';
+    ctx.fillText(`Order ${order.orderNumber}`, left, y);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f97316';
+    ctx.fillText(`Meja ${selectedTable}`, right, y);
+    ctx.textAlign = 'left';
+
+    y += 42;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '500 18px Arial, sans-serif';
+    ctx.fillText(`Nama: ${order.customerName || customerName}`, left, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(new Date(order.createdAt).toLocaleString('id-ID'), right, y);
+    ctx.textAlign = 'left';
+
+    y += 38;
+    drawLine(y);
+    y += 42;
+
+    items.forEach((item, index) => {
+      ctx.fillStyle = '#111827';
+      ctx.font = '800 22px Arial, sans-serif';
+      ctx.fillText(`${index + 1}. ${item.quantity}× ${item.menuName}`, left, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ea580c';
+      ctx.fillText(formatMoney(item.price * item.quantity), right, y);
+      ctx.textAlign = 'left';
+      y += 32;
+
+      ctx.font = '500 17px Arial, sans-serif';
+      ctx.fillStyle = '#64748b';
+      item.selectedCondiments?.forEach((group) => {
+        ctx.fillText(`${group.groupName}: ${group.options.join(', ')}`, left + 24, y);
+        y += 28;
+      });
+      if (item.notes) {
+        ctx.fillStyle = '#c2410c';
+        ctx.fillText(`Catatan: ${item.notes}`, left + 24, y);
+        y += 34;
+      }
+      y += 28;
+      drawLine(y, '#ffedd5');
+      y += 34;
+    });
+
+    if (order.notes) {
+      ctx.fillStyle = '#7c2d12';
+      ctx.font = '600 18px Arial, sans-serif';
+      ctx.fillText(`Catatan umum: ${order.notes}`, left, y);
+      y += 48;
+    }
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '700 18px Arial, sans-serif';
+    ctx.fillText('TOTAL', left, y);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f97316';
+    ctx.font = '800 34px Arial, sans-serif';
+    ctx.fillText(formatMoney(order.total), right, y + 5);
+    ctx.textAlign = 'left';
+    y += 72;
+    drawLine(y);
+    y += 50;
+
+    ctx.fillStyle = '#111827';
+    ctx.font = '800 20px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Terima kasih sudah pesan di Bakso Ujo', canvasWidth / 2, y);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 16px Arial, sans-serif';
+    ctx.fillText('Simpan struk ini sebagai referensi pesanan Anda.', canvasWidth / 2, y + 32);
+    ctx.textAlign = 'left';
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        toast('Gagal Membuat Struk', 'Coba ulangi beberapa saat lagi.');
+        return;
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `Bakso-Ujo-${order.orderNumber.replace(/[^a-zA-Z0-9-]/g, '')}-Meja-${selectedTable}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      toast('Struk Tersimpan', 'Struk PNG berhasil dibuat.');
+    }, 'image/png');
+  };
+
+  const whatsappOrderUrl = supportPhone
+    ? `https://wa.me/${supportPhone}?text=${encodeURIComponent(
+      liveSubmittedOrder
+        ? `Halo Bakso Ujo, saya ${liveSubmittedOrder.customerName || customerName}, order ${liveSubmittedOrder.orderNumber} Meja ${selectedTable}.`
+        : `Halo ${profile.name}, saya ingin bertanya mengenai self-order.`,
+    )}`
+    : '';
 
   return (
-    <div className="theme-self-order min-h-[100dvh] w-full bg-[#fff7ed] font-sans text-slate-950 antialiased">
+    <div className="theme-self-order min-h-[100dvh] w-full font-sans text-[var(--so-text)] antialiased">
       {localToast && (
-        <div role="status" className="fixed left-1/2 top-4 z-[100] w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-orange-200 bg-white px-4 py-3 text-center text-xs font-bold text-slate-700 shadow-[0_16px_50px_rgba(124,45,18,.18)] animate-fadeIn">
+        <div
+          role="status"
+          className="fixed left-1/2 top-4 z-[100] w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-[var(--so-border)] bg-white/95 px-4 py-3 text-center text-xs font-bold text-[var(--so-text-soft)] shadow-[0_18px_55px_rgba(34,24,18,.12)] backdrop-blur-xl animate-slideUp"
+        >
           {localToast}
         </div>
       )}
 
-      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[520px] overflow-hidden bg-[#fffaf5] shadow-[0_0_80px_rgba(124,45,18,.12)]">
+      <div className="relative mx-auto min-h-[100dvh] w-full max-w-[540px] overflow-hidden bg-[var(--so-canvas)] shadow-[0_0_70px_rgba(45,31,22,.08)]">
         {activeStep === 'LANDING' && (
           <main className="min-h-[100dvh] pb-8 animate-fadeIn">
-            <section className="relative overflow-hidden rounded-b-[2.5rem] bg-[#17130f] px-5 pb-7 pt-5 text-white">
-              <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-orange-500/30 blur-3xl motion-safe:animate-pulse" />
-              <div className="pointer-events-none absolute -bottom-28 -left-20 h-52 w-52 rounded-full border-[36px] border-orange-400/10" />
-              <div className="relative flex items-center justify-between gap-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-orange-100">
-                  <QrCode className="h-3.5 w-3.5 text-orange-400" />
-                  Smart Self-order
-                </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black ${serviceOpen ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-400/15 text-rose-300'}`}>
+            <section className="relative min-h-[43dvh] overflow-hidden bg-[#1c120d] px-5 pb-11 pt-5 text-white">
+              {wallpaperUrl && (
+                <img
+                  src={wallpaperUrl}
+                  alt=""
+                  aria-hidden="true"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover opacity-38 motion-safe:animate-[selfOrderHeroZoom_16s_ease-in-out_infinite_alternate]"
+                />
+              )}
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,12,8,.38)_0%,rgba(24,13,8,.66)_45%,rgba(25,15,10,.95)_100%)]" />
+              <div className="so-tech-grid absolute inset-0 opacity-20" />
+              <div className="pointer-events-none absolute -right-28 top-8 h-60 w-60 rounded-full bg-orange-500/20 blur-3xl" />
+
+              <div className="relative z-10 flex items-center justify-between gap-3 so-reveal-1">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.18em] text-white/85 backdrop-blur-md">
+                  <QrCode className="h-3.5 w-3.5 text-orange-400" /> Dine-in Self Order
+                </span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-md ${serviceOpen ? 'border-emerald-300/20 bg-emerald-400/12 text-emerald-200' : 'border-rose-300/20 bg-rose-400/12 text-rose-200'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${serviceOpen ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                  {serviceOpen ? 'MENERIMA ORDER' : 'BELUM TERSEDIA'}
+                  {serviceOpen ? 'Online' : 'Tutup'}
                 </span>
               </div>
 
-              <div className="relative mt-8 flex items-center gap-4">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-white/15 bg-gradient-to-br from-orange-400 to-orange-600 text-2xl font-black shadow-[0_16px_40px_rgba(234,88,12,.3)]">
-                  {profile.logoUrl ? <img src={optimizeCloudinaryImage(profile.logoUrl, 200)} alt={profile.name} decoding="async" className="h-full w-full object-cover" /> : (profile.name || 'BU').slice(0, 2).toUpperCase()}
-                  <span className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 rounded-full border-2 border-[#17130f] bg-emerald-400" />
+              <div className="relative z-10 mx-auto mt-10 max-w-[360px] text-center">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.65rem] border border-white/15 bg-white/10 shadow-[0_18px_45px_rgba(0,0,0,.18)] backdrop-blur-md so-reveal-2">
+                  {profile.logoUrl
+                    ? <img src={optimizeCloudinaryImage(profile.logoUrl, 220)} alt={profile.name} decoding="async" className="h-full w-full object-contain p-2" />
+                    : <Store className="h-8 w-8 text-orange-300" />}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[.2em] text-orange-400">{currentBranch.code}</p>
-                  <h1 className="mt-1 text-2xl font-black leading-tight tracking-tight">{profile.name || currentBranch.name}</h1>
-                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] font-medium leading-relaxed text-white/55">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-orange-400" />
-                    <span className="line-clamp-2">{currentBranch.address || profile.address}</span>
-                  </p>
+                <p className="mt-5 text-[9px] font-black uppercase tracking-[.26em] text-orange-300 so-reveal-3">{currentBranch.code || 'Bakso Ujo'}</p>
+                <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-.04em] so-reveal-3">{profile.name || 'BAKSO UJO'}</h1>
+                <p className="mx-auto mt-3 max-w-[310px] text-[12px] font-semibold leading-relaxed text-white/68 so-reveal-4">Pesan langsung dari meja kamu. Cepat, praktis, dan langsung masuk ke kasir &amp; dapur.</p>
+                <div className="mt-6 inline-flex items-center gap-2 text-[9px] font-bold text-white/42 so-reveal-4">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-400" /> Scan · Pilih · Kirim · Santai
                 </div>
-              </div>
-
-              <div className="relative mt-7 rounded-[1.8rem] border border-white/10 bg-white/[.07] p-4 backdrop-blur-sm">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-950/40">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-base font-black">Pesan tanpa menunggu</p>
-                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-white/55">Pilih meja, atur menu, lalu pesanan langsung diterima kasir dan dapur.</p>
-                  </div>
-                </div>
-                <button type="button" onClick={handleStartOrder} disabled={!serviceOpen} className="mt-4 flex w-full items-center justify-between rounded-2xl bg-orange-500 px-4 py-3.5 text-left text-white shadow-[0_14px_30px_rgba(234,88,12,.28)] transition hover:bg-orange-400 active:scale-[.985] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
-                  <span>
-                    <span className="block text-[10px] font-black uppercase tracking-[.16em] opacity-70">Mulai dari sini</span>
-                    <span className="mt-0.5 block text-sm font-black">Pesan menu sekarang</span>
-                  </span>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-orange-600">
-                    <ArrowRight className="h-5 w-5" />
-                  </span>
-                </button>
               </div>
             </section>
 
-            <section className="space-y-4 px-5 pt-5">
-              {!serviceOpen && (
-                <div className="flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div><p className="text-xs font-black">Self-order sedang berhenti</p><p className="mt-1 text-[11px] font-medium leading-relaxed">Shift kasir outlet ini belum aktif. Hubungi petugas untuk bantuan.</p></div>
+            <section className="relative z-20 -mt-5 space-y-3.5 px-[18px] sm:px-5">
+              <div className="so-card p-4 so-reveal-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[var(--so-brand-soft)]">
+                    {profile.logoUrl
+                      ? <img src={optimizeCloudinaryImage(profile.logoUrl, 120)} alt="" className="h-full w-full object-contain p-1.5" />
+                      : <Store className="h-5 w-5 text-[var(--so-brand)]" />}
+                    <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-[13px] font-black">{currentBranch.name}</h2>
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[7px] font-black uppercase text-emerald-600">Open now</span>
+                    </div>
+                    <p className="mt-1 flex items-start gap-1.5 text-[9px] font-semibold leading-relaxed text-[var(--so-text-muted)]">
+                      <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-[var(--so-brand)]" />
+                      <span className="line-clamp-2">{currentBranch.address || profile.address}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {(profile.promoBannerTitle || profile.promoBannerDescription) && (
+                <div className="so-card p-4 so-reveal-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--so-brand-soft)] px-2.5 py-1 text-[7px] font-black uppercase tracking-wider text-[var(--so-brand)]">
+                    <Sparkles className="h-3 w-3" /> Featured
+                  </span>
+                  <p className="mt-3 text-[13px] font-black uppercase leading-snug text-[var(--so-text)]">{profile.promoBannerTitle || 'Promo spesial hari ini'}</p>
+                  <p className="mt-1.5 text-[9px] font-bold uppercase leading-relaxed text-[var(--so-text-muted)]">{profile.promoBannerDescription || 'Tanyakan promo yang tersedia kepada kasir.'}</p>
                 </div>
               )}
 
-              <div className="rounded-[1.7rem] border border-orange-100 bg-white p-4 shadow-[0_10px_35px_rgba(124,45,18,.06)]">
-                <p className="text-[10px] font-black uppercase tracking-[.18em] text-orange-600">Alur cepat</p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[['01', 'Pilih meja'], ['02', 'Pilih menu'], ['03', 'Kirim order']].map(([number, label]) => (
-                    <div key={number} className="rounded-2xl bg-orange-50 p-3 text-center">
-                      <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-[10px] font-black text-white">{number}</span>
-                      <p className="mt-2 text-[10px] font-black text-slate-700">{label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Tanpa pembayaran online · bayar langsung di kasir
-                </div>
-              </div>
+              <button type="button" onClick={handleStartOrder} disabled={!serviceOpen} className="so-primary-cta group so-reveal-4">
+                <span className="text-left">
+                  <span className="block text-[8px] font-black uppercase tracking-[.18em] text-white/72">Menu tersedia</span>
+                  <span className="mt-1 block text-[22px] font-black leading-none text-white">Pesan Makan</span>
+                </span>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[var(--so-brand)] shadow-sm transition group-active:translate-x-0.5"><ArrowRight className="h-5 w-5" /></span>
+              </button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <a href={supportPhone ? `https://wa.me/${supportPhone}` : undefined} aria-disabled={!supportPhone} onClick={(event) => {if (!supportPhone) event.preventDefault();}} target="_blank" rel="noreferrer" className={`flex items-center gap-3 rounded-2xl border border-orange-100 bg-white p-3.5 text-slate-800 transition ${supportPhone ? 'hover:border-orange-300' : 'cursor-not-allowed opacity-55'}`}>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><PhoneCall className="h-4 w-4" /></span>
-                  <span><span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">Bantuan</span><span className="text-xs font-black">WhatsApp</span></span>
+              {!serviceOpen && (
+                <div className="flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div><p className="text-xs font-black">Self-order sedang berhenti</p><p className="mt-1 text-[10px] font-medium leading-relaxed">Shift kasir outlet belum aktif. Hubungi petugas untuk bantuan.</p></div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 so-reveal-5">
+                <div className="so-card p-4 text-center">
+                  <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Wifi className="h-4 w-4" /></span>
+                  <p className="mt-3 text-[8px] font-black uppercase tracking-wider text-[var(--so-text-faint)]">Status outlet</p>
+                  <p className="mt-1 text-[10px] font-black">Menerima Order</p>
+                </div>
+                <a href={whatsappOrderUrl || undefined} onClick={(event) => {if (!whatsappOrderUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-card p-4 text-center ${whatsappOrderUrl ? '' : 'pointer-events-none opacity-50'}`}>
+                  <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600"><MessageCircle className="h-4 w-4" /></span>
+                  <p className="mt-3 text-[8px] font-black uppercase tracking-wider text-[var(--so-text-faint)]">WhatsApp</p>
+                  <p className="mt-1 text-[10px] font-black">Hubungi Kami</p>
                 </a>
-                <button type="button" onClick={() => void handleShare()} className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-white p-3.5 text-left text-slate-800 transition hover:border-orange-300">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Share2 className="h-4 w-4" /></span>
-                  <span><span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">Bagikan</span><span className="text-xs font-black">Link outlet</span></span>
-                </button>
               </div>
 
-              {profile.instagram && <a href={`https://instagram.com/${profile.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 py-2 text-[11px] font-bold text-slate-400"><Instagram className="h-3.5 w-3.5" /> {profile.instagram}</a>}
+              <a href={googleReviewUrl || undefined} onClick={(event) => {if (!googleReviewUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-card flex items-center gap-3 p-4 ${googleReviewUrl ? '' : 'pointer-events-none opacity-50'}`}>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f5f2ee] text-[var(--so-text-soft)]"><ExternalLink className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-[11px] font-black">Beri Ulasan di Google</span><span className="mt-0.5 block text-[9px] font-semibold text-[var(--so-text-muted)]">Bagikan pengalaman makanmu.</span></span>
+                <ChevronRight className="h-4 w-4 text-[var(--so-text-faint)]" />
+              </a>
+
+              <div className="flex items-center justify-center gap-3 pb-2 pt-1">
+                {profile.instagram && <a href={`https://instagram.com/${profile.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="so-icon-button"><Instagram className="h-4 w-4" /></a>}
+                {profile.tiktok && <a href={`https://www.tiktok.com/@${profile.tiktok.replace('@', '')}`} target="_blank" rel="noreferrer" className="so-icon-button min-w-11 px-3 text-[9px] font-black">TikTok</a>}
+                <button type="button" onClick={() => void handleShare()} className="so-icon-button"><Share2 className="h-4 w-4" /></button>
+              </div>
             </section>
           </main>
         )}
 
         {activeStep === 'TABLE_INPUT' && (
-          <main className="min-h-[100dvh] px-5 pb-8 pt-5 animate-fadeIn">
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setActiveStep('LANDING')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-100 bg-white text-slate-700"><ArrowLeft className="h-4 w-4" /></button>
-              <div className="flex items-center gap-1.5">{[0, 1, 2].map((step) => <span key={step} className={`h-1.5 rounded-full ${step === 0 ? 'w-8 bg-orange-500' : 'w-3 bg-orange-100'}`} />)}</div>
-              <span className="rounded-full bg-orange-100 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-orange-700">Langkah 1/3</span>
-            </div>
+          <main className="min-h-[100dvh] bg-[var(--so-canvas)] px-[18px] pb-8 pt-5 sm:px-5 animate-fadeIn">
+            <header className="flex items-center justify-between">
+              <button type="button" onClick={() => setActiveStep('LANDING')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+              <span className="text-[9px] font-black uppercase tracking-[.2em] text-[var(--so-brand)]">Identitas Pesanan</span>
+              <span className="rounded-full border border-[var(--so-border)] bg-white px-3 py-1.5 text-[8px] font-black text-[var(--so-brand)]">1 / 3</span>
+            </header>
 
-            <div className="pb-6 pt-9 text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[2rem] bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-2xl shadow-orange-500/50 ring-4 ring-orange-100">
-                <UserRound className="h-9 w-9" />
-              </div>
-              <p className="mt-6 text-[11px] font-black uppercase tracking-[.24em] text-orange-600">Langkah 1 dari 3</p>
-              <h2 className="mt-2 text-[28px] font-black leading-tight tracking-tight">Siapa dan di<br/>meja mana?</h2>
-              <p className="mx-auto mt-3 max-w-[280px] text-[13px] font-semibold leading-relaxed text-slate-500">Kasir akan antar pesanan ke meja yang Anda pilih</p>
-            </div>
-
-            <section className="space-y-6 rounded-[2.5rem] border border-orange-100 bg-white p-6 shadow-[0_24px_60px_rgba(124,45,18,.12)]">
-              {tableErrorMsg && (
-                <div role="alert" className="flex gap-3 rounded-[1.5rem] border-2 border-rose-300 bg-rose-50 p-4 animate-shake">
-                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
-                  <p className="text-[12px] font-bold leading-relaxed text-rose-700">{tableErrorMsg}</p>
-                </div>
-              )}
-              
-              <label className="block">
-                <span className="mb-3 flex items-center gap-2.5 text-[12px] font-black text-slate-800">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50">
-                    <UserRound className="h-4 w-4 text-orange-600" />
-                  </div>
-                  Nama Pemesan
-                </span>
-                <input 
-                  autoComplete="name" 
-                  value={customerName} 
-                  onChange={(event) => setCustomerName(event.target.value.slice(0, 60))} 
-                  placeholder="Contoh: Rere" 
-                  className="w-full rounded-[1.25rem] border-2 border-orange-100 bg-orange-50/40 px-5 py-4 text-[15px] font-bold outline-none transition-all placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100/50" 
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-3 flex items-center gap-2.5 text-[12px] font-black text-slate-800">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-50">
-                    <Store className="h-4 w-4 text-orange-600" />
-                  </div>
-                  Nomor Meja dari Kasir
-                </span>
-                <div className="relative">
-                  <input
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    value={selectedTable}
-                    onChange={(event) => {
-                      setSelectedTable(event.target.value.replace(/[^0-9]/g, '').slice(0, 4));
-                      setTableErrorMsg('');
-                    }}
-                    placeholder="Masukkan nomor meja"
-                    aria-describedby="self-order-table-help"
-                    className="w-full rounded-[1.25rem] border-2 border-orange-100 bg-orange-50/40 px-5 py-4 pr-28 text-[18px] font-black outline-none transition-all placeholder:text-[15px] placeholder:font-bold placeholder:text-slate-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100/50"
-                  />
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-lg">Meja</span>
-                </div>
-                <p id="self-order-table-help" className="mt-3 flex items-start gap-2 text-[11px] font-semibold leading-relaxed text-slate-400">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
-                  Server akan validasi ketersediaan meja saat pesanan dikirim
-                </p>
-              </label>
-
-              <button 
-                type="button" 
-                onClick={handleProceedToMenu} 
-                className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 bg-size-200 py-5 text-[15px] font-black text-white shadow-2xl shadow-orange-500/40 transition-all duration-300 hover:bg-pos-100 hover:shadow-orange-500/60 active:scale-[.98]"
-              >
-                <span className="relative z-10">Lanjut Pilih Menu</span>
-                <ArrowRight className="relative z-10 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 opacity-0 transition-opacity group-hover:opacity-100" />
-              </button>
+            <section className="pb-7 pt-10 text-center">
+              <span className="mx-auto flex h-[52px] w-13 items-center justify-center rounded-[1.1rem] bg-[var(--so-brand)] text-white shadow-[0_12px_28px_rgba(237,95,30,.24)]"><UserRound className="h-5 w-5" /></span>
+              <h2 className="mt-5 text-[25px] font-black leading-tight tracking-[-.04em]">Siap pesan dari meja kamu?</h2>
+              <p className="mx-auto mt-2 max-w-[310px] text-[11px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Isi nama dan nomor meja sesuai QR atau nomor yang diberikan kasir.</p>
             </section>
+
+            <section className="so-card space-y-4 p-5">
+              {tableErrorMsg && (
+                <div role="alert" className="flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 animate-shake"><Info className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" /><p className="text-[10px] font-bold leading-relaxed text-rose-700">{tableErrorMsg}</p></div>
+              )}
+
+              <label className="block">
+                <span className="so-field-label">Nama kamu</span>
+                <div className="so-field-shell"><UserRound className="h-4 w-4 shrink-0 text-[var(--so-brand)]" /><input autoComplete="name" value={customerName} onChange={(event) => setCustomerName(event.target.value.slice(0, 60))} placeholder="Contoh: Gugun" className="so-native-input min-w-0 flex-1 border-0 bg-transparent py-4 text-[13px] font-bold outline-none ring-0 placeholder:text-[var(--so-text-faint)]" /></div>
+              </label>
+
+              <label className="block">
+                <span className="so-field-label">Nomor meja</span>
+                <div className="so-field-shell p-2 pl-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-sm font-black text-[var(--so-brand)]">#</span>
+                  <input inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={selectedTable} onChange={(event) => {setSelectedTable(event.target.value.replace(/[^0-9]/g, '').slice(0, 4)); setTableErrorMsg('');}} placeholder="Nomor meja" className="so-native-input min-w-0 flex-1 border-0 bg-transparent px-1 py-2 text-[16px] font-black outline-none ring-0 placeholder:text-[12px] placeholder:font-semibold placeholder:text-[var(--so-text-faint)]" />
+                  <span className={`mr-1 rounded-full px-2.5 py-1.5 text-[7px] font-black uppercase ${selectedTableState?.status === 'READY' && selectedTableState.isSelfOrderEnabled ? 'bg-emerald-50 text-emerald-700' : selectedTable ? 'bg-[#f3f1ee] text-[var(--so-text-muted)]' : 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]'}`}>{selectedTableState?.status === 'READY' && selectedTableState.isSelfOrderEnabled ? 'Siap' : selectedTable ? 'Validasi' : 'Isi'}</span>
+                </div>
+                <p className="mt-2 flex items-start gap-1.5 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" /> Ketersediaan meja diperiksa lagi saat pesanan dikirim.</p>
+              </label>
+
+              <button type="button" onClick={handleProceedToMenu} className="so-primary-button group">Mulai pilih menu <ArrowRight className="h-4 w-4 transition group-active:translate-x-0.5" /></button>
+            </section>
+            <p className="mt-5 text-center text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Khusus dine-in. Untuk item yang ingin dibungkus, tulis pada <span className="font-black text-[var(--so-brand)]">catatan item</span>.</p>
           </main>
         )}
 
         {activeStep === 'MENU' && (
-          <main className="flex h-[100dvh] flex-col overflow-hidden bg-[#fffaf5] animate-fadeIn">
-            <header className="z-20 shrink-0 border-b border-orange-100 bg-white/95 px-4 pb-3 pt-4 backdrop-blur-xl">
+          <main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--so-canvas)] animate-fadeIn">
+            <header className="z-20 shrink-0 border-b border-[var(--so-border)] bg-white/[.96] px-4 pb-3 pt-4 backdrop-blur-xl">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setActiveStep('TABLE_INPUT')} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-700"><ArrowLeft className="h-4 w-4" /></button>
-                <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[.16em] text-orange-600">{currentBranch.code} · Meja {selectedTable}</p><h2 className="truncate text-base font-black">Mau makan apa, {customerName}?</h2></div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#17130f] text-orange-400"><Utensils className="h-4 w-4" /></div>
+                <button type="button" onClick={() => setActiveStep('TABLE_INPUT')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+                <div className="min-w-0 flex-1"><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">{profile.name}</p><h2 className="truncate text-[14px] font-black">Hai {customerName}, mau makan apa?</h2></div>
+                <span className="rounded-full bg-[var(--so-brand-soft)] px-3 py-2 text-[8px] font-black text-[var(--so-brand)]">Meja {selectedTable}</span>
               </div>
               <div className="relative mt-3">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari menu favorit..." className="w-full rounded-2xl border border-orange-100 bg-orange-50/50 py-3 pl-10 pr-10 text-xs font-bold outline-none transition focus:border-orange-300 focus:bg-white" />
-                {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><X className="h-4 w-4" /></button>}
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--so-text-faint)]" />
+                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari menu favorit..." className="so-native-input w-full rounded-2xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] py-3 pl-10 pr-10 text-[11px] font-bold outline-none transition focus:border-[var(--so-brand-weak)] focus:bg-white" />
+                {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--so-text-muted)]"><X className="h-4 w-4" /></button>}
               </div>
             </header>
 
-            <div className="shrink-0 overflow-x-auto border-b border-orange-100 bg-white px-4 py-2.5 scrollbar-none">
-              <div className="flex min-w-max gap-2">{categoryOptions.map((category) => <button key={category.key} type="button" onClick={() => setSelectedCategory(category.key)} className={`rounded-full px-4 py-2 text-[10px] font-black transition ${selectedCategory === category.key ? 'bg-orange-500 text-white shadow-md shadow-orange-200' : 'bg-orange-50 text-slate-600 hover:bg-orange-100'}`}>{category.label}</button>)}</div>
+            <div className="shrink-0 overflow-x-auto border-b border-[var(--so-border)] bg-white px-4 py-2.5 scrollbar-none">
+              <div className="flex min-w-max gap-2">{categoryOptions.map((category) => <button key={category.key} type="button" onClick={() => setSelectedCategory(category.key)} className={`rounded-full px-4 py-2 text-[9px] font-black transition active:scale-95 ${selectedCategory === category.key ? 'bg-[var(--so-brand)] text-white shadow-[0_6px_18px_rgba(237,95,30,.18)]' : 'bg-[var(--so-surface-soft)] text-[var(--so-text-soft)]'}`}>{category.label}</button>)}</div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
-              <div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-400">{categoryOptions.find((category) => category.key === selectedCategory)?.label}</p><span className="text-[10px] font-bold text-slate-400">{filteredMenu.length} menu</span></div>
-              {filteredMenu.length ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {filteredMenu.map((item) => {
-                    const quantity = getItemCartQty(item.id);
-                    return <button key={item.id} type="button" onClick={() => handleItemClick(item)} className={`group relative overflow-hidden rounded-[1.5rem] border bg-white p-2.5 text-left shadow-[0_8px_28px_rgba(124,45,18,.06)] transition active:scale-[.98] ${item.isAvailable ? 'border-orange-100 hover:-translate-y-0.5 hover:border-orange-300' : 'cursor-not-allowed border-slate-100 opacity-60'}`}>
-                      <div className="relative aspect-[4/3] overflow-hidden rounded-[1.1rem] bg-orange-50">
-                        {item.image ? <img src={optimizeCloudinaryImage(item.image, 480)} alt={item.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-orange-200"><Utensils className="h-8 w-8" /></div>}
-                        {!item.isAvailable && <span className="absolute inset-0 flex items-center justify-center bg-slate-950/55 text-[10px] font-black uppercase tracking-widest text-white">Habis</span>}
-                        {quantity > 0 && <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-orange-500 px-2 text-[10px] font-black text-white shadow-lg">{quantity}</span>}
-                      </div>
-                      <div className="px-1 pb-1 pt-2.5"><p className="line-clamp-2 min-h-8 text-[11px] font-black leading-snug text-slate-900">{item.name}</p><div className="mt-2 flex items-end justify-between gap-1"><span className="text-xs font-black text-orange-600">{formatMoney(item.price)}</span><span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#17130f] text-orange-400"><Plus className="h-3.5 w-3.5" /></span></div></div>
-                    </button>;
-                  })}
-                </div>
-              ) : <div className="rounded-[1.7rem] border border-dashed border-orange-200 bg-white p-10 text-center"><Search className="mx-auto h-7 w-7 text-orange-200" /><p className="mt-3 text-xs font-black">Menu tidak ditemukan</p><p className="mt-1 text-[10px] font-medium text-slate-400">Coba kategori atau kata kunci lainnya.</p></div>}
+              <div className="mb-3 flex items-end justify-between"><div><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">Menu</p><p className="mt-0.5 text-[10px] font-bold text-[var(--so-text-muted)]">{categoryOptions.find((category) => category.key === selectedCategory)?.label || 'Semua'} · {filteredMenu.length} tersedia</p></div></div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {filteredMenu.map((item) => {
+                  const qty = getItemCartQty(item.id);
+                  return (
+                    <article key={item.id} className="so-product-card group">
+                      <button type="button" onClick={() => handleItemClick(item)} className="block w-full text-left">
+                        <div className="so-product-image-wrap">
+                          {item.image ? <img src={optimizeCloudinaryImage(item.image, 520)} alt={item.name} loading="lazy" decoding="async" className="so-menu-photo h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center"><Utensils className="h-8 w-8 text-[var(--so-text-faint)]" /></div>}
+                        </div>
+                        <div className="p-3 pt-2.5">
+                          <h3 className="min-h-[34px] line-clamp-2 text-[12px] font-black leading-[1.35] tracking-[-.015em] text-[var(--so-text)]">{item.name}</h3>
+                          <div className="mt-3 flex items-center justify-between gap-2"><span className="text-[11px] font-black text-[var(--so-brand)]">{formatMoney(item.price)}</span><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand)] text-white shadow-[0_7px_18px_rgba(237,95,30,.18)]"><Plus className="h-4 w-4" /></span></div>
+                        </div>
+                      </button>
+                      {qty > 0 && <span className="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-[var(--so-brand)] px-1.5 text-[9px] font-black text-white shadow-sm so-cart-pop">{qty}</span>}
+                    </article>
+                  );
+                })}
+              </div>
+
+              {filteredMenu.length === 0 && <div className="py-16 text-center"><Search className="mx-auto h-7 w-7 text-[var(--so-text-faint)]" /><p className="mt-3 text-[11px] font-black">Menu tidak ditemukan</p><p className="mt-1 text-[9px] font-semibold text-[var(--so-text-muted)]">Coba kata kunci atau kategori lain.</p></div>}
             </div>
 
-            {totalCartQty > 0 && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 py-4 pb-6"><button type="button" onClick={() => setIsCartModalOpen(true)} className="pointer-events-auto flex w-full items-center gap-3 rounded-[1.4rem] bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 p-3 text-white shadow-[0_20px_50px_rgba(234,88,12,.4)] transition hover:shadow-[0_25px_60px_rgba(234,88,12,.5)] active:scale-[.985]"><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-orange-600 text-base font-black shadow-lg">{totalCartQty}</span><span className="min-w-0 flex-1 text-left"><span className="block text-[10px] font-black uppercase tracking-widest opacity-90">Keranjang</span><span className="block text-base font-black">{formatMoney(totalAmount)}</span></span><span className="flex items-center gap-1 text-xs font-black">Periksa <ChevronRight className="h-5 w-5" /></span></button></div>}
+            {totalCartQty > 0 && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3"><button type="button" onClick={() => setActiveStep('CART')} className="pointer-events-auto flex w-full items-center gap-3 rounded-[1.35rem] bg-[var(--so-text)] p-3 text-white shadow-[0_18px_44px_rgba(34,24,18,.24)] transition active:scale-[.988] animate-slideUp"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[13px] font-black text-[var(--so-brand)]">{totalCartQty}</span><span className="min-w-0 flex-1 text-left"><span className="block text-[8px] font-black uppercase tracking-widest text-white/55">Keranjang</span><span className="block text-[14px] font-black">{formatMoney(totalAmount)}</span></span><span className="flex items-center gap-1 text-[10px] font-black">Lihat <ChevronRight className="h-4 w-4" /></span></button></div>}
           </main>
         )}
 
         {activeStep === 'CART' && (
-          <main className="flex min-h-[100dvh] flex-col bg-[#fffaf5] animate-fadeIn">
-            <header className="flex items-center gap-3 border-b border-orange-100 bg-white px-4 py-4">
-              <button type="button" onClick={() => setActiveStep('MENU')} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-orange-700"><ArrowLeft className="h-4 w-4" /></button>
-              <div className="flex-1"><p className="text-[9px] font-black uppercase tracking-[.16em] text-orange-600">Langkah terakhir</p><h2 className="text-base font-black">Periksa pesanan</h2></div>
-              <span className="rounded-full bg-orange-100 px-3 py-1.5 text-[9px] font-black text-orange-700">Meja {selectedTable}</span>
+          <main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--so-canvas)] animate-fadeIn">
+            <header className="z-20 flex shrink-0 items-center gap-3 border-b border-[var(--so-border)] bg-white/[.96] px-4 py-4 backdrop-blur-xl">
+              <button type="button" onClick={() => setActiveStep('MENU')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+              <div className="min-w-0 flex-1"><p className="text-[8px] font-black uppercase tracking-[.18em] text-[var(--so-brand)]">Konfirmasi Pesanan</p><h2 className="text-[17px] font-black tracking-[-.02em]">Cek sekali lagi</h2></div>
+              <span className="rounded-full bg-[var(--so-brand-soft)] px-3 py-2 text-[8px] font-black text-[var(--so-brand)]">Meja {selectedTable}</span>
             </header>
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-4 pb-32">
-              <div className="rounded-[1.7rem] border border-orange-100 bg-white p-4 shadow-[0_10px_35px_rgba(124,45,18,.06)]">
-                <div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{totalCartQty} item dipilih</p><button type="button" onClick={() => setActiveStep('MENU')} className="text-[10px] font-black text-orange-600">+ Tambah menu</button></div>
-                <div className="divide-y divide-orange-50">{cartItems.map((item) => <div key={item.id} className="flex gap-3 py-3 first:pt-0 last:pb-0"><span className="flex h-8 min-w-8 items-center justify-center rounded-xl bg-orange-50 text-[10px] font-black text-orange-700">{item.quantity}×</span><div className="min-w-0 flex-1"><p className="text-xs font-black">{item.menuName}</p>{item.selectedCondiments?.map((group) => <p key={`${item.id}-${group.groupName}`} className="mt-1 text-[9px] font-medium leading-relaxed text-slate-400">{group.groupName}: {group.options.join(', ')}</p>)}{item.notes && <p className="mt-1 text-[9px] font-bold text-orange-600">Catatan: {item.notes}</p>}</div><span className="shrink-0 text-[11px] font-black">{formatMoney(item.price * item.quantity)}</span></div>)}</div>
-                <button type="button" onClick={() => setIsCartModalOpen(true)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-50 py-2.5 text-[10px] font-black text-orange-700"><Pencil className="h-3.5 w-3.5" /> Ubah jumlah atau varian</button>
-              </div>
+            <div className="flex-1 space-y-4 overflow-y-auto p-4 pb-36">
+              <section className="so-card p-3.5"><div className="grid grid-cols-3 gap-2 text-center"><div><p className="so-meta-label">Nama</p><p className="mt-1 truncate text-[10px] font-black">{customerName}</p></div><div className="border-x border-[var(--so-border)]"><p className="so-meta-label">Meja</p><p className="mt-1 text-[10px] font-black text-[var(--so-brand)]">{selectedTable}</p></div><div><p className="so-meta-label">Outlet</p><p className="mt-1 truncate text-[10px] font-black">{currentBranch.code || currentBranch.name}</p></div></div></section>
 
-              <label className="block rounded-[1.7rem] border border-orange-100 bg-white p-4">
-                <span className="flex items-center justify-between text-[11px] font-black"><span>Catatan untuk dapur</span><span className="text-[9px] font-bold text-slate-300">Opsional · {orderNotes.length}/500</span></span>
-                <textarea value={orderNotes} onChange={(event) => setOrderNotes(event.target.value.slice(0, 500))} rows={3} placeholder="Contoh: antar bersamaan, tanpa bawang..." className="mt-3 w-full resize-none rounded-2xl border border-orange-100 bg-orange-50/50 px-3.5 py-3 text-xs font-semibold outline-none focus:border-orange-300 focus:bg-white" />
-              </label>
+              <section className="space-y-3">
+                <div className="flex items-end justify-between gap-3"><div><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">Ringkasan Pesanan</p><p className="text-[9px] font-semibold text-[var(--so-text-muted)]">Periksa pilihan dan catatan item.</p></div><button type="button" onClick={() => setActiveStep('MENU')} className="text-[9px] font-black text-[var(--so-brand)]">+ Tambah menu</button></div>
 
-              <div className="flex gap-3 rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4 text-emerald-900"><Wifi className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="text-[11px] font-black">Langsung masuk ke kasir dan dapur</p><p className="mt-1 text-[10px] font-medium leading-relaxed text-emerald-800/70">Tidak ada pembayaran online. Pembayaran dilakukan kepada kasir sebelum atau setelah makan.</p></div></div>
+                {cartItems.map((item) => {
+                  const menu = menuItems.find((menuItem) => menuItem.id === item.menuId);
+                  const noteExpanded = Boolean(item.notes) || expandedNoteIds.has(item.id);
+                  return (
+                    <article key={item.id} className="so-card p-3.5">
+                      <div className="flex items-start gap-3">
+                        <div className="h-[60px] w-15 shrink-0 overflow-hidden rounded-2xl bg-[var(--so-surface-soft)]">{menu?.image ? <img src={optimizeCloudinaryImage(menu.image, 220)} alt="" loading="lazy" className="h-full w-full object-contain p-1" /> : <div className="flex h-full items-center justify-center"><Utensils className="h-5 w-5 text-[var(--so-text-faint)]" /></div>}</div>
+                        <div className="min-w-0 flex-1"><p className="text-[12px] font-black leading-snug">{item.menuName}</p><p className="mt-1 text-[11px] font-black text-[var(--so-brand)]">{formatMoney(item.price * item.quantity)}</p></div>
+                        <div className="flex items-center gap-1 rounded-xl bg-[var(--so-surface-soft)] p-1"><button type="button" onClick={() => handleUpdateQty(item.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[var(--so-text-soft)]"><Minus className="h-3 w-3" /></button><span className="w-6 text-center text-[10px] font-black">{item.quantity}</span><button type="button" onClick={() => handleUpdateQty(item.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--so-brand)] text-white"><Plus className="h-3 w-3" /></button></div>
+                      </div>
+
+                      {item.selectedCondiments?.length ? <div className="mt-3 flex flex-wrap gap-1.5">{item.selectedCondiments.map((group) => <span key={`${item.id}-${group.groupName}`} className="rounded-lg bg-[var(--so-surface-soft)] px-2.5 py-1.5 text-[8px] font-bold text-[var(--so-text-soft)]"><strong className="font-black text-[var(--so-text)]">{group.groupName}:</strong> {group.options.join(', ')}</span>)}</div> : null}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--so-border)] pt-3">
+                        <button type="button" onClick={() => handleConfigureItem(item)} className="flex items-center gap-1.5 text-[9px] font-black text-[var(--so-brand)]"><Pencil className="h-3 w-3" /> Ubah pilihan</button>
+                        <button type="button" onClick={() => toggleItemNote(item.id)} className="text-[9px] font-black text-[var(--so-text-soft)]">{noteExpanded ? 'Tutup catatan' : '+ Tambah catatan item'}</button>
+                      </div>
+
+                      {item.quantity > 1 && <button type="button" onClick={() => splitCartItemIntoSinglePortions(item.id)} className="mt-3 w-full rounded-xl border border-dashed border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2 text-[8px] font-black text-[var(--so-text-soft)]">Pisahkan {item.quantity} porsi untuk catatan berbeda</button>}
+
+                      {noteExpanded && <label className="mt-3 block"><span className="mb-1.5 flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-[var(--so-text-faint)]"><span>Catatan item</span><span>{item.notes?.length || 0}/240</span></span><textarea value={item.notes || ''} onChange={(event) => handleUpdateItemNote(item.id, event.target.value)} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold outline-none transition focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>}
+                    </article>
+                  );
+                })}
+              </section>
+
+              <section className="so-card p-4">
+                <button type="button" onClick={() => setShowGeneralNote((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left"><span><span className="block text-[10px] font-black">Catatan umum pesanan</span><span className="mt-0.5 block text-[8px] font-semibold text-[var(--so-text-muted)]">Opsional · misalnya antar bersamaan.</span></span><ChevronRight className={`h-4 w-4 text-[var(--so-text-faint)] transition ${showGeneralNote ? 'rotate-90' : ''}`} /></button>
+                {(showGeneralNote || orderNotes) && <textarea value={orderNotes} onChange={(event) => setOrderNotes(event.target.value.slice(0, 500))} rows={2} placeholder="Contoh: antar bersamaan..." className="so-native-textarea mt-3 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold outline-none focus:border-[var(--so-brand-weak)] focus:bg-white" />}
+              </section>
+
+              <div className="flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-emerald-900"><Wifi className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="text-[10px] font-black">Langsung masuk ke kasir &amp; dapur</p><p className="mt-1 text-[8px] font-medium leading-relaxed text-emerald-800/70">Self-order khusus dine-in. Pembayaran dilakukan kepada kasir.</p></div></div>
             </div>
 
-            <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[520px] border-t border-orange-100 bg-white/95 p-4 backdrop-blur-xl">
-              <div className="mb-3 flex items-end justify-between"><span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total pesanan</span><span className="text-xl font-black tracking-tight text-orange-600">{formatMoney(totalAmount)}</span></div>
-              <button type="button" onClick={() => void handleSubmitOrder()} disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 text-sm font-black text-white shadow-[0_14px_35px_rgba(234,88,12,.3)] transition hover:bg-orange-600 active:scale-[.985] disabled:cursor-wait disabled:bg-orange-300">{isSubmitting ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Mengirim pesanan...</> : <>Konfirmasi &amp; kirim pesanan <ArrowRight className="h-4 w-4" /></>}</button>
-            </footer>
+            <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[540px] border-t border-[var(--so-border)] bg-white/[.96] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl"><div className="mb-3 flex items-end justify-between"><span className="text-[8px] font-black uppercase tracking-widest text-[var(--so-text-faint)]">Total pesanan</span><span className="text-[20px] font-black tracking-tight text-[var(--so-text)]">{formatMoney(totalAmount)}</span></div><button type="button" onClick={() => void handleSubmitOrder()} disabled={isSubmitting || !cartItems.length} className="so-primary-button disabled:cursor-wait disabled:opacity-55">Ya, kirim pesanan <ArrowRight className="h-4 w-4" /></button></footer>
+          </main>
+        )}
+
+        {activeStep === 'SENDING' && (
+          <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[var(--so-canvas)] px-6 text-center animate-fadeIn" aria-live="polite">
+            <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-200/18 blur-3xl" />
+            <div className="relative"><div className="absolute inset-[-22px] rounded-full border border-[var(--so-border)] motion-safe:animate-[selfOrderOrbit_6s_linear_infinite]" /><span className="relative flex h-20 w-20 items-center justify-center rounded-[1.6rem] bg-[var(--so-brand)] text-white shadow-[0_20px_50px_rgba(237,95,30,.24)]"><ChefHat className="h-8 w-8" /></span></div>
+            <p className="mt-12 text-[9px] font-black uppercase tracking-[.22em] text-[var(--so-brand)]">Menghubungkan ke outlet</p><h2 className="mt-2 text-[22px] font-black tracking-[-.04em]">Mengirim pesanan...</h2><p className="mt-2 max-w-[280px] text-[10px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Mohon tunggu sebentar. Jangan tutup halaman sampai pesanan berhasil diterima.</p><div className="mt-7 flex items-center gap-2">{[0, 1, 2].map((index) => <span key={index} className="h-2.5 w-2.5 rounded-full bg-[var(--so-brand)] motion-safe:animate-[selfOrderDot_1.2s_ease-in-out_infinite]" style={{animationDelay: `${index * 150}ms`}} />)}</div><div className="mt-9 flex items-center gap-2 rounded-full border border-[var(--so-border)] bg-white px-4 py-2.5 text-[8px] font-bold text-[var(--so-text-muted)] shadow-sm"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Proteksi duplikasi aktif</div>
           </main>
         )}
 
         {activeStep === 'ORDER_SUCCESS' && (
-          <main className="min-h-[100dvh] bg-[#fffaf5] px-5 pb-8 pt-6 animate-fadeIn">
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#17130f] p-5 text-white shadow-[0_22px_60px_rgba(23,19,15,.25)]">
-              <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-orange-500/25 blur-2xl" />
-              <div className="relative flex items-start justify-between"><div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-emerald-400 text-[#17130f]"><Check className="h-7 w-7 stroke-[3]" /></div><span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-orange-200">{liveSubmittedOrder?.orderNumber}</span></div>
-              <div className="relative mt-5"><p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Pesanan diterima server</p><h2 className="mt-1 text-2xl font-black tracking-tight">Berhasil dikirim!</h2><p className="mt-2 text-xs font-medium leading-relaxed text-white/55">Pantau progres di layar ini. Pesanan Anda sudah masuk ke outlet {currentBranch.name}.</p></div>
+          <main className="min-h-[100dvh] bg-[var(--so-canvas)] px-[18px] pb-8 pt-5 sm:px-5 animate-fadeIn">
+            <section className="rounded-[1.8rem] bg-[var(--so-text)] p-5 text-white shadow-[0_20px_55px_rgba(34,24,18,.18)]">
+              <div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-400 text-[#173020] so-success-pop"><Check className="h-7 w-7 stroke-[3]" /></span><span className="rounded-full border border-white/10 bg-white/[.08] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-white/65">{liveSubmittedOrder?.orderNumber}</span></div>
+              <p className="mt-5 text-[8px] font-black uppercase tracking-[.18em] text-emerald-300">Pesanan diterima</p><h2 className="mt-1 text-[25px] font-black tracking-[-.04em]">Pesanan berhasil!</h2><p className="mt-2 text-[10px] font-medium leading-relaxed text-white/58">Pesanan sudah masuk ke {currentBranch.name}. Silakan tetap di meja dan pantau statusnya.</p>
+              <div className="mt-5 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Order</p><p className="mt-1 text-[12px] font-black text-orange-300">{liveSubmittedOrder?.orderNumber}</p></div><div className="rounded-2xl border border-white/10 bg-white/[.07] p-3"><p className="text-[7px] font-black uppercase tracking-widest text-white/35">Meja</p><p className="mt-1 text-[12px] font-black text-orange-300">{selectedTable}</p></div></div>
             </section>
 
-            <section className="mt-4 rounded-[1.7rem] border border-orange-100 bg-white p-4 shadow-[0_10px_35px_rgba(124,45,18,.06)]">
-              <div className="flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Status pesanan</p><p className="mt-1 text-sm font-black">{statusIndex === 0 ? 'Menunggu diterima dapur' : statusIndex === 1 ? 'Sedang dimasak' : 'Dapur selesai'}</p></div><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-orange-600"><ChefHat className="h-5 w-5" /></span></div>
-              <div className="mt-5 grid grid-cols-3 gap-2">{['Diterima', 'Dimasak', 'Selesai'].map((label, index) => <div key={label} className="text-center"><span className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border-4 border-white text-[10px] font-black shadow-sm ${index <= statusIndex ? 'bg-orange-500 text-white ring-2 ring-orange-100' : 'bg-slate-100 text-slate-300'}`}>{index < statusIndex ? <Check className="h-3.5 w-3.5" /> : index + 1}</span><p className={`mt-2 text-[9px] font-black ${index <= statusIndex ? 'text-slate-800' : 'text-slate-300'}`}>{label}</p></div>)}</div>
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-[10px] font-bold text-amber-800"><Clock3 className="h-3.5 w-3.5 shrink-0" /> Pembayaran dilakukan langsung kepada kasir.</div>
+            <section className="so-card mt-4 p-4">
+              <div className="flex items-center justify-between"><div><p className="so-meta-label">Status pesanan · Live</p><p className="mt-1 text-[13px] font-black">{statusIndex === 0 ? 'Pesanan diterima' : statusIndex === 1 ? 'Sedang disiapkan' : 'Siap disajikan'}</p></div><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${statusIndex === 2 ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]'}`}><ChefHat className="h-5 w-5" /></span></div>
+              <div className="mt-5 grid grid-cols-3 gap-2">{['Diterima', 'Disiapkan', 'Siap'].map((label, index) => <div key={label} className="text-center"><span className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-black transition ${index <= statusIndex ? 'bg-[var(--so-brand)] text-white' : 'bg-[var(--so-surface-soft)] text-[var(--so-text-faint)]'}`}>{index < statusIndex ? <Check className="h-3.5 w-3.5" /> : index + 1}</span><p className={`mt-2 text-[8px] font-black ${index <= statusIndex ? 'text-[var(--so-text)]' : 'text-[var(--so-text-faint)]'}`}>{label}</p></div>)}</div>
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#fff7df] px-3 py-2.5 text-[8px] font-bold text-[#9a6c00]"><Clock3 className="h-3.5 w-3.5 shrink-0" /> Pembayaran dilakukan langsung kepada kasir.</div>
             </section>
 
-            <section className="mt-4 rounded-[1.7rem] border border-orange-100 bg-white p-4">
-              <div className="flex items-center justify-between border-b border-orange-50 pb-3"><div className="flex items-center gap-2"><Receipt className="h-4 w-4 text-orange-500" /><p className="text-[10px] font-black uppercase tracking-widest">Ringkasan order</p></div><span className="text-[10px] font-black text-orange-600">Meja {selectedTable}</span></div>
-              <div className="divide-y divide-orange-50">{(liveSubmittedOrder?.items || cartItems).map((item) => <div key={item.id} className="flex items-start gap-3 py-3"><span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-orange-50 text-[9px] font-black text-orange-700">{item.quantity}×</span><div className="min-w-0 flex-1"><p className="text-[11px] font-black">{item.menuName}</p>{item.selectedCondiments?.map((group) => <p key={`${item.id}-${group.groupName}`} className="mt-1 text-[9px] font-medium text-slate-400">{group.groupName}: {group.options.join(', ')}</p>)}{item.notes && <p className="mt-1 text-[9px] font-medium text-orange-600">Catatan: {item.notes}</p>}</div><span className="text-[10px] font-black">{formatMoney(item.price * item.quantity)}</span></div>)}</div>
-              {liveSubmittedOrder?.notes && <div className="rounded-xl bg-orange-50 px-3 py-2 text-[10px] font-medium text-orange-800">Catatan: {liveSubmittedOrder.notes}</div>}
-              <div className="mt-3 flex items-end justify-between border-t border-dashed border-orange-200 pt-3"><span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</span><span className="text-lg font-black text-orange-600">{formatMoney(liveSubmittedOrder?.total || totalAmount)}</span></div>
+            <section className="so-card mt-4 p-4">
+              <div className="flex items-center justify-between border-b border-[var(--so-border)] pb-3"><div className="flex items-center gap-2"><Receipt className="h-4 w-4 text-[var(--so-brand)]" /><p className="text-[9px] font-black uppercase tracking-widest">Struk Pesanan</p></div><span className="text-[8px] font-black text-[var(--so-text-muted)]">{totalCartQty} item</span></div>
+              <div className="divide-y divide-[var(--so-border)]">{(liveSubmittedOrder?.items || cartItems).map((item) => <div key={item.id} className="flex items-start gap-3 py-3"><span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-[var(--so-surface-soft)] text-[8px] font-black text-[var(--so-text-soft)]">{item.quantity}×</span><div className="min-w-0 flex-1"><p className="text-[10px] font-black">{item.menuName}</p>{item.selectedCondiments?.map((group) => <p key={`${item.id}-${group.groupName}`} className="mt-1 text-[8px] font-medium text-[var(--so-text-muted)]">{group.groupName}: {group.options.join(', ')}</p>)}{item.notes && <p className="mt-1 text-[8px] font-bold text-[var(--so-brand)]">Catatan: {item.notes}</p>}</div><span className="text-[9px] font-black">{formatMoney(item.price * item.quantity)}</span></div>)}</div>
+              {liveSubmittedOrder?.notes && <div className="rounded-xl bg-[var(--so-surface-soft)] px-3 py-2 text-[8px] font-medium text-[var(--so-text-soft)]">Catatan umum: {liveSubmittedOrder.notes}</div>}
+              <div className="mt-3 flex items-end justify-between border-t border-dashed border-[var(--so-border)] pt-3"><span className="so-meta-label">Total</span><span className="text-[17px] font-black text-[var(--so-text)]">{formatMoney(liveSubmittedOrder?.total || totalAmount)}</span></div>
             </section>
 
-            <div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClick={() => void handleShare()} className="flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white py-3.5 text-[11px] font-black text-orange-700"><Share2 className="h-4 w-4" /> Bagikan</button><a href={supportPhone ? `https://wa.me/${supportPhone}` : undefined} aria-disabled={!supportPhone} onClick={(event) => {if (!supportPhone) event.preventDefault();}} target="_blank" rel="noreferrer" className={`flex items-center justify-center gap-2 rounded-2xl py-3.5 text-[11px] font-black text-white ${supportPhone ? 'bg-emerald-500' : 'cursor-not-allowed bg-slate-300'}`}><MessageCircle className="h-4 w-4" /> {supportPhone ? 'Hubungi kasir' : 'Nomor belum tersedia'}</a></div>
-            <button type="button" onClick={handleResetToLanding} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[11px] font-black text-slate-400"><Home className="h-4 w-4" /> Kembali ke beranda</button>
+            <section className="mt-4 grid grid-cols-2 gap-3">
+              <button type="button" onClick={handleSaveReceiptPng} className="so-action-card"><Download className="h-5 w-5 text-[var(--so-brand)]" /><span>Simpan Struk PNG</span></button>
+              <a href={whatsappOrderUrl || undefined} onClick={(event) => {if (!whatsappOrderUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-action-card ${whatsappOrderUrl ? '' : 'pointer-events-none opacity-50'}`}><MessageCircle className="h-5 w-5 text-emerald-600" /><span>WhatsApp Kami</span></a>
+              <a href={googleReviewUrl || undefined} onClick={(event) => {if (!googleReviewUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-action-card ${googleReviewUrl ? '' : 'pointer-events-none opacity-50'}`}><ExternalLink className="h-5 w-5 text-[#4d5560]" /><span>Beri Ulasan Google</span></a>
+              <button type="button" onClick={() => void handleShare()} className="so-action-card"><Share2 className="h-5 w-5 text-[#4d5560]" /><span>Bagikan Pesanan</span></button>
+            </section>
+
+            <button type="button" onClick={handleResetToLanding} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[1.25rem] bg-[var(--so-text)] py-4 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(34,24,18,.14)] transition active:scale-[.988]"><Home className="h-4 w-4" /> Kembali ke Landing Page</button>
+            {googleReviewUrl && <a href={googleReviewUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-1.5 py-2 text-[8px] font-bold text-[var(--so-text-muted)]">Bagikan pengalaman makanmu <ExternalLink className="h-3 w-3" /></a>}
           </main>
-        )}
-
-        {isCartModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm animate-fadeIn sm:p-4">
-            <section className="flex max-h-[88dvh] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl animate-slideUp sm:rounded-[2rem]">
-              <header className="flex items-center gap-3 border-b border-orange-100 p-4"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500 text-white"><ShoppingBag className="h-4 w-4" /></span><div className="flex-1"><p className="text-sm font-black">Keranjang pesanan</p><p className="text-[9px] font-bold text-slate-400">{totalCartQty} item · Meja {selectedTable}</p></div><button type="button" onClick={() => setIsCartModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><X className="h-4 w-4" /></button></header>
-              <div className="flex-1 space-y-3 overflow-y-auto bg-[#fffaf5] p-4">{cartItems.map((item) => <article key={item.id} className="rounded-[1.4rem] border border-orange-100 bg-white p-3.5"><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-xs font-black">{item.menuName}</p><p className="mt-1 text-[10px] font-black text-orange-600">{formatMoney(item.price * item.quantity)}</p></div><div className="flex items-center gap-1 rounded-xl bg-orange-50 p-1"><button type="button" onClick={() => handleUpdateQty(item.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-slate-600"><Minus className="h-3 w-3" /></button><span className="w-7 text-center text-[11px] font-black">{item.quantity}</span><button type="button" onClick={() => handleUpdateQty(item.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500 text-white"><Plus className="h-3 w-3" /></button></div></div>{item.selectedCondiments?.map((group) => <p key={`${item.id}-${group.groupName}`} className="mt-2 text-[9px] font-medium leading-relaxed text-slate-500"><span className="font-black">{group.groupName}:</span> {group.options.join(', ')}</p>)}{item.notes && <p className="mt-2 rounded-lg bg-orange-50 px-2 py-1.5 text-[9px] font-bold text-orange-700">Catatan: {item.notes}</p>}<button type="button" onClick={() => handleConfigureItem(item)} className="mt-3 flex items-center gap-1 text-[9px] font-black text-orange-600"><Pencil className="h-3 w-3" /> {item.quantity > 1 ? 'Pisahkan untuk atur per porsi' : 'Ubah varian / catatan'}</button></article>)}</div>
-              <footer className="border-t border-orange-100 bg-white p-4"><div className="mb-3 flex items-end justify-between"><span className="text-[10px] font-black text-slate-400">Total keranjang</span><span className="text-lg font-black text-orange-600">{formatMoney(totalAmount)}</span></div><button type="button" disabled={!cartItems.length} onClick={() => {setIsCartModalOpen(false); setActiveStep('CART');}} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#17130f] py-3.5 text-xs font-black text-white disabled:bg-slate-200">Lanjut periksa pesanan <ArrowRight className="h-4 w-4" /></button></footer>
-            </section>
-          </div>
         )}
       </div>
 

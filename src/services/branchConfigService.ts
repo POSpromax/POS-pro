@@ -29,7 +29,7 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
   return {
     branchId: data.branch_id,
     tenantId: data.tenant_id,
-    selfOrderEnabled: data.self_order_enabled !== false,
+    selfOrderEnabled: true,
     selfOrderBaseUrl: data.self_order_base_url || fallback.selfOrderBaseUrl,
     // URL QR tetap diturunkan dari kode cabang. Public catalog di server
     // memvalidasi slug dari database, tetapi UI tidak perlu meminta kolom baru
@@ -52,10 +52,13 @@ export async function saveCloudBranchOperationalConfig(
     .single();
   if (profileError || !profile?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
 
+  const { isSelfOrderEnabled: _legacyGlobalSelfOrder, ...profileOverrides } = (config.profileOverrides || {}) as Record<string, unknown>;
   const payload = {
-    self_order_enabled: config.selfOrderEnabled,
+    // Legacy schema column is pinned ON. Operational access is controlled only
+    // by restaurant_tables.self_order_enabled.
+    self_order_enabled: true,
     self_order_base_url: config.selfOrderBaseUrl.trim() || null,
-    profile_overrides: config.profileOverrides || {},
+    profile_overrides: profileOverrides,
   };
   const { data, error } = await supabase
     .from('branch_operational_config')
@@ -70,7 +73,7 @@ export async function saveCloudBranchOperationalConfig(
   return {
     branchId: data.branch_id,
     tenantId: data.tenant_id,
-    selfOrderEnabled: data.self_order_enabled !== false,
+    selfOrderEnabled: true,
     selfOrderBaseUrl: data.self_order_base_url || defaultBaseUrl(),
     publicOrderSlug: config.publicOrderSlug,
     profileOverrides: (data.profile_overrides || {}) as BranchOperationalConfig['profileOverrides'],

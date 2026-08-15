@@ -123,8 +123,10 @@ export interface CondimentOption {
 export interface CondimentGroup {
   id: string;
   name: string; // e.g., "Kuah", "ISIAN", "TEH MANIS", "AIR MINERAL", "Tambahan"
+  // PAKET = SINGLE (maksimal satu opsi), ADD_ON = MULTIPLE.
+  // Mode tidak menentukan wajib/opsional; itu diatur oleh required/minSelect.
   mode: 'ADD_ON' | 'PAKET';
-  required?: boolean; // e.g. *WAJIB
+  required?: boolean; // true = wajib memilih minimal satu opsi
   isRequired?: boolean;
   minSelect?: number;
   maxSelect?: number;
@@ -134,8 +136,15 @@ export interface CondimentGroup {
   targetProductNames?: string[];
   options: CondimentOption[];
   isActive: boolean; // Toggle Aktif / Non-Aktif
-  // Label ringkas di KDS saat semua opsi dipilih, mis. "CAMPUR". Kosong = tampilkan daftar penuh.
+  // Label ringkas di KDS saat preset/seluruh opsi tertentu dipilih, mis. "CAMPUR".
   allSelectedLabel?: string;
+
+  // Konfigurasi khusus customer self-order. Disimpan di branch_operational_config.condiment_scopes
+  // agar tidak membutuhkan perubahan schema tabel condiment_groups.
+  selfOrderRole?: 'NONE' | 'BROTH' | 'FILLING';
+  selfOrderDefaultOptions?: string[];
+  selfOrderBaksoOnlyOptions?: string[];
+  selfOrderCampurOptions?: string[];
 }
 
 export interface SelectedCondimentGroup {

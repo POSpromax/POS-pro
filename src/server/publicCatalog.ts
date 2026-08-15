@@ -26,10 +26,18 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
     admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).eq('status', 'READY').order('number'),
     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
-    admin.from('branch_operational_config').select('self_order_enabled,self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
+    admin.from('branch_operational_config').select('self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
     admin.from('cashier_shifts').select('id,status,opened_at').eq('branch_id', branch.id).in('status', ['OPEN', 'HANDOVER']).order('opened_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
-  const scopes = branchConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {};
+  const scopes = (branchConfig?.condiment_scopes || (config?.kds_config as any)?.condimentScopes || {}) as Record<string, {
+    targetProductIds?: string[];
+    targetProductNames?: string[];
+    allSelectedLabel?: string;
+    selfOrderRole?: 'NONE' | 'BROTH' | 'FILLING';
+    selfOrderDefaultOptions?: string[];
+    selfOrderBaksoOnlyOptions?: string[];
+    selfOrderCampurOptions?: string[];
+  }>;
   const tenantProfile = config ? {
     name: config.display_name || branch.name,
     tagline: config.tagline || '',
@@ -45,7 +53,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
     ...((config.finance_config || {}) as Record<string, unknown>),
   } : null;
   const publicProfile = tenantProfile
-    ? { ...tenantProfile, ...((branchConfig?.profile_overrides || {}) as Record<string, unknown>), isSelfOrderEnabled: branchConfig?.self_order_enabled !== false }
+    ? { ...tenantProfile, ...((branchConfig?.profile_overrides || {}) as Record<string, unknown>), isSelfOrderEnabled: true }
     : null;
   const menuIds = (menus || []).map((row) => row.id);
   const { data: ingredientRows } = menuIds.length
@@ -74,7 +82,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
       operationalConfig: {
         branchId: branch.id,
         tenantId: branch.tenant_id,
-        selfOrderEnabled: branchConfig?.self_order_enabled !== false,
+        selfOrderEnabled: true,
         selfOrderBaseUrl: branchConfig?.self_order_base_url || '',
         publicOrderSlug: normalizedRouteCode || '',
         profileOverrides: branchConfig?.profile_overrides || {},
@@ -95,8 +103,15 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
         branchId: branch.id,
       })),
       condimentGroups: (groups || []).map((row) => ({
-        id: row.id, name: row.name, mode: row.mode, isRequired: row.required, minSelect: row.min_select, maxSelect: row.max_select,
-        targetCategories: row.target_categories || [], targetProductIds: scopes[row.id]?.targetProductIds || [], targetProductNames: scopes[row.id]?.targetProductNames || [],
+        id: row.id, name: row.name, mode: row.mode, required: row.required, isRequired: row.required, minSelect: row.min_select, maxSelect: row.max_select,
+        targetCategories: row.target_categories || [],
+        targetProductIds: scopes[row.id]?.targetProductIds || [],
+        targetProductNames: scopes[row.id]?.targetProductNames || [],
+        allSelectedLabel: String(scopes[row.id]?.allSelectedLabel || '').trim().toUpperCase() || undefined,
+        selfOrderRole: scopes[row.id]?.selfOrderRole,
+        selfOrderDefaultOptions: scopes[row.id]?.selfOrderDefaultOptions || [],
+        selfOrderBaksoOnlyOptions: scopes[row.id]?.selfOrderBaksoOnlyOptions || [],
+        selfOrderCampurOptions: scopes[row.id]?.selfOrderCampurOptions || [],
         isActive: row.is_active, options: (row.condiment_options || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((option: any) => ({ id: option.id, name: option.name, price: Number(option.price), isAvailable: option.is_available })),
       })),
     },
