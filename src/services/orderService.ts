@@ -26,22 +26,24 @@ export const submitCloudOrder = (order: Order): Promise<Order> =>
 /**
  * Pay an existing cloud order using immutable snapshot payment.
  * 
- * Contract:
+ * Contract (P0 — Payment Snapshot Integrity):
  * - Calls finalize_order_payment RPC (not checkout_order)
- * - Order must already be saved in database
+ * - Order must already be saved in database (existing order)
  * - Validates order existence and branch
  * - Rejects CANCELLED orders
  * - Idempotent if already PAID
- * - Never re-validates condiment/menu
- * - Never mutates order_items
- * - Deducts inventory once
+ * - Never re-validates condiment/menu against current master
+ * - Never mutates order_items, modifiers, or kitchen_status
+ * - Deducts inventory once (via deduct_order_inventory)
+ * - Updates ONLY payment fields
  * 
  * @param branchId - branch UUID
  * @param orderId - existing order UUID
  * @param paymentMethod - CASH | QRIS | DEBIT | TRANSFER
- * @param paidAmount - amount paid by customer (for CASH)
+ * @param paidAmount - amount paid by customer (for CASH validation)
  * @param paidShiftId - shift UUID when payment occurred
  * @returns updated order with payment status PAID
+ * @throws Error if order not found, branch invalid, or payment fails
  */
 export const payCloudOrder = (
   branchId: string,
@@ -58,7 +60,7 @@ export const payCloudOrder = (
       paymentMethod,
       paidAmount,
       paidShiftId,
-      action: 'PAY', // Distinguish from status updates (COOKING, READY, COMPLETED)
+      action: 'PAY', // Distinguish from status updates (COOKING, READY, COMPLETED, CANCELLED)
     }),
   });
 
