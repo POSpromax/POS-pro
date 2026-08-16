@@ -9,7 +9,10 @@ import { cloudReadiness } from '../../lib/runtimeEnv';
 import {
   buildWhatsAppSlipUrl,
   calculatePayslip,
+  finalizePayrollPeriod,
   loadHrData,
+  lockPayrollPeriod,
+  markPayrollPaid,
   requestKasbon,
   reviewKasbon,
   reviewLeave,
@@ -78,15 +81,15 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     if (!cloudReadiness.supabase) return;
     setLoading(true);
     setError('');
-    try { setData(await loadHrData(currentBranch.id)); }
+    try { setData(await loadHrData(currentBranch.id, slipPeriod)); }
     catch (err) { setError(err instanceof Error ? err.message : 'Data HR gagal dimuat'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id]);
+  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id, slipPeriod]);
   useEffect(() => { setHrConfigDraft(data.hrConfig || DEFAULT_HR_CONFIG); }, [data.hrConfig]);
 
-  const branchStaff = useMemo(() => staffAccounts.filter((staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id))), [staffAccounts, currentBranch.id]);
+  const branchStaff = useMemo(() => staffAccounts.filter((staff) => staff.isActive !== false && staff.role !== 'OWNER' && staff.role !== 'SUPER_OWNER' && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id))), [staffAccounts, currentBranch.id]);
   const recordsByStaff = useMemo(() => new Map(branchStaff.map((staff) => [staff.id, attendanceRecords.filter((record) => record.staffId === staff.id)])), [branchStaff, attendanceRecords]);
 
   const visibleStaff = canManage ? branchStaff : branchStaff.filter((staff) => staff.id === activeUser.id);
@@ -215,6 +218,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     try {
       await requestKasbon({
         branchId: currentBranch.id,
+        userId: kasbonStaff.id,
         amount: Number(kasbonAmount),
         reason: kasbonReason.trim() || 'Kasbon',
         deductMonth: kasbonMonth,
@@ -239,6 +243,30 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   // ── Payslip helpers ─────────────────────────────────────────────────────────
 
   const buildSlip = (staff: UserAccount, period: string) => {
+    const snapshot = (data.payrollSnapshots || []).find((item) => item.user_id === staff.id && item.period === period);
+    if (snapshot) {
+      const [yr, mo] = period.split('-').map(Number);
+      return {
+        staffId: staff.id,
+        staffName: snapshot.staff_name || staff.name,
+        phone: staff.phone,
+        period,
+        periodLabel: new Date(yr, mo - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+        baseSalary: Number(snapshot.base_salary || 0),
+        mealAllowance: Number(snapshot.meal_allowance || 0),
+        transportAllowance: Number(snapshot.transport_allowance || 0),
+        overtimeMinutes: Number(snapshot.overtime_minutes || 0),
+        overtimePay: Number(snapshot.overtime_pay || 0),
+        grossSalary: Number(snapshot.gross_salary || 0),
+        lateDeduction: Number(snapshot.late_deduction || 0),
+        kasbonDeduction: Number(snapshot.kasbon_deduction || 0),
+        totalDeduction: Number(snapshot.total_deduction || 0),
+        netSalary: Number(snapshot.net_salary || 0),
+        lateMinutes: Number(snapshot.late_minutes || 0),
+        attendanceCount: Number(snapshot.attendance_count || 0),
+        notes: 'Snapshot payroll tersimpan',
+      };
+    }
     const profile = data.payrollProfiles.find((p) => p.user_id === staff.id);
     if (!profile) return null;
 
@@ -268,7 +296,46 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       lateMinutes,
       attendanceCount,
       kasbonDeduction,
+      overtimeMinutes: 0,
+      overtimePay: 0,
+      notes: 'Draft: lembur dihitung akurat saat periode difinalisasi',
     });
+  };
+
+  const payrollPeriod = (data.payrollPeriods || []).find((item) => item.period === slipPeriod);
+  const payrollPeriodStatus = payrollPeriod?.status || 'DRAFT';
+
+  const finalizePeriod = async () => {
+    if (!window.confirm(`Finalisasi payroll ${slipPeriod}? Snapshot gaji akan dihitung dari data absensi dan kasbon saat ini.`)) return;
+    setLoading(true);
+    try {
+      await finalizePayrollPeriod({ branchId: currentBranch.id, period: slipPeriod });
+      await refresh();
+      onShowToast('Payroll Difinalisasi', `Snapshot payroll ${slipPeriod} sudah dibuat.`);
+    } catch (err) { onShowToast('Finalisasi Gagal', err instanceof Error ? err.message : 'Payroll tidak dapat difinalisasi.'); }
+    finally { setLoading(false); }
+  };
+
+  const markPeriodPaid = async () => {
+    if (!window.confirm(`Tandai payroll ${slipPeriod} sudah dibayar? Kasbon periode ini akan ditandai sudah dipotong.`)) return;
+    setLoading(true);
+    try {
+      await markPayrollPaid({ branchId: currentBranch.id, period: slipPeriod });
+      await refresh();
+      onShowToast('Payroll Dibayar', `Periode ${slipPeriod} ditandai PAID.`);
+    } catch (err) { onShowToast('Update Gagal', err instanceof Error ? err.message : 'Status payroll tidak dapat diperbarui.'); }
+    finally { setLoading(false); }
+  };
+
+  const lockPeriod = async () => {
+    if (!window.confirm(`Kunci payroll ${slipPeriod}? Setelah dikunci snapshot tidak boleh dihitung ulang.`)) return;
+    setLoading(true);
+    try {
+      await lockPayrollPeriod({ branchId: currentBranch.id, period: slipPeriod });
+      await refresh();
+      onShowToast('Payroll Dikunci', `Periode ${slipPeriod} sudah LOCKED dan menjadi histori tetap.`);
+    } catch (err) { onShowToast('Penguncian Gagal', err instanceof Error ? err.message : 'Payroll tidak dapat dikunci.'); }
+    finally { setLoading(false); }
   };
 
   const visibleLeaves = canManage ? data.leaveRequests : data.leaveRequests.filter((item) => item.user_id === activeUser.id);
@@ -368,6 +435,18 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
               </div>
             </div>
 
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3">
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-black tracking-wider ${payrollPeriodStatus === 'LOCKED' ? 'bg-slate-900 text-white' : payrollPeriodStatus === 'PAID' ? 'bg-emerald-100 text-emerald-700' : payrollPeriodStatus === 'FINALIZED' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}`}>{payrollPeriodStatus}</span>
+                <div><p className="text-[11px] font-black text-[var(--text-primary)]">Kontrol Periode Payroll</p><p className="text-[9px] font-semibold text-[var(--text-tertiary)]">DRAFT → FINALIZED → PAID → LOCKED. Finalisasi membekukan absensi, telat, lembur berbasis pasangan CLOCK IN/OUT, dan kasbon menjadi snapshot histori.</p></div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(payrollPeriodStatus === 'DRAFT' || payrollPeriodStatus === 'FINALIZED') && <button type="button" disabled={loading} onClick={() => void finalizePeriod()} className="ui-button ui-button-secondary min-h-8 px-3 text-[10px]">{payrollPeriodStatus === 'FINALIZED' ? 'Hitung ulang snapshot' : 'Finalisasi periode'}</button>}
+                {payrollPeriodStatus === 'FINALIZED' && <button type="button" disabled={loading} onClick={() => void markPeriodPaid()} className="ui-button ui-button-primary min-h-8 px-3 text-[10px]">Tandai dibayar</button>}
+                {payrollPeriodStatus === 'PAID' && <button type="button" disabled={loading} onClick={() => void lockPeriod()} className="ui-button ui-button-primary min-h-8 px-3 text-[10px]">Kunci payroll</button>}
+              </div>
+            </div>
+
             <div className="space-y-2">
               {branchStaff.map((staff) => {
                 const profile = data.payrollProfiles.find((p) => p.user_id === staff.id);
@@ -439,6 +518,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                                 { label: 'Gaji Pokok', value: slip.baseSalary, color: 'var(--text-primary)' },
                                 { label: 'Tunjangan Makan', value: slip.mealAllowance },
                                 { label: 'Tunjangan Transport', value: slip.transportAllowance },
+                                { label: `Lembur (${slip.overtimeMinutes} mnt)`, value: slip.overtimePay, color: slip.overtimePay > 0 ? 'var(--accent-green)' : undefined },
                                 { label: 'Gaji Kotor', value: slip.grossSalary, color: 'var(--primary-solid)', bold: true },
                                 { label: 'Potongan Terlambat', value: -slip.lateDeduction, color: slip.lateDeduction > 0 ? 'var(--accent-red)' : undefined },
                                 { label: 'Kasbon', value: -slip.kasbonDeduction, color: slip.kasbonDeduction > 0 ? 'var(--accent-red)' : undefined },

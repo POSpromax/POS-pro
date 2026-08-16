@@ -71,7 +71,9 @@ export interface PayslipData {
   baseSalary: number;
   mealAllowance: number;
   transportAllowance: number;
-  grossSalary: number;          // base + meal + transport
+  overtimeMinutes: number;
+  overtimePay: number;
+  grossSalary: number;          // base + meal + transport + overtime
   lateDeduction: number;        // Potongan keterlambatan (dari attendance)
   kasbonDeduction: number;      // Kasbon yang dipotong bulan ini
   totalDeduction: number;       // lateDeduction + kasbonDeduction
@@ -81,12 +83,51 @@ export interface PayslipData {
   notes?: string;
 }
 
+
+export type PayrollPeriodStatus = 'DRAFT' | 'FINALIZED' | 'PAID' | 'LOCKED';
+
+export interface PayrollPeriodRecord {
+  id: string;
+  branch_id: string;
+  period: string;
+  status: PayrollPeriodStatus;
+  finalized_at?: string;
+  paid_at?: string;
+  locked_at?: string;
+  updated_at?: string;
+}
+
+export interface PayrollSnapshotRecord {
+  id: string;
+  branch_id: string;
+  payroll_period_id: string;
+  period: string;
+  user_id: string;
+  staff_name: string;
+  base_salary: number;
+  meal_allowance: number;
+  transport_allowance: number;
+  overtime_minutes: number;
+  overtime_pay: number;
+  gross_salary: number;
+  attendance_count: number;
+  late_minutes: number;
+  late_deduction: number;
+  kasbon_deduction: number;
+  manual_adjustment: number;
+  total_deduction: number;
+  net_salary: number;
+  calculation_meta?: Record<string, unknown>;
+}
+
 export interface HrData {
   canManage: boolean;
   leaveRequests: LeaveRequest[];
   payrollProfiles: PayrollProfile[];
   kasbonRecords?: KasbonRecord[];
   hrConfig?: HrConfig;
+  payrollPeriods?: PayrollPeriodRecord[];
+  payrollSnapshots?: PayrollSnapshotRecord[];
 }
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
@@ -111,8 +152,8 @@ async function requestHr(method: string, body: Record<string, unknown>): Promise
 
 // ── Existing endpoints ────────────────────────────────────────────────────────
 
-export const loadHrData = (branchId: string): Promise<HrData> =>
-  requestHr('GET', { branchId });
+export const loadHrData = (branchId: string, period?: string): Promise<HrData> =>
+  requestHr('GET', { branchId, ...(period ? { period } : {}) });
 
 export const submitLeave = (payload: Record<string, unknown>) =>
   requestHr('POST', { action: 'SUBMIT_LEAVE', ...payload });
@@ -130,6 +171,7 @@ export const saveHrConfig = (payload: Record<string, unknown>) =>
 
 export const requestKasbon = (payload: {
   branchId: string;
+  userId?: string;
   amount: number;
   reason: string;
   deductMonth?: string;
@@ -147,6 +189,16 @@ export const deductKasbon = (payload: {
   kasbonId: string;
 }) => requestHr('PATCH', { action: 'DEDUCT_KASBON', ...payload });
 
+
+export const finalizePayrollPeriod = (payload: { branchId: string; period: string }) =>
+  requestHr('PATCH', { action: 'FINALIZE_PAYROLL_PERIOD', ...payload });
+
+export const markPayrollPaid = (payload: { branchId: string; period: string }) =>
+  requestHr('PATCH', { action: 'MARK_PAYROLL_PAID', ...payload });
+
+export const lockPayrollPeriod = (payload: { branchId: string; period: string }) =>
+  requestHr('PATCH', { action: 'LOCK_PAYROLL_PERIOD', ...payload });
+
 // ── Payslip kalkulasi (local — tidak memerlukan API call) ─────────────────────
 
 export function calculatePayslip(params: {
@@ -158,6 +210,8 @@ export function calculatePayslip(params: {
   lateMinutes: number;
   attendanceCount: number;
   kasbonDeduction: number;
+  overtimeMinutes?: number;
+  overtimePay?: number;
   notes?: string;
 }): PayslipData {
   const { profile, period, lateMinutes, kasbonDeduction } = params;
@@ -171,7 +225,9 @@ export function calculatePayslip(params: {
 
   const mealAllowance = profile.meal_allowance ?? 0;
   const transportAllowance = profile.transport_allowance ?? 0;
-  const grossSalary = (profile.base_salary ?? 0) + mealAllowance + transportAllowance;
+  const overtimeMinutes = Math.max(0, Math.round(params.overtimeMinutes ?? 0));
+  const overtimePay = Math.max(0, Math.round(params.overtimePay ?? 0));
+  const grossSalary = (profile.base_salary ?? 0) + mealAllowance + transportAllowance + overtimePay;
   const lateDeduction = Math.round(lateMinutes * (profile.late_deduction_per_minute ?? 0));
   const totalDeduction = lateDeduction + (kasbonDeduction ?? 0);
   const netSalary = Math.max(0, grossSalary - totalDeduction);
@@ -185,6 +241,8 @@ export function calculatePayslip(params: {
     baseSalary: profile.base_salary ?? 0,
     mealAllowance,
     transportAllowance,
+    overtimeMinutes,
+    overtimePay,
     grossSalary,
     lateDeduction,
     kasbonDeduction: kasbonDeduction ?? 0,
@@ -213,6 +271,7 @@ export function buildWhatsAppSlipText(
     `Gaji Pokok       : ${rp(slip.baseSalary)}`,
     slip.mealAllowance > 0 ? `Tunjangan Makan  : ${rp(slip.mealAllowance)}` : null,
     slip.transportAllowance > 0 ? `Tunjangan Trans. : ${rp(slip.transportAllowance)}` : null,
+    slip.overtimePay > 0 ? `Lembur           : ${rp(slip.overtimePay)} (${slip.overtimeMinutes} mnt)` : null,
     `Gaji Kotor       : *${rp(slip.grossSalary)}*`,
     ``,
     `*POTONGAN*`,

@@ -1,4 +1,5 @@
 import type { OrderItem, SelectedCondimentGroup } from '../types/pos';
+import {buildOrderItemModifierSignature} from './orderItemIdentity';
 
 export interface KitchenModifierSubgroup {
   key: string;
@@ -22,11 +23,6 @@ const normalizeModifiers = (groups: SelectedCondimentGroup[] = []) => groups
   .filter((group) => group.groupName || group.options.length)
   .sort((a, b) => a.groupName.localeCompare(b.groupName, 'id-ID'));
 
-const modifierSignature = (item: OrderItem) => JSON.stringify({
-  modifiers: normalizeModifiers(item.selectedCondiments),
-  note: String(item.notes || '').trim(),
-});
-
 /**
  * Groups only for Kitchen presentation. Source order items are never mutated,
  * so payment, refund, inventory and audit data keep their original granularity.
@@ -44,7 +40,7 @@ export function groupKitchenItems(items: OrderItem[]): KitchenProductGroup[] {
 
     const quantity = Math.max(1, Number(item.quantity) || 1);
     product.totalQuantity += quantity;
-    const signature = modifierSignature(item);
+    const signature = buildOrderItemModifierSignature(item);
     const existing = product.modifierGroups.find((group) => group.key === signature);
     if (existing) {
       existing.quantity += quantity;

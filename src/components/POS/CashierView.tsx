@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { isGroupApplicable } from '../../utils/condimentUtils';
 import { formatOrderLabel } from '../../utils/orderNumber';
+import { buildFifoRankMap, formatFifoRank, sortOrdersFifo, sortOrdersNewestFirst } from '../../utils/orderQueue';
 import { optimizeCloudinaryImage } from '../../utils/imageUrl';
+import { consolidateEquivalentOrderItems } from '../../utils/orderItemIdentity';
 import {
   Plus,
   Minus,
@@ -44,30 +46,8 @@ import {
 } from '../../types/pos';
 import { CondimentSelectionModal } from './CondimentSelectionModal';
 
-// Cart Consolidation Helper — Automatically merges identical products into a single row with combined quantity (e.g. 2x, 3x)
-const consolidateCartItems = (items: OrderItem[]): OrderItem[] => {
-  if (!items || items.length === 0) return [];
-  const map = new Map<string, OrderItem>();
-
-  for (const item of items) {
-    const key = item.menuId ? String(item.menuId) : item.menuName;
-    const existing = map.get(key);
-
-    if (existing) {
-      map.set(key, {
-        ...existing,
-        quantity: existing.quantity + (item.quantity || 1),
-        notes: item.notes || existing.notes
-      });
-    } else {
-      map.set(key, {
-        ...item,
-        quantity: item.quantity || 1
-      });
-    }
-  }
-  return Array.from(map.values());
-};
+// Variant-safe cart consolidation. Only truly identical portions are merged.
+const consolidateCartItems = consolidateEquivalentOrderItems;
 
 // Ultra-Compact & Zoomed Emerald Green POS Menu Item Card Component
 const POSMenuItemCard: React.FC<{
@@ -215,6 +195,9 @@ interface CashierViewProps {
   onOpenShiftTab?: () => void;
   confirmBeforeSaveOrder?: boolean;
   confirmBeforePayment?: boolean;
+  taxEnabled?: boolean;
+  taxRatePercent?: number;
+  manualDiscountEnabled?: boolean;
   tableSelectionRequest?: { tableNumber: string; requestId: number };
 }
 
@@ -239,6 +222,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
   onOpenShiftTab,
   confirmBeforeSaveOrder = false,
   confirmBeforePayment = false,
+  taxEnabled = false,
+  taxRatePercent = 0,
+  manualDiscountEnabled = true,
   tableSelectionRequest
 }) => {
   // Two-stage confirmation timer
@@ -261,7 +247,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [discountValue, setDiscountValue] = useState<number>(0);
-  const [taxValue, setTaxValue] = useState<number>(0);
+  const configuredTaxPercent = taxEnabled ? Math.max(0, Math.min(100, Number(taxRatePercent) || 0)) : 0;
+  const [taxValue, setTaxValue] = useState<number>(configuredTaxPercent);
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
@@ -291,6 +278,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // Order terkunci (tidak bisa diedit/bayar ulang) bila sudah dibayar atau selesai.
   const isPaidOrder = Boolean(currentEditingOrder && (isLoadedPaidActive || isLoadedClosed));
   const isShiftActiveForCurrentContext = currentShift.status === 'OPEN' && currentShift.branchId === currentBranch.id;
+
+  useEffect(() => {
+    if (!currentEditingOrderId) setTaxValue(configuredTaxPercent);
+  }, [configuredTaxPercent, currentEditingOrderId]);
 
   if (!isShiftActiveForCurrentContext) {
     return (
@@ -376,7 +367,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCustomerName('Guest');
     setSelectedTable('-');
     setDiscountValue(0);
-    setTaxValue(0);
+    setTaxValue(configuredTaxPercent);
     setCurrentEditingOrderId(null);
   };
 
@@ -387,6 +378,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setSelectedTable(order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-');
     setOrderType(order.type || 'DINE_IN');
     setDiscountValue(order.discount || 0);
+    const taxableBase = Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0));
+    setTaxValue(taxableBase > 0 && Number(order.tax || 0) > 0 ? Math.round((Number(order.tax || 0) / taxableBase) * 10000) / 100 : configuredTaxPercent);
     setIsCondimentsEnabled(order.condimentsEnabled !== false);
     onSelectExistingOrderToEdit(order);
   };
@@ -460,9 +453,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // `orders` sudah dibatasi ke SHIFT BERJALAN dari App (prop shiftOrders), jadi
   // antrean & riwayat kasir otomatis mulai dari 0 tiap buka shift baru. Riwayat
   // lengkap lintas shift ada di menu Laporan.
-  const activeHoldOrders = orders.filter((o) => !isOrderClosed(o));
-  const historyShiftOrders = orders.filter((o) => isOrderClosed(o));
+  const activeHoldOrders = sortOrdersFifo(orders.filter((o) => !isOrderClosed(o)));
+  const historyShiftOrders = sortOrdersNewestFirst(orders.filter((o) => isOrderClosed(o)));
   const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
+  const activeFifoRanks = buildFifoRankMap(activeHoldOrders);
 
   const queueListToRender = displayedOrders;
 
@@ -594,6 +588,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   : { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' };
                 const orderSeqNum = formatOrderLabel(order, orders);
                 const tableDisplay = order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-';
+                const fifoRank = queueTab === 'ACTIVE' ? (activeFifoRanks.get(order.id) || 0) : 0;
+                const fifoLabel = fifoRank ? formatFifoRank(fifoRank, activeHoldOrders.length) : '';
 
                 return (
                   <div
@@ -614,6 +610,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     {/* Identitas dan satu status utama dipisahkan agar tidak bertumpuk. */}
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        {queueTab === 'ACTIVE' && fifoLabel && (
+                          <span className="shrink-0 rounded-md bg-slate-900 px-1.5 py-0.5 font-mono text-[8px] font-black tracking-wide text-white" title="Urutan FIFO berdasarkan waktu masuk">
+                            FIFO {fifoLabel}
+                          </span>
+                        )}
                         {order.source === 'SELF_ORDER' && (
                           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sky-50 text-sky-700" title="Pesanan dari HP customer">
                             <Smartphone className="h-3 w-3" />
@@ -888,16 +889,19 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <input
                     type="number"
                     min="0"
-                    placeholder="Diskon %"
+                    max="100"
+                    disabled={!manualDiscountEnabled || isPaidOrder}
+                    placeholder={manualDiscountEnabled ? 'Diskon %' : 'Diskon off'}
                     value={discountValue || ''}
-                    onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
-                    className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs"
+                    onChange={(e) => setDiscountValue(Math.max(0, Math.min(100, Number(e.target.value))))}
+                    className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs disabled:cursor-not-allowed disabled:text-slate-400"
+                    title={manualDiscountEnabled ? 'Diskon manual aktif dari Pengaturan Operasional' : 'Diskon manual dinonaktifkan dari Pengaturan Operasional'}
                   />
                 </div>
 
-                <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer">
-                  <span className="text-slate-500">Pajak</span>
-                  <span className="text-slate-700 font-extrabold text-[11px]">0% ∨</span>
+                <div className={`flex items-center justify-between rounded-xl border px-2.5 py-1.5 text-xs font-bold ${taxValue > 0 || taxEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                  <span>Pajak</span>
+                  <span className="font-extrabold text-[11px]">{taxValue > 0 ? `${taxValue}%` : taxEnabled ? '0%' : 'OFF'}</span>
                 </div>
               </div>
 

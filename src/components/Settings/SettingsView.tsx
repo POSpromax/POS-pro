@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Settings,
   Store,
@@ -37,7 +37,8 @@ import {
   Building2,
   MonitorCog,
   Upload,
-  ImageIcon
+  ImageIcon,
+  GripVertical
 } from 'lucide-react';
 import {
   RestaurantProfile,
@@ -55,12 +56,82 @@ import { INITIAL_CONDIMENT_GROUPS } from '../../data/initialData';
 import { CustomerTableManagementModal } from '../SelfOrder/CustomerTableManagementModal';
 import { playNewOrderSound, playSelfOrderAlertSound } from '../../utils/audioNotification';
 import { uploadImage } from '../../services/cloudinaryMedia';
+import { CondimentPreviewPanel } from './CondimentPreviewPanel';
+import { CondimentBuilderPanel } from './CondimentBuilderPanel';
+
+const STAFF_WEEKDAYS = [
+  { day: 1, short: 'Sen', label: 'Senin' },
+  { day: 2, short: 'Sel', label: 'Selasa' },
+  { day: 3, short: 'Rab', label: 'Rabu' },
+  { day: 4, short: 'Kam', label: 'Kamis' },
+  { day: 5, short: 'Jum', label: 'Jumat' },
+  { day: 6, short: 'Sab', label: 'Sabtu' },
+  { day: 0, short: 'Min', label: 'Minggu' },
+];
+
+const staffWorkDays = (staff: UserAccount) => staff.workDays?.length ? staff.workDays : [1, 2, 3, 4, 5, 6];
+const staffOffDays = (staff: UserAccount) => STAFF_WEEKDAYS.filter((item) => !staffWorkDays(staff).includes(item.day));
 
 const normalizeCondimentName = (value: string) =>
   value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+const normalizeTableNumber = (value: string) =>
+  String(value || '').trim().replace(/^0+(?=\d)/, '');
+
+const parseTableNumberList = (value?: string): string[] => {
+  const seen = new Set<string>();
+  return String(value || '')
+    .split(',')
+    .map(normalizeTableNumber)
+    .filter((value) => {
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+};
+
+const DEFAULT_KDS_CATEGORY_ORDER: CategoryType[] = [
+  'BAKSO',
+  'MIE AYAM',
+  'MAKANAN',
+  'TAMBAHAN',
+  'KRIUK',
+  'BUNDLING',
+  'MINUMAN',
+];
+
+const normalizeKdsCategoryOrder = (value?: CategoryType[]): CategoryType[] => {
+  const allowed = new Set(DEFAULT_KDS_CATEGORY_ORDER);
+  const seen = new Set<CategoryType>();
+  const result: CategoryType[] = [];
+  for (const category of value || []) {
+    if (!allowed.has(category) || seen.has(category)) continue;
+    seen.add(category);
+    result.push(category);
+  }
+  for (const category of DEFAULT_KDS_CATEGORY_ORDER) {
+    if (!seen.has(category)) result.push(category);
+  }
+  return result;
+};
+
+const moveKdsCategory = (order: CategoryType[], from: CategoryType, to: CategoryType): CategoryType[] => {
+  if (from === to) return order;
+  const next = [...order];
+  const fromIndex = next.indexOf(from);
+  const toIndex = next.indexOf(to);
+  if (fromIndex < 0 || toIndex < 0) return order;
+  next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, from);
+  return next;
+};
+
 const inferSelfOrderRole = (group: CondimentGroup): 'NONE' | 'BROTH' | 'FILLING' => {
-  if (group.selfOrderRole === 'NONE' || group.selfOrderRole === 'BROTH' || group.selfOrderRole === 'FILLING') return group.selfOrderRole;
+  if (group.selfOrderRole === 'BROTH' || group.selfOrderRole === 'FILLING') return group.selfOrderRole;
+
+  // Canonical KUAH/ISIAN groups self-heal even when an older scope persisted NONE.
+  // This prevents a normal settings edit from silently removing Self Order presets.
   const normalized = normalizeCondimentName(group.name);
   if (normalized.includes('KUAH')) return 'BROTH';
   if (normalized.includes('ISIAN')) return 'FILLING';
@@ -108,10 +179,10 @@ const defaultCampurConfig = (group: CondimentGroup) => {
 
 interface SettingsViewProps {
   profile: RestaurantProfile;
-  onSaveProfile: (profile: RestaurantProfile) => void;
+  onSaveProfile: (profile: RestaurantProfile) => void | Promise<void>;
   condimentGroups: CondimentGroup[];
   menuItems: MenuItem[];
-  onSaveCondimentGroup: (group: CondimentGroup) => void;
+  onSaveCondimentGroup: (group: CondimentGroup) => void | Promise<CondimentGroup | void>;
   onToggleGroupActive: (groupId: string, isActive: boolean) => void;
   onToggleOptionAvailable: (groupId: string, optionId: string, isAvailable: boolean) => void;
   onClearTransactions?: () => void;
@@ -120,6 +191,7 @@ interface SettingsViewProps {
   branches: Branch[];
   currentBranch: Branch;
   activeUserRole: UserRole;
+  activeUserId?: string;
   onSaveStaff: (staff: UserAccount) => void | Promise<void>;
   onDeleteStaff?: (id: string) => void | Promise<void>;
   accessControl: AccessControlRule[];
@@ -127,7 +199,9 @@ interface SettingsViewProps {
   tables?: RestaurantTable[];
   onToggleTableSelfOrder?: (tableId: string, enabled: boolean) => void;
   onToggleAllTables?: (enabled: boolean) => void;
+  onEnsureTables?: (tableNumbers: string[]) => void | Promise<void>;
   onShowToast?: (title: string, message: string) => void;
+  cloudMode?: boolean;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -135,7 +209,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveProfile,
   condimentGroups,
   menuItems,
-  onSaveCondimentGroup,
+  onSaveCondimentGroup: rawSaveCondimentGroup,
   onToggleGroupActive,
   onToggleOptionAvailable,
   onClearTransactions,
@@ -144,6 +218,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   branches,
   currentBranch,
   activeUserRole,
+  activeUserId,
   onSaveStaff,
   onDeleteStaff,
   accessControl,
@@ -151,7 +226,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   tables = [],
   onToggleTableSelfOrder = () => {},
   onToggleAllTables = () => {},
-  onShowToast
+  onEnsureTables,
+  onShowToast,
+  cloudMode = false,
 }) => {
   const toast = (title: string, message: string) => {
     if (onShowToast) onShowToast(title, message);
@@ -164,11 +241,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingOptionValue, setEditingOptionValue] = useState('');
+  const [condimentTextDrafts, setCondimentTextDrafts] = useState<Record<string, string>>({});
 
   const [formProfile, setFormProfile] = useState<RestaurantProfile>(() => ({ ...profile }));
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
+  const [isUploadingWallpaper, setIsUploadingWallpaper] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string>('');
+  const [saveConfirmKind, setSaveConfirmKind] = useState<'PROFILE' | 'ACCESS' | null>(null);
+  const [autoSavePulse, setAutoSavePulse] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
+  const [isSyncingTables, setIsSyncingTables] = useState<boolean>(false);
+  const [draggedKdsCategory, setDraggedKdsCategory] = useState<CategoryType | null>(null);
 
   // Staff & PIN Management State
   const [newStaffName, setNewStaffName] = useState('');
@@ -183,6 +267,67 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [accessDraft, setAccessDraft] = useState<AccessControlRule[]>(accessControl);
   const [isSavingAccess, setIsSavingAccess] = useState(false);
   const canManageTenant = activeUserRole === 'SUPER_OWNER' || activeUserRole === 'OWNER';
+  const settingsScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const sameValue = (left: unknown, right: unknown) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  const profileDirty = !sameValue(formProfile, profile);
+  const accessDirty = !sameValue(accessDraft, accessControl);
+  const changedByKeys = (keys: string[]) => keys.some((key) => !sameValue((formProfile as any)[key], (profile as any)[key]));
+  const centralBrandDirty = changedByKeys(['name', 'logoUrl', 'instagram', 'tiktok']);
+  const changedDomains = [
+    changedByKeys(['name', 'logoUrl', 'instagram', 'tiktok', 'tagline', 'address', 'phone']) ? 'Profil & Brand' : '',
+    changedByKeys(['promoBannerTitle', 'promoBannerDescription', 'wallpaperBackgroundUrl', 'googleReviewUrl', 'googleReviewText', 'allowedSelfOrderTables']) ? 'Self-Order & Meja' : '',
+    changedByKeys(['orderTimeLimitMinutes', 'soundNotificationsEnabled', 'soundOrderBaru', 'soundPesananMasuk', 'soundPembayaranSukses', 'soundCustomerOrder', 'kdsCategoryOrder', 'runningText']) ? 'Dapur & KDS' : '',
+    changedByKeys(['isAttendanceEnabled', 'shiftScheduleKitchen', 'shiftScheduleCashier', 'shiftScheduleStaff', 'shiftScheduleAdmin', 'latenessToleranceMinutes', 'gpsLatitude', 'gpsLongitude', 'gpsRadiusMeters', 'maxGpsAccuracyMeters', 'requireSelfiePhoto', 'requireGpsActive', 'weeklyOffDays']) ? 'Karyawan & Shift' : '',
+    changedByKeys(['taxRatePercent', 'isTaxEnabled', 'serviceChargePercent', 'isServiceChargeEnabled', 'isManualDiscountEnabled', 'roundingMode', 'isRoundingEnabled', 'confirmBeforeSaveOrder', 'confirmBeforePayment']) ? 'Keuangan & Kasir' : '',
+  ].filter(Boolean);
+  const activeScopeLabel = centralBrandDirty
+    ? `Pusat + ${currentBranch.code || 'Cabang'}`
+    : currentBranch.code || 'Cabang';
+
+  const tableTargetDirty = changedByKeys(['allowedSelfOrderTables']);
+
+  // Condiment changes may round-trip through cloud and replace the group array.
+  // Preserve the settings viewport so button/input changes never throw the user
+  // to another vertical position while editing a long group.
+  const onSaveCondimentGroup = (group: CondimentGroup) => {
+    const scrollNode = settingsScrollRef.current;
+    const scrollTop = scrollNode?.scrollTop ?? 0;
+    setAutoSavePulse(true);
+    rawSaveCondimentGroup(group);
+    window.setTimeout(() => setAutoSavePulse(false), 1200);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (scrollNode) scrollNode.scrollTop = scrollTop;
+      });
+    });
+  };
+
+  const condimentDraftKey = (groupId: string, field: 'name' | 'allSelectedLabel') => `${groupId}:${field}`;
+  const readCondimentDraft = (groupId: string, field: 'name' | 'allSelectedLabel', fallback: string) => {
+    const key = condimentDraftKey(groupId, field);
+    return Object.prototype.hasOwnProperty.call(condimentTextDrafts, key) ? condimentTextDrafts[key] : fallback;
+  };
+  const commitCondimentText = (group: CondimentGroup, field: 'name' | 'allSelectedLabel', value: string) => {
+    const normalized = field === 'allSelectedLabel' ? value.trim().toUpperCase() : value.trim();
+    const fallback = field === 'name' ? group.name : (group.allSelectedLabel || '');
+    const mayPersist = field === 'name' ? Boolean(normalized) : true;
+    if (mayPersist && normalized !== fallback) onSaveCondimentGroup({ ...group, [field]: normalized });
+    setCondimentTextDrafts((current) => {
+      const next = { ...current };
+      delete next[condimentDraftKey(group.id, field)];
+      return next;
+    });
+  };
+
+  const ROLE_RANK_UI: Record<UserRole, number> = {
+    KITCHEN: 10, KASIR: 20, ADMIN: 40, MANAGER: 50, OWNER: 60, SUPER_OWNER: 70,
+  };
+  const canEditStaffAccount = (staff: UserAccount) => {
+    if (staff.id === activeUserId) return true;
+    if (activeUserRole === 'SUPER_OWNER') return true;
+    return (ROLE_RANK_UI[staff.role] || 0) < (ROLE_RANK_UI[activeUserRole] || 0);
+  };
 
   const scopeMeta = activeTab === 'ACCESS'
     ? { label: 'PUSAT / SEMUA CABANG', detail: 'Matriks role berlaku untuk seluruh organisasi.', icon: Building2, tone: 'border-violet-200 bg-violet-50 text-violet-800' }
@@ -206,6 +351,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }, [profile, currentBranch.id]);
 
   useEffect(() => {
+    const hasUnsavedChanges = profileDirty || accessDirty;
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [profileDirty, accessDirty]);
+
+  useEffect(() => {
     if (!canManageTenant && activeTab === 'ACCESS') setActiveTab('PROFILE');
   }, [activeTab, canManageTenant]);
 
@@ -224,10 +380,151 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newOptionPrices, setNewOptionPrices] = useState<Record<string, number>>({});
   const [showCondimentTips, setShowCondimentTips] = useState<boolean>(false);
 
-  const handleSaveAll = (_e?: any) => {
-    onSaveProfile(formProfile);
-    setIsSavedAlert(true);
-    setTimeout(() => setIsSavedAlert(false), 2500);
+  const actualTableNumbers = tables
+    .map((table) => normalizeTableNumber(table.number))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+  const desiredTableNumbers = parseTableNumberList(
+    formProfile.allowedSelfOrderTables || actualTableNumbers.join(','),
+  );
+  const actualTableNumberSet = new Set(actualTableNumbers);
+  const desiredTableNumberSet = new Set(desiredTableNumbers);
+  const missingTableNumbers = desiredTableNumbers.filter((number) => !actualTableNumberSet.has(number));
+  const outsideTargetTableNumbers = actualTableNumbers.filter((number) => !desiredTableNumberSet.has(number));
+  const kdsCategoryOrder = normalizeKdsCategoryOrder(formProfile.kdsCategoryOrder);
+
+  const saveKdsCategoryOrder = (nextOrder: CategoryType[]) => {
+    setFormProfile({ ...formProfile, kdsCategoryOrder: normalizeKdsCategoryOrder(nextOrder) });
+  };
+
+  const shiftKdsCategory = (category: CategoryType, direction: -1 | 1) => {
+    const currentIndex = kdsCategoryOrder.indexOf(category);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= kdsCategoryOrder.length) return;
+    const next = [...kdsCategoryOrder];
+    [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+    saveKdsCategoryOrder(next);
+  };
+
+  const handleSyncTableInventory = async () => {
+    if (!onEnsureTables) {
+      toast('Sinkronisasi Tidak Tersedia', 'Terminal ini belum memiliki handler sinkronisasi inventori meja.');
+      return;
+    }
+    if (!desiredTableNumbers.length) {
+      toast('Daftar Meja Kosong', 'Isi minimal satu nomor meja sebelum melakukan sinkronisasi.');
+      return;
+    }
+    if (!missingTableNumbers.length) {
+      toast('Inventori Meja Sudah Sinkron', `${tables.length} meja pada ${currentBranch.name} sudah mencakup seluruh daftar target.`);
+      return;
+    }
+
+    setIsSyncingTables(true);
+    try {
+      await onEnsureTables(desiredTableNumbers);
+      toast('Sinkronisasi Meja Selesai', `${missingTableNumbers.length} meja yang belum ada diminta dibuat untuk ${currentBranch.name}.`);
+    } catch (error) {
+      toast('Sinkronisasi Meja Gagal', error instanceof Error ? error.message : 'Inventori meja belum dapat disinkronkan.');
+    } finally {
+      setIsSyncingTables(false);
+    }
+  };
+
+  const validateProfileDraft = (): string | null => {
+    if (!String(formProfile.name || '').trim()) return 'Nama brand / resto tidak boleh kosong.';
+
+    const orderLimit = Number(formProfile.orderTimeLimitMinutes ?? 5);
+    if (!Number.isFinite(orderLimit) || orderLimit < 1 || orderLimit > 120) {
+      return 'Alarm keterlambatan Kitchen harus antara 1–120 menit.';
+    }
+
+    const lateness = Number(formProfile.latenessToleranceMinutes ?? 5);
+    if (!Number.isFinite(lateness) || lateness < 0 || lateness > 180) {
+      return 'Toleransi keterlambatan staff harus antara 0–180 menit.';
+    }
+
+    const taxRate = Number(formProfile.taxRatePercent ?? 0);
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
+      return 'Pajak harus berada pada rentang 0–100%.';
+    }
+
+    if (formProfile.isAttendanceEnabled !== false && formProfile.requireGpsActive !== false) {
+      const lat = Number(formProfile.gpsLatitude);
+      const lng = Number(formProfile.gpsLongitude);
+      const radius = Number(formProfile.gpsRadiusMeters ?? 20);
+      const accuracy = Number(formProfile.maxGpsAccuracyMeters ?? 80);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+        return 'Koordinat GPS outlet belum valid. Pastikan latitude dan longitude sudah benar.';
+      }
+      if (!Number.isFinite(radius) || radius < 5 || radius > 5000) {
+        return 'Radius GPS harus antara 5–5.000 meter.';
+      }
+      if (!Number.isFinite(accuracy) || accuracy < 5 || accuracy > 500) {
+        return 'Batas akurasi GPS harus antara 5–500 meter.';
+      }
+    }
+
+    if (String(formProfile.allowedSelfOrderTables || '').trim() && desiredTableNumbers.length === 0) {
+      return 'Daftar target meja Self-Order belum valid.';
+    }
+
+    return null;
+  };
+
+  const performSaveProfile = async () => {
+    if (!profileDirty || isSavingProfile) {
+      setSaveConfirmKind(null);
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      await onSaveProfile(formProfile);
+      const savedTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      setLastSavedAt(savedTime);
+      setSaveConfirmKind(null);
+      toast(
+        'Pengaturan Berhasil Disimpan',
+        `${changedDomains.length ? changedDomains.join(', ') : 'Perubahan'} tersimpan untuk ${activeScopeLabel}.`,
+      );
+    } catch (error) {
+      toast('Pengaturan Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan belum tersimpan ke cloud.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const requestSaveProfile = () => {
+    if (!profileDirty || isSavingProfile) return;
+    const validationError = validateProfileDraft();
+    if (validationError) {
+      toast('Periksa Pengaturan', validationError);
+      return;
+    }
+    setSaveConfirmKind('PROFILE');
+  };
+
+  const performSaveAccess = async () => {
+    if (!accessDirty || isSavingAccess) {
+      setSaveConfirmKind(null);
+      return;
+    }
+    setIsSavingAccess(true);
+    try {
+      await onSaveAccessControl(accessDraft);
+      setSaveConfirmKind(null);
+      setLastSavedAt(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+      toast('Hak Akses Tersimpan', 'Matriks role sudah diperbarui untuk seluruh organisasi.');
+    } catch (error) {
+      toast('Hak Akses Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan hak akses belum tersimpan.');
+    } finally {
+      setIsSavingAccess(false);
+    }
+  };
+
+  const requestSaveAccess = () => {
+    if (!accessDirty || isSavingAccess) return;
+    setSaveConfirmKind('ACCESS');
   };
 
   const handleGetCurrentLocation = () => {
@@ -344,208 +641,112 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     toast('Test Suara', `Memainkan chime: ${soundName}`);
   };
 
+  const settingsTabs = [
+    { id: 'PROFILE' as const, label: 'Profil & Brand', shortLabel: 'Profil', icon: Store },
+    { id: 'LANDING' as const, label: 'Self-Order & Meja', shortLabel: 'Self-Order', icon: Smartphone },
+    { id: 'KDS' as const, label: 'Dapur & KDS', shortLabel: 'Dapur', icon: Volume2 },
+    { id: 'STAFF' as const, label: 'Karyawan & Shift', shortLabel: 'Karyawan', icon: Users },
+    { id: 'CONDIMENTS' as const, label: 'Isian & Topping', shortLabel: 'Isian', icon: Grid },
+    { id: 'FINANCE' as const, label: 'Keuangan & Kasir', shortLabel: 'Keuangan', icon: CreditCard },
+    ...(canManageTenant ? [{ id: 'ACCESS' as const, label: 'Hak Akses', shortLabel: 'Akses', icon: Shield }] : []),
+    { id: 'DATABASE' as const, label: 'Sistem & Data', shortLabel: 'Sistem', icon: Database },
+  ];
+
+  const activeTabMeta = settingsTabs.find((tab) => tab.id === activeTab) || settingsTabs[0];
   return (
-    <div className="ui-surface flex-1 p-4 md:p-6 overflow-y-auto font-sans select-none text-[var(--text-primary)]">
-      <div>
-        {/* Main Header Bar */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] rounded-2xl flex items-center justify-center text-white shadow-[var(--shadow-md)]">
-              <Settings className="w-6 h-6" />
+    <div ref={settingsScrollRef} className="ui-surface flex-1 overflow-y-auto bg-slate-50/70 px-3 py-3 font-sans text-[var(--text-primary)] md:px-5 md:py-4">
+      <div className="mx-auto w-full max-w-[1540px] space-y-3">
+        {/* Compact Control Center Header */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--panel-border)] bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)] text-white shadow-sm">
+              <Settings className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Pengaturan Operasional</h1>
-              <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-widest">CONTROL CENTER TOKO</p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="text-lg font-black tracking-tight text-[var(--text-primary)] md:text-xl">Pengaturan Operasional</h1>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500">Control Center Toko</span>
+              </div>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-[var(--text-tertiary)]">{activeTabMeta.label} · {currentBranch.name}</p>
             </div>
           </div>
 
-          {isSavedAlert && (
-            <div className="bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-md animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Perubahan Berhasil Disimpan!</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2 ${scopeMeta.tone}`}>
+              <ScopeIcon className="h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-wider">{scopeMeta.label}</p>
+                <p className="max-w-[340px] truncate text-[10px] font-semibold opacity-75">{scopeMeta.detail}</p>
+              </div>
             </div>
-          )}
+            <div className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[10px] font-black ${profileDirty || accessDirty ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+              {profileDirty || accessDirty ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              {profileDirty || accessDirty ? 'Ada perubahan belum disimpan' : lastSavedAt ? `Tersimpan ${lastSavedAt}` : 'Semua tersimpan'}
+            </div>
+          </div>
         </div>
 
-        <div className={`mb-5 flex items-center gap-3 rounded-2xl border px-4 py-3 ${scopeMeta.tone}`}>
-          <ScopeIcon className="h-5 w-5 shrink-0" />
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider">Cakupan: {scopeMeta.label}</p>
-            <p className="mt-0.5 text-xs font-semibold opacity-80">{scopeMeta.detail}</p>
-          </div>
-        </div>
+        <div className="space-y-3">
+          {/* Sticky navigation + save command bar. Save is deliberately outside the horizontal tab scroller. */}
+          <div className="sticky top-0 z-30 rounded-2xl border border-[var(--panel-border)] bg-white/96 p-2 shadow-sm backdrop-blur-xl">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+                {settingsTabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const selected = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[10px] font-extrabold transition md:px-3 md:text-[11px] ${selected ? 'border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm' : 'border-transparent bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:border-[var(--panel-border)] hover:bg-white'}`}
+                    >
+                      <TabIcon className="h-3.5 w-3.5" />
+                      <span className="hidden xl:inline">{tab.label}</span>
+                      <span className="xl:hidden">{tab.shortLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Navigation Sidebar */}
-          <div className="space-y-5">
-            {/* UMUM */}
-            <div>
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">UMUM</p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('PROFILE')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'PROFILE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'PROFILE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Store className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Profil & Brand</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Identitas, Logo, Sosmed</p>
-                  </div>
-                </button>
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 pt-2 lg:border-l lg:border-t-0 lg:pl-2 lg:pt-0">
+                {activeTab === 'CONDIMENTS' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 text-[9px] font-black text-blue-700">
+                    <Save className="h-3.5 w-3.5" /> Draft lokal · simpan per grup
+                  </span>
+                )}
 
-                <button
-                  onClick={() => setActiveTab('LANDING')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'LANDING'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'LANDING' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Landing Self-Order</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Tampilan App Pelanggan</p>
-                  </div>
-                </button>
+                {activeTab === 'ACCESS' && accessDirty ? (
+                  <button
+                    type="button"
+                    disabled={isSavingAccess}
+                    onClick={requestSaveAccess}
+                    className="ui-button ui-button-primary min-h-9 whitespace-nowrap px-3 text-[10px]"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>{isSavingAccess ? 'Menyimpan…' : 'Simpan Hak Akses'}</span>
+                  </button>
+                ) : profileDirty ? (
+                  <button
+                    type="button"
+                    disabled={isSavingProfile}
+                    onClick={requestSaveProfile}
+                    className="ui-button ui-button-primary min-h-9 whitespace-nowrap px-3 text-[10px] shadow-sm"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>{isSavingProfile ? 'Menyimpan…' : `Simpan ${changedDomains.length || 1} Perubahan`}</span>
+                  </button>
+                ) : activeTab !== 'CONDIMENTS' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[9px] font-black text-slate-500">
+                    <Check className="h-3.5 w-3.5" /> Tidak ada draft
+                  </span>
+                )}
               </div>
             </div>
-
-            {/* OPERASIONAL */}
-            <div>
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">OPERASIONAL</p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('KDS')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'KDS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'KDS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Volume2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Dapur & KDS</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Timer, Alarm, Running Text</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('STAFF')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'STAFF'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'STAFF' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Users className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Karyawan & Shift</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Absensi, GPS, Shift Staff</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('CONDIMENTS')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'CONDIMENTS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'CONDIMENTS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Grid className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Daftar Isian / Topping</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Opsi Kuah, Isian, Paket</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* SYSTEM */}
-            <div>
-              <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest px-2 mb-2">SYSTEM</p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('FINANCE')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'FINANCE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'FINANCE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Keuangan & Pajak</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Pajak, Service, Diskon</p>
-                  </div>
-                </button>
-
-                {canManageTenant && <button
-                  onClick={() => setActiveTab('ACCESS')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'ACCESS'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'ACCESS' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Hak Akses</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Role & Permissions</p>
-                  </div>
-                </button>}
-
-                <button
-                  onClick={() => setActiveTab('DATABASE')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                    activeTab === 'DATABASE'
-                      ? 'bg-white border-[var(--primary)] ring-2 ring-[var(--primary)]/20 text-[var(--primary-hover)] shadow-sm font-bold'
-                      : 'bg-white/80 border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'DATABASE' ? 'bg-gradient-to-tr from-[var(--primary)] to-[var(--primary-light)] text-white shadow-sm' : 'bg-[var(--surface-secondary)] text-[var(--text-primary)]'}`}>
-                    <Database className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">Database & Reset</p>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-bold">Reset & Maintenance</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Hanya form profil cabang yang memakai tombol simpan bersama.
-                Hak akses, condiment, dan maintenance punya aksi tersendiri. */}
-            {(['PROFILE', 'LANDING', 'KDS', 'STAFF', 'FINANCE'] as const).includes(activeTab as any) && <button
-              type="button"
-              onClick={handleSaveAll}
-              className="ui-button ui-button-primary w-full cursor-pointer mt-4"
-            >
-              <Save className="w-4 h-4" />
-              <span>{activeTab === 'PROFILE' && canManageTenant ? `SIMPAN PUSAT + ${currentBranch.code || 'CABANG'}` : `SIMPAN ${currentBranch.code || 'CABANG'}`}</span>
-            </button>}
           </div>
 
-          {/* Right Main Form Content Panel */}
-          <div className="ui-card lg:col-span-3 p-6 min-h-[600px]">
+          {/* Main Form Content Panel */}
+          <div className="ui-card min-w-0 p-4 md:p-5">
             {/* 1. PROFIL & BRAND (Matching Image 1) */}
             {activeTab === 'PROFILE' && (
               <div className="space-y-6">
@@ -554,15 +755,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-xs text-[var(--text-tertiary)] font-medium">Informasi dasar yang tampil di struk dan aplikasi.</p>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-violet-800">
-                    <p className="text-[11px] font-black uppercase tracking-wider">Brand pusat</p>
-                    <p className="mt-1 text-xs font-semibold">Nama, logo, Instagram, dan TikTok dipakai bersama oleh semua cabang. Hanya Owner yang dapat mengubah.</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-800">
-                    <p className="text-[11px] font-black uppercase tracking-wider">Profil outlet: {currentBranch.code}</p>
-                    <p className="mt-1 text-xs font-semibold">Tagline, alamat, WhatsApp, dan konfigurasi operasional hanya untuk {currentBranch.name}.</p>
-                  </div>
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-black text-violet-700">PUSAT · Nama, logo, Instagram, TikTok</span>
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-[10px] font-black text-orange-700">{currentBranch.code} · Tagline, alamat, WhatsApp</span>
+                  <span className="self-center text-[10px] font-semibold text-slate-500">Perubahan pusat hanya dapat dilakukan Owner.</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
@@ -618,7 +814,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {/* Brand Fields */}
                   <div className="md:col-span-2 space-y-4">
                     <div>
-                      <label className="block text-[13px]-bold-1">
+                      <label className="block text-[13px] font-bold">
                         NAMA BRAND / RESTO
                       </label>
                       <input
@@ -631,7 +827,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[13px]-bold-1">
+                      <label className="block text-[13px] font-bold">
                         SLOGAN / TAGLINE
                       </label>
                       <input
@@ -643,7 +839,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[13px]-bold-1">
+                      <label className="block text-[13px] font-bold">
                         ALAMAT LENGKAP
                       </label>
                       <textarea
@@ -704,8 +900,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {activeTab === 'LANDING' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Landing Page Pelanggan</h2>
-                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Konfigurasi tampilan banner, wallpaper, dan review Google HP pelanggan.</p>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Self-Order & Meja</h2>
+                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Satu tempat untuk inventori meja, tampilan landing pelanggan, dan link review.</p>
                 </div>
 
                 <div className="bg-white border border-[var(--panel-border)] rounded-2xl p-4">
@@ -713,14 +909,104 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">Akses customer order tidak memakai saklar global. Aktif/nonaktif ditentukan dari Manajemen Meja & QR untuk setiap meja atau aksi semua meja.</p>
                 </div>
 
+                {/* Inventori meja customer order — operational source of truth. */}
+                <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-4 shadow-sm space-y-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <Grid className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">Inventori Meja Customer Order</h3>
+                        <p className="mt-1 max-w-2xl text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
+                          Daftar target menentukan nomor meja yang seharusnya tersedia. Akses customer order tetap dikontrol dari tombol tiap meja; daftar ini tidak mengaktifkan meja secara otomatis.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsTableModalOpen(true)}
+                      className="shrink-0 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:shadow-lg"
+                    >
+                      Kelola Meja Aktif
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Database</p>
+                      <p className="mt-1 text-lg font-black text-slate-900">{tables.length}</p>
+                      <p className="text-[9px] font-semibold text-slate-500">meja aktual</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Target</p>
+                      <p className="mt-1 text-lg font-black text-slate-900">{desiredTableNumbers.length}</p>
+                      <p className="text-[9px] font-semibold text-slate-500">nomor terdaftar</p>
+                    </div>
+                    <div className={`rounded-2xl border px-3 py-3 ${missingTableNumbers.length ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                      <p className={`text-[9px] font-black uppercase tracking-wider ${missingTableNumbers.length ? 'text-amber-600' : 'text-emerald-600'}`}>Belum Ada</p>
+                      <p className={`mt-1 text-lg font-black ${missingTableNumbers.length ? 'text-amber-900' : 'text-emerald-900'}`}>{missingTableNumbers.length}</p>
+                      <p className={`text-[9px] font-semibold ${missingTableNumbers.length ? 'text-amber-700' : 'text-emerald-700'}`}>{missingTableNumbers.length ? 'perlu dibuat' : 'sudah sinkron'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Daftar target meja</label>
+                    <input
+                      type="text"
+                      value={formProfile.allowedSelfOrderTables ?? actualTableNumbers.join(',')}
+                      onChange={(e) => setFormProfile({ ...formProfile, allowedSelfOrderTables: e.target.value })}
+                      placeholder={actualTableNumbers.join(',') || '1,2,3,4,5'}
+                      className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4 font-mono text-xs font-bold tracking-wider text-[var(--text-primary)] outline-none transition-all focus:border-[var(--primary)] focus:bg-white"
+                    />
+                    <p className="text-[11px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+                      Pisahkan dengan koma. Sinkronisasi hanya <strong className="text-slate-600">membuat meja yang belum ada</strong>; meja lama, status bill, dan pengaturan ON/OFF tidak pernah dihapus otomatis.
+                    </p>
+                  </div>
+
+                  {missingTableNumbers.length > 0 && (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-amber-900">Database belum sama dengan daftar target</p>
+                        <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-800">
+                          Belum ada: <span className="font-mono font-black">{missingTableNumbers.join(', ')}</span>. Meja baru dibuat NONAKTIF agar aman sampai Anda mengaktifkannya dari Manajemen Meja.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isSyncingTables || !onEnsureTables || tableTargetDirty}
+                        onClick={() => void handleSyncTableInventory()}
+                        className="shrink-0 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={tableTargetDirty ? 'Simpan daftar target terlebih dahulu.' : 'Buat hanya meja yang belum ada.'}
+                      >
+                        {tableTargetDirty ? 'Simpan Target Dulu' : isSyncingTables ? 'Menyinkronkan…' : `Buat ${missingTableNumbers.length} Meja`}
+                      </button>
+                    </div>
+                  )}
+
+                  {!missingTableNumbers.length && desiredTableNumbers.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[11px] font-bold text-emerald-800">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Inventori meja database sudah mencakup seluruh daftar target.
+                    </div>
+                  )}
+
+                  {outsideTargetTableNumbers.length > 0 && (
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      Meja database di luar daftar target tetap dipertahankan: <span className="font-mono font-black">{outsideTargetTableNumbers.join(', ')}</span>.
+                    </p>
+                  )}
+                </div>
+
                 {/* Banner Promo Utama Card */}
-                <div className="bg-[var(--primary)] rounded-2xl p-6 text-white shadow-md space-y-4">
-                  <p className="text-[11px] font-bold text-[var(--primary-text)] uppercase tracking-widest flex items-center gap-1.5">
+                <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5 text-slate-900 shadow-sm space-y-4">
+                  <p className="text-[11px] font-black text-orange-700 uppercase tracking-widest flex items-center gap-1.5">
                     <Volume2 className="w-3.5 h-3.5" /> BANNER PROMO UTAMA
                   </p>
 
                   <div>
-                    <label className="block text-[13px]-bold-1">JUDUL PROMO</label>
+                    <label className="block text-[13px] font-bold">JUDUL PROMO</label>
                     <input
                       type="text"
                       value={formProfile.promoBannerTitle || ''}
@@ -730,7 +1016,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[13px]-bold-1">DESKRIPSI</label>
+                    <label className="block text-[13px] font-bold">DESKRIPSI</label>
                     <input
                       type="text"
                       value={formProfile.promoBannerDescription || ''}
@@ -746,20 +1032,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                       WALLPAPER BACKGROUND
                     </label>
-                    <div className="h-44 rounded-2xl overflow-hidden border border-[var(--panel-border)] relative group">
-                      <img
-                        src={formProfile.wallpaperBackgroundUrl}
-                        alt="Wallpaper Preview"
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="relative flex h-44 items-center justify-center overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-slate-100">
+                      {formProfile.wallpaperBackgroundUrl ? (
+                        <img src={formProfile.wallpaperBackgroundUrl} alt="Wallpaper Preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="text-center text-slate-400"><ImageIcon className="mx-auto h-8 w-8" /><p className="mt-2 text-[10px] font-bold">Belum ada wallpaper</p></div>
+                      )}
                     </div>
                     <input
                       type="text"
-                      placeholder="URL Gambar Background..."
+                      placeholder="Tempel URL gambar / CDN..."
                       value={formProfile.wallpaperBackgroundUrl || ''}
                       onChange={(e) => setFormProfile({ ...formProfile, wallpaperBackgroundUrl: e.target.value })}
                       className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none"
                     />
+                    <label className="ui-button ui-button-secondary w-full cursor-pointer py-2 text-[11px]">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>{isUploadingWallpaper ? 'Mengunggah wallpaper…' : 'Upload dari perangkat'}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="sr-only"
+                        disabled={isUploadingWallpaper}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          if (!file) return;
+                          setIsUploadingWallpaper(true);
+                          void uploadImage(file, 'self-order-wallpaper', currentBranch.id)
+                            .then((uploaded) => {
+                              setFormProfile((current) => ({ ...current, wallpaperBackgroundUrl: uploaded.secureUrl }));
+                              toast('Wallpaper Berhasil Diunggah', 'Preview sudah diperbarui. Simpan perubahan agar digunakan pelanggan.');
+                            })
+                            .catch((error) => toast('Upload Wallpaper Gagal', error instanceof Error ? error.message : 'Wallpaper tidak dapat diunggah.'))
+                            .finally(() => setIsUploadingWallpaper(false));
+                        }}
+                      />
+                    </label>
                   </div>
 
                   <div className="space-y-4 bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-2xl p-5">
@@ -768,7 +1077,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </h3>
 
                     <div>
-                      <label className="block text-[13px]-bold-1">URL MAPS</label>
+                      <label className="block text-[13px] font-bold">URL MAPS</label>
                       <input
                         type="text"
                         value={formProfile.googleReviewUrl || ''}
@@ -778,7 +1087,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[13px]-bold-1">TEKS AJAKAN</label>
+                      <label className="block text-[13px] font-bold">TEKS AJAKAN</label>
                       <input
                         type="text"
                         value={formProfile.googleReviewText || ''}
@@ -786,6 +1095,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none"
                       />
                     </div>
+                    <button
+                      type="button"
+                      disabled={!formProfile.googleReviewUrl}
+                      onClick={() => formProfile.googleReviewUrl && window.open(formProfile.googleReviewUrl, '_blank', 'noopener,noreferrer')}
+                      className="ui-button ui-button-secondary w-full text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Uji Link Review
+                    </button>
                   </div>
                 </div>
               </div>
@@ -804,21 +1121,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)] space-y-4">
                     <div className="flex items-center gap-2 text-[var(--text-secondary)] font-bold text-xs">
                       <Clock className="w-4 h-4 text-[var(--accent-amber)]" />
-                      <span>BATAS WAKTU ORDER</span>
+                      <span>ALARM KETERLAMBATAN</span>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <input
                         type="number"
                         min={1}
-                        max={60}
-                        value={formProfile.orderTimeLimitMinutes || 5}
+                        max={120}
+                        value={formProfile.orderTimeLimitMinutes ?? 5}
                         onChange={(e) => setFormProfile({ ...formProfile, orderTimeLimitMinutes: Number(e.target.value) })}
                         className="w-20 bg-white border border-[var(--panel-border)] rounded-2xl p-3 text-2xl font-bold text-center text-[var(--text-primary)] outline-none"
                       />
                       <div>
-                        <p className="text-xs font-bold text-[var(--text-primary)] uppercase">MENIT SEBELUM</p>
-                        <p className="text-[11px] text-[var(--text-tertiary)] font-semibold">ALARM BERBUNYI</p>
+                        <p className="text-xs font-bold text-[var(--text-primary)] uppercase">MENIT SETELAH ORDER MASUK</p>
+                        <p className="text-[11px] text-[var(--text-tertiary)] font-semibold">KDS mulai memberi alarm & status terlambat</p>
                       </div>
                     </div>
                   </div>
@@ -944,6 +1261,78 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
+                {/* KDS Category Order */}
+                <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)] space-y-4">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Grid className="h-4 w-4 text-[var(--primary-hover)]" />
+                        <p className="text-xs font-black text-[var(--text-primary)]">URUTAN KATEGORI TICKET KITCHEN</p>
+                      </div>
+                      <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[var(--text-tertiary)]">
+                        Urutan pertama = tampil paling atas di setiap ticket. Di dalam kategori, item mengikuti urutan master menu / inventory cabang.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => saveKdsCategoryOrder(DEFAULT_KDS_CATEGORY_ORDER)}
+                      className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black text-slate-600 hover:bg-slate-50"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> Reset urutan
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {kdsCategoryOrder.map((category, index) => (
+                      <div
+                        key={category}
+                        draggable
+                        onDragStart={() => setDraggedKdsCategory(category)}
+                        onDragEnd={() => setDraggedKdsCategory(null)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          if (!draggedKdsCategory) return;
+                          saveKdsCategoryOrder(moveKdsCategory(kdsCategoryOrder, draggedKdsCategory, category));
+                          setDraggedKdsCategory(null);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition ${draggedKdsCategory === category ? 'border-emerald-300 bg-emerald-50 opacity-70' : 'border-slate-200 bg-slate-50'}`}
+                      >
+                        <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-slate-400" />
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-black text-white">{index + 1}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-black text-slate-800">{category}</p>
+                          <p className="text-[9px] font-semibold text-slate-400">{category === 'MINUMAN' ? 'Panel Minuman' : 'Panel Makanan'}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => shiftKdsCategory(category, -1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+                            title="Naikkan urutan"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === kdsCategoryOrder.length - 1}
+                            onClick={() => shiftKdsCategory(category, 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+                            title="Turunkan urutan"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-semibold text-sky-800">
+                    Urutan ini hanya mengubah susunan di KDS. Tidak mengubah kategori, harga, stok, urutan input kasir, atau data transaksi.
+                  </div>
+                </div>
+
                 {/* Running Text */}
                 <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)] space-y-2">
                   <label className="block text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
@@ -1055,8 +1444,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
-                        value={formProfile.latenessToleranceMinutes || 5}
-                        onChange={(e) => setFormProfile({ ...formProfile, latenessToleranceMinutes: Number(e.target.value) })}
+                        min={0}
+                        max={180}
+                        value={formProfile.latenessToleranceMinutes ?? 5}
+                        onChange={(e) => setFormProfile({ ...formProfile, latenessToleranceMinutes: Math.max(0, Math.min(180, Number(e.target.value))) })}
                         className="w-14 bg-white border border-amber-300 rounded-xl py-1 text-center font-bold text-xs text-[var(--text-primary)]"
                       />
                       <span className="text-xs font-bold text-amber-700">Menit</span>
@@ -1075,8 +1466,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div>
                       <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase mb-1">LATITUDE (GARIS LINTANG)</label>
                       <input
-                        type="text"
-                        value={formProfile.gpsLatitude || -6.609013171412514}
+                        type="number"
+                        step="0.000001"
+                        min={-90}
+                        max={90}
+                        value={formProfile.gpsLatitude ?? -6.609013171412514}
                         onChange={(e) => setFormProfile({ ...formProfile, gpsLatitude: Number(e.target.value) })}
                         className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-[var(--text-primary)]"
                       />
@@ -1087,8 +1481,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          value={formProfile.gpsRadiusMeters || 20}
-                          onChange={(e) => setFormProfile({ ...formProfile, gpsRadiusMeters: Number(e.target.value) })}
+                          min={5}
+                          max={5000}
+                          value={formProfile.gpsRadiusMeters ?? 20}
+                          onChange={(e) => setFormProfile({ ...formProfile, gpsRadiusMeters: Math.max(5, Math.min(5000, Number(e.target.value))) })}
                           className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-[var(--text-primary)]"
                         />
                         <span className="text-xs font-semibold text-[var(--text-tertiary)]">Meter</span>
@@ -1098,11 +1494,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div>
                       <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase mb-1">LONGITUDE (GARIS BUJUR)</label>
                       <input
-                        type="text"
-                        value={formProfile.gpsLongitude || 106.78293233420759}
+                        type="number"
+                        step="0.000001"
+                        min={-180}
+                        max={180}
+                        value={formProfile.gpsLongitude ?? 106.78293233420759}
                         onChange={(e) => setFormProfile({ ...formProfile, gpsLongitude: Number(e.target.value) })}
                         className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-[var(--text-primary)]"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase mb-1">AKURASI GPS MAKS. (METER)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={5}
+                          max={500}
+                          value={formProfile.maxGpsAccuracyMeters ?? 80}
+                          onChange={(e) => setFormProfile({ ...formProfile, maxGpsAccuracyMeters: Math.max(5, Math.min(500, Number(e.target.value))) })}
+                          className="w-full bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-[var(--text-primary)]"
+                        />
+                        <span className="text-xs font-semibold text-[var(--text-tertiary)]">Meter</span>
+                      </div>
+                      <p className="mt-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Presensi ditolak jika sensor GPS terlalu tidak akurat.</p>
                     </div>
 
                     <div className="flex flex-col justify-center space-y-2 pt-2">
@@ -1155,12 +1570,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                       <Clock className="w-4 h-4 text-[var(--primary-hover)]" />
-                      <span>JADWAL LIBUR RUTIN HARIAN (OUTLET & STAFF)</span>
+                      <span>DEFAULT HARI LIBUR OUTLET</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-[var(--text-secondary)] font-semibold">
-                    Tentukan hari libur rutin operasional outlet. Jika staf melakukan absensi pada hari libur, absensi akan dicatat sebagai Lembur / Ekstra Shift.
+                    Ini menjadi fallback untuk staff yang belum memiliki Hari Kerja Rutin sendiri. Jadwal per-staff pada kartu akun selalu lebih prioritas.
                   </p>
 
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -1299,6 +1714,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <span className="px-1.5 py-0.5 rounded bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-hover)] font-mono text-[11px] font-bold">
                                   {stf.role}
                                 </span>
+                                {stf.id === activeUserId && <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">Akun Anda</span>}
                               </div>
                               <p className="text-[11px] text-[var(--text-secondary)] font-bold">{stf.shiftStart || '-'} – {stf.shiftEnd || '-'}</p>
                             </div>
@@ -1307,16 +1723,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
+                              disabled={!canEditStaffAccount(stf)}
                               onClick={() => setEditingStaff({ ...stf })}
-                              className="p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer transition-colors"
-                              title="Edit Detail Staff & PIN"
+                              className="p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                              title={canEditStaffAccount(stf) ? 'Edit Detail Staff & PIN' : 'Akun dengan kewenangan setara atau lebih tinggi tidak dapat diubah'}
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
 
                             <button
                               type="button"
+                              disabled={stf.id === activeUserId || !canEditStaffAccount(stf)}
                               onClick={() => {
+                                if (stf.id === activeUserId || !canEditStaffAccount(stf)) return;
                                 if (confirmingDeleteId === stf.id) {
                                   if (onDeleteStaff) void Promise.resolve(onDeleteStaff(stf.id)).catch(() => undefined);
                                   setConfirmingDeleteId(null);
@@ -1325,27 +1744,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   setTimeout(() => setConfirmingDeleteId(null), 3000);
                                 }
                               }}
-                              className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                              className={`p-1.5 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-25 ${
                                 confirmingDeleteId === stf.id ? 'bg-rose-600 text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
                               }`}
-                              title={confirmingDeleteId === stf.id ? 'Klik lagi untuk hapus' : 'Hapus Staff'}
+                              title={cloudMode ? (confirmingDeleteId === stf.id ? 'Klik lagi untuk cabut akses' : 'Cabut akses & sesi staff') : (confirmingDeleteId === stf.id ? 'Klik lagi untuk hapus' : 'Hapus Staff')}
                             >
                               {confirmingDeleteId === stf.id ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
                             </button>
 
                             <button
                               type="button"
+                              disabled={stf.id === activeUserId || !canEditStaffAccount(stf)}
                               onClick={() => void Promise.resolve(onSaveStaff({ ...stf, isActive: stf.isActive === false })).catch(() => undefined)}
-                              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase cursor-pointer ${stf.isActive === false ? 'border-[var(--panel-border)] text-[var(--text-secondary)] bg-[var(--surface-secondary)]' : 'border-emerald-200 text-[var(--accent-green)] bg-[var(--success-soft)]'}`}
+                              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-45 ${stf.isActive === false ? 'border-[var(--panel-border)] text-[var(--text-secondary)] bg-[var(--surface-secondary)]' : 'border-emerald-200 text-[var(--accent-green)] bg-[var(--success-soft)]'}`}
                             >
                               {stf.isActive === false ? 'Nonaktif' : 'Aktif'}
                             </button>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-bold text-[var(--text-secondary)]">
+                        <div className="grid grid-cols-1 gap-2 pt-1 text-[11px] font-bold text-[var(--text-secondary)] sm:grid-cols-2">
                           <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2">Shift: {stf.shiftStart || '-'}–{stf.shiftEnd || '-'}</div>
-                          <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2">PIN: ••••••</div>
+                          <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2">Libur rutin: {staffOffDays(stf).map((day) => day.short).join(', ') || '-'}</div>
+                          <div className="rounded-xl bg-[var(--surface-main)] px-3 py-2 sm:col-span-2">
+                            <span className="mr-2 text-[var(--text-tertiary)]">Hari masuk</span>
+                            {STAFF_WEEKDAYS.filter((day) => staffWorkDays(stf).includes(day.day)).map((day) => (
+                              <span key={day.day} className="mr-1 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700">{day.short}</span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1354,694 +1780,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* 5. DAFTAR ISIAN / TOPPING (Matching Screenshots 4 & 5) */}
+            {/* 5. RACIKAN / ISIAN / TOPPING — FIX11 MASTER-DETAIL BUILDER */}
             {activeTab === 'CONDIMENTS' && (
-              <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">Daftar Isian / Topping</h2>
-                    <p className="text-xs text-[var(--text-tertiary)] font-medium">Atur pilihan tambahan untuk menu (Hanya Customer Order & Kitchen)</p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowCondimentTips(true)}
-                      className="bg-[var(--brand-50)] hover:bg-[var(--brand-100)] border border-[var(--brand-200)] text-[var(--primary-hover)] font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      <Info className="w-4 h-4 text-[var(--primary-hover)]" />
-                      <span>& Tips</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const hasBroth = condimentGroups.some((group) => inferSelfOrderRole(group) === 'BROTH');
-                        const hasFilling = condimentGroups.some((group) => inferSelfOrderRole(group) === 'FILLING');
-                        let created = 0;
-                        const stamp = Date.now();
-
-                        if (!hasBroth) {
-                          onSaveCondimentGroup({
-                            id: `cg-preset-kuah-${stamp}`,
-                            name: 'KUAH',
-                            mode: 'PAKET',
-                            required: true,
-                            isRequired: true,
-                            minSelect: 1,
-                            maxSelect: 1,
-                            targetCategories: ['BAKSO'],
-                            isActive: true,
-                            selfOrderRole: 'BROTH',
-                            selfOrderDefaultOptions: ['ORIGINAL'],
-                            options: [
-                              { id: `opt-kuah-original-${stamp}`, name: 'ORIGINAL', price: 0, isAvailable: true },
-                              { id: `opt-kuah-misdasem-${stamp}`, name: 'MISDASEM', price: 0, isAvailable: true },
-                            ],
-                          });
-                          created += 1;
-                        }
-
-                        if (!hasFilling) {
-                          onSaveCondimentGroup({
-                            id: `cg-preset-isian-${stamp + 1}`,
-                            name: 'ISIAN',
-                            mode: 'ADD_ON',
-                            required: true,
-                            isRequired: true,
-                            minSelect: 1,
-                            maxSelect: 7,
-                            targetCategories: ['BAKSO'],
-                            isActive: true,
-                            selfOrderRole: 'FILLING',
-                            selfOrderBaksoOnlyOptions: ['BAWANG', 'SLEDRI'],
-                            selfOrderCampurOptions: ['MIE', 'BIHUN', 'SAWI', 'TAUGE', 'BAWANG', 'SLEDRI'],
-                            allSelectedLabel: 'CAMPUR',
-                            options: [
-                              { id: `opt-isian-mie-${stamp}`, name: 'MIE', price: 0, isAvailable: true },
-                              { id: `opt-isian-bihun-${stamp}`, name: 'BIHUN', price: 0, isAvailable: true },
-                              { id: `opt-isian-kwetiaw-${stamp}`, name: 'KWETIAW', price: 0, isAvailable: true },
-                              { id: `opt-isian-sawi-${stamp}`, name: 'SAWI', price: 0, isAvailable: true },
-                              { id: `opt-isian-tauge-${stamp}`, name: 'TAUGE', price: 0, isAvailable: true },
-                              { id: `opt-isian-bawang-${stamp}`, name: 'BAWANG', price: 0, isAvailable: true },
-                              { id: `opt-isian-sledri-${stamp}`, name: 'SLEDRI', price: 0, isAvailable: true },
-                            ],
-                          });
-                          created += 1;
-                        }
-
-                        toast(
-                          created ? 'Preset Self Order Dibuat' : 'Preset Sudah Ada',
-                          created
-                            ? `${created} grup standar ditambahkan. Periksa target menu dan opsi sebelum digunakan.`
-                            : 'Grup Kuah dan Isian untuk self-order sudah tersedia. Tidak ada duplikasi yang dibuat.',
-                        );
-                      }}
-                      className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      <span>Preset Self Order</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNewGroupModalOpen(true)}
-                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-[var(--shadow-md)] cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>+ Grup</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* List of Condiment Groups Accordion (Matching Screenshot 5) */}
-                <div className="space-y-4">
-                  {condimentGroups.map((group) => {
-                    const isExpanded = expandedGroupIds.includes(group.id);
-                    const selectedCategories = group.targetCategories || (group.targetCategory ? [group.targetCategory] : []);
-                    const selectedProductIds = group.targetProductIds || [];
-                    const selectedProductNames = group.targetProductNames || [];
-                    const targetCount = selectedCategories.length + selectedProductIds.length + selectedProductNames.length;
-                    const selfOrderRole = inferSelfOrderRole(group);
-                    const activeOptionNames = group.options.filter((option) => option.isAvailable !== false).map((option) => option.name);
-                    const brothDefaults = defaultBrothConfig(group);
-                    const baksoOnlyDefaults = defaultBaksoOnlyConfig(group);
-                    const campurDefaults = defaultCampurConfig(group);
-                    return (
-                      <div key={group.id} className="border border-[var(--panel-border)] rounded-2xl overflow-hidden bg-white shadow-sm">
-                        {/* Group Header */}
-                        <div
-                          onClick={() => toggleAccordion(group.id)}
-                          className="p-4 flex items-center justify-between bg-[var(--surface-card)]/80 hover:bg-[var(--surface-secondary)]/80 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-3.5 h-3.5 rounded-full bg-[var(--primary-solid)] shrink-0" />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-bold text-[var(--text-primary)]">{group.name}</h3>
-                                <span className="bg-[var(--surface-secondary)] border border-[var(--panel-border)] text-[var(--text-secondary)] text-[11px] font-bold px-2 py-0.5 rounded-lg uppercase">
-                                  MODE {group.mode}
-                                </span>
-                                <span className="text-xs text-[var(--text-tertiary)] font-bold">• {group.options.length} Opsi</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {/* Saklar ON / OFF Toggle Switch Condiment Group */}
-                            <div
-                              className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-2xs"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span className={`text-[10px] font-extrabold uppercase tracking-wide ${group.isActive !== false ? 'text-[#047857]' : 'text-slate-400'}`}>
-                                {group.isActive !== false ? 'AKTIF' : 'NONAKTIF'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => onSaveCondimentGroup({ ...group, isActive: group.isActive === false ? true : false })}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                  group.isActive !== false ? 'bg-[#047857]' : 'bg-slate-300'
-                                }`}
-                                title={group.isActive !== false ? 'Saklar Condiment AKTIF (Klik untuk nonaktifkan)' : 'Saklar Condiment NONAKTIF (Klik untuk aktifkan)'}
-                              >
-                                <span
-                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                    group.isActive !== false ? 'translate-x-4' : 'translate-x-0'
-                                  }`}
-                                />
-                              </button>
-                            </div>
-
-                            <span className="bg-[var(--success-soft)] text-[var(--accent-green)] border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                              <span>🏷️</span>
-                              <span>{targetCount} Target</span>
-                            </span>
-                            {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--text-tertiary)]" /> : <ChevronDown className="w-5 h-5 text-[var(--text-tertiary)]" />}
-                          </div>
-                        </div>
-
-                        {/* Group Options Content matching Screenshot 5 */}
-                        {isExpanded && (
-                          <div className="p-5 border-t border-[var(--panel-border)] bg-white space-y-5 font-sans">
-                            {/* Form Fields Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="text-[13px]-bold-1">NAMA GRUP</label>
-                                <input
-                                  type="text"
-                                  value={group.name}
-                                  onChange={(e) => onSaveCondimentGroup({ ...group, name: e.target.value })}
-                                  className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-[13px]-bold-1">MODE PILIHAN</label>
-                                <p className="mb-2 text-[10px] font-semibold text-[var(--text-tertiary)]">
-                                  Atur jumlah opsi yang boleh dipilih. Ini terpisah dari status Wajib / Opsional.
-                                </p>
-                                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'PAKET', maxSelect: 1 })}
-                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${group.mode === 'PAKET' ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-white text-[var(--text-secondary)]'}`}
-                                  >
-                                    <span className="block text-[10px] font-black uppercase tracking-wider">SINGLE</span>
-                                    <span className={`mt-0.5 block text-[9px] font-semibold ${group.mode === 'PAKET' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Hanya boleh pilih 1</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, mode: 'ADD_ON', maxSelect: Math.max(2, group.maxSelect || group.options.length || 2) })}
-                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${group.mode === 'ADD_ON' ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-white text-[var(--text-secondary)]'}`}
-                                  >
-                                    <span className="block text-[10px] font-black uppercase tracking-wider">MULTIPLE</span>
-                                    <span className={`mt-0.5 block text-[9px] font-semibold ${group.mode === 'ADD_ON' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Bisa memilih lebih dari 1</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Mode Pilihan & Berlaku Untuk */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="text-[13px]-bold-1">KEWAJIBAN PILIHAN</label>
-                                <p className="mb-2 text-[10px] font-semibold text-[var(--text-tertiary)]">
-                                  Tentukan apakah pelanggan harus mengisi grup ini atau boleh melewatinya.
-                                </p>
-                                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, required: true, isRequired: true, minSelect: Math.max(1, group.minSelect || 1) })}
-                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${(group.isRequired ?? group.required ?? false) ? 'bg-[var(--primary)] text-white shadow-[var(--shadow-md)]' : 'bg-white text-[var(--text-secondary)]'}`}
-                                  >
-                                    <span className="block text-[10px] font-black uppercase tracking-wider">WAJIB PILIH</span>
-                                    <span className={`mt-0.5 block text-[9px] font-semibold ${(group.isRequired ?? group.required ?? false) ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Harus ada pilihan</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onSaveCondimentGroup({ ...group, required: false, isRequired: false, minSelect: 0 })}
-                                    className={`rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${!(group.isRequired ?? group.required ?? false) ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-[var(--text-secondary)]'}`}
-                                  >
-                                    <span className="block text-[10px] font-black uppercase tracking-wider">OPSIONAL</span>
-                                    <span className="mt-0.5 block text-[9px] font-semibold text-[var(--text-tertiary)]">Boleh kosong</span>
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="text-[13px]-bold-1">TARGET KATEGORI (BISA LEBIH DARI 1)</label>
-                                <div className="flex min-h-11 flex-wrap gap-1.5 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-1.5">
-                                  {(['ALL', 'BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'MINUMAN', 'BUNDLING'] as CategoryType[]).map((category) => {
-                                    const selected = selectedCategories.includes(category);
-                                    return (
-                                      <button
-                                        key={category}
-                                        type="button"
-                                        onClick={() => {
-                                          const next = category === 'ALL'
-                                            ? (selected ? [] : ['ALL'] as CategoryType[])
-                                            : selected
-                                              ? selectedCategories.filter((item) => item !== category)
-                                              : [...selectedCategories.filter((item) => item !== 'ALL'), category];
-                                          onSaveCondimentGroup({ ...group, targetCategory: undefined, targetCategories: next });
-                                        }}
-                                        className={`rounded-xl px-2.5 py-1.5 text-[11px] font-bold transition-colors ${selected ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--text-secondary)] hover:text-[var(--primary-hover)]'}`}
-                                      >
-                                        {category === 'ALL' ? 'SEMUA' : category}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-
-                            <section className="rounded-2xl border border-orange-200 bg-orange-50/40 p-4 space-y-4">
-                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-orange-600" />
-                                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-900">Peran di Self Order</h4>
-                                  </div>
-                                  <p className="mt-1 text-[11px] font-semibold text-orange-800/70">
-                                    Aturan ini hanya mengatur customer QR order. POS kasir tetap mengikuti konfigurasi grup normal.
-                                  </p>
-                                </div>
-                                {selfOrderRole !== 'NONE' && (
-                                  <span className="w-fit rounded-full bg-orange-600 px-2.5 py-1 text-[9px] font-black text-white">
-                                    SELF ORDER · {selfOrderRole === 'BROTH' ? 'KUAH' : 'ISIAN'}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2">
-                                {[
-                                  { key: 'NONE' as const, label: 'Normal', detail: 'Tanpa preset' },
-                                  { key: 'BROTH' as const, label: 'Kuah', detail: 'Default otomatis' },
-                                  { key: 'FILLING' as const, label: 'Isian', detail: 'Bakso Saja / Campur' },
-                                ].map((role) => (
-                                  <button
-                                    key={role.key}
-                                    type="button"
-                                    onClick={() => {
-                                      if (role.key === 'NONE') {
-                                        onSaveCondimentGroup({ ...group, selfOrderRole: 'NONE' });
-                                        return;
-                                      }
-                                      if (role.key === 'BROTH') {
-                                        const defaults = brothDefaults.length ? brothDefaults : activeOptionNames.slice(0, 1);
-                                        onSaveCondimentGroup({
-                                          ...group,
-                                          selfOrderRole: 'BROTH',
-                                          selfOrderDefaultOptions: defaults,
-                                          mode: 'PAKET',
-                                          required: true,
-                                          isRequired: true,
-                                          minSelect: 1,
-                                          maxSelect: 1,
-                                        });
-                                        return;
-                                      }
-                                      const nextBaksoOnly = baksoOnlyDefaults;
-                                      const nextCampur = campurDefaults;
-                                      onSaveCondimentGroup({
-                                        ...group,
-                                        selfOrderRole: 'FILLING',
-                                        selfOrderBaksoOnlyOptions: nextBaksoOnly,
-                                        selfOrderCampurOptions: nextCampur,
-                                        mode: 'ADD_ON',
-                                        required: true,
-                                        isRequired: true,
-                                        minSelect: 1,
-                                        maxSelect: Math.max(group.maxSelect || 1, nextBaksoOnly.length, nextCampur.length),
-                                        allSelectedLabel: group.allSelectedLabel || 'CAMPUR',
-                                      });
-                                    }}
-                                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                                      selfOrderRole === role.key
-                                        ? 'border-orange-500 bg-orange-500 text-white shadow-md'
-                                        : 'border-orange-100 bg-white text-slate-700 hover:border-orange-300'
-                                    }`}
-                                  >
-                                    <span className="block text-[11px] font-black">{role.label}</span>
-                                    <span className={`mt-0.5 block text-[9px] font-semibold ${selfOrderRole === role.key ? 'text-white/75' : 'text-slate-400'}`}>
-                                      {role.detail}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-
-                              {selfOrderRole === 'BROTH' && (
-                                <div className="rounded-xl border border-orange-100 bg-white p-3">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                      <p className="text-[10px] font-black text-slate-800">DEFAULT KUAH CUSTOMER</p>
-                                      <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
-                                        Customer langsung mendapat pilihan ini. Rekomendasi: ORIGINAL.
-                                      </p>
-                                    </div>
-                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-black text-emerald-700">1 PILIHAN</span>
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {group.options.filter((option) => option.isAvailable !== false).map((option) => {
-                                      const selected = brothDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
-                                      return (
-                                        <button
-                                          key={`broth-${option.id}`}
-                                          type="button"
-                                          onClick={() => onSaveCondimentGroup({
-                                            ...group,
-                                            selfOrderRole: 'BROTH',
-                                            selfOrderDefaultOptions: [option.name],
-                                            mode: 'PAKET',
-                                            required: true,
-                                            isRequired: true,
-                                            minSelect: 1,
-                                            maxSelect: 1,
-                                          })}
-                                          className={`rounded-full border px-3 py-1.5 text-[10px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-white text-slate-600'}`}
-                                        >
-                                          {selected ? '✓ ' : ''}{option.name}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-
-                              {selfOrderRole === 'FILLING' && (
-                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                  <div className="rounded-xl border border-orange-100 bg-white p-3">
-                                    <p className="text-[10px] font-black text-slate-800">PRESET “BAKSO SAJA”</p>
-                                    <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
-                                      Default Bakso Ujo: hanya BAWANG + SLEDRI.
-                                    </p>
-                                    <div className="mt-3 flex flex-wrap gap-1.5">
-                                      {group.options.filter((option) => option.isAvailable !== false && !['BAKSOAJA', 'BAKSOSAJA'].includes(normalizeCondimentName(option.name))).map((option) => {
-                                        const selected = baksoOnlyDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
-                                        return (
-                                          <button
-                                            key={`bakso-only-${option.id}`}
-                                            type="button"
-                                            onClick={() => {
-                                              const next = selected
-                                                ? baksoOnlyDefaults.filter((name) => normalizeCondimentName(name) !== normalizeCondimentName(option.name))
-                                                : [...baksoOnlyDefaults, option.name];
-                                              onSaveCondimentGroup({
-                                                ...group,
-                                                selfOrderRole: 'FILLING',
-                                                selfOrderBaksoOnlyOptions: next,
-                                                maxSelect: Math.max(group.maxSelect || 1, next.length, campurDefaults.length),
-                                              });
-                                            }}
-                                            className={`rounded-full border px-2.5 py-1.5 text-[9px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
-                                          >
-                                            {selected ? '✓ ' : ''}{option.name}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-
-                                  <div className="rounded-xl border border-orange-100 bg-white p-3">
-                                    <p className="text-[10px] font-black text-slate-800">PRESET “CAMPUR”</p>
-                                    <p className="mt-0.5 text-[9px] font-semibold text-slate-400">
-                                      Default: semua isian aktif kecuali KWETIAW.
-                                    </p>
-                                    <div className="mt-3 flex flex-wrap gap-1.5">
-                                      {group.options.filter((option) => option.isAvailable !== false && !['BAKSOAJA', 'BAKSOSAJA'].includes(normalizeCondimentName(option.name))).map((option) => {
-                                        const selected = campurDefaults.some((name) => normalizeCondimentName(name) === normalizeCondimentName(option.name));
-                                        return (
-                                          <button
-                                            key={`campur-${option.id}`}
-                                            type="button"
-                                            onClick={() => {
-                                              const next = selected
-                                                ? campurDefaults.filter((name) => normalizeCondimentName(name) !== normalizeCondimentName(option.name))
-                                                : [...campurDefaults, option.name];
-                                              onSaveCondimentGroup({
-                                                ...group,
-                                                selfOrderRole: 'FILLING',
-                                                selfOrderCampurOptions: next,
-                                                maxSelect: Math.max(group.maxSelect || 1, next.length, baksoOnlyDefaults.length),
-                                                allSelectedLabel: group.allSelectedLabel || 'CAMPUR',
-                                              });
-                                            }}
-                                            className={`rounded-full border px-2.5 py-1.5 text-[9px] font-bold transition ${selected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
-                                          >
-                                            {selected ? '✓ ' : ''}{option.name}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-
-                                  <div className="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-800">
-                                    Opsi lama bernama “BAKSO AJA / BAKSO SAJA” tidak dipakai sebagai isian pada UI customer baru. Tombol preset menjadi shortcut, sedangkan isi sebenarnya mengikuti pilihan di atas.
-                                  </div>
-                                </div>
-                              )}
-                            </section>
-
-                            <div>
-                              <label className="text-[13px]-bold-1">LABEL RINGKAS DI DAPUR</label>
-                              <input
-                                type="text"
-                                placeholder="Contoh: CAMPUR (kosongkan untuk tampilkan daftar penuh)"
-                                value={group.allSelectedLabel || ''}
-                                onChange={(event) => onSaveCondimentGroup({ ...group, allSelectedLabel: event.target.value.toUpperCase() })}
-                                className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
-                              />
-                              <p className="mt-1 text-[11px] font-bold text-[var(--text-tertiary)]">
-                                Jika pilihan sama persis dengan preset Campur (atau semua opsi bila preset belum diatur), tiket dapur menampilkan label ini.
-                              </p>
-                            </div>
-
-                            <div>
-                              <label className="text-[13px]-bold-1">TARGET MENU ITEM (BISA LEBIH DARI 1)</label>
-                              <select
-                                value=""
-                                onChange={(event) => {
-                                  const productId = event.target.value;
-                                  if (!productId || selectedProductIds.includes(productId)) return;
-                                  onSaveCondimentGroup({ ...group, targetProductIds: [...selectedProductIds, productId] });
-                                }}
-                                className="w-full rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[var(--primary)] focus:bg-white"
-                              >
-                                <option value="">+ Pilih menu item...</option>
-                                {menuItems.filter((item) => item.isAvailable && !item.isManualPrice && !selectedProductIds.includes(item.id)).map((item) => (
-                                  <option key={item.id} value={item.id}>{item.name} — {item.category}</option>
-                                ))}
-                              </select>
-                              {(selectedProductIds.length > 0 || selectedProductNames.length > 0) && (
-                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {selectedProductIds.map((productId) => {
-                                    const item = menuItems.find((menu) => menu.id === productId);
-                                    return (
-                                      <button key={productId} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductIds: selectedProductIds.filter((id) => id !== productId) })} className="flex items-center gap-1 rounded-full border border-[var(--brand-200)] bg-[var(--brand-50)] px-2.5 py-1 text-[11px] font-bold text-[var(--primary-hover)]">
-                                        {item?.name || 'Menu tidak ditemukan'} <X className="h-3 w-3" />
-                                      </button>
-                                    );
-                                  })}
-                                  {selectedProductNames.map((productName) => (
-                                    <button key={`legacy-${productName}`} type="button" onClick={() => onSaveCondimentGroup({ ...group, targetProductNames: selectedProductNames.filter((name) => name !== productName) })} className="flex items-center gap-1 rounded-full border border-[var(--panel-border)] bg-white px-2.5 py-1 text-[11px] font-bold text-[var(--text-secondary)]">
-                                      {productName} <X className="h-3 w-3" />
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              <p className="mt-1.5 text-[11px] font-semibold text-[var(--text-tertiary)]">Kategori dan menu item digabungkan. Grup muncul jika salah satu target cocok.</p>
-                            </div>
-
-                            {/* Options List Tags */}
-                            <div>
-                              <label className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-2">DAFTAR OPSI / PILIHAN</label>
-
-                              <div className="flex items-center gap-2 mb-3">
-                                <input
-                                  type="text"
-                                  placeholder="Ketik nama pilihan (misal: Bakso Halus)..."
-                                  value={newOptionNames[group.id] || ''}
-                                  onChange={(e) => setNewOptionNames({ ...newOptionNames, [group.id]: e.target.value })}
-                                  className="flex-1 bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="Harga (+Rp)"
-                                  value={newOptionPrices[group.id] || ''}
-                                  onChange={(e) => setNewOptionPrices({ ...newOptionPrices, [group.id]: Number(e.target.value) })}
-                                  className="w-28 bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] focus:bg-white"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddOptionToGroup(group)}
-                                  className="w-10 h-10 bg-[var(--primary)] hover:bg-[var(--primary-pressed)] text-white rounded-2xl font-bold flex items-center justify-center cursor-pointer shadow-sm"
-                                >
-                                  <Plus className="w-5 h-5" />
-                                </button>
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                {group.options.map((opt) => (
-                                  <span
-                                    key={opt.id}
-                                    className={`border rounded-full text-xs font-bold flex items-center gap-1.5 transition-all ${
-                                      editingOptionId === opt.id
-                                        ? 'bg-white border-[var(--primary)] px-2 py-0.5 shadow-sm'
-                                        : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] px-3 py-1 text-[var(--text-primary)]'
-                                    }`}
-                                  >
-                                    {editingOptionId === opt.id ? (
-                                      <>
-                                        <input
-                                          autoFocus
-                                          type="text"
-                                          value={editingOptionValue}
-                                          onChange={(e) => setEditingOptionValue(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && editingOptionValue.trim()) {
-                                              const updatedOpts = group.options.map((o) =>
-                                                o.id === opt.id ? { ...o, name: editingOptionValue.trim() } : o
-                                              );
-                                              onSaveCondimentGroup({ ...group, options: updatedOpts });
-                                              setEditingOptionId(null);
-                                            } else if (e.key === 'Escape') {
-                                              setEditingOptionId(null);
-                                            }
-                                          }}
-                                          className="w-28 text-xs font-bold text-slate-900 outline-none bg-transparent border-b border-[var(--primary)]"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            if (editingOptionValue.trim()) {
-                                              const updatedOpts = group.options.map((o) =>
-                                                o.id === opt.id ? { ...o, name: editingOptionValue.trim() } : o
-                                              );
-                                              onSaveCondimentGroup({ ...group, options: updatedOpts });
-                                            }
-                                            setEditingOptionId(null);
-                                          }}
-                                          className="text-[var(--primary-hover)] hover:text-[var(--primary-hover)] cursor-pointer"
-                                          title="Simpan nama"
-                                        >
-                                          <Check className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditingOptionId(null)}
-                                          className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] cursor-pointer"
-                                          title="Batal"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        {/* Saklar ON / OFF Toggle Switch Item Opsi / Topping */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const updatedOpts = group.options.map((o) =>
-                                              o.id === opt.id ? { ...o, isAvailable: o.isAvailable === false ? true : false } : o
-                                            );
-                                            onSaveCondimentGroup({ ...group, options: updatedOpts });
-                                          }}
-                                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase transition-all cursor-pointer ${
-                                            opt.isAvailable !== false
-                                              ? 'bg-emerald-100 text-[#047857] border border-emerald-300'
-                                              : 'bg-slate-200 text-slate-500 border border-slate-300'
-                                          }`}
-                                          title={opt.isAvailable !== false ? 'Saklar Option AKTIF (Klik untuk nonaktifkan)' : 'Saklar Option NONAKTIF (Klik untuk aktifkan)'}
-                                        >
-                                          {opt.isAvailable !== false ? 'ON' : 'OFF'}
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setEditingOptionId(opt.id);
-                                            setEditingOptionValue(opt.name);
-                                          }}
-                                          className={`flex items-center gap-1 hover:text-[var(--primary-hover)] cursor-pointer transition-colors ${
-                                            opt.isAvailable === false ? 'line-through opacity-50' : ''
-                                          }`}
-                                          title="Klik untuk edit nama"
-                                        >
-                                          <span>{opt.name.toUpperCase()}</span>
-                                          <Edit2 className="w-3 h-3 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100" />
-                                        </button>
-                                        {opt.price > 0 && <span className="text-[var(--primary-hover)] font-mono">+Rp{opt.price.toLocaleString('id-ID')}</span>}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const updatedOpts = group.options.filter((o) => o.id !== opt.id);
-                                            onSaveCondimentGroup({ ...group, options: updatedOpts });
-                                          }}
-                                          className="text-[var(--text-tertiary)] hover:text-rose-600 transition-colors p-0.5"
-                                          title="Hapus opsi"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      </>
-                                    )}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Bottom Delete Group Action */}
-                            <div className="pt-3 border-t border-slate-100 flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirmingDeleteId === group.id) {
-                                    onSaveCondimentGroup({ ...group, isActive: false });
-                                    setConfirmingDeleteId(null);
-                                  } else {
-                                    setConfirmingDeleteId(group.id);
-                                    setTimeout(() => setConfirmingDeleteId(null), 3000);
-                                  }
-                                }}
-                                className={`px-4 py-2 border font-bold text-xs rounded-2xl flex items-center gap-1.5 cursor-pointer transition-colors ${
-                                  confirmingDeleteId === group.id
-                                    ? 'bg-rose-600 border-rose-700 text-white'
-                                    : 'bg-[var(--danger-soft)] hover:bg-rose-100 border-rose-200 text-[var(--accent-red)]'
-                                }`}
-                              >
-                                <Trash2 className="w-4 h-4" /> {confirmingDeleteId === group.id ? 'Yakin Hapus?' : 'Hapus Grup'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <CondimentBuilderPanel
+                condimentGroups={condimentGroups}
+                menuItems={menuItems}
+                onSaveCondimentGroup={rawSaveCondimentGroup}
+                onShowToast={onShowToast}
+              />
             )}
 
             {/* 6. KEUANGAN (Matching Image 7) */}
             {activeTab === 'FINANCE' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Keuangan</h2>
-                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Pajak, service charge, dan metode pembulatan.</p>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Keuangan & Kasir</h2>
+                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Atur pajak, diskon, konfirmasi kasir, serta status fitur perhitungan yang sudah benar-benar terhubung.</p>
                 </div>
 
                 <div className="space-y-4">
                   {/* Pajak Tax */}
                   <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">Pajak (Tax)</p>
-                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Persentase pajak yang dibebankan ke pelanggan.</p>
+                      <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-bold text-[var(--text-primary)]">Pajak (Tax)</p><span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700">Terhubung ke POS</span></div>
+                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Persentase pajak diterapkan otomatis pada order baru ketika fitur aktif.</p>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1 bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5">
                         <input
                           type="number"
-                          value={formProfile.taxRatePercent}
-                          onChange={(e) => setFormProfile({ ...formProfile, taxRatePercent: Number(e.target.value) })}
+                          min={0}
+                          max={100}
+                          value={formProfile.taxRatePercent ?? 0}
+                          onChange={(e) => setFormProfile({ ...formProfile, taxRatePercent: Math.max(0, Math.min(100, Number(e.target.value))) })}
                           className="w-12 text-center font-bold text-sm text-[var(--text-primary)] outline-none"
                         />
                         <span className="font-semibold text-[var(--text-tertiary)]">%</span>
@@ -2059,45 +1831,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Service Charge */}
-                  <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">Service Charge</p>
-                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Biaya layanan tambahan (opsional).</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5">
-                        <input
-                          type="number"
-                          value={formProfile.serviceChargePercent}
-                          onChange={(e) => setFormProfile({ ...formProfile, serviceChargePercent: Number(e.target.value) })}
-                          className="w-12 text-center font-bold text-sm text-[var(--text-primary)] outline-none"
-                        />
-                        <span className="font-semibold text-[var(--text-tertiary)]">%</span>
+                  {/* Service Charge — intentionally disabled until the transaction engine stores it explicitly. */}
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-bold text-amber-950">Service Charge</p>
+                          <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">Belum aktif di engine transaksi</span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-amber-800">Nilai lama tetap disimpan, tetapi kontrol dikunci agar operator tidak mengira biaya ini sudah masuk total POS.</p>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormProfile({ ...formProfile, isServiceChargeEnabled: !formProfile.isServiceChargeEnabled })}
-                        className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isServiceChargeEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isServiceChargeEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2 opacity-60">
+                        <div className="flex items-center gap-1 rounded-xl border border-amber-200 bg-white px-3 py-2">
+                          <span className="w-10 text-center text-sm font-black text-amber-900">{formProfile.serviceChargePercent || 0}</span>
+                          <span className="text-xs font-bold text-amber-700">%</span>
+                        </div>
+                        <span className="rounded-lg bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-700">TERKUNCI</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Diskon Manual */}
                   <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">Diskon Manual</p>
-                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Aktifkan fitur diskon per transaksi di POS.</p>
+                      <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-bold text-[var(--text-primary)]">Diskon Manual</p><span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700">Terhubung ke POS</span></div>
+                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Aktifkan atau kunci input diskon persentase di terminal kasir.</p>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-[var(--accent-green)]">AKTIF</span>
+                      <span className={`text-xs font-bold ${formProfile.isManualDiscountEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>{formProfile.isManualDiscountEnabled ? 'AKTIF' : 'NONAKTIF'}</span>
                       <button
                         type="button"
                         onClick={() => setFormProfile({ ...formProfile, isManualDiscountEnabled: !formProfile.isManualDiscountEnabled })}
@@ -2149,33 +1911,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     })}
                   </div>
 
-                  {/* Pembulatan Harga */}
-                  <div className="border border-[var(--panel-border)] rounded-2xl p-5 bg-[var(--surface-card)]/80 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">Pembulatan Harga</p>
-                      <p className="text-xs text-[var(--text-tertiary)] font-medium">Bulatkan total ke nominal terdekat.</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={formProfile.roundingMode || 'TERDEKAT'}
-                        onChange={(e) => setFormProfile({ ...formProfile, roundingMode: e.target.value as 'TERDEKAT' | 'KEATAS' | 'KEBAWAH' })}
-                        className="bg-white border border-[var(--panel-border)] rounded-2xl px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)]"
-                      >
-                        <option value="TERDEKAT">Terdekat</option>
-                        <option value="KEATAS">Ke Atas</option>
-                        <option value="KEBAWAH">Ke Bawah</option>
-                      </select>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormProfile({ ...formProfile, isRoundingEnabled: !formProfile.isRoundingEnabled })}
-                        className={`w-12 h-6 rounded-full transition-colors relative p-1 cursor-pointer ${
-                          formProfile.isRoundingEnabled ? 'bg-emerald-600' : 'bg-[var(--panel-border)]'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formProfile.isRoundingEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                      </button>
+                  {/* Pembulatan Harga — pending explicit rounding persistence in order schema. */}
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-bold text-amber-950">Pembulatan Harga</p>
+                          <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">Belum aktif di engine transaksi</span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-amber-800">Mode tersimpan saat ini: <strong>{formProfile.roundingMode || 'TERDEKAT'}</strong>. Kontrol dikunci sampai selisih pembulatan tercatat aman pada order dan laporan.</p>
+                      </div>
+                      <span className="shrink-0 rounded-lg bg-amber-100 px-2.5 py-1.5 text-[9px] font-black text-amber-700">TERKUNCI</span>
                     </div>
                   </div>
                 </div>
@@ -2195,23 +1941,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <h2 className="text-xl font-bold text-slate-900 tracking-tight">Hak Akses & Role</h2>
                       <p className="text-xs font-semibold text-[var(--text-secondary)]">Kontrol fitur apa saja yang bisa diakses setiap role.</p>
                     </div>
-                    <button
-                      type="button"
-                      disabled={isSavingAccess}
-                      onClick={async () => {
-                        setIsSavingAccess(true);
-                        try {
-                          await onSaveAccessControl(accessDraft);
-                        } catch {
-                          // Parent callback displays the server error; keep the draft for retry.
-                        } finally {
-                          setIsSavingAccess(false);
-                        }
-                      }}
-                      className="ml-auto rounded-xl bg-[var(--primary)] px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
-                    >
-                      {isSavingAccess ? 'Menyimpan…' : 'Simpan Hak Akses'}
-                    </button>
+                    <div className={`ml-auto inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[9px] font-black ${accessDirty ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                      {accessDirty ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                      {accessDirty ? 'Perubahan belum disimpan' : 'Matriks tersimpan'}
+                    </div>
                   </div>
 
                   {/* Grid of 10 Feature Permission Cards matching Screenshot 2 & 3 */}
@@ -2241,7 +1974,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {/* 4 Roles Sub-Labels & Toggles: CAS, KIT, STA, ADM */}
                         <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-[var(--panel-border)]/60">
                           {(['KASIR', 'KITCHEN', 'MANAGER', 'ADMIN'] as UserRole[]).map((role) => {
-                            const roleAbbr = role === 'KASIR' ? 'CAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'STA' : 'ADM';
+                            const roleAbbr = role === 'KASIR' ? 'KAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'MGR' : 'ADM';
                             const rule = accessDraft.find((r) => r.role === role);
                             const isChecked = rule ? (rule as any)[feature.key] ?? (role === 'ADMIN' || (role === 'KASIR' && feature.key === 'canAccessPOS')) : role === 'ADMIN';
 
@@ -2271,55 +2004,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Meja untuk Customer Order Card matching Screenshot 2 & 3 */}
-                <div className="bg-white rounded-2xl p-6 border border-[var(--panel-border)]/80 shadow-sm space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                        <Grid className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900">Meja untuk Customer Order</h3>
-                        <p className="text-xs font-semibold text-[var(--text-secondary)]">
-                          Hanya nomor meja di daftar ini yang bisa melakukan order dari halaman pelanggan.
-                        </p>
-                      </div>
-                    </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setIsTableModalOpen(true)}
-                        className="py-2 px-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all"
-                      >
-                        Buka Manajemen Meja
-                      </button>
-                    </label>
-                  </div>
-
-                  <div className="space-y-1.5 pt-1">
-                    <input
-                      type="text"
-                      value={formProfile.allowedSelfOrderTables || '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15'}
-                      onChange={(e) => setFormProfile({ ...formProfile, allowedSelfOrderTables: e.target.value })}
-                      placeholder="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"
-                      className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:bg-white focus:border-[var(--primary)] transition-all font-mono tracking-wider"
-                    />
-                    <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">
-                      Pisahkan dengan koma. Kosongkan jika semua meja boleh menggunakan customer order.
-                    </p>
-                  </div>
-
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setIsTableModalOpen(true)}
-                      className="text-xs font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer"
-                    >
-                      Buka manajemen meja
-                    </button>
-                  </div>
-                </div>
 
               </div>
             )}
@@ -2328,8 +2013,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {activeTab === 'DATABASE' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Database & Reset</h2>
-                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Zona berbahaya. Hapus data atau reset aplikasi.</p>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Sistem & Data</h2>
+                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Maintenance terminal, reset data, dan informasi teknis. Aksi destruktif selalu membutuhkan konfirmasi dua langkah.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2339,13 +2024,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <RotateCcw className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Hapus Transaksi</h3>
-                        <p className="text-[11px] text-[var(--text-tertiary)] font-medium">Hapus data order & laporan. Produk aman.</p>
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">{cloudMode ? 'Data Transaksi Cloud' : 'Hapus Transaksi Lokal'}</h3>
+                        <p className="text-[11px] text-[var(--text-tertiary)] font-medium">{cloudMode ? 'Data transaksi cloud dilindungi dan tidak dapat dihapus dari Control Center ini.' : 'Hapus order/laporan lokal untuk data trial. Produk tetap aman.'}</p>
                       </div>
                     </div>
 
                     <button
                       type="button"
+                      disabled={cloudMode}
                       onClick={() => {
                         if (confirmingAction === 'clear-transactions') {
                           if (onClearTransactions) onClearTransactions();
@@ -2356,13 +2042,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           setTimeout(() => setConfirmingAction(null), 4000);
                         }
                       }}
-                      className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer ${
+                      className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                         confirmingAction === 'clear-transactions'
                           ? 'bg-amber-700 shadow-amber-700/20 animate-pulse'
                           : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
                       }`}
                     >
-                      {confirmingAction === 'clear-transactions' ? '⚠️ Yakin? Klik lagi untuk konfirmasi' : 'Bersihkan Transaksi'}
+                      {cloudMode ? 'Dilindungi pada Mode Cloud' : confirmingAction === 'clear-transactions' ? '⚠️ Yakin? Klik lagi untuk konfirmasi' : 'Bersihkan Transaksi Lokal'}
                     </button>
                   </div>
 
@@ -2372,13 +2058,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <Trash2 className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-rose-900">Factory Reset</h3>
-                        <p className="text-[11px] text-[var(--accent-red)] font-medium">Hapus SEMUA data & kembali ke awal.</p>
+                        <h3 className="text-sm font-bold text-rose-900">{cloudMode ? 'Reset Cloud Dilindungi' : 'Factory Reset Lokal'}</h3>
+                        <p className="text-[11px] text-[var(--accent-red)] font-medium">{cloudMode ? 'Reset dari layar ini tidak menghapus data Supabase.' : 'Hapus seluruh data lokal dan kembali ke awal.'}</p>
                       </div>
                     </div>
 
                     <button
                       type="button"
+                      disabled={cloudMode}
                       onClick={() => {
                         if (confirmingAction === 'factory-reset') {
                           if (onFactoryReset) onFactoryReset();
@@ -2395,123 +2082,96 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
                       }`}
                     >
-                      {confirmingAction === 'factory-reset' ? '🔴 Yakin? Klik lagi untuk konfirmasi' : 'Factory Reset Total'}
+                      {cloudMode ? 'Tidak Tersedia di Mode Cloud' : confirmingAction === 'factory-reset' ? '🔴 Yakin? Klik lagi untuk konfirmasi' : 'Factory Reset Lokal'}
                     </button>
                   </div>
                 </div>
 
-                {/* Architecture Blueprint Info Box */}
-                <div className="bg-[var(--primary)] text-white rounded-2xl p-6 space-y-3 mt-6 border border-[var(--primary-border)]">
-                  <div className="flex items-center gap-2 text-[var(--primary-text)] font-bold text-xs">
-                    <Sparkles className="w-4 h-4" />
-                    <span>RANCANGAN ARSITEKTUR KOSTUMISASI FREE TIER (VERCEL, SUPABASE & CLOUDINARY)</span>
+                {/* Technical architecture is secondary information; keep it collapsed by default. */}
+                <details className="group rounded-2xl border border-slate-200 bg-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-black text-slate-700">
+                    <span className="flex items-center gap-2"><MonitorCog className="h-4 w-4 text-slate-500" /> Info arsitektur & free-tier</span>
+                    <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="border-t border-slate-100 px-4 py-4">
+                    <p className="text-[11px] font-semibold leading-relaxed text-slate-500">Informasi teknis ini hanya untuk owner/developer dan tidak memengaruhi operasi kasir.</p>
+                    <ul className="mt-3 grid gap-2 text-[10px] font-semibold text-slate-600 md:grid-cols-3">
+                      <li className="rounded-xl bg-slate-50 p-3"><strong className="block text-slate-800">Vercel</strong>Hosting SPA/PWA.</li>
+                      <li className="rounded-xl bg-slate-50 p-3"><strong className="block text-slate-800">Supabase</strong>Database + broadcast invalidation realtime.</li>
+                      <li className="rounded-xl bg-slate-50 p-3"><strong className="block text-slate-800">Cloudinary</strong>Media menu, wallpaper, dan selfie absensi.</li>
+                    </ul>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                    Sistem ini terintegrasi secara modular untuk berjalan di atas kuota <strong>Free Tier</strong> tanpa biaya langganan berlebih:
-                  </p>
-                  <ul className="text-xs text-[var(--text-tertiary)] space-y-1.5 list-disc pl-5 font-medium">
-                    <li><strong>Vercel Edge Deployment:</strong> Hosting SPA React & PWA Service Worker tanpa server overhead.</li>
-                    <li><strong>Supabase Realtime:</strong> KDS dan Kasir memakai Broadcast privat berisi invalidation kecil; data resmi selalu diambil ulang dari database, dengan polling hanya sebagai fallback.</li>
-                    <li><strong>Cloudinary CDN:</strong> Penyimpanan foto menu, bukti selfie absensi karyawan, dan wallpaper background dengan kompresi otomatis WebP.</li>
-                  </ul>
-                </div>
+                </details>
+
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Modal New Condiment Group */}
-      {newGroupModalOpen && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white border border-[var(--panel-border)] w-full max-w-md rounded-2xl p-6 shadow-xl relative">
-            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Tambah Grup Topping / Isian</h3>
-            <form onSubmit={handleCreateNewGroup} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Nama Grup (Contoh: Extra Sambal)</label>
-                <input
-                  type="text"
-                  required
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
-                />
+      {/* Save Confirmation — explicit confirmation replaces the old ambiguous save button. */}
+      {saveConfirmKind && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <Save className="h-5 w-5" />
               </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-slate-950">{saveConfirmKind === 'ACCESS' ? 'Simpan perubahan hak akses?' : 'Simpan perubahan pengaturan?'}</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-slate-500">
+                  {saveConfirmKind === 'ACCESS'
+                    ? 'Matriks role akan berlaku untuk organisasi dan terminal yang menggunakan hak akses ini.'
+                    : `Perubahan akan disimpan ke ${centralBrandDirty ? 'brand pusat dan ' : ''}cabang ${currentBranch.code || currentBranch.name}.`}
+                </p>
+              </div>
+              <button type="button" onClick={() => setSaveConfirmKind(null)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Mode Pilihan</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewGroupMode('PAKET')}
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupMode === 'PAKET' ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
-                  >
-                    <span className="block text-[10px] font-black uppercase">SINGLE</span>
-                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupMode === 'PAKET' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Hanya 1 pilihan</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewGroupMode('ADD_ON')}
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupMode === 'ADD_ON' ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
-                  >
-                    <span className="block text-[10px] font-black uppercase">MULTIPLE</span>
-                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupMode === 'ADD_ON' ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Bisa lebih dari 1</span>
-                  </button>
+            <div className="space-y-3 px-5 py-4">
+              {saveConfirmKind === 'PROFILE' ? (
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Cakupan simpan</p>
+                    <p className="mt-1 text-xs font-black text-slate-900">{activeScopeLabel}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Bagian yang berubah</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(changedDomains.length ? changedDomains : ['Pengaturan']).map((domain) => (
+                        <span key={domain} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-800">{domain}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {centralBrandDirty && (
+                    <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-violet-800">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p className="text-[10px] font-semibold leading-relaxed">Nama/logo/Instagram/TikTok adalah brand pusat dan dapat terlihat di cabang lain.</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="text-[10px] font-semibold leading-relaxed">Perubahan permission dapat langsung memengaruhi menu yang dapat dibuka role Kasir, Kitchen, Manager, dan Admin.</p>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Kewajiban Pilihan</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewGroupRequired(true)}
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${newGroupRequired ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
-                  >
-                    <span className="block text-[10px] font-black uppercase">WAJIB PILIH</span>
-                    <span className={`mt-0.5 block text-[9px] font-semibold ${newGroupRequired ? 'text-white/75' : 'text-[var(--text-tertiary)]'}`}>Harus ada pilihan</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewGroupRequired(false)}
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${!newGroupRequired ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-[var(--panel-border)] bg-white text-[var(--text-secondary)]'}`}
-                  >
-                    <span className="block text-[10px] font-black uppercase">OPSIONAL</span>
-                    <span className="mt-0.5 block text-[9px] font-semibold text-[var(--text-tertiary)]">Boleh kosong</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Target Kategori Menu</label>
-                <select
-                  value={newGroupCategory}
-                  onChange={(e) => setNewGroupCategory(e.target.value as CategoryType)}
-                  className="w-full bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text-primary)]"
-                >
-                  <option value="ALL">Semua Kategori (ALL)</option>
-                  <option value="BAKSO">Bakso</option>
-                  <option value="MIE AYAM">Mie Ayam</option>
-                  <option value="MINUMAN">Minuman</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setNewGroupModalOpen(false)}
-                  className="px-4 py-2 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] text-[var(--text-secondary)] rounded-xl text-xs font-bold cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="ui-button ui-button-primary cursor-pointer"
-                >
-                  Simpan Grup
-                </button>
-              </div>
-            </form>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+              <button type="button" onClick={() => setSaveConfirmKind(null)} className="ui-button ui-button-secondary">Batal</button>
+              <button
+                type="button"
+                disabled={saveConfirmKind === 'ACCESS' ? isSavingAccess : isSavingProfile}
+                onClick={() => void (saveConfirmKind === 'ACCESS' ? performSaveAccess() : performSaveProfile())}
+                className="ui-button ui-button-primary min-w-32"
+              >
+                <Save className="h-4 w-4" />
+                {saveConfirmKind === 'ACCESS' ? (isSavingAccess ? 'Menyimpan…' : 'Ya, Simpan Akses') : (isSavingProfile ? 'Menyimpan…' : 'Ya, Simpan')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2591,7 +2251,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="ui-form-label block mb-1">Role Penugasan *</label>
-                    <select className="ui-input font-bold"
+                    <select className="ui-input font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={editingStaff.id === activeUserId && (editingStaff.role === 'OWNER' || editingStaff.role === 'SUPER_OWNER')}
                       value={editingStaff.role || 'KASIR'}
                       onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as any })}>
                       <option value="KASIR">Kasir</option>
@@ -2608,6 +2269,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       value={editingStaff.pin || ''} placeholder="Kosong = tidak diubah"
                       onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value })} />
                   </div>
+                  {editingStaff.id === activeUserId && (editingStaff.role === 'OWNER' || editingStaff.role === 'SUPER_OWNER') && (
+                    <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-800">
+                      Anda boleh memperbarui profil dan PIN akun sendiri. Role dan status akun dikunci agar akses Owner tidak terputus. Akun Owner tidak mengikuti absensi maupun payroll operasional.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -2717,6 +2383,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       onChange={(e) => setEditingStaff({ ...editingStaff, shiftEnd: e.target.value })} />
                   </div>
                 </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div>
+                      <label className="ui-form-label block">Hari Kerja Rutin</label>
+                      <p className="mt-0.5 text-[10px] font-semibold text-[var(--text-tertiary)]">Hari yang tidak dipilih otomatis menjadi libur rutin.</p>
+                    </div>
+                    <span className="rounded-full bg-[var(--surface-main)] px-2 py-1 text-[9px] font-black text-[var(--text-secondary)]">{staffWorkDays(editingStaff).length} hari</span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {STAFF_WEEKDAYS.map((day) => {
+                      const selected = staffWorkDays(editingStaff).includes(day.day);
+                      return (
+                        <button
+                          key={day.day}
+                          type="button"
+                          onClick={() => {
+                            const current = staffWorkDays(editingStaff);
+                            const next = selected ? current.filter((value) => value !== day.day) : [...current, day.day];
+                            if (!next.length) return;
+                            setEditingStaff({ ...editingStaff, workDays: next });
+                          }}
+                          className={`rounded-xl border px-1 py-2 text-[9px] font-black transition ${selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-500'}`}
+                          title={selected ? `${day.label}: masuk` : `${day.label}: libur rutin`}
+                        >
+                          {day.short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[10px] font-bold text-rose-600">Libur rutin: {staffOffDays(editingStaff).map((day) => day.label).join(', ') || 'Tidak ada'}</p>
+                </div>
               </div>
             </div>
 
@@ -2734,98 +2431,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Modal Panduan Konfigurasi Menu & Tips (Matching Screenshot 4) */}
-      {showCondimentTips && (
-        <div className="fixed inset-0 bg-slate-600/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[var(--panel-border)] w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-xl space-y-5 font-sans text-slate-900 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-[var(--primary-hover)] font-bold text-sm">
-                <Info className="w-5 h-5 text-[var(--primary-hover)]" />
-                <span>Panduan Konfigurasi Menu</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCondimentTips(false)}
-                className="w-7 h-7 bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary)] rounded-full flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-bold text-xs text-[var(--primary-hover)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-[var(--primary-hover)]" />
-                  <span>Apa Fungsi Grup?</span>
-                </h4>
-                <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">
-                  Grup adalah wadah untuk mengelompokkan opsi tambahan pada menu. Anda bisa membuat banyak grup sesuai kebutuhan.
-                </p>
-                <div className="space-y-2 mt-3">
-                  <div className="bg-amber-50/60 border border-amber-200/80 p-3 rounded-2xl">
-                    <span className="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">SINGLE</span>
-                    <strong className="text-xs font-bold text-slate-900">Hanya boleh memilih 1</strong>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">Mengatur jumlah pilihan, bukan kewajibannya. SINGLE dapat dibuat Wajib maupun Opsional.</p>
-                  </div>
-
-                  <div className="bg-[var(--brand-50)]/60 border border-[var(--brand-200)]/80 p-3 rounded-2xl">
-                    <span className="bg-[var(--primary)] text-white text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono mr-2">MULTIPLE</span>
-                    <strong className="text-xs font-bold text-slate-900">Bisa memilih lebih dari 1</strong>
-                    <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-1">MULTIPLE juga dapat Wajib atau Opsional. Cocok untuk isian, topping, dan kombinasi beberapa opsi.</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                      <strong className="text-[10px] font-black text-emerald-800">WAJIB PILIH</strong>
-                      <p className="mt-1 text-[10px] font-semibold text-emerald-700/75">Harus ada minimal satu pilihan sebelum order dapat dikirim.</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <strong className="text-[10px] font-black text-slate-700">OPSIONAL</strong>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-500">Pelanggan boleh melewati grup tanpa memilih.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-xs text-amber-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span>Apa Fungsi Preset?</span>
-                </h4>
-                <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">
-                  Preset adalah template konfigurasi siap pakai. Gunakan tombol <strong className="text-amber-700">"Preset Standar"</strong> untuk membuat struktur grup umum (seperti Varian + Topping) secara otomatis tanpa perlu mengetik manual.
-                </p>
-              </div>
-
-              <div className="bg-[var(--brand-50)]/60 border border-[var(--brand-200)] p-4 rounded-2xl space-y-2">
-                <h4 className="font-bold text-xs text-[var(--primary-hover)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Info className="w-4 h-4 text-[var(--primary-hover)]" />
-                  <span>Tips Konfigurasi Kuah</span>
-                </h4>
-                <p className="text-[11px] text-[var(--text-secondary)] font-bold">Contoh konfigurasi yang disarankan:</p>
-                <ol className="text-xs text-[var(--text-primary)] space-y-1 list-decimal pl-5 font-medium">
-                  <li><strong>Kuah Bakso:</strong> SINGLE + Wajib Pilih. Set default Self Order ke ORIGINAL.</li>
-                  <li><strong>Teh Manis Dingin / Panas:</strong> SINGLE + Wajib Pilih.</li>
-                  <li><strong>Air Mineral Dingin / Reguler:</strong> SINGLE + Wajib Pilih.</li>
-                  <li><strong>Isian Bakso Ujo:</strong> MULTIPLE + Wajib Pilih, lalu atur preset Bakso Saja dan Campur.</li>
-                  <li><strong>Topping tambahan:</strong> umumnya MULTIPLE + Opsional.</li>
-                </ol>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCondimentTips(false)}
-                className="ui-button ui-button-primary cursor-pointer"
-              >
-                Paham & Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal Manajemen Meja (Customer Order) matching Screenshot 1 */}
       <CustomerTableManagementModal
         isOpen={isTableModalOpen}
@@ -2833,6 +2438,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         tables={tables}
         onToggleTableSelfOrder={onToggleTableSelfOrder}
         onToggleAllTables={onToggleAllTables}
+        targetTableNumbers={desiredTableNumbers}
+        onEnsureTables={onEnsureTables}
       />
     </div>
   );

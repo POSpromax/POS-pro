@@ -247,7 +247,7 @@ export async function handleOrderRequest(
   const menuIds = [...new Set(input.items.map((item: any) => String(item.menuId || '')).filter((id: string) => UUID_PATTERN.test(id)))];
   const [{ data: menus }, { data: groups }, { data: config }, { data: branchOrderConfig }] = await Promise.all([
     menuIds.length ? admin.from('menu_items').select('id,name,category,price,is_available,stock_count').eq('branch_id', branchId).in('id', menuIds) : Promise.resolve({ data: [] }),
-    admin.from('condiment_groups').select('id,name,mode,required,min_select,max_select,target_categories').eq('branch_id', branchId).eq('is_active', true),
+    admin.from('condiment_groups').select('id,name,required,min_select,max_select,target_categories').eq('branch_id', branchId).eq('is_active', true),
     admin.from('tenant_config').select('kds_config').eq('tenant_id', branch.tenant_id).maybeSingle(),
     admin.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
   ]);
@@ -320,11 +320,8 @@ export async function handleOrderRequest(
       const names = Array.isArray(selection.options)
         ? selection.options.map((name: unknown) => String(name || '').trim()).filter(Boolean)
         : [];
-      const required = Boolean(group.required) || Number(group.min_select || 0) > 0;
-      const effectiveMin = required ? Math.max(1, Number(group.min_select || 1)) : 0;
-      const effectiveMax = group.mode === 'PAKET' ? 1 : Math.max(1, Number(group.max_select || 1));
-      if (names.length > effectiveMax) return fail(400, `Pilihan ${group.name} melebihi batas`);
-      if (names.length < effectiveMin) return fail(400, `${group.name} belum memenuhi jumlah pilihan minimum`);
+      if (names.length > Number(group.max_select || 1)) return fail(400, `Pilihan ${group.name} melebihi batas`);
+      if (names.length < Number(group.min_select || 0)) return fail(400, `${group.name} belum memenuhi jumlah pilihan minimum`);
       if (names.length > 0) selectedGroupIds.add(group.id);
       for (const name of names) {
         const key = `${group.id}:${String(name).trim().toLocaleLowerCase('id-ID')}`;
@@ -342,17 +339,14 @@ export async function handleOrderRequest(
         categoryTargets.includes('ALL') || categoryTargets.includes(menu.category);
       const configuredSelfOrderRole = scopes[group.id]?.selfOrderRole;
       const normalizedGroupName = String(group.name || '').trim().toLocaleUpperCase('id-ID');
-      const selfOrderRole = configuredSelfOrderRole === 'NONE' || configuredSelfOrderRole === 'BROTH' || configuredSelfOrderRole === 'FILLING'
+      const selfOrderRole = configuredSelfOrderRole === 'BROTH' || configuredSelfOrderRole === 'FILLING'
         ? configuredSelfOrderRole
         : normalizedGroupName.includes('KUAH')
           ? 'BROTH'
           : normalizedGroupName.includes('ISIAN')
             ? 'FILLING'
             : 'NONE';
-      // BROTH is the only self-order safety role that is always required.
-      // FILLING and every generic group follow Settings (required/min_select),
-      // so SINGLE/MULTIPLE remains independent from Wajib/Opsional.
-      const requiredForSelfOrder = source === 'SELF_ORDER' && selfOrderRole === 'BROTH';
+      const requiredForSelfOrder = source === 'SELF_ORDER' && (selfOrderRole === 'BROTH' || selfOrderRole === 'FILLING');
       if (condimentsEnabled && applicable && (group.required || Number(group.min_select || 0) > 0 || requiredForSelfOrder) && !selectedGroupIds.has(group.id)) {
         return fail(400, `${group.name} wajib dipilih`);
       }

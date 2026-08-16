@@ -21,35 +21,92 @@ export const isGroupApplicable = (group: CondimentGroup, menuItem: MenuItem): bo
   return matchesId || matchesName || matchesCategory;
 };
 
-const normalizeName = (value: string) => value.trim().toLocaleUpperCase('id-ID');
+const normalizeName = (value: string) =>
+  String(value || '').trim().toLocaleUpperCase('id-ID').replace(/\s+/g, ' ');
 
-// Ringkas daftar panjang dengan label seperti "CAMPUR".
-// Jika preset Campur dikonfigurasi khusus di Pengaturan, label hanya aktif
-// ketika pilihan customer sama persis dengan isi preset Campur tersebut.
+const sameNormalizedSelection = (chosen: string[], target: string[]) => {
+  const left = chosen.map(normalizeName).filter(Boolean).sort();
+  const right = target.map(normalizeName).filter(Boolean).sort();
+  return left.length > 0
+    && left.length === right.length
+    && left.every((name, index) => name === right[index]);
+};
+
+const configuredAvailableNames = (group: CondimentGroup, names?: string[]) => {
+  const available = new Map(
+    group.options
+      .filter((option) => option.isAvailable !== false)
+      .map((option) => [normalizeName(option.name), option.name]),
+  );
+
+  return (names || [])
+    .map((name) => available.get(normalizeName(name)))
+    .filter((name): name is string => Boolean(name));
+};
+
+const fallbackBaksoOnly = (group: CondimentGroup) =>
+  group.options
+    .filter((option) => {
+      if (option.isAvailable === false) return false;
+      const name = normalizeName(option.name).replace(/[^A-Z0-9]/g, '');
+      return name === 'BAWANG' || name === 'SLEDRI' || name === 'SELEDRI';
+    })
+    .map((option) => option.name);
+
+const fallbackCampur = (group: CondimentGroup) =>
+  group.options
+    .filter((option) => {
+      if (option.isAvailable === false) return false;
+      const name = normalizeName(option.name).replace(/[^A-Z0-9]/g, '');
+      return name !== 'KWETIAW' && name !== 'BAKSOAJA' && name !== 'BAKSOSAJA';
+    })
+    .map((option) => option.name);
+
+/**
+ * Kitchen-only concise summary.
+ *
+ * Canonical ISIAN groups understand the same operational presets used by POS
+ * and Self Order:
+ * - exact Bakso Saja preset => "BAKSO SAJA"
+ * - exact Campur preset     => allSelectedLabel or "CAMPUR"
+ * - manual/modified recipe  => show the actual option list
+ *
+ * This prevents a manual change (e.g. Campur minus tauge) from being falsely
+ * labelled CAMPUR while still making standard recipes fast to scan in KDS.
+ */
 export const summarizeCondimentOptions = (
   selected: SelectedCondimentGroup,
   groups: CondimentGroup[]
 ): string => {
   const group = groups.find((g) => normalizeName(g.name) === normalizeName(selected.groupName));
-  if (!group?.allSelectedLabel) return selected.options.join(', ');
+  if (!group) return selected.options.join(', ');
 
-  const availableNames = new Set(
-    group.options.filter((o) => o.isAvailable).map((o) => normalizeName(o.name)),
-  );
-  const configuredCampur = (group.selfOrderCampurOptions || [])
-    .map(normalizeName)
-    .filter((name) => Boolean(name) && availableNames.has(name));
+  const normalizedGroupName = normalizeName(group.name).replace(/[^A-Z0-9]/g, '');
+  const isFilling = group.selfOrderRole === 'FILLING' || normalizedGroupName.includes('ISIAN');
 
-  const summaryTarget = configuredCampur.length > 0
-    ? configuredCampur
-    : [...availableNames];
+  if (isFilling) {
+    const baksoOnly = configuredAvailableNames(group, group.selfOrderBaksoOnlyOptions);
+    const baksoOnlyTarget = baksoOnly.length ? baksoOnly : fallbackBaksoOnly(group);
+    if (sameNormalizedSelection(selected.options, baksoOnlyTarget)) {
+      return 'BAKSO SAJA';
+    }
 
-  if (summaryTarget.length < 2) return selected.options.join(', ');
+    const campur = configuredAvailableNames(group, group.selfOrderCampurOptions);
+    const campurTarget = campur.length ? campur : fallbackCampur(group);
+    if (sameNormalizedSelection(selected.options, campurTarget)) {
+      return group.allSelectedLabel || 'CAMPUR';
+    }
 
-  const chosen = selected.options.map(normalizeName).sort();
-  const target = [...summaryTarget].sort();
-  const isExactPreset = chosen.length === target.length
-    && target.every((name, index) => chosen[index] === name);
+    return selected.options.join(', ');
+  }
 
-  return isExactPreset ? group.allSelectedLabel : selected.options.join(', ');
+  if (!group.allSelectedLabel) return selected.options.join(', ');
+
+  const availableNames = group.options
+    .filter((option) => option.isAvailable !== false)
+    .map((option) => option.name);
+
+  return sameNormalizedSelection(selected.options, availableNames)
+    ? group.allSelectedLabel
+    : selected.options.join(', ');
 };

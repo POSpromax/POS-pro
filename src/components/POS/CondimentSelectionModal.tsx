@@ -12,19 +12,18 @@ const normalizeChoice = (value: string) =>
 type SelfOrderRole = 'NONE' | 'BROTH' | 'FILLING';
 
 const resolveSelfOrderRole = (group: CondimentGroup): SelfOrderRole => {
-  if (
-    group.selfOrderRole === 'NONE' ||
-    group.selfOrderRole === 'BROTH' ||
-    group.selfOrderRole === 'FILLING'
-  ) {
+  // Explicit semantic roles always win.
+  if (group.selfOrderRole === 'BROTH' || group.selfOrderRole === 'FILLING') {
     return group.selfOrderRole;
   }
 
-  // Compatibility for older branches that were created before selfOrderRole
-  // was persisted in branch_operational_config.
+  // Self-heal canonical Bakso Ujo groups. Older/stale branch config can contain
+  // selfOrderRole='NONE' after a generic group save. KUAH and ISIAN are reserved
+  // operational groups, so their semantic role must not disappear from Self Order.
   const normalized = normalizeChoice(group.name);
   if (normalized.includes('KUAH')) return 'BROTH';
   if (normalized.includes('ISIAN')) return 'FILLING';
+
   return 'NONE';
 };
 
@@ -93,19 +92,20 @@ const isGroupRequired = (
     group.isRequired === true ||
     Number(group.minSelect || 0) > 0;
 
-  // Broth is a hard safety rule in QR self-order: a Bakso order must always
-  // carry one broth choice. FILLING and all other groups follow Settings.
-  return configuredRequired || (isSelfOrder && resolveSelfOrderRole(group) === 'BROTH');
+  // KUAH and ISIAN are hard safety rules for QR Self Order. Generic groups
+  // still follow Settings (e.g. topping can remain MULTIPLE + OPSIONAL).
+  const role = resolveSelfOrderRole(group);
+  return configuredRequired || (isSelfOrder && (role === 'BROTH' || role === 'FILLING'));
 };
 
 const isSingleGroup = (group: CondimentGroup): boolean =>
   group.mode === 'PAKET' || Number(group.maxSelect || 0) === 1;
 
-const visibleOptions = (group: CondimentGroup, isSelfOrder: boolean) =>
+const visibleOptions = (group: CondimentGroup) =>
   group.options.filter(
     (option) =>
       option.isAvailable !== false &&
-      !(isSelfOrder && isLegacyPresetOption(option.name)),
+      !(resolveSelfOrderRole(group) === 'FILLING' && isLegacyPresetOption(option.name)),
   );
 
 const limitPreset = (group: CondimentGroup, names: string[]) => {
@@ -165,20 +165,17 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     [condimentGroups, menuItem],
   );
 
+  // Semantic KUAH/ISIAN groups are resolved for BOTH QR Self Order and POS.
+  // The hard-required safety rule remains Self Order specific, while Cashier
+  // follows the group's Settings configuration.
   const brothGroup = useMemo(
-    () =>
-      isSelfOrder
-        ? applicableGroups.find((group) => resolveSelfOrderRole(group) === 'BROTH')
-        : undefined,
-    [applicableGroups, isSelfOrder],
+    () => applicableGroups.find((group) => resolveSelfOrderRole(group) === 'BROTH'),
+    [applicableGroups],
   );
 
   const fillingGroup = useMemo(
-    () =>
-      isSelfOrder
-        ? applicableGroups.find((group) => resolveSelfOrderRole(group) === 'FILLING')
-        : undefined,
-    [applicableGroups, isSelfOrder],
+    () => applicableGroups.find((group) => resolveSelfOrderRole(group) === 'FILLING'),
+    [applicableGroups],
   );
 
   const standardGroups = useMemo(
@@ -193,10 +190,19 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    if (!isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     const initial: Record<string, string[]> = {};
 
     applicableGroups.forEach((group) => {
-      const available = visibleOptions(group, isSelfOrder);
+      const available = visibleOptions(group);
       const valid = new Set(available.map((option) => normalizeChoice(option.name)));
       const existing = initialSelectedCondiments.find(
         (selection) =>
@@ -308,7 +314,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
       const max = isSingleGroup(group) ? 1 : Number(group.maxSelect || 0);
 
       if (selected.length < min) {
-        const role = isSelfOrder ? resolveSelfOrderRole(group) : 'NONE';
+        const role = resolveSelfOrderRole(group);
         onShowToast?.(
           'Pilihan Belum Lengkap',
           role === 'FILLING'
@@ -342,8 +348,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     const selected = selections[group.id] || [];
     const required = isGroupRequired(group, isSelfOrder);
     const single = isSingleGroup(group);
-    const options = visibleOptions(group, isSelfOrder);
-    const role = isSelfOrder ? resolveSelfOrderRole(group) : 'NONE';
+    const options = visibleOptions(group);
+    const role = resolveSelfOrderRole(group);
 
     return (
       <section key={group.id} className="so-card p-4">
@@ -360,7 +366,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           </div>
         </div>
 
-        {role === 'BROTH' && selected.length > 0 && (
+        {isSelfOrder && role === 'BROTH' && selected.length > 0 && (
           <div className="mb-3 flex items-center justify-between rounded-xl bg-[var(--so-surface-soft)] px-3 py-2 text-[8px] font-bold text-[var(--so-text-soft)]">
             <span>Default customer</span>
             <span className="rounded-full bg-white px-2 py-1 font-black text-[var(--so-brand)]">{selected.join(', ')}</span>
@@ -392,6 +398,97 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     );
   };
 
+  const renderQuickPreset = () => fillingGroup ? (
+    <section className="so-card p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Sparkles className="h-4 w-4" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[.13em] text-[var(--so-text)]">Racikan Cepat</p>
+          <p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Pilih racikan standar lalu ubah detail isian bila perlu.</p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
+        {([
+          {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset)},
+          {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], campurPreset)},
+        ]).map((preset) => (
+          <button key={preset.key} type="button" onClick={() => applyInstantPreset(preset.key)} className={`min-h-[68px] rounded-[1.05rem] border p-3 text-left transition active:scale-[.985] ${preset.active ? 'border-[var(--so-brand)] bg-[var(--so-brand-soft)] text-[var(--so-text)] shadow-[0_8px_20px_rgba(15,23,42,.04)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black">{preset.title}</span>
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full ${preset.active ? 'bg-[var(--so-brand)] text-white' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{preset.active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span>
+            </span>
+            <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-[var(--so-brand-strong)]' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  ) : null;
+
+  const renderConfigurationContent = () => (
+    <>
+      {brothGroup && renderGroup(brothGroup)}
+      {renderQuickPreset()}
+      {fillingGroup && renderGroup(fillingGroup)}
+      {standardGroups.map(renderGroup)}
+      {applicableGroups.length === 0 && <div className="so-card px-4 py-8 text-center"><Utensils className="mx-auto h-6 w-6 text-[var(--so-text-faint)]" /><p className="mt-2 text-[10px] font-black text-[var(--so-text-soft)]">Menu ini tidak memiliki pilihan tambahan.</p></div>}
+      <label className="so-card block p-4"><span className="text-[8px] font-black uppercase tracking-[.13em] text-[var(--so-text-muted)]">Catatan item · opsional</span><textarea value={notes} onChange={(event) => setNotes(event.target.value.slice(0, 240))} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea mt-2 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold text-[var(--so-text-soft)] outline-none transition placeholder:text-[var(--so-text-faint)] focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>
+    </>
+  );
+
+  if (!isSelfOrder) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/20 p-3 backdrop-blur-[2px] animate-fadeIn md:p-5">
+        <section className="theme-self-order grid h-[min(92dvh,820px)] min-h-[520px] w-full max-w-[1120px] grid-cols-1 overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-[0_28px_90px_rgba(15,23,42,.28)] md:grid-cols-[270px_minmax(0,1fr)]">
+          <aside className="hidden min-h-0 border-r border-slate-200 bg-slate-50/80 md:flex md:flex-col">
+            <div className="relative flex min-h-[250px] items-center justify-center overflow-hidden bg-white p-5">
+              {menuItem.image ? (
+                <img src={optimizeCloudinaryImage(menuItem.image, 760)} alt={menuItem.name} decoding="async" className="so-food-photo h-full max-h-[220px] w-full object-contain" />
+              ) : (
+                <Utensils className="h-12 w-12 text-slate-300" />
+              )}
+            </div>
+            <div className="border-t border-slate-200 p-5">
+              <p className="text-[9px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">Menu dipilih</p>
+              <h2 className="mt-2 text-[20px] font-black leading-tight tracking-[-.025em] text-slate-950">{menuItem.name}</h2>
+              <p className="mt-2 text-[15px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</p>
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-3 text-[10px] font-semibold leading-relaxed text-slate-500">
+                Racikan berlaku untuk <strong className="font-black text-slate-800">1 porsi</strong>. Untuk porsi dengan racikan berbeda, tambahkan sebagai item terpisah.
+              </div>
+            </div>
+          </aside>
+
+          <div className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-[#f7f8fa]">
+            <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3.5 md:px-5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-black uppercase tracking-[.17em] text-[var(--so-brand)]">Atur Pesanan</p>
+                <div className="mt-1 flex items-center gap-2 md:hidden">
+                  <h2 className="truncate text-[16px] font-black text-slate-950">{menuItem.name}</h2>
+                  <span className="shrink-0 rounded-full bg-[var(--so-brand-soft)] px-2.5 py-1 text-[9px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</span>
+                </div>
+                <p className="mt-1 hidden text-[11px] font-semibold text-slate-500 md:block">Pilih kuah, racikan cepat, isian, tambahan, lalu simpan ke keranjang.</p>
+              </div>
+              <button type="button" onClick={onClose} aria-label="Tutup pengaturan pesanan" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"><X className="h-5 w-5" /></button>
+            </header>
+
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-3.5 py-3.5 scrollbar-thin md:px-5 md:py-4">
+              <div className="mx-auto max-w-[660px] space-y-3">{renderConfigurationContent()}</div>
+            </div>
+
+            <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 md:px-5">
+              <div className="mx-auto flex max-w-[660px] items-center gap-3">
+                <div className="hidden min-w-0 flex-1 sm:block">
+                  <p className="text-[8px] font-black uppercase tracking-[.14em] text-slate-400">Total per porsi</p>
+                  <p className="mt-0.5 text-[15px] font-black text-slate-950">Rp {finalUnitPrice.toLocaleString('id-ID')}</p>
+                </div>
+                <button type="button" onClick={handleSave} className="so-primary-button min-h-[48px] flex-1 sm:max-w-[320px]">Tambahkan ke Keranjang</button>
+              </div>
+            </footer>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="theme-self-order fixed inset-0 z-50 flex items-end justify-center bg-[#0f172a]/45 backdrop-blur-[3px] sm:items-center sm:p-4 animate-fadeIn">
       <section className="flex max-h-[96dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[2rem] border border-[var(--so-border)] bg-[var(--so-canvas)] shadow-[0_-18px_70px_rgba(15,23,42,.18)] sm:rounded-[2rem] animate-slideUp">
@@ -409,39 +506,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
             <span className="shrink-0 rounded-full bg-[var(--so-brand-soft)] px-3 py-1.5 text-[9px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</span>
           </div>
         </header>
-
-        <div className="flex-1 space-y-3 overflow-y-auto px-3.5 pb-4 pt-3 scrollbar-thin sm:px-4">
-          {brothGroup && renderGroup(brothGroup)}
-
-          {fillingGroup && (
-            <section className="so-card p-4">
-              <div className="flex items-start gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Sparkles className="h-4 w-4" /></span>
-                <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.13em] text-[var(--so-text)]">Racikan Cepat</p><p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Shortcut isian. Setelah memilih, kamu tetap bisa mengubah pilihan manual di bawah.</p></div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
-                {([
-                  {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset) : false},
-                  {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: fillingGroup ? sameSelection(selections[fillingGroup.id] || [], campurPreset) : false},
-                ]).map((preset) => (
-                  <button key={preset.key} type="button" onClick={() => applyInstantPreset(preset.key)} className={`min-h-[72px] rounded-[1.1rem] border p-3 text-left transition active:scale-[.985] ${preset.active ? 'border-[var(--so-brand)] bg-[var(--so-brand-soft)] text-[var(--so-text)] shadow-[0_8px_20px_rgba(15,23,42,.04)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
-                    <span className="flex items-center justify-between gap-2"><span className="text-[11px] font-black">{preset.title}</span><span className={`flex h-5 w-5 items-center justify-center rounded-full ${preset.active ? 'bg-[var(--so-brand)] text-white' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{preset.active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span></span>
-                    <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-[var(--so-brand-strong)]' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {fillingGroup && renderGroup(fillingGroup)}
-          {standardGroups.map(renderGroup)}
-
-          {applicableGroups.length === 0 && <div className="so-card px-4 py-8 text-center"><Utensils className="mx-auto h-6 w-6 text-[var(--so-text-faint)]" /><p className="mt-2 text-[10px] font-black text-[var(--so-text-soft)]">Menu ini tidak memiliki pilihan tambahan.</p></div>}
-
-          <label className="so-card block p-4"><span className="text-[8px] font-black uppercase tracking-[.13em] text-[var(--so-text-muted)]">Catatan item · opsional</span><textarea value={notes} onChange={(event) => setNotes(event.target.value.slice(0, 240))} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea mt-2 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold text-[var(--so-text-soft)] outline-none transition placeholder:text-[var(--so-text-faint)] focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>
-        </div>
-
+        <div className="flex-1 space-y-3 overflow-y-auto px-3.5 pb-4 pt-3 scrollbar-thin sm:px-4">{renderConfigurationContent()}</div>
         <footer className="shrink-0 border-t border-[var(--so-border)] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><button type="button" onClick={handleSave} className="so-primary-button">Tambahkan · Rp {finalUnitPrice.toLocaleString('id-ID')}</button></footer>
       </section>
     </div>

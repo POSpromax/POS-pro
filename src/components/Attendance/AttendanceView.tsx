@@ -20,6 +20,24 @@ interface AttendanceViewProps {
 
 type AttendanceStep = 'PIN' | 'SELFIE_GPS' | 'SUCCESS';
 
+const WEEK_DAYS = [
+  { day: 1, short: 'Sen', label: 'Senin' },
+  { day: 2, short: 'Sel', label: 'Selasa' },
+  { day: 3, short: 'Rab', label: 'Rabu' },
+  { day: 4, short: 'Kam', label: 'Kamis' },
+  { day: 5, short: 'Jum', label: 'Jumat' },
+  { day: 6, short: 'Sab', label: 'Sabtu' },
+  { day: 0, short: 'Min', label: 'Minggu' },
+] as const;
+
+const effectiveWorkDays = (staff: UserAccount, profile: RestaurantProfile): number[] => {
+  if (Array.isArray(staff.workDays) && staff.workDays.length > 0) {
+    return [...new Set(staff.workDays)].filter((day) => day >= 0 && day <= 6);
+  }
+  const offDays = new Set((profile.weeklyOffDays || []).filter((day) => day >= 0 && day <= 6));
+  return WEEK_DAYS.map((day) => day.day).filter((day) => !offDays.has(day));
+};
+
 export const AttendanceView: React.FC<AttendanceViewProps> = ({
   attendanceRecords,
   onSaveAttendance,
@@ -33,10 +51,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 }) => {
   const eligibleStaff = useMemo(
     () => staffAccounts.filter(
-      (staff) => staff.isActive !== false && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
+      (staff) => staff.isActive !== false && staff.role !== 'OWNER' && staff.role !== 'SUPER_OWNER' && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id)),
     ),
     [staffAccounts, currentBranch.id],
   );
+  const ownerManagementOnly = !terminalMode && (activeUser.role === 'OWNER' || activeUser.role === 'SUPER_OWNER');
 
   const [step, setStep] = useState<AttendanceStep>(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
   const [pinInput, setPinInput] = useState('');
@@ -201,13 +220,22 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           const lat2 = toRad(position.coords.latitude);
           const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
           const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const allowed = distance <= outletRadius;
+          const maxAccuracy = Math.max(5, Number(profile.maxGpsAccuracyMeters || 80));
+          const accuracyOk = Number.isFinite(position.coords.accuracy) && position.coords.accuracy <= maxAccuracy;
+          const insideRadius = distance <= outletRadius;
+          const allowed = insideRadius && accuracyOk;
           setGpsPosition({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
           });
-          setGpsMessage(allowed ? `GPS valid - ${Math.round(distance)} m dari outlet` : `Di luar radius - ${Math.round(distance)} m`);
+          setGpsMessage(
+            !accuracyOk
+              ? `Akurasi GPS ±${Math.round(position.coords.accuracy)} m — tunggu hingga ≤ ${Math.round(maxAccuracy)} m`
+              : insideRadius
+                ? `GPS valid · ${Math.round(distance)} m dari outlet · akurasi ±${Math.round(position.coords.accuracy)} m`
+                : `Di luar radius · ${Math.round(distance)} m dari outlet`,
+          );
           setIsGpsValid(allowed);
           resolve(allowed);
         },
@@ -357,7 +385,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             Presensi Karyawan
           </h1>
           <p className="mt-1 text-xs font-bold text-[var(--text-secondary)]">
-            {terminalMode ? 'Terminal absensi aktif.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
+            {terminalMode ? 'Terminal absensi aktif.' : ownerManagementOnly ? 'Mode manajemen — akun Owner tidak dicatat sebagai staff absensi.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -368,6 +396,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-4">
+          {ownerManagementOnly ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+              <p className="text-[11px] font-black uppercase tracking-wider text-blue-700">Mode Owner</p>
+              <h2 className="mt-1 text-base font-extrabold text-blue-950">Owner tidak menggunakan absensi operasional</h2>
+              <p className="mt-2 text-xs font-semibold leading-relaxed text-blue-800">Gunakan panel di samping untuk memantau presensi staff. Akun Owner/Super Owner tidak masuk rekap kehadiran maupun payroll.</p>
+            </div>
+          ) : (
+            <>
 
           {step === 'PIN' && (
             <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm space-y-4">
@@ -447,14 +483,28 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
               {(() => {
                 const dayIdx = new Date().getDay();
-                const isOff = (profile.weeklyOffDays || [0]).includes(dayIdx);
-                const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dayIdx];
-                return isOff ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
-                    <p className="font-bold text-xs text-rose-900">HARI LIBUR RUTIN ({dayName.toUpperCase()})</p>
-                    <p className="text-[11px] font-semibold text-rose-700 leading-snug mt-1">Dicatat sebagai Kerja Lembur / Ekstra Shift.</p>
+                const workDays = effectiveWorkDays(selectedStaff, profile);
+                const isOff = !workDays.includes(dayIdx);
+                const dayName = WEEK_DAYS.find((day) => day.day === dayIdx)?.label || 'Hari ini';
+                return (
+                  <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">Jadwal Mingguan</p>
+                        <p className={`mt-1 text-xs font-black ${isOff ? 'text-rose-700' : 'text-emerald-700'}`}>{isOff ? `LIBUR RUTIN · ${dayName}` : `HARI KERJA · ${dayName}`}</p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[9px] font-black ${isOff ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{isOff ? 'OFF' : `${getScheduledStart()}–${selectedStaff.shiftEnd || '-'}`}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-7 gap-1">
+                      {WEEK_DAYS.map((day) => {
+                        const working = workDays.includes(day.day);
+                        const today = day.day === dayIdx;
+                        return <div key={day.day} className={`rounded-lg border px-1 py-2 text-center ${today ? 'ring-2 ring-[var(--primary)]/20' : ''} ${working ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}><p className="text-[8px] font-black">{day.short}</p><p className="mt-0.5 text-[7px] font-bold">{working ? 'Masuk' : 'Libur'}</p></div>;
+                      })}
+                    </div>
+                    {isOff && <p className="mt-2 text-[10px] font-semibold leading-snug text-rose-600">Jika tetap bekerja hari ini, presensi akan tercatat sebagai ekstra shift dan perlu ditinjau manajemen.</p>}
                   </div>
-                ) : null;
+                );
               })()}
 
               {/* LIVE WEBCAM CAMERA CONTAINER */}
@@ -515,9 +565,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   Bukti presensi hanya dapat diambil langsung dari kamera perangkat.
                 </p>
 
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)]">
-                  <MapPin className="w-3.5 h-3.5 text-[var(--primary-text)]" />
-                  <span>{gpsMessage}</span>
+                <div className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                  <div className="flex items-start gap-2 text-[11px] font-bold text-[var(--text-secondary)]">
+                    <MapPin className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isGpsValid ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    <div className="min-w-0 flex-1"><span>{gpsMessage}</span>{gpsPosition && <div className="mt-1.5 flex flex-wrap gap-1.5"><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${gpsPosition.accuracy <= Math.max(5, Number(profile.maxGpsAccuracyMeters || 80)) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>AKURASI ±{Math.round(gpsPosition.accuracy)} M</span><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${isGpsValid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{isGpsValid ? 'DALAM AREA' : 'BELUM VALID'}</span></div>}</div>
+                  </div>
                 </div>
                 {profile.requireGpsActive && (
                   <button type="button" onClick={() => verifyGps()} className="text-[11px] font-bold text-[var(--primary-text)] hover:text-[var(--primary-text)] underline cursor-pointer">
@@ -554,6 +606,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <p className="text-[11px] font-bold text-emerald-500">Kembali otomatis dalam 3 detik...</p>
             </div>
           )}
+            </>
+          )}
         </div>
 
         <div className="rounded-2xl border border-[var(--panel-border)] bg-white p-6 shadow-sm lg:col-span-2">
@@ -568,6 +622,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               const canViewBranch = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && !terminalMode;
               const visibleRecords = attendanceRecords.filter((record) =>
                 new Date(record.timestamp).toDateString() === today
+                && record.role !== 'OWNER'
+                && record.role !== 'SUPER_OWNER'
                 && (canViewBranch || record.staffId === activeUser.id),
               );
               return visibleRecords.length === 0 ? (

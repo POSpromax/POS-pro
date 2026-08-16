@@ -12,6 +12,7 @@ import {
 import { RestaurantTable } from '../../types/pos';
 import { updateCloudTableSession } from '../../services/tableService';
 import { buildBranchSelfOrderUrl } from '../../utils/selfOrderUrl';
+import { getTablePresentation } from '../../utils/tablePresentation';
 import { QrCodeCanvas } from './QrCodeCanvas';
 
 interface TableManagementViewProps {
@@ -239,23 +240,17 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredTables.map((table) => {
             const tableNumber = normalizeNumber(table.number);
-            const legacyInactive = table.status === 'FREE' || table.status === 'RESERVED';
-            const status = legacyInactive ? 'DISABLED' : table.status;
-            const ready = status === 'READY';
-            const occupied = status === 'OCCUPIED';
-            const accessEnabled = table.isSelfOrderEnabled === true && status !== 'DISABLED';
+            const presentation = getTablePresentation(table);
+            const ready = presentation.isReady;
+            const occupied = presentation.isOccupied;
+            const accessEnabled = presentation.selfOrderAvailable;
             const busy = busyTable === table.id;
-            const statusStyle = occupied
-              ? 'border-[var(--accent-red)] bg-[var(--danger-soft)] text-[var(--accent-red)]'
-              : ready
-                ? 'border-[var(--accent-green)] bg-[var(--success-soft)] text-[var(--accent-green)]'
-                : 'border-[var(--panel-border)] bg-[var(--surface-secondary)] text-[var(--text-secondary)]';
 
             // QR Code URL statis yang selalu dapat digunakan tanpa bergantung pada API server
             const qrUrl = activeQrUrl;
 
             return (
-              <article key={table.id} className="ui-card overflow-hidden">
+              <article key={table.id} className={`ui-card overflow-hidden border ${presentation.cardClass}`}>
                 <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] p-3">
                   <div>
                     <p className="text-lg font-bold">Meja {tableNumber}</p>
@@ -263,7 +258,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                       <Users className="h-3 w-3" />{table.capacity} orang
                     </p>
                   </div>
-                  <span className={`ui-badge ${statusStyle}`}>{occupied ? 'Terisi' : ready ? 'Siap' : 'Nonaktif'}</span>
+                  <span className={`ui-badge border ${presentation.badgeClass}`}><span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${presentation.dotClass}`} />{presentation.shortLabel}</span>
                 </div>
 
                 <div className="p-3 space-y-3">
@@ -313,8 +308,8 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
                     <button
                       type="button"
                       onClick={() => void toggleSelfOrder(table)}
-                      disabled={busy || Boolean(table.activeOrderId)}
-                      title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah akses self-order' : undefined}
+                      disabled={busy || !presentation.canToggleSelfOrder}
+                      title={!presentation.canToggleSelfOrder ? 'Selesaikan bill aktif sebelum mengubah akses self-order' : undefined}
                       className={`rounded-full px-3 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${accessEnabled ? 'bg-[var(--primary)] text-white' : 'bg-[var(--panel-border)] text-[var(--text-secondary)]'}`}
                     >
                       {accessEnabled ? 'ON' : 'OFF'}

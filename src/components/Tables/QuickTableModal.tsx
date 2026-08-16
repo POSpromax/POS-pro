@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { RestaurantTable, Order } from '../../types/pos';
 import { updateCloudTableSession } from '../../services/tableService';
+import { getTablePresentation } from '../../utils/tablePresentation';
 
 interface QuickTableModalProps {
   isOpen: boolean;
@@ -121,9 +122,9 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
   const activeOrders = orders.filter((o) => o.status !== 'CANCELLED' && !(o.status === 'COMPLETED' && o.paymentStatus === 'PAID'));
 
-  const freeTablesCount = tables.filter((t) => {
-    const isOccupiedByOrder = activeOrders.some((o) => o.tableNumber === t.number);
-    return t.status !== 'OCCUPIED' && !isOccupiedByOrder;
+  const freeTablesCount = tables.filter((table) => {
+    const hasActiveOrder = activeOrders.some((order) => order.tableNumber === table.number);
+    return !getTablePresentation(table, hasActiveOrder).isOccupied;
   }).length;
 
   const occupiedTablesCount = tables.length - freeTablesCount;
@@ -143,10 +144,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
   };
 
   const filteredTables = tables.filter((t) => {
-    const isOccupiedByOrder = activeOrders.some((o) => o.tableNumber === t.number);
-    const isOccupied = t.status === 'OCCUPIED' || isOccupiedByOrder;
-    if (filterMode === 'FREE') return !isOccupied;
-    if (filterMode === 'OCCUPIED') return isOccupied;
+    const hasActiveOrder = activeOrders.some((order) => order.tableNumber === t.number);
+    const presentation = getTablePresentation(t, hasActiveOrder);
+    if (filterMode === 'FREE') return !presentation.isOccupied;
+    if (filterMode === 'OCCUPIED') return presentation.isOccupied;
     return true;
   });
 
@@ -350,25 +351,17 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
             {filteredTables.map((table) => {
-              const activeOrderOnTable = activeOrders.find((o) => o.tableNumber === table.number);
-              const isOccupiedByOrder = !!activeOrderOnTable;
-              const isOccupied = table.status === 'OCCUPIED' || isOccupiedByOrder;
-              // Server menolak meja yang belum diaktifkan kasir, jadi status itu
-              // harus terlihat berbeda — bukan ikut hijau seperti meja siap.
-              const isArmed = table.status === 'READY';
-              const selfOrderOn = table.isSelfOrderEnabled !== false && table.status !== 'DISABLED';
+              const activeOrderOnTable = activeOrders.find((order) => order.tableNumber === table.number);
+              const presentation = getTablePresentation(table, Boolean(activeOrderOnTable));
+              const isOccupied = presentation.isOccupied;
+              const isArmed = presentation.isReady;
+              const selfOrderOn = presentation.selfOrderAvailable;
               const isBusy = busyTable === table.id;
 
               return (
                 <div
                   key={table.id}
-                  className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-md ${
-                    isOccupied
-                      ? 'bg-[var(--danger-soft)] border-[var(--accent-red)] text-[var(--text-primary)] hover:border-rose-400 ring-1 ring-rose-100'
-                      : isArmed
-                        ? 'bg-[var(--success-soft)] border-[var(--accent-green)] text-[var(--text-primary)] hover:border-emerald-400 ring-1 ring-emerald-100'
-                        : 'bg-[var(--surface-secondary)] border-[var(--panel-border)] text-[var(--text-primary)] hover:border-[var(--panel-border-strong)]'
-                  }`}
+                  className={`rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 relative overflow-hidden group shadow-sm ${presentation.cardClass}`}
                 >
                   {/* Top Header Card */}
                   <div className="flex items-start justify-between gap-2">
@@ -385,16 +378,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
 
                     {/* Status Pill Indicator */}
                     <span
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm ${
-                        isOccupied
-                          ? 'bg-rose-600 text-white'
-                          : isArmed
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-[var(--surface-inverse)] text-white'
-                      }`}
+                      className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border ${presentation.badgeClass}`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full bg-white ${isOccupied ? 'animate-pulse' : ''}`} />
-                      {isOccupied ? 'TERISI' : isArmed ? 'SIAP QR' : 'BELUM AKTIF'}
+                      <span className={`h-1.5 w-1.5 rounded-full ${presentation.dotClass} ${isOccupied ? 'animate-pulse' : ''}`} />
+                      {presentation.state === 'READY' ? 'SIAP QR' : presentation.state === 'OCCUPIED' ? 'TERISI' : presentation.state === 'RESERVED' ? 'RESERVED' : 'NONAKTIF'}
                     </span>
                   </div>
 
@@ -434,10 +421,10 @@ export const QuickTableModal: React.FC<QuickTableModalProps> = ({
                       {selfOrderOn ? (
                         <button
                           type="button"
-                          disabled={isBusy || Boolean(table.activeOrderId)}
+                          disabled={isBusy || !presentation.canToggleSelfOrder}
                           onClick={() => void runSession(table, 'SET_ENABLED', false)}
                           className="px-2.5 py-1 rounded-lg font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white transition-all cursor-pointer"
-                          title={table.activeOrderId ? 'Selesaikan bill aktif sebelum mengubah self-order' : 'Matikan self-order untuk meja ini'}
+                          title={!presentation.canToggleSelfOrder ? 'Selesaikan bill aktif sebelum mengubah self-order' : 'Matikan self-order untuk meja ini'}
                         >
                           {isBusy ? '…' : 'MATIKAN'}
                         </button>

@@ -117,8 +117,12 @@ export async function handleAttendanceRequest(
         minutesLate,
         status: minutesLate > Number(schedule?.grace_minutes || 0) ? 'LATE' : 'ON_TIME',
       };
-    });
+    }).filter((record) => record.role !== 'OWNER' && record.role !== 'SUPER_OWNER');
     return { status: 200, data: { records, scope: canViewBranch ? 'BRANCH' : 'SELF' } };
+  }
+
+  if (membership.role === 'OWNER' || membership.role === 'SUPER_OWNER') {
+    return fail(403, 'Akun Owner mengelola operasional dan tidak menggunakan absensi staff.');
   }
 
   if (!payload.requestId || !UUID_PATTERN.test(payload.requestId)) return fail(400, 'Request ID tidak valid');
@@ -151,8 +155,12 @@ export async function handleAttendanceRequest(
     const outletLat = Number(config.gpsLatitude);
     const outletLon = Number(config.gpsLongitude);
     const radius = Number(config.gpsRadiusMeters || 50);
+    const maxAccuracy = Math.max(5, Number(config.maxGpsAccuracyMeters || 80));
     if (![payload.latitude, payload.longitude, outletLat, outletLon].every((value) => Number.isFinite(value))) {
       return fail(400, 'Koordinat GPS tidak lengkap');
+    }
+    if (!Number.isFinite(payload.accuracyMeters) || Number(payload.accuracyMeters) > maxAccuracy) {
+      return fail(400, `Akurasi GPS belum cukup baik. Tunggu hingga akurasi ≤ ${Math.round(maxAccuracy)} m lalu coba lagi.`);
     }
     distance = distanceMeters(outletLat, outletLon, Number(payload.latitude), Number(payload.longitude));
     if (distance > radius) return fail(403, `Lokasi berada ${Math.round(distance)} m dari outlet`);

@@ -78,9 +78,21 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     [orders, branchFilter, currentBranchId],
   );
   const scopedOrders = useMemo(() => branchScopedOrders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [branchScopedOrders, periodRange]);
-  const shifts = useMemo(() => allShifts.filter((s) => isWithinPeriod(s.startTime, periodRange)), [allShifts, periodRange]);
-  const attendances = useMemo(() => allAttendances.filter((a) => isWithinPeriod(a.timestamp, periodRange)), [allAttendances, periodRange]);
-  const expenses = useMemo(() => allExpenses.filter((e) => isWithinPeriod(e.timestamp, periodRange)), [allExpenses, periodRange]);
+  const shifts = useMemo(() => allShifts.filter((shift) => (
+    isWithinPeriod(shift.startTime, periodRange)
+    && (branchFilter === 'ALL' || (shift.branchId || currentBranchId) === branchFilter)
+  )), [allShifts, branchFilter, currentBranchId, periodRange]);
+  const attendances = useMemo(() => allAttendances.filter((attendance) => (
+    isWithinPeriod(attendance.timestamp, periodRange)
+    && (branchFilter === 'ALL' || (attendance.branchId || currentBranchId) === branchFilter)
+  )), [allAttendances, branchFilter, currentBranchId, periodRange]);
+  const expenses = useMemo(() => {
+    const shiftBranch = new Map(allShifts.map((shift) => [shift.id, shift.branchId || currentBranchId]));
+    return allExpenses.filter((expense) => (
+      isWithinPeriod(expense.timestamp, periodRange)
+      && (branchFilter === 'ALL' || shiftBranch.get(expense.shiftId) === branchFilter)
+    ));
+  }, [allExpenses, allShifts, branchFilter, currentBranchId, periodRange]);
 
   const paidOrders = useMemo(() => scopedOrders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'), [scopedOrders]);
   const voidOrders = useMemo(() => scopedOrders.filter((o) => o.status === 'CANCELLED'), [scopedOrders]);

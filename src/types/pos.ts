@@ -305,6 +305,9 @@ export interface RestaurantProfile {
 
   // Dapur & KDS Config
   orderTimeLimitMinutes?: number;
+  // Urutan kategori di ticket KDS. Disimpan per cabang melalui profileOverrides.
+  // Item di dalam kategori mengikuti urutan master menu/inventory.
+  kdsCategoryOrder?: CategoryType[];
   soundNotificationsEnabled?: boolean;
   soundOrderBaru?: string;
   soundPesananMasuk?: string;
@@ -325,6 +328,7 @@ export interface RestaurantProfile {
   gpsLatitude?: number;
   gpsLongitude?: number;
   gpsRadiusMeters?: number;
+  maxGpsAccuracyMeters?: number;
   requireSelfiePhoto?: boolean;
   requireGpsActive?: boolean;
   isAttendanceEnabled?: boolean;

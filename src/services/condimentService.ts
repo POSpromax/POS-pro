@@ -83,28 +83,16 @@ export async function listCloudCondiments(branchId: string): Promise<CondimentGr
   }));
 }
 
-export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: string): Promise<void> {
+export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: string): Promise<CondimentGroup> {
   const { supabase, tenantId } = await tenantContext();
-  // Mode pilihan dan kewajiban adalah dua dimensi yang berbeda:
-  // - PAKET = SINGLE (maksimal 1)
-  // - ADD_ON = MULTIPLE (bisa lebih dari 1)
-  // - required/min_select menentukan wajib atau opsional secara terpisah.
-  // Normalisasi ini mencegah data lama seperti `isRequired=false` tetapi
-  // `minSelect=1` tetap dianggap wajib oleh server.
-  const required = group.isRequired ?? group.required ?? false;
-  const single = group.mode === 'PAKET';
-  const minSelect = required ? Math.max(1, Number(group.minSelect || 1)) : 0;
-  const configuredMax = Number(group.maxSelect || 0);
-  const multiMax = Math.max(minSelect || 1, configuredMax || group.options.length || 1);
-
   const groupPayload = {
     tenant_id: tenantId,
     branch_id: branchId,
     name: group.name.trim(),
     mode: group.mode,
-    required,
-    min_select: minSelect,
-    max_select: single ? 1 : multiMax,
+    required: group.isRequired ?? group.required ?? false,
+    min_select: group.minSelect ?? 0,
+    max_select: Math.max(1, group.maxSelect ?? (group.mode === 'PAKET' ? 1 : group.options.length || 1)),
     target_categories: group.targetCategories?.length ? group.targetCategories : group.targetCategory ? [group.targetCategory] : [],
     is_active: group.isActive,
   };
@@ -123,20 +111,53 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
     groupId = data.id;
   }
 
-  const { error: deleteError } = await supabase.from('condiment_options').delete().eq('group_id', groupId);
-  if (deleteError) throw new Error(deleteError.message);
+  // Preserve option identity. The previous implementation deleted and re-created
+  // every option on each edit, which changed UUID keys, reset focused controls,
+  // and caused the Settings editor to visibly jump after cloud reconciliation.
+  // Existing UUID options are updated in place; only genuinely new options are inserted.
+  const { data: existingRows, error: existingError } = await supabase
+    .from('condiment_options')
+    .select('id')
+    .eq('group_id', groupId);
+  if (existingError) throw new Error(existingError.message);
 
-  if (group.options.length) {
-    const { error } = await supabase.from('condiment_options').insert(
-      group.options.map((option, index) => ({
-        group_id: groupId,
-        name: option.name,
-        price: option.price,
-        is_available: option.isAvailable,
-        sort_order: index,
-      })),
-    );
+  const existingIds = new Set((existingRows || []).map((row: any) => String(row.id)));
+  const incomingPersistentIds = new Set(
+    group.options
+      .filter((option) => UUID_PATTERN.test(option.id) && existingIds.has(option.id))
+      .map((option) => option.id),
+  );
+  const removedIds = [...existingIds].filter((id) => !incomingPersistentIds.has(id));
+
+  if (removedIds.length) {
+    const { error } = await supabase
+      .from('condiment_options')
+      .delete()
+      .eq('group_id', groupId)
+      .in('id', removedIds);
     if (error) throw new Error(error.message);
+  }
+
+  for (const [index, option] of group.options.entries()) {
+    const payload = {
+      group_id: groupId,
+      name: option.name.trim(),
+      price: Number(option.price || 0),
+      is_available: option.isAvailable !== false,
+      sort_order: index,
+    };
+
+    if (UUID_PATTERN.test(option.id) && existingIds.has(option.id)) {
+      const { error } = await supabase
+        .from('condiment_options')
+        .update(payload)
+        .eq('id', option.id)
+        .eq('group_id', groupId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from('condiment_options').insert(payload);
+      if (error) throw new Error(error.message);
+    }
   }
 
   const { data: config } = await supabase
@@ -169,4 +190,9 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
     { onConflict: 'branch_id' },
   );
   if (configError) throw new Error(configError.message);
+
+  const refreshed = await listCloudCondiments(branchId);
+  const saved = refreshed.find((item) => item.id === groupId);
+  if (!saved) throw new Error('Grup tersimpan tetapi gagal dimuat ulang.');
+  return saved;
 }

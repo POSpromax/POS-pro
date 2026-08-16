@@ -16,6 +16,13 @@ interface StaffPayload {
   shiftEnd?: string;
   workDays?: number[];
   permissions?: Record<string, boolean>;
+  phone?: string;
+  fullNameKtp?: string;
+  nik?: string;
+  birthPlace?: string;
+  birthDate?: string;
+  address?: string;
+  joinDate?: string;
 }
 
 export interface StaffRequestResult {
@@ -128,6 +135,13 @@ async function listStaff(admin: SupabaseClient, auth: NonNullable<Awaited<Return
       permissions: memberRows[0]?.permissions || {},
       isActive: profile.is_active && memberRows.some((item) => item.is_active),
       avatar: profile.avatar_public_id || undefined,
+      phone: profile.phone || undefined,
+      fullNameKtp: profile.full_name_ktp || undefined,
+      nik: profile.nik || undefined,
+      birthPlace: profile.birth_place || undefined,
+      birthDate: profile.birth_date || undefined,
+      address: profile.address || undefined,
+      joinDate: profile.join_date || undefined,
       shiftStart: firstSchedule?.starts_at?.slice(0, 5),
       shiftEnd: firstSchedule?.ends_at?.slice(0, 5),
       workDays: Array.from(new Set(scheduleRows.map((item) => item.weekday))).sort(),
@@ -155,6 +169,7 @@ async function createStaff(
   }
   if (role === 'SUPER_OWNER' && !callerRoles.has('SUPER_OWNER')) return fail(403, 'Role Super Owner hanya dapat dibuat Super Owner');
   if (role === 'OWNER' && !callerRoles.has('SUPER_OWNER') && !callerRoles.has('OWNER')) return fail(403, 'Role Owner hanya dapat dibuat Owner');
+  if (payload.nik && !/^\d{16}$/.test(payload.nik)) return fail(400, 'NIK harus tepat 16 digit');
 
   const internalEmail = `staff-${crypto.randomUUID()}@auth.omnipos.local`;
   const { data: created, error: createError } = await admin.auth.admin.createUser({ email: internalEmail, email_confirm: true });
@@ -166,6 +181,13 @@ async function createStaff(
       tenant_id: auth.tenantId,
       display_name: name,
       is_active: payload.isActive !== false,
+      phone: payload.phone?.trim() || null,
+      full_name_ktp: payload.fullNameKtp?.trim() || null,
+      nik: payload.nik?.trim() || null,
+      birth_place: payload.birthPlace?.trim() || null,
+      birth_date: payload.birthDate || null,
+      address: payload.address?.trim() || null,
+      join_date: payload.joinDate || null,
     });
     if (profileError) throw profileError;
     const { error: memberError } = await admin.from('branch_members').insert(branchIds.map((branchId) => ({
@@ -201,6 +223,7 @@ async function updateStaff(
   if (!(await validateTargetBranches(admin, auth.tenantId, branchIds, allowedBranches))) return fail(403, 'Penugasan outlet tidak diizinkan');
   if (payload.role && !ROLES.has(payload.role)) return fail(400, 'Role tidak valid');
   if (payload.pin && !/^\d{6}$/.test(payload.pin)) return fail(400, 'PIN harus 6 digit');
+  if (payload.nik && !/^\d{16}$/.test(payload.nik)) return fail(400, 'NIK harus tepat 16 digit');
 
   const [{ data: targetProfile }, { data: existingMemberships }] = await Promise.all([
     admin.from('user_profiles').select('tenant_id,is_active').eq('user_id', payload.id).maybeSingle(),
@@ -216,7 +239,8 @@ async function updateStaff(
     return fail(403, 'Staff memiliki penugasan outlet di luar kewenangan Anda');
   }
   const role = payload.role || 'KASIR';
-  if (!callerRoles.has('SUPER_OWNER') && highestTargetRank >= callerRank) {
+  const isSelfUpdate = payload.id === auth.userId;
+  if (!isSelfUpdate && !callerRoles.has('SUPER_OWNER') && highestTargetRank >= callerRank) {
     return fail(403, 'Anda tidak dapat mengubah akun dengan kewenangan setara atau lebih tinggi');
   }
   if (callerRank < ROLE_RANK.OWNER && (ROLE_RANK[role] || 0) >= callerRank) {
@@ -224,13 +248,20 @@ async function updateStaff(
   }
   if (role === 'SUPER_OWNER' && !callerRoles.has('SUPER_OWNER')) return fail(403, 'Role Super Owner hanya dapat diatur Super Owner');
   if (role === 'OWNER' && !isOwner) return fail(403, 'Role Owner hanya dapat diatur Owner');
-  if (payload.id === auth.userId && (payload.isActive === false || !isOwner || (role !== 'OWNER' && role !== 'SUPER_OWNER'))) {
+  if (isSelfUpdate && (payload.isActive === false || !isOwner || (role !== 'OWNER' && role !== 'SUPER_OWNER'))) {
     return fail(400, 'Akun aktif tidak dapat menurunkan atau menonaktifkan aksesnya sendiri');
   }
   const isActive = payload.isActive !== false;
   const { error: profileError } = await admin.from('user_profiles').update({
     ...(payload.name?.trim() ? { display_name: payload.name.trim() } : {}),
     is_active: isActive,
+    phone: payload.phone?.trim() || null,
+    full_name_ktp: payload.fullNameKtp?.trim() || null,
+    nik: payload.nik?.trim() || null,
+    birth_place: payload.birthPlace?.trim() || null,
+    birth_date: payload.birthDate || null,
+    address: payload.address?.trim() || null,
+    join_date: payload.joinDate || null,
   }).eq('user_id', payload.id).eq('tenant_id', auth.tenantId);
   if (profileError) return fail(500, 'Profil staff gagal diperbarui');
 

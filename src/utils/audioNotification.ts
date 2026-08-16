@@ -65,54 +65,86 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Synthesizes a pleasant 3-tone audio notification chime for new POS / Self-Order events.
+ * Synthesizes named UI notification presets. Preset names shown in Settings
+ * intentionally have different patterns so the Test button reflects the real
+ * operational event instead of several labels producing the same chime.
  */
 export const playNewOrderSound = (preset = 'Kitchen Order') => {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state === 'suspended') return;
 
-    // Play 3 melodic tones (E5 -> G5 -> C6 chime)
-    const normalizedPreset = preset.toLocaleLowerCase('id-ID');
-    const urgent = normalizedPreset.includes('alarm') || normalizedPreset.includes('siren');
-    const warning = normalizedPreset.includes('warning') || normalizedPreset.includes('beep');
-    const notes = urgent
-      ? [
-          { freq: 980, time: 0, duration: 0.18 },
-          { freq: 1320, time: 0.22, duration: 0.18 },
-          { freq: 980, time: 0.44, duration: 0.18 },
-          { freq: 1480, time: 0.66, duration: 0.35 },
-        ]
-      : warning
-        ? [
-            { freq: 880, time: 0, duration: 0.14 },
-            { freq: 880, time: 0.2, duration: 0.2 },
-          ]
-        : [
-            { freq: 659.25, time: 0, duration: 0.15 },
-            { freq: 783.99, time: 0.12, duration: 0.15 },
-            { freq: 1046.50, time: 0.24, duration: 0.4 },
-          ];
+    const normalized = String(preset || '').trim().toLocaleLowerCase('id-ID');
+    const isSiren = normalized.includes('alarm') || normalized.includes('siren');
+    const isWarning = normalized.includes('warning') || normalized.includes('beep');
+    const isCash = normalized.includes('cash register') || normalized.includes('register');
+    const isSuccess = normalized.includes('success');
+    const isKitchen = normalized.includes('kitchen');
+
+    type Tone = { freq: number; time: number; duration: number; wave?: OscillatorType; gain?: number };
+    let notes: Tone[];
+
+    if (isSiren) {
+      notes = [
+        { freq: 920, time: 0, duration: 0.16, wave: 'square', gain: 0.32 },
+        { freq: 1320, time: 0.2, duration: 0.16, wave: 'square', gain: 0.32 },
+        { freq: 920, time: 0.4, duration: 0.16, wave: 'square', gain: 0.32 },
+        { freq: 1480, time: 0.6, duration: 0.3, wave: 'square', gain: 0.34 },
+      ];
+    } else if (isWarning) {
+      notes = [
+        { freq: 880, time: 0, duration: 0.13, wave: 'square', gain: 0.22 },
+        { freq: 880, time: 0.2, duration: 0.2, wave: 'square', gain: 0.22 },
+      ];
+    } else if (isCash) {
+      // Short high-low metallic register cue; intentionally distinct from success.
+      notes = [
+        { freq: 1567.98, time: 0, duration: 0.08, wave: 'triangle', gain: 0.18 },
+        { freq: 1174.66, time: 0.07, duration: 0.09, wave: 'triangle', gain: 0.17 },
+        { freq: 1975.53, time: 0.16, duration: 0.2, wave: 'sine', gain: 0.19 },
+      ];
+    } else if (isSuccess) {
+      // Warm ascending confirmation.
+      notes = [
+        { freq: 523.25, time: 0, duration: 0.13, wave: 'sine', gain: 0.2 },
+        { freq: 659.25, time: 0.11, duration: 0.14, wave: 'sine', gain: 0.21 },
+        { freq: 783.99, time: 0.23, duration: 0.32, wave: 'sine', gain: 0.2 },
+      ];
+    } else if (isKitchen) {
+      // Crisp double-call that cuts through kitchen noise without sounding urgent.
+      notes = [
+        { freq: 659.25, time: 0, duration: 0.12, wave: 'triangle', gain: 0.23 },
+        { freq: 987.77, time: 0.14, duration: 0.18, wave: 'triangle', gain: 0.24 },
+        { freq: 783.99, time: 0.38, duration: 0.12, wave: 'triangle', gain: 0.22 },
+        { freq: 1174.66, time: 0.52, duration: 0.24, wave: 'triangle', gain: 0.24 },
+      ];
+    } else {
+      notes = [
+        { freq: 659.25, time: 0, duration: 0.15, wave: 'sine', gain: 0.22 },
+        { freq: 783.99, time: 0.12, duration: 0.15, wave: 'sine', gain: 0.22 },
+        { freq: 1046.5, time: 0.24, duration: 0.36, wave: 'sine', gain: 0.22 },
+      ];
+    }
 
     notes.forEach((note) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const startAt = ctx.currentTime + note.time;
+      const peak = note.gain ?? 0.22;
 
-      osc.type = urgent || warning ? 'square' : 'sine';
-      osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
-
-      gain.gain.setValueAtTime(0, ctx.currentTime + note.time);
-      gain.gain.linearRampToValueAtTime(urgent ? 0.38 : warning ? 0.22 : 0.25, ctx.currentTime + note.time + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + note.time + note.duration);
+      osc.type = note.wave ?? 'sine';
+      osc.frequency.setValueAtTime(note.freq, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.linearRampToValueAtTime(peak, startAt + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, startAt + note.duration);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-
-      osc.start(ctx.currentTime + note.time);
-      osc.stop(ctx.currentTime + note.time + note.duration);
+      osc.start(startAt);
+      osc.stop(startAt + note.duration + 0.02);
     });
-  } catch (err) {
-    // Suppress console warning for autoplay restriction
+  } catch {
+    // Browser autoplay / unavailable audio should never break POS workflow.
   }
 };
 
