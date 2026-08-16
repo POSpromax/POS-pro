@@ -355,7 +355,6 @@ export class BluetoothPrinterService {
     text += '\x1B\x61\x01';
     text += centerText(profile.name.toUpperCase());
     text += centerText(`NOTA ${order.orderNumber}`);
-    text += centerText(profile.address);
     if (profile.phone) text += centerText(`Telp: ${profile.phone}`);
     text += separator;
 
@@ -387,6 +386,7 @@ export class BluetoothPrinterService {
     }
     text += separator;
     text += '\x1B\x61\x01';
+    if (profile.address) text += centerText(profile.address);
     text += centerText(profile.receiptFooter || 'TERIMA KASIH ATAS KUNJUNGAN ANDA');
     text += '\n\n\n';
     if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
@@ -410,9 +410,10 @@ export class BluetoothPrinterService {
     const endTime = shift.endTime ? new Date(shift.endTime) : new Date();
     let text = '\x1B\x40\x1B\x61\x01';
     text += center(profile.name.toUpperCase());
+    if (profile.phone) text += center(`Telp: ${profile.phone}`);
     text += '\x1D\x21\x11' + center('Z-REPORT') + '\x1D\x21\x00';
     text += separator + '\x1B\x61\x00';
-    text += justify('SHIFT', shift.id);
+    text += justify('SHIFT', shift.id.slice(-8).toUpperCase());
     text += justify('BUKA', new Date(shift.startTime).toLocaleString('id-ID'));
     text += justify('TUTUP', endTime.toLocaleString('id-ID'));
     text += justify('KASIR', shift.staffName || '-');
@@ -430,7 +431,9 @@ export class BluetoothPrinterService {
     text += justify('EXPECTED CASH', money(report.expectedCash));
     text += justify('ACTUAL CASH', money(report.actualCash));
     text += justify('SELISIH', money(report.varianceAmount));
-    text += separator + '\x1B\x61\x01' + center('SHIFT CLOSED') + '\n\n\n';
+    text += separator + '\x1B\x61\x01';
+    if (profile.address) text += center(profile.address);
+    text += center('SHIFT CLOSED') + '\n\n\n';
     if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
     return encoder.encode(text);
   }

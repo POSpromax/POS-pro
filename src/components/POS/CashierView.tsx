@@ -458,7 +458,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // antrean & riwayat kasir otomatis mulai dari 0 tiap buka shift baru. Riwayat
   // lengkap lintas shift ada di menu Laporan.
   const activeHoldOrders = sortOrdersFifo(orders.filter((o) => !isOrderClosed(o)));
-  const historyShiftOrders = sortOrdersNewestFirst(orders.filter((o) => isOrderClosed(o)));
+  const historyShiftOrders = sortOrdersNewestFirst(orders.filter((order) => (
+    isOrderClosed(order) && order.completedShiftId === currentShift.id
+  )));
   const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
   const activeFifoRanks = buildFifoRankMap(activeHoldOrders);
 
@@ -921,9 +923,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
               )}
 
               {/* Highlighted Total Box */}
-              <div className="p-3 rounded-2xl flex items-center justify-between" style={{ background: '#F0FDF4', borderColor: '#A7F3D0', borderWidth: '1px' }}>
-                <span className="text-sm font-extrabold text-[#111827]">Total</span>
-                <span className="text-xl sm:text-2xl font-extrabold font-mono" style={{ color: '#047857' }}>
+              <div className="flex items-center justify-between rounded-xl px-2.5 py-2" style={{ background: '#F0FDF4', borderColor: '#A7F3D0', borderWidth: '1px' }}>
+                <span className="text-[11px] font-extrabold uppercase tracking-wide text-[#111827]">Total</span>
+                <span className="text-lg font-extrabold font-mono" style={{ color: '#047857' }}>
                   Rp {total.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -934,22 +936,22 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsVoidModalOpen(true)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
                     title="Void pesanan dengan persetujuan"
+                    aria-label="Void pesanan"
                   >
                     <Ban className="h-4 w-4" />
-                    <span className="text-xs font-extrabold">Void</span>
                   </button>
                 )}
                 <button
                   type="button"
                   disabled={cartItems.length === 0}
                   onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                  className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white p-3 text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50"
                   title="Cetak Tagihan"
+                  aria-label="Cetak tagihan"
                 >
                   <Printer className="w-4 h-4" />
-                  <span className="text-xs font-extrabold">Cetak</span>
                 </button>
 
                 <button
@@ -977,7 +979,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 ) : isLoadedPaidActive ? (
                   <div className="col-span-full flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
                     <Clock className="h-4 w-4" />
-                    <span>Lunas · Menunggu Kitchen Selesai</span>
+                    <span>Lunas</span>
                   </div>
                 ) : (
                   <button
