@@ -1,4 +1,4 @@
-import { Order, RestaurantProfile, PrinterConfig } from '../types/pos';
+import { Order, RestaurantProfile, PrinterConfig, Shift } from '../types/pos';
 import {
   connectAndroidPrinter,
   disconnectAndroidPrinter,
@@ -25,6 +25,17 @@ export interface PrinterConnectionResult {
   transport?: PrinterTransport;
   configPatch?: Partial<PrinterConfig>;
   error?: string;
+}
+
+export interface ZReportData {
+  shift: Shift;
+  qrisSales: number;
+  debitSales: number;
+  totalDiscount: number;
+  totalTax: number;
+  expectedCash: number;
+  actualCash: number;
+  varianceAmount: number;
 }
 
 const BLE_SERVICE_UUIDS = [
@@ -261,6 +272,10 @@ export class BluetoothPrinterService {
     return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config), config));
   }
 
+  static async printZReport(report: ZReportData, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
+    return this.enqueuePrint(() => this.performPrint(this.generateZReportBytes(report, profile, config), config));
+  }
+
   static async testPrint(config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
     const width = config.paperSize === '80mm' ? 48 : 32;
     const now = new Date().toLocaleString('id-ID');
@@ -382,6 +397,48 @@ export class BluetoothPrinterService {
     return encoder.encode(text);
   }
 
+  static generateZReportBytes(report: ZReportData, profile: RestaurantProfile, config: PrinterConfig): Uint8Array {
+    const encoder = new TextEncoder();
+    const lineWidth = config.paperSize === '80mm' ? 48 : 32;
+    const separator = '-'.repeat(lineWidth) + '\n';
+    const center = (value: string) => {
+      const text = value.slice(0, lineWidth);
+      return `${' '.repeat(Math.max(0, Math.floor((lineWidth - text.length) / 2)))}${text}\n`;
+    };
+    const justify = (left: string, right: string) => {
+      const gap = lineWidth - left.length - right.length;
+      return gap > 0 ? `${left}${' '.repeat(gap)}${right}\n` : `${left.slice(0, Math.max(0, lineWidth - right.length - 1))} ${right}\n`;
+    };
+    const money = (value: number) => `Rp ${value.toLocaleString('id-ID')}`;
+    const { shift } = report;
+    const endTime = shift.endTime ? new Date(shift.endTime) : new Date();
+    let text = '\x1B\x40\x1B\x61\x01';
+    text += center(profile.name.toUpperCase());
+    text += '\x1D\x21\x11' + center('Z-REPORT') + '\x1D\x21\x00';
+    text += separator + '\x1B\x61\x00';
+    text += justify('SHIFT', shift.id);
+    text += justify('BUKA', new Date(shift.startTime).toLocaleString('id-ID'));
+    text += justify('TUTUP', endTime.toLocaleString('id-ID'));
+    text += justify('KASIR', shift.staffName || '-');
+    text += separator;
+    text += justify('MODAL AWAL', money(shift.initialCash));
+    text += justify('CASH', money(shift.cashSales));
+    text += justify('QRIS', money(report.qrisSales));
+    text += justify('DEBIT', money(report.debitSales));
+    text += justify('DISKON', `-${money(report.totalDiscount)}`);
+    text += justify('PAJAK', money(report.totalTax));
+    text += justify('TOTAL OMZET', money(shift.grossOmset));
+    text += separator;
+    text += justify('PEMASUKAN', money(shift.totalIncome));
+    text += justify('PENGELUARAN', `-${money(shift.totalExpense)}`);
+    text += justify('EXPECTED CASH', money(report.expectedCash));
+    text += justify('ACTUAL CASH', money(report.actualCash));
+    text += justify('SELISIH', money(report.varianceAmount));
+    text += separator + '\x1B\x61\x01' + center('SHIFT CLOSED') + '\n\n\n';
+    if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
+    return encoder.encode(text);
+  }
+
   /**
    * Tiket produksi sengaja tidak membawa harga, total, ataupun metode bayar.
    * Kertas dapur hanya memuat informasi yang diperlukan untuk memasak dan
@@ -391,10 +448,6 @@ export class BluetoothPrinterService {
     const encoder = new TextEncoder();
     const lineWidth = config.paperSize === '80mm' ? 48 : 32;
     const separator = '-'.repeat(lineWidth) + '\n';
-    const center = (value: string) => {
-      const text = value.slice(0, lineWidth);
-      return `${' '.repeat(Math.max(0, Math.floor((lineWidth - text.length) / 2)))}${text}\n`;
-    };
     const wrap = (value: string, prefix = '') => {
       const width = Math.max(8, lineWidth - prefix.length);
       const words = value.trim().split(/\s+/);
@@ -418,18 +471,14 @@ export class BluetoothPrinterService {
       hour: '2-digit', minute: '2-digit',
     });
     const orderLabel = order.dailyNumber ? `#${String(order.dailyNumber).padStart(3, '0')}` : order.orderNumber;
-    let text = '\x1B\x40\x1B\x61\x01';
-    text += '\x1D\x21\x11';
-    text += center('TIKET DAPUR');
-    text += center(orderLabel);
-    text += '\x1D\x21\x00';
-    text += center(profile.name.toUpperCase());
-    text += separator;
-    text += '\x1B\x61\x00';
-    text += `WAKTU : ${dateTime}\n`;
-    text += `SUMBER: ${order.source === 'SELF_ORDER' ? 'SELF ORDER / HP' : 'POS KASIR'}\n`;
-    text += `TIPE  : ${order.type === 'DINE_IN' ? `DINE IN - MEJA ${order.tableNumber || '-'}` : 'TAKE AWAY'}\n`;
-    text += `NAMA  : ${order.customerName || 'Guest'}\n`;
+    const orderContext = [
+      orderLabel,
+      order.type === 'DINE_IN' ? `MEJA ${order.tableNumber || '-'}` : 'TAKE AWAY',
+      dateTime,
+    ].join('   ');
+    let text = '\x1B\x40\x1B\x61\x00';
+    text += wrap(orderContext);
+    text += wrap(`${order.source === 'SELF_ORDER' ? 'SELF ORDER' : 'POS KASIR'} · ${order.customerName || 'Guest'}`);
     text += separator;
 
     order.items.forEach((item, index) => {
@@ -437,21 +486,17 @@ export class BluetoothPrinterService {
       text += wrap(`${item.quantity}x ${item.menuName}`);
       text += '\x1D\x21\x00';
       item.selectedCondiments?.forEach((group) => {
-        text += wrap(`${group.groupName}: ${group.options.join(', ')}`, '  + ');
+        text += wrap(`${group.groupName.toUpperCase()}: ${group.options.join(', ')}`, '    ');
       });
-      if (item.notes) text += wrap(`CATATAN ITEM: ${item.notes}`, '  ! ');
-      if (index < order.items.length - 1) text += '. '.repeat(Math.floor(lineWidth / 2)) + '\n';
+      if (item.notes) text += wrap(item.notes, '    ! ');
+      if (index < order.items.length - 1) text += '\n';
     });
 
     if (order.notes) {
       text += separator;
-      text += '\x1B\x45\x01';
-      text += wrap(`CATATAN ORDER: ${order.notes}`);
-      text += '\x1B\x45\x00';
+      text += wrap(order.notes, '! ');
     }
-    text += separator;
-    text += '\x1B\x61\x01' + center('CEK ITEM SEBELUM SELESAI');
-    text += '\n\n\n';
+    text += `${separator}\n\n`;
     if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
     return encoder.encode(text);
   }

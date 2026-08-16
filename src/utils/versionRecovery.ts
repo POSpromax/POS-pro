@@ -3,7 +3,7 @@ const RECOVERY_WINDOW_MS = 30_000;
 
 export function isAssetVersionError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error || '');
-  return /dynamically imported module|failed to fetch|module script|importing a module script|preload|404|bad-precaching-response/i.test(message);
+  return /failed to fetch dynamically imported module|importing a module script failed|vite preload error|chunkloaderror|module script.*(?:mime|load|failed)|bad-precaching-response/i.test(message);
 }
 
 async function clearApplicationCodeCaches(): Promise<void> {

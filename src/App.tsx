@@ -15,7 +15,7 @@ import { CustomerTableManagementModal } from './components/SelfOrder/CustomerTab
 import { QuickTableModal } from './components/Tables/QuickTableModal';
 import { QrLabelPrintModal } from './components/Tables/QrLabelPrintModal';
 import { playNewOrderSound, playSelfOrderAlertSound } from './utils/audioNotification';
-import { BluetoothPrinterService } from './services/bluetoothPrinter';
+import { BluetoothPrinterService, type ZReportData } from './services/bluetoothPrinter';
 
 import {
   MenuItem,
@@ -51,7 +51,7 @@ import {
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { listCloudOrders, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -65,6 +65,7 @@ import { buildBranchSelfOrderUrl } from './utils/selfOrderUrl';
 import { normalizeBranchId } from './utils/branchId';
 import { recoverFromAssetVersionError } from './utils/versionRecovery';
 import { BranchRuntimeGuard } from './utils/branchRuntime';
+import { buildOrderItemVariantKey } from './utils/orderItemIdentity';
 
 const lazyWithVersionRecovery = <T extends React.ComponentType<any>>(
   key: string,
@@ -108,6 +109,68 @@ const condimentCloudSaveTimers = new Map<string, number>();
 const CLOUD_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isCloudUuid = (id?: string | null): boolean => CLOUD_UUID_PATTERN.test(String(id || ''));
 const isCloudOrderId = (id: string): boolean => isCloudUuid(id);
+
+const normalizeOrderItemsForComparison = (items: Order['items'] = []) => {
+  const quantities = new Map<string, number>();
+  items.forEach((item) => {
+    const key = buildOrderItemVariantKey(item);
+    quantities.set(key, (quantities.get(key) || 0) + item.quantity);
+  });
+  return [...quantities.entries()].sort(([left], [right]) => left.localeCompare(right, 'id'));
+};
+
+const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean => {
+  const comparableDraft = {
+    customerName: draft.customerName || 'Guest',
+    tableNumber: draft.tableNumber || '',
+    type: draft.type,
+    items: normalizeOrderItemsForComparison(draft.items),
+    subtotal: draft.subtotal || 0,
+    discount: draft.discount || 0,
+    tax: draft.tax || 0,
+    total: draft.total || 0,
+    condimentsEnabled: draft.condimentsEnabled !== false,
+  };
+  const comparableSaved = {
+    customerName: saved.customerName || 'Guest',
+    tableNumber: saved.tableNumber || '',
+    type: saved.type,
+    items: normalizeOrderItemsForComparison(saved.items),
+    subtotal: saved.subtotal || 0,
+    discount: saved.discount || 0,
+    tax: saved.tax || 0,
+    total: saved.total || 0,
+    condimentsEnabled: saved.condimentsEnabled !== false,
+  };
+  return JSON.stringify(comparableDraft) !== JSON.stringify(comparableSaved);
+};
+
+const getPaidOrdersForShift = (orders: Order[], shiftId: string): Order[] =>
+  orders.filter((order) => order.paidShiftId === shiftId && order.paymentStatus === 'PAID' && order.status !== 'CANCELLED');
+
+const buildZReportData = (shift: Shift, orders: Order[]): ZReportData => {
+  const paidOrders = getPaidOrdersForShift(orders, shift.id);
+  const hasLoadedOrders = paidOrders.length > 0;
+  const sum = (predicate: (order: Order) => boolean, value: (order: Order) => number) =>
+    paidOrders.filter(predicate).reduce((total, order) => total + value(order), 0);
+  const cashSales = hasLoadedOrders ? sum((order) => order.paymentMethod === 'CASH', (order) => order.total) : shift.cashSales;
+  const qrisSales = sum((order) => order.paymentMethod === 'QRIS', (order) => order.total);
+  const debitSales = sum((order) => order.paymentMethod === 'DEBIT', (order) => order.total);
+  const grossOmset = hasLoadedOrders ? paidOrders.reduce((total, order) => total + order.total, 0) : shift.grossOmset;
+  const expectedCash = shift.expectedCash ?? (shift.initialCash + cashSales + shift.totalIncome - shift.totalExpense);
+  const actualCash = shift.actualCash ?? expectedCash;
+
+  return {
+    shift: { ...shift, grossOmset, cashSales },
+    qrisSales,
+    debitSales,
+    totalDiscount: hasLoadedOrders ? paidOrders.reduce((total, order) => total + (order.discount || 0), 0) : 0,
+    totalTax: hasLoadedOrders ? paidOrders.reduce((total, order) => total + (order.tax || 0), 0) : 0,
+    expectedCash,
+    actualCash,
+    varianceAmount: shift.varianceAmount ?? actualCash - expectedCash,
+  };
+};
 
 const normalizeConfiguredTableNumber = (value: string) =>
   String(value || '').trim().replace(/^0+(?=\d)/, '');
@@ -1359,6 +1422,13 @@ export default function App() {
 
   const handleOpenCheckoutModal = (draftOrder: Partial<Order>) => {
     if (!ensureOpenShift('membuka pembayaran')) return;
+    if (cloudReadiness.supabase && isCloudOrderId(draftOrder.id || '')) {
+      const savedOrder = orders.find((order) => order.id === draftOrder.id);
+      if (!savedOrder || hasUnsavedOrderChanges(draftOrder, savedOrder)) {
+        showPushToast('Perubahan Order Belum Disimpan', 'Simpan perubahan order sebelum pembayaran.');
+        return;
+      }
+    }
     setActiveCheckoutOrder(draftOrder);
     setIsPaymentModalOpen(true);
   };
@@ -1383,7 +1453,9 @@ export default function App() {
         return;
       }
       try {
-        saved = await submitCloudOrder(fullOrder);
+        saved = isCloudOrderId(fullOrder.id)
+          ? await payCloudOrder(currentBranch.id, fullOrder.id, paymentMethod, cashPaid, currentShift.id)
+          : await submitCloudOrder(fullOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
         await refreshBranchTables(saved.branchId);
       } catch (error) {
@@ -1421,6 +1493,15 @@ export default function App() {
       showPushToast('Struk Tercetak', `Struk ${order.orderNumber} berhasil dikirim ke printer.`);
     } else {
       showPushToast('Cetak Gagal', result.error || `Struk ${order.orderNumber} belum tercetak. Buka Setup Printer lalu coba ulang.`);
+    }
+  };
+
+  const printZReport = async (shift: Shift, shiftOrders: Order[]) => {
+    const result = await BluetoothPrinterService.printZReport(buildZReportData(shift, shiftOrders), profile, printerConfig);
+    if (result.success) {
+      showPushToast('Z-Report Tercetak', `Laporan shift ${shift.id} berhasil dikirim ke printer.`);
+    } else {
+      showPushToast('Cetak Z-Report Gagal', result.error || 'Shift tetap ditutup. Gunakan Reprint Z-Report dari riwayat shift.');
     }
   };
 
@@ -2333,11 +2414,14 @@ export default function App() {
           {activeTab === 'shift' && (
             <ShiftMonitorView
               currentShift={currentShift}
-              orders={branchOrders.filter((order) => (order.createdShiftId || order.shiftId) === currentShift.id)}
+              orders={branchOrders}
               expenseRecords={expenseRecords.filter((r) => r.shiftId === currentShift.id)}
               shiftHistory={shiftHistory}
               activeUser={activeUser}
               onShowToast={showPushToast}
+              onReprintZReport={async (shift) => {
+                await printZReport(shift, branchOrders);
+              }}
               onAddExpenseIncome={(rec) => {
                 if (!cloudReadiness.supabase) {
                   DBStorage.addExpenseOrIncome(rec);
@@ -2357,12 +2441,10 @@ export default function App() {
                 const cloudShift = await getCloudActiveShift(currentBranch.id);
                 setCurrentShift(cloudShift || createInactiveShift(currentBranch.id));
               }}
-              onCloseShift={async (notes, actualCash, expectedCash) => {
+              onCloseShift={async (notes, actualCash, expectedCash, shouldPrintZReport) => {
                 // Snapshot shift and all data BEFORE any async operation
                 const shiftBeingClosed = { ...currentShift };
-                const ordersForShift = orders.filter(
-                  (o) => o.shiftId === shiftBeingClosed.id && o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'
-                );
+                const ordersForShift = getPaidOrdersForShift(orders, shiftBeingClosed.id);
 
                 // Recalculate metrics from orders in case cloud sync already zeroed currentShift
                 if (ordersForShift.length > 0 && shiftBeingClosed.grossOmset === 0) {
@@ -2392,7 +2474,15 @@ export default function App() {
                     });
                   }
                   const closed = cloudReadiness.supabase
-                    ? { ...shiftBeingClosed, status: 'CLOSED' as const, endTime: new Date().toISOString(), notes }
+                    ? {
+                      ...shiftBeingClosed,
+                      status: 'CLOSED' as const,
+                      endTime: new Date().toISOString(),
+                      notes,
+                      actualCash,
+                      expectedCash,
+                      varianceAmount: actualCash - expectedCash,
+                    }
                     : DBStorage.closeShift(notes, shiftBeingClosed);
                   setShiftHistory((current) => [closed, ...current.filter((shift) => shift.id !== closed.id)]);
                   setCurrentShift(closed);
@@ -2404,6 +2494,7 @@ export default function App() {
                   }
 
                   showPushToast('Shift Ditutup', 'Shift telah ditutup. Riwayat & laporan tersimpan.');
+                  if (shouldPrintZReport) await printZReport(closed, ordersForShift);
                 } catch (error) {
                   showPushToast(
                     'Shift Belum Ditutup',

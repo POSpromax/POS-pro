@@ -37,10 +37,10 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          // Jangan precache app-shell HTML. Pada POS multi-perangkat, HTML lama
+          // Jangan cache app-shell HTML. Pada POS multi-perangkat, HTML lama
           // dapat menunjuk ke chunk yang sudah tidak ada dan membuat perubahan
-          // cabang/QR tampak tidak pernah terdeploy. Navigasi tetap tersedia
-          // offline dari cache NetworkFirst setelah pernah dibuka.
+          // cabang/QR tampak tidak pernah terdeploy. Refresh online wajib
+          // mengambil index terbaru dari deployment.
           // Jangan precache bundle JS/CSS ber-hash. Vercel hanya menyimpan aset
           // deployment aktif; instalasi SW lama yang terjadi setelah deploy
           // dapat menerima 404 dan gagal total bila chunk ikut diprecache.
@@ -51,19 +51,6 @@ export default defineConfig(() => {
           clientsClaim: false,
           skipWaiting: false,
           runtimeCaching: [
-            {
-              urlPattern: ({request}) => request.mode === 'navigate',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pos-navigation-v3',
-                networkTimeoutSeconds: 4,
-                cacheableResponse: {statuses: [0, 200]},
-                expiration: {
-                  maxEntries: 12,
-                  maxAgeSeconds: 60 * 60 * 24,
-                },
-              },
-            },
             {
               urlPattern: /^https:\/\/res\.cloudinary\.com\//i,
               handler: 'CacheFirst',

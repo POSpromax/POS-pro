@@ -924,12 +924,12 @@ export const CashierView: React.FC<CashierViewProps> = ({
               </div>
 
               {/* Bottom Action Buttons */}
-              <div className="flex items-center gap-2 pt-0.5">
+              <div className="grid grid-cols-3 gap-2 pt-0.5 pb-[max(12px,env(safe-area-inset-bottom))]">
                 {currentEditingOrder && !isLoadedClosed && onVoidOrder && ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && (
                   <button
                     type="button"
                     onClick={() => setIsVoidModalOpen(true)}
-                    className="flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
+                    className="col-span-1 flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
                     title="Void pesanan dengan persetujuan"
                     aria-label="Void pesanan"
                   >
@@ -940,7 +940,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   type="button"
                   disabled={cartItems.length === 0}
                   onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                  className="p-3 rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+                  className="col-span-1 flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 text-slate-700 transition-colors hover:bg-slate-50"
                   title="Cetak Tagihan"
                 >
                   <Printer className="w-4 h-4" />
@@ -956,7 +956,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onSaveHoldOrder(draft);
                     handleClearCart();
                   }}
-                  className="flex items-center justify-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-[#111827] font-extrabold text-xs py-3 px-3.5 rounded-2xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="col-span-1 flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-extrabold text-[#111827] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Save className="w-4 h-4" style={{ color: '#047857' }} />
                   <span>Simpan</span>
@@ -964,12 +964,12 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
                 {isLoadedClosed ? (
                   /* Order sudah selesai/batal: hanya penanda, tidak ada aksi. */
-                  <div className="flex-1 flex items-center justify-center gap-2 font-extrabold text-xs py-3 px-4 rounded-2xl bg-slate-100 text-slate-500 select-none">
+                  <div className="col-span-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-xs font-extrabold text-slate-500 select-none">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{loadedStatus === 'CANCELLED' ? 'Pesanan Dibatalkan' : 'Pesanan Selesai'}</span>
                   </div>
                 ) : isLoadedPaidActive ? (
-                  <div className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
+                  <div className="col-span-3 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
                     <Clock className="h-4 w-4" />
                     <span>Lunas · Menunggu Kitchen Selesai</span>
                   </div>
@@ -982,7 +982,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       setPendingConfirm(null);
                       onOpenCheckoutModal(buildCurrentOrderDraft());
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 text-white font-extrabold text-xs py-3 px-4 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="col-span-3 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                     style={{
                       background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
                       color: '#ffffff',

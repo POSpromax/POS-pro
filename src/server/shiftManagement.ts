@@ -123,6 +123,9 @@ async function mapShift(row: any, admin: SupabaseClient) {
     ...metrics,
     status: row.status === 'CLOSED' ? 'CLOSED' : 'OPEN',
     notes: row.variance_reason || undefined,
+    actualCash: row.actual_cash == null ? undefined : Number(row.actual_cash),
+    expectedCash: row.expected_cash == null ? undefined : Number(row.expected_cash),
+    varianceAmount: row.variance_amount == null ? undefined : Number(row.variance_amount),
     branchId: row.branch_id,
   };
 }

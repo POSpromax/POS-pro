@@ -27,7 +27,8 @@ interface ShiftMonitorViewProps {
   shiftHistory?: Shift[];
   activeUser?: UserAccount;
   onAddExpenseIncome: (record: ExpenseIncomeRecord) => void;
-  onCloseShift: (notes: string, actualCash: number, expectedCash: number) => Promise<void>;
+  onCloseShift: (notes: string, actualCash: number, expectedCash: number, shouldPrintZReport: boolean) => Promise<void>;
+  onReprintZReport?: (shift: Shift) => Promise<void>;
   onOpenNewShift: (staffName: string, role: any, initialCash: number) => Promise<void>;
   onRefreshShift?: () => Promise<void>;
   onShowToast?: (title: string, message: string) => void;
@@ -41,6 +42,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   activeUser,
   onAddExpenseIncome,
   onCloseShift,
+  onReprintZReport,
   onOpenNewShift,
   onRefreshShift,
   onShowToast
@@ -57,6 +59,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const [selectedHistoryShift, setSelectedHistoryShift] = useState<Shift | null>(null);
   const [closeNotes, setCloseNotes] = useState<string>('');
   const [actualCashInput, setActualCashInput] = useState<number | ''>('');
+  const [shouldPrintZReport, setShouldPrintZReport] = useState(true);
   const [handoverStaffName, setHandoverStaffName] = useState<string>('');
   const [isShiftMutationPending, setIsShiftMutationPending] = useState(false);
 
@@ -147,15 +150,16 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   // ── Filter semua data hanya untuk shift yang sedang aktif ─────────────────
   // Ini memastikan statistik tidak mencampur data dari shift sebelumnya
   // dalam kasus edge di mana orders belum ter-clear saat shift dibuka ulang.
-  const shiftOrders = orders.filter((o) => o.shiftId === currentShift.id);
+  const shiftOrders = orders.filter((o) => o.paidShiftId === currentShift.id && o.status !== 'CANCELLED');
+  const createdShiftOrders = orders.filter((o) => (o.createdShiftId || o.shiftId) === currentShift.id);
   const activeOrders = shiftOrders.filter((o) => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID');
-  const voidOrders = shiftOrders.filter((o) => o.status === 'CANCELLED');
+  const voidOrders = createdShiftOrders.filter((o) => o.status === 'CANCELLED');
   const discountedOrders = shiftOrders.filter((o) => (o.discount ?? 0) > 0);
 
   // Fallback: kalkulasi dari orders jika shift counter belum terupdate
   const grossOmset = currentShift.grossOmset > 0
     ? currentShift.grossOmset
-    : activeOrders.reduce((sum, o) => sum + (o.subtotal || o.total), 0);
+    : activeOrders.reduce((sum, o) => sum + o.total, 0);
 
   const tunaiSales = currentShift.cashSales > 0
     ? currentShift.cashSales
@@ -590,6 +594,16 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                 />
               </div>
 
+              <label className="flex cursor-pointer items-center gap-2 text-[11px] font-bold text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={shouldPrintZReport}
+                  onChange={(event) => setShouldPrintZReport(event.target.checked)}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                Cetak Z-Report setelah shift ditutup
+              </label>
+
               {/* Action Buttons */}
               <div className="flex items-center gap-3 pt-2">
                 <button
@@ -606,7 +620,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                     const diff = actualVal - cashInDrawer;
                     const selisihNote = ` [Uang Fisik: Rp ${actualVal.toLocaleString('id-ID')}, Selisih: Rp ${diff.toLocaleString('id-ID')}]`;
                     setIsShiftMutationPending(true);
-                    void onCloseShift((closeNotes + selisihNote).trim(), actualVal, cashInDrawer)
+                    void onCloseShift((closeNotes + selisihNote).trim(), actualVal, cashInDrawer, shouldPrintZReport)
                       .then(() => setIsCloseModalOpen(false))
                       .catch(() => undefined)
                       .finally(() => setIsShiftMutationPending(false));
@@ -729,7 +743,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   const actualVal = Number(actualCashInput || cashInDrawer);
                   const handoverNotes = `[HANDOVER] Serah terima shift ke ${handoverStaffName}. Uang fisik: Rp ${Number(actualCashInput || cashInDrawer).toLocaleString('id-ID')}`;
                   setIsShiftMutationPending(true);
-                  void onCloseShift(handoverNotes, actualVal, cashInDrawer)
+                  void onCloseShift(handoverNotes, actualVal, cashInDrawer, shouldPrintZReport)
                     .then(() => setIsHandoverModalOpen(false))
                     .catch(() => undefined)
                     .finally(() => setIsShiftMutationPending(false));
@@ -1028,6 +1042,19 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                               style={{ background: 'var(--surface-card)', border: '1px solid var(--panel-border)', color: 'var(--text-secondary)' }}>
                               <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Catatan: </span>
                               {shf.notes}
+                            </div>
+                          )}
+
+                          {onReprintZReport && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => { void onReprintZReport(shf); }}
+                                className="ui-button ui-button-secondary gap-1.5 px-4 py-2 text-[11px]"
+                              >
+                                <Receipt className="h-3.5 w-3.5" />
+                                Reprint Z-Report
+                              </button>
                             </div>
                           )}
 
