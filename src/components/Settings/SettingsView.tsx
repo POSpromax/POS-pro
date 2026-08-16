@@ -1061,7 +1061,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           event.target.value = '';
                           if (!file) return;
                           setIsUploadingWallpaper(true);
-                          void uploadImage(file, 'self-order-wallpaper', currentBranch.id)
+                          void uploadImage(file, 'branding', currentBranch.id)
                             .then((uploaded) => {
                               setFormProfile((current) => ({ ...current, wallpaperBackgroundUrl: uploaded.secureUrl }));
                               toast('Wallpaper Berhasil Diunggah', 'Preview sudah diperbarui. Simpan perubahan agar digunakan pelanggan.');
