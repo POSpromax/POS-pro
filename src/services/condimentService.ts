@@ -196,3 +196,63 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
   if (!saved) throw new Error('Grup tersimpan tetapi gagal dimuat ulang.');
   return saved;
 }
+
+
+export async function deleteCloudCondimentGroup(groupId: string, branchId: string): Promise<void> {
+  if (!UUID_PATTERN.test(groupId)) return;
+  const { supabase, tenantId } = await tenantContext();
+
+  // There is no multi-table client transaction in supabase-js. We therefore use
+  // a compensating workflow: snapshot metadata + options, remove scope metadata,
+  // try deleting the group (works directly when FK is CASCADE), and only fall back
+  // to deleting child rows when the FK requires it. If the final delete fails, the
+  // previous scope/options are restored as best effort so a half-deleted group is
+  // not silently left behind.
+  const [{ data: config, error: configReadError }, { data: optionSnapshot, error: optionReadError }] = await Promise.all([
+    supabase.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
+    supabase.from('condiment_options').select('id,group_id,name,price,is_available,sort_order').eq('group_id', groupId),
+  ]);
+  if (configReadError) throw new Error(configReadError.message);
+  if (optionReadError) throw new Error(optionReadError.message);
+
+  const previousScopes = { ...(((config?.condiment_scopes || {}) as ScopeConfig)) };
+  const nextScopes = { ...previousScopes };
+  delete nextScopes[groupId];
+
+  const writeScopes = async (scopes: ScopeConfig) => {
+    const { error } = await supabase.from('branch_operational_config').upsert(
+      { branch_id: branchId, tenant_id: tenantId, condiment_scopes: scopes },
+      { onConflict: 'branch_id' },
+    );
+    if (error) throw new Error(error.message);
+  };
+
+  await writeScopes(nextScopes);
+
+  const deleteGroup = async () => supabase
+    .from('condiment_groups')
+    .delete()
+    .eq('id', groupId)
+    .eq('branch_id', branchId);
+
+  const firstAttempt = await deleteGroup();
+  if (!firstAttempt.error) return;
+
+  // FK without cascade: delete children then retry parent.
+  const { error: optionDeleteError } = await supabase.from('condiment_options').delete().eq('group_id', groupId);
+  if (optionDeleteError) {
+    await writeScopes(previousScopes).catch(() => undefined);
+    throw new Error(optionDeleteError.message);
+  }
+
+  const secondAttempt = await deleteGroup();
+  if (!secondAttempt.error) return;
+
+  // Best-effort compensation. Preserve UUIDs and sort order so the editor can
+  // recover to the same logical configuration if the parent delete ultimately fails.
+  if ((optionSnapshot || []).length) {
+    try { await supabase.from('condiment_options').insert(optionSnapshot as any[]); } catch { /* best effort compensation */ }
+  }
+  await writeScopes(previousScopes).catch(() => undefined);
+  throw new Error(secondAttempt.error.message || firstAttempt.error.message);
+}

@@ -13,6 +13,7 @@ import {
   Layers3,
   ListChecks,
   Loader2,
+  MoreVertical,
   PackageCheck,
   Plus,
   Save,
@@ -34,6 +35,7 @@ type Props = {
   condimentGroups: CondimentGroup[];
   menuItems: MenuItem[];
   onSaveCondimentGroup: (group: CondimentGroup) => Promise<SaveResult> | SaveResult;
+  onDeleteCondimentGroup?: (groupId: string) => Promise<void> | void;
   onShowToast?: (title: string, message: string) => void;
 };
 
@@ -90,6 +92,8 @@ const groupIssues = (group: CondimentGroup) => {
   if (required && Number(group.minSelect || 0) < 1) warnings.push('Grup wajib sebaiknya memiliki minimum 1.');
 
   const activeSet = new Set(available.map((option) => normalize(option.name)));
+  const targetsBakso = categories.includes('BAKSO') || categories.includes('ALL');
+  if (role !== 'NONE' && !targetsBakso) warnings.push('Peran Kuah/Racikan Cepat terpasang di luar kategori BAKSO. Pastikan ini memang disengaja.');
   if (role === 'BROTH') {
     if (!isSingle(group)) errors.push('Peran Kuah harus menggunakan mode Pilih 1.');
     if (!required) errors.push('Peran Kuah harus Wajib.');
@@ -100,10 +104,16 @@ const groupIssues = (group: CondimentGroup) => {
   if (role === 'FILLING') {
     if (isSingle(group)) errors.push('Peran Isian/Racikan Cepat harus menggunakan mode Pilih Banyak.');
     if (!required) errors.push('Peran Isian/Racikan Cepat harus Wajib.');
-    const baksoOnly = (group.selfOrderBaksoOnlyOptions || []).filter((name) => activeSet.has(normalize(name)));
-    const campur = (group.selfOrderCampurOptions || []).filter((name) => activeSet.has(normalize(name)));
-    if (!baksoOnly.length) errors.push('Preset Bakso Saja belum memiliki isian.');
-    if (!campur.length) errors.push('Preset Campur belum memiliki isian.');
+
+    // Racikan instan bersifat OPSIONAL. Memilih role FILLING hanya mengaktifkan
+    // kemampuan isian/racikan, bukan otomatis membuat shortcut Bakso Saja/Campur.
+    // Sebuah shortcut dianggap aktif hanya jika memiliki minimal satu opsi.
+    const rawBaksoOnly = group.selfOrderBaksoOnlyOptions || [];
+    const rawCampur = group.selfOrderCampurOptions || [];
+    const baksoOnly = rawBaksoOnly.filter((name) => activeSet.has(normalize(name)));
+    const campur = rawCampur.filter((name) => activeSet.has(normalize(name)));
+    if (rawBaksoOnly.length > 0 && !baksoOnly.length) errors.push('Racikan Bakso Saja tidak memiliki opsi aktif.');
+    if (rawCampur.length > 0 && !campur.length) errors.push('Racikan Campur tidak memiliki opsi aktif.');
     if (baksoOnly.length && campur.length && baksoOnly.every((name) => campur.map(normalize).includes(normalize(name))) && campur.length === baksoOnly.length) {
       warnings.push('Bakso Saja dan Campur memiliki isi yang sama.');
     }
@@ -131,8 +141,19 @@ const ensureOption = (group: CondimentGroup, name: string, price = 0) => {
 const buildBaksoStandard = (currentGroups: CondimentGroup[]) => {
   const now = Date.now();
   const groups = currentGroups.map(cloneGroup);
-  let broth = groups.find((group) => inferRole(group) === 'BROTH');
-  let filling = groups.find((group) => inferRole(group) === 'FILLING');
+  const targetsBakso = (group: CondimentGroup) => {
+    const categories = group.targetCategories || (group.targetCategory ? [group.targetCategory] : []);
+    return categories.includes('BAKSO');
+  };
+  // Deterministic repair: prefer the canonical BAKSO group name, then a role
+  // already scoped to BAKSO. Never hijack an unrelated TEH/AIR MINERAL group
+  // just because legacy data accidentally left a BROTH/FILLING role on it.
+  let broth = groups.find((group) => normalize(group.name) === 'KUAH' && targetsBakso(group))
+    || groups.find((group) => normalize(group.name) === 'KUAH')
+    || groups.find((group) => inferRole(group) === 'BROTH' && targetsBakso(group));
+  let filling = groups.find((group) => normalize(group.name) === 'ISIAN' && targetsBakso(group))
+    || groups.find((group) => normalize(group.name) === 'ISIAN')
+    || groups.find((group) => inferRole(group) === 'FILLING' && targetsBakso(group));
 
   if (!broth) {
     broth = {
@@ -215,16 +236,32 @@ const scopeLabel = (group: CondimentGroup) => {
 
 const ruleLabel = (group: CondimentGroup) => `${isSingle(group) ? 'Pilih 1' : 'Pilih Banyak'} · ${isRequired(group) ? 'Wajib' : 'Opsional'}`;
 
-export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuItems, onSaveCondimentGroup, onShowToast }) => {
+export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuItems, onSaveCondimentGroup, onDeleteCondimentGroup, onShowToast }) => {
   const [selectedId, setSelectedId] = useState<string>('');
   const [drafts, setDrafts] = useState<Record<string, CondimentGroup>>({});
   const [dirtyIds, setDirtyIds] = useState<string[]>([]);
   const [savingIds, setSavingIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [menuSearch, setMenuSearch] = useState('');
+  const [menuFilter, setMenuFilter] = useState<'ALL' | 'SELECTED'>('ALL');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [groupMenuId, setGroupMenuId] = useState<string | null>(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<CondimentGroup | null>(null);
+  const [deleteOptionTarget, setDeleteOptionTarget] = useState<CondimentOption | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [activeStep, setActiveStep] = useState<'TARGET' | 'RULE' | 'OPTIONS' | 'INSTANT' | 'PREVIEW'>('TARGET');
+  // UI target mode cannot be inferred only from selected data.
+  // Example: when user switches CATEGORY -> MENU, categories are intentionally
+  // cleared before a menu is selected. Without this explicit draft state the
+  // inferred mode immediately falls back to CATEGORY, making MENU/MIXED look
+  // locked. Keep the editor mode separately; persisted target data remains the
+  // source of truth after save/reload.
+  const [scopeModes, setScopeModes] = useState<Record<string, ScopeMode>>({});
+  // Shortcut racikan adalah fitur opsional per grup. State ini hanya mengatur
+  // editor draft yang sedang dibuka. Persisted status tetap sederhana:
+  // array preset berisi opsi = aktif, array kosong = tidak aktif.
+  const [instantEditors, setInstantEditors] = useState<Record<string, { baksoOnly?: boolean; campur?: boolean }>>({});
 
   const toast = (title: string, message: string) => onShowToast?.(title, message);
 
@@ -266,6 +303,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
   }, [orderedGroups, search]);
 
   const current = selectedId ? drafts[selectedId] || orderedGroups.find((group) => group.id === selectedId) : undefined;
+  const currentScopeMode: ScopeMode = current ? (scopeModes[current.id] || getScopeMode(current)) : 'CATEGORY';
   const currentIssues = current ? groupIssues(current) : { errors: [], warnings: [], ready: false };
   const dirtySet = new Set(dirtyIds);
   const isCurrentDirty = Boolean(current && dirtySet.has(current.id));
@@ -312,6 +350,12 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     });
     setDirtyIds((ids) => ids.filter((id) => id !== oldId && id !== saved.id));
     setSavingIds((ids) => ids.filter((id) => id !== oldId && id !== saved.id));
+    setScopeModes((modes) => {
+      const next = { ...modes };
+      delete next[oldId];
+      next[saved.id] = getScopeMode(saved);
+      return next;
+    });
     if (selectedId === oldId) setSelectedId(saved.id);
   };
 
@@ -353,12 +397,14 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     const original = condimentGroups.find((group) => group.id === current.id);
     if (original) {
       setDrafts((draftMap) => ({ ...draftMap, [current.id]: cloneGroup(original) }));
+      setScopeModes((modes) => ({ ...modes, [current.id]: getScopeMode(original) }));
     } else {
       setDrafts((draftMap) => {
         const next = { ...draftMap };
         delete next[current.id];
         return next;
       });
+      setScopeModes((modes) => { const next = { ...modes }; delete next[current.id]; return next; });
       const nextId = condimentGroups[0]?.id || '';
       setSelectedId(nextId);
     }
@@ -382,6 +428,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
       selfOrderRole: 'NONE',
     };
     markDirty(group);
+    setScopeModes((modes) => ({ ...modes, [id]: 'CATEGORY' }));
     setSelectedId(id);
     setActiveStep('TARGET');
     setShowTemplateModal(false);
@@ -401,6 +448,14 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     }
     setDrafts(nextDrafts);
     setDirtyIds((ids) => Array.from(new Set([...ids, ...changed])));
+    setScopeModes((modes) => {
+      const next = { ...modes };
+      for (const id of changed) {
+        const group = nextDrafts[id];
+        if (group) next[id] = getScopeMode(group);
+      }
+      return next;
+    });
     setSelectedId(fillingId || brothId);
     setActiveStep('INSTANT');
     setShowTemplateModal(false);
@@ -408,14 +463,22 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
   };
 
   const setScopeMode = (mode: ScopeMode) => {
+    if (!current) return;
+    // Store the user's intent first. MENU/MIXED are valid editor states even
+    // before the first menu/category has been selected.
+    setScopeModes((modes) => ({ ...modes, [current.id]: mode }));
     updateCurrent((group) => {
       if (mode === 'CATEGORY') {
+        // Category-only scope must not retain hidden menu targets.
         group.targetProductIds = [];
         group.targetProductNames = [];
       } else if (mode === 'MENU') {
+        // Menu-only scope must not retain hidden category targets.
         group.targetCategory = undefined;
         group.targetCategories = [];
       }
+      // MIXED intentionally preserves both sides; the user can add either
+      // category or individual menu in any order.
       return group;
     });
   };
@@ -473,7 +536,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     });
   };
 
-  const removeOption = (optionId: string) => {
+  const removeOptionNow = (optionId: string) => {
     updateCurrent((group) => {
       const removed = group.options.find((option) => option.id === optionId);
       group.options = group.options.filter((option) => option.id !== optionId);
@@ -485,6 +548,62 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
       }
       return group;
     });
+    setDeleteOptionTarget(null);
+  };
+
+  const optionUsage = (group: CondimentGroup, option: CondimentOption) => {
+    const usedBy: string[] = [];
+    const has = (values?: string[]) => (values || []).some((name) => normalize(name) === normalize(option.name));
+    if (has(group.selfOrderDefaultOptions)) usedBy.push('Default pilihan Self Order');
+    if (has(group.selfOrderBaksoOnlyOptions)) usedBy.push('Racikan Bakso Saja');
+    if (has(group.selfOrderCampurOptions)) usedBy.push('Racikan Campur');
+    return usedBy;
+  };
+
+  const duplicateGroup = (source: CondimentGroup) => {
+    const copy = cloneGroup(source);
+    copy.id = makeTempId('draft-group-copy');
+    copy.name = `${source.name} COPY`;
+    copy.options = source.options.map((option) => ({ ...option, id: makeTempId('opt') }));
+    markDirty(copy);
+    setScopeModes((modes) => ({ ...modes, [copy.id]: getScopeMode(copy) }));
+    setSelectedId(copy.id);
+    setActiveStep('TARGET');
+    setGroupMenuId(null);
+    toast('Grup Diduplikat', 'Salinan dibuat sebagai draft. Ubah target/nama lalu Simpan Grup.');
+  };
+
+  const deleteGroupNow = async (group: CondimentGroup) => {
+    const isDraftOnly = !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(group.id);
+    if (isDraftOnly) {
+      setDrafts((currentDrafts) => { const next = { ...currentDrafts }; delete next[group.id]; return next; });
+      setDirtyIds((ids) => ids.filter((id) => id !== group.id));
+      setScopeModes((modes) => { const next = { ...modes }; delete next[group.id]; return next; });
+      const nextId = orderedGroups.find((item) => item.id !== group.id)?.id || '';
+      setSelectedId(nextId);
+      setDeleteGroupTarget(null);
+      toast('Draft Dihapus', 'Grup draft dibuang dan belum pernah dikirim ke cloud.');
+      return;
+    }
+    if (!onDeleteCondimentGroup) {
+      toast('Hapus Belum Tersedia', 'Handler penghapusan grup belum terhubung pada aplikasi.');
+      return;
+    }
+    setIsDeletingGroup(true);
+    try {
+      await onDeleteCondimentGroup(group.id);
+      setDrafts((currentDrafts) => { const next = { ...currentDrafts }; delete next[group.id]; return next; });
+      setDirtyIds((ids) => ids.filter((id) => id !== group.id));
+      setScopeModes((modes) => { const next = { ...modes }; delete next[group.id]; return next; });
+      const nextId = orderedGroups.find((item) => item.id !== group.id)?.id || '';
+      setSelectedId(nextId);
+      setDeleteGroupTarget(null);
+      toast('Grup Dihapus', `${group.name} tidak lagi dipakai transaksi baru. Riwayat order tetap aman.`);
+    } catch (error) {
+      toast('Grup Gagal Dihapus', error instanceof Error ? error.message : 'Penghapusan grup gagal.');
+    } finally {
+      setIsDeletingGroup(false);
+    }
   };
 
   const addOption = () => {
@@ -518,12 +637,68 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     });
   };
 
+  const openInstantPreset = (kind: 'BAKSO_ONLY' | 'CAMPUR') => {
+    if (!current) return;
+    setInstantEditors((editors) => ({
+      ...editors,
+      [current.id]: {
+        ...(editors[current.id] || {}),
+        ...(kind === 'BAKSO_ONLY' ? { baksoOnly: true } : { campur: true }),
+      },
+    }));
+  };
+
+  const removeInstantPreset = (kind: 'BAKSO_ONLY' | 'CAMPUR') => {
+    if (!current) return;
+    updateCurrent((group) => {
+      if (kind === 'BAKSO_ONLY') {
+        group.selfOrderBaksoOnlyOptions = [];
+      } else {
+        group.selfOrderCampurOptions = [];
+        group.allSelectedLabel = '';
+      }
+      return group;
+    });
+    setInstantEditors((editors) => ({
+      ...editors,
+      [current.id]: {
+        ...(editors[current.id] || {}),
+        ...(kind === 'BAKSO_ONLY' ? { baksoOnly: false } : { campur: false }),
+      },
+    }));
+  };
+
+  const applyStandardFillingPreset = (kind: 'BAKSO_ONLY' | 'CAMPUR') => {
+    openInstantPreset(kind);
+    updateCurrent((group) => {
+      const available = activeOptions(group);
+      if (kind === 'BAKSO_ONLY') {
+        group.selfOrderBaksoOnlyOptions = available
+          .filter((option) => ['BAWANG', 'SLEDRI', 'SELEDRI'].includes(normalize(option.name)))
+          .map((option) => option.name);
+      } else {
+        group.selfOrderCampurOptions = available
+          .filter((option) => !['KWETIAW', 'BAKSOAJA', 'BAKSOSAJA'].includes(normalize(option.name)))
+          .map((option) => option.name);
+        group.allSelectedLabel = String(group.allSelectedLabel || 'CAMPUR').trim().toUpperCase() || 'CAMPUR';
+      }
+      return group;
+    });
+  };
+
   const menuCandidates = useMemo(() => {
     const q = menuSearch.trim().toLowerCase();
+    const selectedIds = new Set(current?.targetProductIds || []);
     return menuItems
+      .filter((item) => menuFilter === 'ALL' || selectedIds.has(item.id))
       .filter((item) => !q || item.name.toLowerCase().includes(q) || String(item.category).toLowerCase().includes(q))
       .slice(0, 80);
-  }, [menuItems, menuSearch]);
+  }, [menuItems, menuSearch, menuFilter, current?.targetProductIds]);
+
+  const selectedMenus = useMemo(() => {
+    const ids = new Set(current?.targetProductIds || []);
+    return menuItems.filter((item) => ids.has(item.id));
+  }, [menuItems, current?.targetProductIds]);
 
   const steps = [
     { id: 'TARGET' as const, label: '1. Target', detail: 'Menu mana yang memakai grup ini' },
@@ -592,17 +767,31 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
               const selected = group.id === selectedId;
               const role = inferRole(group);
               return (
-                <button key={group.id} type="button" onClick={() => { setSelectedId(group.id); setActiveStep('TARGET'); }} className={`w-full rounded-xl border p-3 text-left transition ${selected ? 'border-[var(--primary)] bg-white shadow-sm ring-1 ring-[var(--primary)]/10' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0"><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${group.isActive !== false ? 'bg-emerald-500' : 'bg-slate-300'}`} /><strong className="truncate text-[12px] text-slate-900">{group.name}</strong>{dirtySet.has(group.id) && <span className="h-2 w-2 rounded-full bg-amber-500" title="Draft belum disimpan" />}</div><p className="mt-1 truncate text-[9px] font-bold text-slate-500">{scopeLabel(group)}</p></div>
-                    {issues.ready ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" /> : <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">{ruleLabel(group)}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">{activeOptions(group).length} opsi</span>
-                    {role !== 'NONE' && <span className="rounded-full bg-orange-50 px-2 py-1 text-[8px] font-black text-orange-600">{role === 'BROTH' ? 'KUAH' : 'RACIKAN CEPAT'}</span>}
-                  </div>
-                </button>
+                <div key={group.id} className={`relative w-full rounded-xl border bg-white transition ${selected ? 'border-[var(--primary)] shadow-sm ring-1 ring-[var(--primary)]/10' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <button type="button" onClick={() => { setSelectedId(group.id); setActiveStep('TARGET'); setGroupMenuId(null); }} className="w-full p-3 pr-11 text-left">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${group.isActive !== false ? 'bg-emerald-500' : 'bg-slate-300'}`} /><strong className="truncate text-[12px] text-slate-900">{group.name}</strong>{dirtySet.has(group.id) && <span className="h-2 w-2 rounded-full bg-amber-500" title="Draft belum disimpan" />}</div>
+                        <p className="mt-1 truncate text-[9px] font-bold text-slate-500">{scopeLabel(group)}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-black ${issues.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{issues.ready ? 'SIAP' : `${issues.errors.length} CEK`}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">{ruleLabel(group)}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">{activeOptions(group).length} opsi</span>
+                      {role !== 'NONE' && <span className="rounded-full bg-orange-50 px-2 py-1 text-[8px] font-black text-orange-600">{role === 'BROTH' ? 'KUAH' : 'RACIKAN'}</span>}
+                    </div>
+                  </button>
+                  <button type="button" aria-label={`Aksi ${group.name}`} onClick={(event) => { event.stopPropagation(); setGroupMenuId((id) => id === group.id ? null : group.id); }} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"><MoreVertical className="h-4 w-4" /></button>
+                  {groupMenuId === group.id && (
+                    <div className="absolute right-2 top-11 z-30 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                      <button type="button" onClick={() => duplicateGroup(group)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[9px] font-black text-slate-700 hover:bg-slate-50"><Copy className="h-3.5 w-3.5" /> Duplikat Grup</button>
+                      <button type="button" onClick={() => { markDirty({ ...cloneGroup(group), isActive: group.isActive === false ? true : false }); setSelectedId(group.id); setGroupMenuId(null); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[9px] font-black text-slate-700 hover:bg-slate-50"><Check className="h-3.5 w-3.5" /> {group.isActive === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button type="button" onClick={() => { setDeleteGroupTarget(group); setGroupMenuId(null); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[9px] font-black text-rose-600 hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /> Hapus Grup</button>
+                    </div>
+                  )}
+                </div>
               );
             })}
             {!filteredGroups.length && <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-[10px] font-semibold text-slate-500">Tidak ada grup yang cocok.</div>}
@@ -649,19 +838,20 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                     <SectionTitle icon={<Filter className="h-4 w-4" />} title="Tentukan Target" detail="Pilih menu mana yang akan menampilkan grup ini. Jangan pilih Kategori dan Menu Satuan tanpa sengaja; gunakan mode Campuran bila memang keduanya diperlukan." />
                     <div className="grid gap-2 md:grid-cols-3">
                       {[{ id: 'CATEGORY' as ScopeMode, title: 'Kategori', detail: 'Berlaku ke seluruh menu dalam kategori.' }, { id: 'MENU' as ScopeMode, title: 'Menu Satuan', detail: 'Hanya menu yang dipilih satu per satu.' }, { id: 'MIXED' as ScopeMode, title: 'Campuran', detail: 'Gabungkan kategori + menu tertentu.' }].map((item) => {
-                        const selected = getScopeMode(current) === item.id;
+                        const selected = currentScopeMode === item.id;
                         return <button key={item.id} type="button" onClick={() => setScopeMode(item.id)} className={`rounded-xl border p-3 text-left ${selected ? 'border-[var(--primary)] bg-[var(--brand-50)] text-[var(--primary-hover)]' : 'border-slate-200 bg-white text-slate-700'}`}><strong className="block text-[11px]">{item.title}</strong><span className="mt-1 block text-[9px] font-semibold opacity-70">{item.detail}</span></button>;
                       })}
                     </div>
 
-                    {getScopeMode(current) !== 'MENU' && (
+                    {currentScopeMode !== 'MENU' && (
                       <div className="rounded-xl border border-slate-200 bg-white p-3.5"><p className="text-[10px] font-black text-slate-900">Kategori Menu</p><p className="mt-1 text-[9px] font-semibold text-slate-500">Klik satu atau beberapa kategori.</p><div className="mt-3 flex flex-wrap gap-2">{availableCategories.map((category) => { const selected = (current.targetCategories || []).includes(category); return <button key={String(category)} type="button" onClick={() => toggleCategory(category)} className={`rounded-xl border px-3 py-2 text-[9px] font-black ${selected ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{String(category)}</button>; })}</div></div>
                     )}
 
-                    {getScopeMode(current) !== 'CATEGORY' && (
+                    {currentScopeMode !== 'CATEGORY' && (
                       <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-black text-slate-900">Menu Satuan</p><p className="mt-1 text-[9px] font-semibold text-slate-500">Pilih menu spesifik. Cocok untuk Teh, Air Mineral, atau varian tertentu.</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">{(current.targetProductIds || []).length} dipilih</span></div>
-                        <div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={menuSearch} onChange={(e) => setMenuSearch(e.target.value)} placeholder="Cari nama menu..." className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-[10px] font-semibold outline-none focus:border-[var(--primary)]" /></div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-black text-slate-900">Menu Satuan</p><p className="mt-1 text-[9px] font-semibold text-slate-500">Pilih menu spesifik. Cocok untuk Teh, Air Mineral, atau varian tertentu.</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">{selectedMenus.length} dipilih</span></div>
+                        {selectedMenus.length > 0 && <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5"><div className="flex items-center justify-between gap-2"><p className="text-[8px] font-black uppercase tracking-wide text-emerald-700">Menu yang dipilih</p><button type="button" onClick={() => setMenuFilter(menuFilter === 'SELECTED' ? 'ALL' : 'SELECTED')} className="text-[8px] font-black text-emerald-700 underline">{menuFilter === 'SELECTED' ? 'Lihat semua' : 'Tampilkan dipilih saja'}</button></div><div className="mt-2 flex flex-wrap gap-1.5">{selectedMenus.map((item) => <button key={item.id} type="button" onClick={() => toggleMenu(item.id)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[8px] font-black text-emerald-700">✓ {item.name} <span className="ml-1 text-emerald-400">×</span></button>)}</div></div>}
+                        <div className="mt-3 flex gap-2"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={menuSearch} onChange={(e) => setMenuSearch(e.target.value)} placeholder="Cari nama menu..." className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-[10px] font-semibold outline-none focus:border-[var(--primary)]" /></div><button type="button" onClick={() => setMenuFilter(menuFilter === 'SELECTED' ? 'ALL' : 'SELECTED')} className={`rounded-xl border px-3 text-[9px] font-black ${menuFilter === 'SELECTED' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}>{menuFilter === 'SELECTED' ? 'Dipilih' : 'Semua'}</button></div>
                         <div className="mt-2 grid max-h-64 gap-1.5 overflow-y-auto pr-1 md:grid-cols-2">{menuCandidates.map((item) => { const selected = (current.targetProductIds || []).includes(item.id); return <button key={item.id} type="button" onClick={() => toggleMenu(item.id)} className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left ${selected ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'}`}>{selected && <Check className="h-3 w-3" />}</span><span className="min-w-0 flex-1"><strong className="block truncate text-[9px] text-slate-900">{item.name}</strong><span className="block text-[8px] font-semibold text-slate-400">{String(item.category)}</span></span></button>; })}</div>
                       </div>
                     )}
@@ -684,7 +874,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                     <SectionTitle icon={<PackageCheck className="h-4 w-4" />} title="Daftar Opsi" detail="Edit nama, harga tambahan, status, dan urutan tanpa langsung mengirim perubahan ke cloud." />
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                       <div className="hidden grid-cols-[42px_minmax(180px,1fr)_150px_100px_92px] gap-2 border-b bg-slate-50 px-3 py-2 text-[8px] font-black uppercase tracking-wide text-slate-400 md:grid"><span>Urut</span><span>Nama Opsi</span><span>Harga Tambahan</span><span>Status</span><span>Aksi</span></div>
-                      <div className="divide-y divide-slate-100">{current.options.map((option, index) => <div key={option.id} className="grid gap-2 px-3 py-2.5 md:grid-cols-[42px_minmax(180px,1fr)_150px_100px_92px] md:items-center"><div className="flex gap-1"><button type="button" disabled={index === 0} onClick={() => moveOption(option.id, -1)} className="h-7 w-7 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30">↑</button><button type="button" disabled={index === current.options.length - 1} onClick={() => moveOption(option.id, 1)} className="h-7 w-7 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30">↓</button></div><input value={option.name} onChange={(e) => updateOption(option.id, { name: e.target.value.toUpperCase() })} className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-black text-slate-900 outline-none focus:border-[var(--primary)]" /><div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">Rp</span><input type="number" min={0} value={Number(option.price || 0)} onChange={(e) => updateOption(option.id, { price: Math.max(0, Number(e.target.value || 0)) })} className="h-9 w-full rounded-lg border border-slate-200 pl-8 pr-2 text-[10px] font-bold outline-none focus:border-[var(--primary)]" /></div><button type="button" onClick={() => updateOption(option.id, { isAvailable: option.isAvailable === false ? true : false })} className={`h-8 rounded-lg border px-2 text-[9px] font-black ${option.isAvailable !== false ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}>{option.isAvailable !== false ? 'AKTIF' : 'NONAKTIF'}</button><button type="button" onClick={() => removeOption(option.id)} className="h-8 rounded-lg border border-rose-200 bg-rose-50 px-2 text-[9px] font-black text-rose-600"><Trash2 className="mr-1 inline h-3 w-3" /> Hapus</button></div>)}</div>
+                      <div className="divide-y divide-slate-100">{current.options.map((option, index) => <div key={option.id} className="grid gap-2 px-3 py-2.5 md:grid-cols-[42px_minmax(180px,1fr)_150px_100px_92px] md:items-center"><div className="flex gap-1"><button type="button" disabled={index === 0} onClick={() => moveOption(option.id, -1)} className="h-7 w-7 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30">↑</button><button type="button" disabled={index === current.options.length - 1} onClick={() => moveOption(option.id, 1)} className="h-7 w-7 rounded-lg border border-slate-200 text-slate-400 disabled:opacity-30">↓</button></div><input value={option.name} onChange={(e) => updateOption(option.id, { name: e.target.value.toUpperCase() })} className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 text-[10px] font-black text-slate-900 outline-none focus:border-[var(--primary)]" /><div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">Rp</span><input type="number" min={0} value={Number(option.price || 0)} onChange={(e) => updateOption(option.id, { price: Math.max(0, Number(e.target.value || 0)) })} className="h-9 w-full rounded-lg border border-slate-200 pl-8 pr-2 text-[10px] font-bold outline-none focus:border-[var(--primary)]" /></div><button type="button" onClick={() => updateOption(option.id, { isAvailable: option.isAvailable === false ? true : false })} className={`h-8 rounded-lg border px-2 text-[9px] font-black ${option.isAvailable !== false ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}>{option.isAvailable !== false ? 'AKTIF' : 'NONAKTIF'}</button><button type="button" onClick={() => setDeleteOptionTarget(option)} className="h-8 rounded-lg border border-rose-200 bg-rose-50 px-2 text-[9px] font-black text-rose-600"><Trash2 className="mr-1 inline h-3 w-3" /> Hapus</button></div>)}</div>
                       <button type="button" onClick={addOption} className="flex w-full items-center justify-center gap-1.5 border-t bg-slate-50 px-3 py-3 text-[10px] font-black text-[var(--primary-hover)] hover:bg-[var(--brand-50)]"><Plus className="h-4 w-4" /> Tambah Opsi</button>
                     </div>
                   </div>
@@ -697,14 +887,76 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
 
                     {inferRole(current) === 'BROTH' && <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3.5"><p className="text-[10px] font-black text-orange-900">Default Kuah Self Order</p><p className="mt-1 text-[9px] font-semibold text-orange-700">Pelanggan tetap bisa mengganti pilihan. Default hanya mempercepat order.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{activeOptions(current).map((option) => { const selected = (current.selfOrderDefaultOptions || []).some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => updateCurrent((group) => ({ ...group, selfOrderDefaultOptions: [option.name] }))} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[9px] font-black ${selected ? 'border-orange-400 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-600'}`}><span className={`h-4 w-4 rounded-full border ${selected ? 'border-orange-500 bg-orange-500 ring-2 ring-white' : 'border-slate-300'}`} />{option.name}</button>; })}</div></div>}
 
-                    {inferRole(current) === 'FILLING' && (
-                      <div className="space-y-3">
-                        <div className="rounded-xl border border-orange-200 bg-orange-50 p-3.5"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-black text-orange-900">Racikan Instan</p><p className="mt-1 text-[9px] font-semibold text-orange-700">Tombol ini muncul di POS dan Self Order. Customer/kasir masih boleh mengubah isian manual setelah memilih preset.</p></div><span className="rounded-full bg-white px-2 py-1 text-[8px] font-black text-orange-600">LIVE: KASIR + SELF ORDER + KDS</span></div></div>
-                        <PresetEditor title="Bakso Saja" detail="Umumnya hanya bawang + seledri." options={activeOptions(current)} selected={current.selfOrderBaksoOnlyOptions || []} onToggle={(name) => togglePresetOption('selfOrderBaksoOnlyOptions', name)} />
-                        <PresetEditor title="Campur" detail="Racikan lengkap. Untuk standar Bakso Ujo: semua isian kecuali kwetiaw." options={activeOptions(current)} selected={current.selfOrderCampurOptions || []} onToggle={(name) => togglePresetOption('selfOrderCampurOptions', name)} />
-                        <div className="rounded-xl border border-slate-200 bg-white p-3.5"><label className="text-[9px] font-black uppercase tracking-wide text-slate-500">Label ringkas Kitchen saat tepat sama preset Campur</label><input value={current.allSelectedLabel || ''} onChange={(e) => updateCurrent((group) => ({ ...group, allSelectedLabel: e.target.value.toUpperCase() }))} placeholder="CAMPUR" className="mt-2 h-9 w-full rounded-lg border border-slate-200 px-3 text-[10px] font-black outline-none focus:border-[var(--primary)]" /><p className="mt-1 text-[8px] font-semibold text-slate-400">Jika customer mengubah satu opsi saja, Kitchen akan menampilkan daftar isian aktual, bukan label CAMPUR.</p></div>
-                      </div>
-                    )}
+                    {inferRole(current) === 'FILLING' && (() => {
+                      const baksoSelected = current.selfOrderBaksoOnlyOptions || [];
+                      const campurSelected = current.selfOrderCampurOptions || [];
+                      const editorState = instantEditors[current.id] || {};
+                      const showBakso = Boolean(editorState.baksoOnly || baksoSelected.length > 0);
+                      const showCampur = Boolean(editorState.campur || campurSelected.length > 0);
+                      const activePresetCount = Number(baksoSelected.length > 0) + Number(campurSelected.length > 0);
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="rounded-xl border border-orange-200 bg-orange-50 p-3.5">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-[10px] font-black text-orange-900">Racikan Instan <span className="text-orange-500">· Opsional</span></p>
+                                  <span className="rounded-full bg-white px-2 py-1 text-[8px] font-black text-orange-600">{activePresetCount} aktif</span>
+                                </div>
+                                <p className="mt-1 text-[9px] font-semibold leading-relaxed text-orange-700">Mode Isian/Racikan Cepat tidak otomatis membuat shortcut. Tambahkan hanya racikan yang memang dibutuhkan. Setiap racikan bisa diisi manual dan diubah kapan saja.</p>
+                              </div>
+                              <span className="rounded-full bg-white px-2 py-1 text-[8px] font-black text-orange-600">KASIR + SELF ORDER + KDS</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {!showBakso && <button type="button" onClick={() => openInstantPreset('BAKSO_ONLY')} className="rounded-lg border border-orange-200 bg-white px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Bakso Saja</button>}
+                              {!showCampur && <button type="button" onClick={() => openInstantPreset('CAMPUR')} className="rounded-lg border border-orange-200 bg-white px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Campur</button>}
+                            </div>
+                          </div>
+
+                          {!showBakso && !showCampur && (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+                              <Sparkles className="mx-auto h-5 w-5 text-slate-300" />
+                              <p className="mt-2 text-[10px] font-black text-slate-700">Belum ada racikan instan</p>
+                              <p className="mx-auto mt-1 max-w-lg text-[9px] font-semibold leading-relaxed text-slate-500">Grup tetap berfungsi sebagai Isian biasa. Bakso Saja atau Campur hanya akan muncul setelah Anda menambahkan racikan dan memilih minimal satu opsi.</p>
+                            </div>
+                          )}
+
+                          {showBakso && (
+                            <PresetEditor
+                              title="Bakso Saja"
+                              detail="Pilih sendiri isian untuk shortcut ini. Tidak ada isi default otomatis."
+                              options={activeOptions(current)}
+                              selected={baksoSelected}
+                              onToggle={(name) => togglePresetOption('selfOrderBaksoOnlyOptions', name)}
+                              onApplyStandard={() => applyStandardFillingPreset('BAKSO_ONLY')}
+                              onRemove={() => removeInstantPreset('BAKSO_ONLY')}
+                              standardLabel="Isi Standard: Bawang + Seledri"
+                            />
+                          )}
+
+                          {showCampur && (
+                            <>
+                              <PresetEditor
+                                title="Campur"
+                                detail="Pilih sendiri komposisi Campur. Shortcut baru tidak diisi otomatis."
+                                options={activeOptions(current)}
+                                selected={campurSelected}
+                                onToggle={(name) => togglePresetOption('selfOrderCampurOptions', name)}
+                                onApplyStandard={() => applyStandardFillingPreset('CAMPUR')}
+                                onRemove={() => removeInstantPreset('CAMPUR')}
+                                standardLabel="Isi Standard: semua kecuali Kwetiaw"
+                              />
+                              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                                <label className="text-[9px] font-black uppercase tracking-wide text-slate-500">Label ringkas Kitchen saat tepat sama racikan Campur</label>
+                                <input value={current.allSelectedLabel || ''} onChange={(e) => updateCurrent((group) => ({ ...group, allSelectedLabel: e.target.value.toUpperCase() }))} placeholder="Contoh: CAMPUR" className="mt-2 h-9 w-full rounded-lg border border-slate-200 px-3 text-[10px] font-black outline-none focus:border-[var(--primary)]" />
+                                <p className="mt-1 text-[8px] font-semibold text-slate-400">Opsional. Jika kosong, Kitchen menampilkan daftar isian aktual. Jika customer mengubah satu opsi dari preset, label ringkas juga tidak digunakan.</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -719,10 +971,37 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         </main>
       </section>
 
+      {deleteOptionTarget && current && (
+        <ModalShell onClose={() => setDeleteOptionTarget(null)} title={`Hapus opsi “${deleteOptionTarget.name}”?`} subtitle="Penghapusan baru menjadi permanen setelah Grup disimpan.">
+          <div className="space-y-4">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-[10px] font-black text-rose-900">Dampak konfigurasi baru</p>
+              <p className="mt-1 text-[9px] font-semibold leading-relaxed text-rose-700">Opsi akan hilang dari Kasir, Self Order, dan Kitchen untuk transaksi berikutnya. Riwayat order lama tidak diubah.</p>
+            </div>
+            {optionUsage(current, deleteOptionTarget).length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-[10px] font-black text-amber-900">Opsi ini sedang dipakai oleh:</p><div className="mt-2 space-y-1">{optionUsage(current, deleteOptionTarget).map((usage) => <p key={usage} className="text-[9px] font-bold text-amber-800">• {usage}</p>)}</div><p className="mt-2 text-[9px] font-semibold text-amber-700">Referensi preset/default tersebut akan ikut dibersihkan agar tidak menjadi konfigurasi yatim.</p></div>}
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleteOptionTarget(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-600">Batal</button><button type="button" onClick={() => removeOptionNow(deleteOptionTarget.id)} className="rounded-xl bg-rose-600 px-4 py-2.5 text-[10px] font-black text-white hover:bg-rose-700"><Trash2 className="mr-1.5 inline h-4 w-4" /> Hapus dari Draft</button></div>
+          </div>
+        </ModalShell>
+      )}
+
+      {deleteGroupTarget && (
+        <ModalShell onClose={() => !isDeletingGroup && setDeleteGroupTarget(null)} title={`Hapus grup “${deleteGroupTarget.name}”?`} subtitle="Gunakan Nonaktifkan jika grup mungkin dipakai lagi. Hapus untuk membersihkan konfigurasi secara permanen.">
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Target</span><strong className="mt-1 block text-[10px] text-slate-900">{scopeLabel(deleteGroupTarget)}</strong></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Opsi</span><strong className="mt-1 block text-[10px] text-slate-900">{deleteGroupTarget.options.length} opsi</strong></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Status</span><strong className="mt-1 block text-[10px] text-slate-900">{deleteGroupTarget.isActive === false ? 'Nonaktif' : 'Aktif'}</strong></div>
+            </div>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4"><p className="text-[10px] font-black text-rose-900">Yang akan terjadi</p><div className="mt-2 space-y-1 text-[9px] font-semibold text-rose-700"><p>• Grup dan opsi dihapus dari konfigurasi transaksi baru.</p><p>• Target menu dan metadata racikan grup ikut dibersihkan.</p><p>• Snapshot condiment pada order lama tetap aman dan tidak diubah.</p></div></div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={isDeletingGroup} onClick={() => setDeleteGroupTarget(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-600 disabled:opacity-50">Batal</button><button type="button" disabled={isDeletingGroup} onClick={() => void deleteGroupNow(deleteGroupTarget)} className="rounded-xl bg-rose-600 px-4 py-2.5 text-[10px] font-black text-white hover:bg-rose-700 disabled:opacity-50">{isDeletingGroup ? <Loader2 className="mr-1.5 inline h-4 w-4 animate-spin" /> : <Trash2 className="mr-1.5 inline h-4 w-4" />} {isDeletingGroup ? 'Menghapus…' : 'Hapus Grup Permanen'}</button></div>
+          </div>
+        </ModalShell>
+      )}
+
       {showTemplateModal && (
-        <ModalShell onClose={() => setShowTemplateModal(false)} title="Template Cepat" subtitle="Mulai dari struktur yang benar, lalu review sebelum menyimpan.">
+        <ModalShell onClose={() => setShowTemplateModal(false)} title="Buat / Perbaiki Konfigurasi" subtitle="Pilih pola yang paling dekat. Semua hasil masuk sebagai draft dan bisa diperiksa sebelum disimpan.">
           <div className="grid gap-3 md:grid-cols-2">
-            <TemplateCard icon={<Utensils className="h-5 w-5" />} title="Bakso Ujo Standard" badge="DIREKOMENDASIKAN" detail="Membuat atau memperbaiki KUAH + ISIAN, default Original, Bakso Saja = Bawang + Seledri, Campur = semua kecuali Kwetiaw. Opsi custom yang sudah ada tidak dihapus." onClick={applyBaksoTemplate} />
+            <TemplateCard icon={<Utensils className="h-5 w-5" />} title="Bakso Ujo Standard" badge="REPAIR + PRESERVE" detail="Mencari KUAH/ISIAN khusus BAKSO secara deterministik, memperbaiki aturan dan racikan standard, serta mempertahankan opsi custom yang sudah ada." onClick={applyBaksoTemplate} />
             <TemplateCard icon={<ListChecks className="h-5 w-5" />} title="Pilih 1 Wajib" detail="Untuk suhu minuman, jenis kuah, level pedas, atau varian yang harus dipilih satu." onClick={() => createDraft('SINGLE_REQUIRED')} />
             <TemplateCard icon={<Layers3 className="h-5 w-5" />} title="Topping Opsional" detail="Pelanggan boleh memilih beberapa tambahan atau melewati grup." onClick={() => createDraft('MULTIPLE_OPTIONAL')} />
             <TemplateCard icon={<Plus className="h-5 w-5" />} title="Mulai Kosong" detail="Buat grup tanpa preset untuk kebutuhan khusus." onClick={() => createDraft('CUSTOM')} />
@@ -752,7 +1031,38 @@ const RuleCard: React.FC<{ active: boolean; title: string; detail: string; onCli
 
 const NumberField: React.FC<{ label: string; value: number; min: number; max: number; onChange: (value: number) => void }> = ({ label, value, min, max, onChange }) => <label><span className="text-[9px] font-black uppercase tracking-wide text-slate-500">{label}</span><input type="number" min={min} max={max} value={value} onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value || 0))))} className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 px-3 text-[11px] font-black outline-none focus:border-[var(--primary)]" /></label>;
 
-const PresetEditor: React.FC<{ title: string; detail: string; options: CondimentOption[]; selected: string[]; onToggle: (name: string) => void }> = ({ title, detail, options, selected, onToggle }) => <div className="rounded-xl border border-slate-200 bg-white p-3.5"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-black text-slate-900">{title}</p><p className="mt-0.5 text-[9px] font-semibold text-slate-500">{detail}</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">{selected.length} isian</span></div><div className="mt-3 flex flex-wrap gap-2">{options.map((option) => { const active = selected.some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => onToggle(option.name)} className={`rounded-lg border px-2.5 py-2 text-[9px] font-black ${active ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{active ? '✓ ' : ''}{option.name}</button>; })}</div></div>;
+const PresetEditor: React.FC<{
+  title: string;
+  detail: string;
+  options: CondimentOption[];
+  selected: string[];
+  onToggle: (name: string) => void;
+  onApplyStandard: () => void;
+  onRemove: () => void;
+  standardLabel: string;
+}> = ({ title, detail, options, selected, onToggle, onApplyStandard, onRemove, standardLabel }) => (
+  <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[10px] font-black text-slate-900">{title}</p>
+          <span className={`rounded-full px-2 py-1 text-[8px] font-black ${selected.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{selected.length > 0 ? `AKTIF · ${selected.length} isian` : 'DRAFT · belum aktif'}</span>
+        </div>
+        <p className="mt-1 text-[9px] font-semibold text-slate-500">{detail}</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={onApplyStandard} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100">{standardLabel}</button>
+        <button type="button" onClick={onRemove} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[8px] font-black text-rose-600 hover:bg-rose-100"><Trash2 className="mr-1 inline h-3 w-3" /> Hapus Racikan</button>
+      </div>
+    </div>
+    {options.length === 0 ? (
+      <div className="mt-3 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-[9px] font-semibold text-amber-700">Belum ada opsi aktif pada grup ini. Tambahkan opsi di langkah 3 terlebih dahulu.</div>
+    ) : (
+      <div className="mt-3 flex flex-wrap gap-2">{options.map((option) => { const active = selected.some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => onToggle(option.name)} className={`rounded-lg border px-2.5 py-2 text-[9px] font-black ${active ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{active ? '✓ ' : ''}{option.name}</button>; })}</div>
+    )}
+    {selected.length === 0 && options.length > 0 && <p className="mt-2 text-[8px] font-bold text-amber-600">Pilih minimal 1 isian untuk mengaktifkan racikan ini. Jika dibiarkan kosong, shortcut tidak akan aktif setelah disimpan.</p>}
+  </div>
+);
 
 const TemplateCard: React.FC<{ icon: React.ReactNode; title: string; detail: string; badge?: string; onClick: () => void }> = ({ icon, title, detail, badge, onClick }) => <button type="button" onClick={onClick} className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[var(--primary)] hover:shadow-sm"><div className="flex items-start justify-between gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-50)] text-[var(--primary-hover)]">{icon}</span>{badge && <span className="rounded-full bg-amber-50 px-2 py-1 text-[7px] font-black text-amber-700">{badge}</span>}</div><strong className="mt-3 block text-[11px] text-slate-900">{title}</strong><p className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{detail}</p></button>;
 

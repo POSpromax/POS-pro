@@ -50,7 +50,7 @@ import {
 } from './services/staffService';
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
-import { listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
+import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { listCloudOrders, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
@@ -1571,6 +1571,29 @@ export default function App() {
     }
   };
 
+  const handleDeleteCondimentGroup = async (groupId: string): Promise<void> => {
+    const group = condimentGroups.find((item) => item.id === groupId);
+    if (!group) return;
+
+    if (!cloudReadiness.supabase) {
+      // Demo/local mode has no hard-delete primitive in the legacy storage adapter.
+      // Remove it from the active runtime and mark the local record inactive so it
+      // can no longer appear in POS/Self Order/KDS. Production cloud uses hard delete.
+      DBStorage.saveCondimentGroup({ ...group, isActive: false, options: [] });
+      setCondimentGroups((current) => current.filter((item) => item.id !== groupId));
+      return;
+    }
+
+    try {
+      await deleteCloudCondimentGroup(groupId, currentBranch.id);
+      setCondimentGroups((current) => current.filter((item) => item.id !== groupId));
+      showPushToast('Grup Dihapus', `${group.name} sudah dihapus dari konfigurasi transaksi baru.`);
+    } catch (error) {
+      showPushToast('Grup Gagal Dihapus', error instanceof Error ? error.message : 'Grup condiment tidak dapat dihapus.');
+      throw error;
+    }
+  };
+
   const handleToggleGroupActive = (groupId: string, isActive: boolean) => {
     const group = condimentGroups.find((item) => item.id === groupId);
     if (group) handleSaveCondimentGroup({ ...group, isActive });
@@ -2573,6 +2596,7 @@ export default function App() {
               condimentGroups={condimentGroups}
               menuItems={menuItems}
               onSaveCondimentGroup={handleSaveCondimentGroup}
+              onDeleteCondimentGroup={handleDeleteCondimentGroup}
               onToggleGroupActive={handleToggleGroupActive}
               onToggleOptionAvailable={handleToggleOptionAvailable}
               tables={branchTables}

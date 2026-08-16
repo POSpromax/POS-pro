@@ -183,6 +183,7 @@ interface SettingsViewProps {
   condimentGroups: CondimentGroup[];
   menuItems: MenuItem[];
   onSaveCondimentGroup: (group: CondimentGroup) => void | Promise<CondimentGroup | void>;
+  onDeleteCondimentGroup?: (groupId: string) => void | Promise<void>;
   onToggleGroupActive: (groupId: string, isActive: boolean) => void;
   onToggleOptionAvailable: (groupId: string, optionId: string, isAvailable: boolean) => void;
   onClearTransactions?: () => void;
@@ -210,6 +211,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   condimentGroups,
   menuItems,
   onSaveCondimentGroup: rawSaveCondimentGroup,
+  onDeleteCondimentGroup,
   onToggleGroupActive,
   onToggleOptionAvailable,
   onClearTransactions,
@@ -1786,6 +1788,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 condimentGroups={condimentGroups}
                 menuItems={menuItems}
                 onSaveCondimentGroup={rawSaveCondimentGroup}
+                onDeleteCondimentGroup={onDeleteCondimentGroup}
                 onShowToast={onShowToast}
               />
             )}
