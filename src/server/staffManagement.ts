@@ -118,7 +118,7 @@ async function listStaff(admin: SupabaseClient, auth: NonNullable<Awaited<Return
   const userIds = Array.from(new Set((memberships || []).map((item) => item.user_id)));
   if (!userIds.length) return { status: 200, data: { staff: [] } };
   const [{ data: profiles, error: profileError }, { data: schedules, error: scheduleError }] = await Promise.all([
-    admin.from('user_profiles').select('user_id,display_name,avatar_public_id,is_active').eq('tenant_id', auth.tenantId).in('user_id', userIds),
+    admin.from('user_profiles').select('user_id,display_name,avatar_public_id,is_active,phone,full_name_ktp,nik,birth_place,birth_date,address,join_date').eq('tenant_id', auth.tenantId).in('user_id', userIds),
     admin.from('staff_schedules').select('user_id,branch_id,weekday,starts_at,ends_at,status').in('branch_id', allowedBranches).in('user_id', userIds).is('effective_date', null),
   ]);
   if (profileError || scheduleError) return fail(500, 'Profil atau jadwal staff tidak dapat dibaca');
