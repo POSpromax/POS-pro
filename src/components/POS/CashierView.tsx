@@ -498,7 +498,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
           })
         : headerElement}
 
-      <div className="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden p-3 md:p-4 gap-3">
+      <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden p-3 md:p-4 gap-3">
         {/* Left Side Container (Queue + Menu Catalog) */}
         <div className="flex flex-1 min-w-0 min-h-0 gap-3">
           
@@ -764,7 +764,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
         </div>
 
         {/* 3. RIGHT PANEL: ORDER CART SIDEBAR (Ultra Compact & Minimalist Layout) */}
-        <div className="flex min-h-[54vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white md:h-full md:min-h-0 md:w-80 lg:w-[340px] xl:w-96 shadow-sm">
+        <div className="flex min-h-[54vh] w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:h-full lg:min-h-0 lg:w-80 xl:w-[340px] 2xl:w-96 shadow-sm">
           <div className="flex h-full flex-col overflow-hidden">
 
             {/* Cart Header Top Row with Live Customer Name & Pure Text Table Number Input */}
