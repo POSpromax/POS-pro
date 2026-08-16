@@ -289,7 +289,7 @@ export class BluetoothPrinterService {
     return queued;
   }
 
-  private static async performPrint(bytes: Uint8Array, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
+  private static async performPrint(bytes: Uint8Array, config: PrinterConfig, isRetry = false): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.runtimeStatus.connected && !(await this.reconnect(config))) {
         return { success: false, error: 'Printer belum terhubung. Buka Setup Printer lalu pilih perangkat.' };
@@ -303,6 +303,12 @@ export class BluetoothPrinterService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal mencetak struk.';
       this.updateStatus({ connected: false, error: message });
+      // Printer BLE/SPP murah kerap memutus koneksi diam-diam saat idle.
+      // Coba sambungkan ulang sekali secara otomatis sebelum melaporkan gagal,
+      // supaya operator tidak perlu membuka Setup Printer manual tiap kali ini terjadi.
+      if (!isRetry && await this.reconnect(config)) {
+        return this.performPrint(bytes, config, true);
+      }
       return { success: false, error: message };
     }
   }
