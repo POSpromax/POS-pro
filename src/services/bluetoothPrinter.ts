@@ -36,6 +36,8 @@ export interface ZReportData {
   expectedCash: number;
   actualCash: number;
   varianceAmount: number;
+  voidCount: number;
+  voidAmount: number;
 }
 
 const BLE_SERVICE_UUIDS = [
@@ -430,6 +432,11 @@ export class BluetoothPrinterService {
     text += justify('EXPECTED CASH', money(report.expectedCash));
     text += justify('ACTUAL CASH', money(report.actualCash));
     text += justify('SELISIH', money(report.varianceAmount));
+    if (report.voidCount > 0) {
+      text += separator;
+      text += justify('ORDER VOID', `${report.voidCount}x`);
+      text += justify('NILAI VOID', money(report.voidAmount));
+    }
     text += separator + '\x1B\x61\x01';
     if (profile.address) text += center(profile.address);
     text += center('SHIFT CLOSED') + '\n\n\n';

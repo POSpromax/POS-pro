@@ -159,6 +159,10 @@ const buildZReportData = (shift: Shift, orders: Order[]): ZReportData => {
   const grossOmset = hasLoadedOrders ? paidOrders.reduce((total, order) => total + order.total, 0) : shift.grossOmset;
   const expectedCash = shift.expectedCash ?? (shift.initialCash + cashSales + shift.totalIncome - shift.totalExpense);
   const actualCash = shift.actualCash ?? expectedCash;
+  // Order yang dibatalkan (void) diatribusikan ke shift saat void disetujui
+  // (completedShiftId), sama seperti order yang selesai — konsisten dengan
+  // aturan riwayat shift, bukan shift saat order pertama kali dibuat.
+  const voidOrders = orders.filter((order) => order.status === 'CANCELLED' && order.completedShiftId === shift.id);
 
   return {
     shift: { ...shift, grossOmset, cashSales },
@@ -169,6 +173,8 @@ const buildZReportData = (shift: Shift, orders: Order[]): ZReportData => {
     expectedCash,
     actualCash,
     varianceAmount: shift.varianceAmount ?? actualCash - expectedCash,
+    voidCount: voidOrders.length,
+    voidAmount: voidOrders.reduce((total, order) => total + (order.total || 0), 0),
   };
 };
 
@@ -2534,7 +2540,7 @@ export default function App() {
                   }
 
                   showPushToast('Shift Ditutup', 'Shift telah ditutup. Riwayat & laporan tersimpan.');
-                  if (shouldPrintZReport) await printZReport(closed, ordersForShift);
+                  if (shouldPrintZReport) await printZReport(closed, orders);
                 } catch (error) {
                   showPushToast(
                     'Shift Belum Ditutup',
