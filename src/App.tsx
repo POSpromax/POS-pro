@@ -1458,6 +1458,17 @@ export default function App() {
           : await submitCloudOrder(fullOrder);
         setOrders((current) => [saved, ...current.filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
         await refreshBranchTables(saved.branchId);
+        try {
+          const refreshedShift = await getCloudActiveShift(currentBranch.id);
+          if (refreshedShift?.id === currentShift.id) setCurrentShift(refreshedShift);
+        } catch (shiftError) {
+          showPushToast(
+            'Pembayaran Tersimpan',
+            shiftError instanceof Error
+              ? `Ringkasan shift akan disinkronkan ulang: ${shiftError.message}`
+              : 'Ringkasan shift akan disinkronkan ulang.',
+          );
+        }
       } catch (error) {
         showPushToast('Pembayaran Gagal', error instanceof Error ? error.message : 'Cloud belum mengakui pembayaran. Silakan coba kembali.');
         return;
