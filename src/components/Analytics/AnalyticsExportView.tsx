@@ -193,6 +193,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
   // Filter cabang: default cabang aktif; 'ALL' = gabungan semua cabang.
@@ -448,6 +449,100 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     () => weekdayPerformance.reduce((best, row) => (row.avgRevenue > best.avgRevenue ? row : best), weekdayPerformance[0]),
     [weekdayPerformance]
   );
+
+  const shiftPreviewMap = useMemo(() => {
+    const paidOrdersByShift = new Map<string, Order[]>();
+    const voidOrdersByShift = new Map<string, Order[]>();
+    const expenseRecordsByShift = new Map<string, ExpenseIncomeRecord[]>();
+
+    orders.forEach((order) => {
+      if (order.paidShiftId && order.paymentStatus === 'PAID' && order.status !== 'CANCELLED') {
+        const rows = paidOrdersByShift.get(order.paidShiftId) || [];
+        rows.push(order);
+        paidOrdersByShift.set(order.paidShiftId, rows);
+      }
+      if (order.completedShiftId && order.status === 'CANCELLED') {
+        const rows = voidOrdersByShift.get(order.completedShiftId) || [];
+        rows.push(order);
+        voidOrdersByShift.set(order.completedShiftId, rows);
+      }
+    });
+
+    allExpenses.forEach((record) => {
+      const rows = expenseRecordsByShift.get(record.shiftId) || [];
+      rows.push(record);
+      expenseRecordsByShift.set(record.shiftId, rows);
+    });
+
+    return shifts.reduce<Record<string, {
+      orderCount: number;
+      grossSales: number;
+      cashSales: number;
+      qrisSales: number;
+      debitSales: number;
+      nonCashSales: number;
+      totalDiscount: number;
+      totalTax: number;
+      totalIncome: number;
+      totalExpense: number;
+      expectedCash: number;
+      actualCash: number;
+      varianceAmount: number;
+      voidCount: number;
+      voidAmount: number;
+    }>>((acc, shift) => {
+      const paidShiftOrders = paidOrdersByShift.get(shift.id) || [];
+      const voidShiftOrders = voidOrdersByShift.get(shift.id) || [];
+      const shiftRecords = expenseRecordsByShift.get(shift.id) || [];
+      const hasPaidOrders = paidShiftOrders.length > 0;
+      const qrisSales = paidShiftOrders
+        .filter((order) => order.paymentMethod === 'QRIS')
+        .reduce((total, order) => total + order.total, 0);
+      const debitSales = paidShiftOrders
+        .filter((order) => order.paymentMethod === 'DEBIT')
+        .reduce((total, order) => total + order.total, 0);
+      const cashSales = hasPaidOrders
+        ? paidShiftOrders
+          .filter((order) => order.paymentMethod === 'CASH')
+          .reduce((total, order) => total + order.total, 0)
+        : shift.cashSales;
+      const totalExpense = shift.totalExpense > 0
+        ? shift.totalExpense
+        : shiftRecords
+          .filter((record) => record.type === 'EXPENSE')
+          .reduce((total, record) => total + record.amount, 0);
+      const totalIncome = shift.totalIncome > 0
+        ? shift.totalIncome
+        : shiftRecords
+          .filter((record) => record.type === 'INCOME')
+          .reduce((total, record) => total + record.amount, 0);
+      const grossSales = hasPaidOrders
+        ? paidShiftOrders.reduce((total, order) => total + order.total, 0)
+        : shift.grossOmset;
+      const nonCashSales = hasPaidOrders ? qrisSales + debitSales : shift.nonCashSales;
+      const expectedCash = shift.expectedCash ?? (shift.initialCash + cashSales + totalIncome - totalExpense);
+      const actualCash = shift.actualCash ?? expectedCash;
+
+      acc[shift.id] = {
+        orderCount: paidShiftOrders.length,
+        grossSales,
+        cashSales,
+        qrisSales,
+        debitSales,
+        nonCashSales,
+        totalDiscount: paidShiftOrders.reduce((total, order) => total + (order.discount || 0), 0),
+        totalTax: paidShiftOrders.reduce((total, order) => total + (order.tax || 0), 0),
+        totalIncome,
+        totalExpense,
+        expectedCash,
+        actualCash,
+        varianceAmount: shift.varianceAmount ?? actualCash - expectedCash,
+        voidCount: voidShiftOrders.length,
+        voidAmount: voidShiftOrders.reduce((total, order) => total + (order.total || 0), 0),
+      };
+      return acc;
+    }, {});
+  }, [allExpenses, orders, shifts]);
 
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
@@ -1177,6 +1272,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <thead>
                 <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
                   style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                  <th className="py-3 px-3 text-center">Detail</th>
                   <th className="py-3 px-3">ID Shift</th>
                   <th className="py-3 px-3">Kasir / Staf</th>
                   <th className="py-3 px-3">Mulai Shift</th>
@@ -1191,32 +1287,103 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                 {shifts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada riwayat shift recorded</td>
+                    <td colSpan={10} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada riwayat shift recorded</td>
                   </tr>
                 ) : (
-                  shiftPagination.visibleItems.map((s) => (
-                    <tr key={s.id} className="transition-colors"
-                      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
-                      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
-                      <td className="py-3 px-3 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{s.id}</td>
-                      <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{s.staffName} <span className="text-[11px] font-bold" style={{ color: 'var(--primary-text)' }}>({s.staffRole})</span></td>
-                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(s.startTime).toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {s.initialCash.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {s.cashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {s.totalExpense.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          s.status === 'OPEN'
-                            ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border border-[#bbf7d0]'
-                            : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'
-                        }`}>
-                          {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  shiftPagination.visibleItems.map((s) => {
+                    const details = shiftPreviewMap[s.id];
+                    const isExpanded = expandedShiftId === s.id;
+                    return (
+                      <React.Fragment key={s.id}>
+                        <tr className="transition-colors"
+                          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedShiftId((current) => current === s.id ? null : s.id)}
+                              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
+                              style={{ borderColor: 'var(--panel-border)', background: isExpanded ? 'var(--brand-100)' : 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+                            >
+                              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                              {isExpanded ? 'Tutup' : 'Lihat'}
+                            </button>
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{s.id}</td>
+                          <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{s.staffName} <span className="text-[11px] font-bold" style={{ color: 'var(--primary-text)' }}>({s.staffRole})</span></td>
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(s.startTime).toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {s.initialCash.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {details?.cashSales.toLocaleString('id-ID') || s.cashSales.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {details?.nonCashSales.toLocaleString('id-ID') || s.nonCashSales.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {details?.totalExpense.toLocaleString('id-ID') || s.totalExpense.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              s.status === 'OPEN'
+                                ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border border-[#bbf7d0]'
+                                : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'
+                            }`}>
+                              {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
+                            </span>
+                          </td>
+                        </tr>
+                        {isExpanded && details && (
+                          <tr>
+                            <td colSpan={10} className="px-3 pb-4">
+                              <div className="rounded-2xl border p-4 space-y-4"
+                                style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                                  {[
+                                    ['Order lunas', `${details.orderCount} struk`],
+                                    ['Void transaksi', `${details.voidCount} struk`],
+                                    ['Diskon', `Rp ${details.totalDiscount.toLocaleString('id-ID')}`],
+                                    ['Pajak PB1', `Rp ${details.totalTax.toLocaleString('id-ID')}`],
+                                    ['Omset bruto', `Rp ${details.grossSales.toLocaleString('id-ID')}`],
+                                    ['Tunai', `Rp ${details.cashSales.toLocaleString('id-ID')}`],
+                                    ['QRIS', `Rp ${details.qrisSales.toLocaleString('id-ID')}`],
+                                    ['Debit', `Rp ${details.debitSales.toLocaleString('id-ID')}`],
+                                    ['Pemasukan', `Rp ${details.totalIncome.toLocaleString('id-ID')}`],
+                                    ['Pengeluaran', `Rp ${details.totalExpense.toLocaleString('id-ID')}`],
+                                  ].map(([label, value]) => (
+                                    <div key={label} className="rounded-xl border px-3 py-2.5"
+                                      style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                      <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+                                      <p className="mt-1 text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Expected Cash</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Rp {details.expectedCash.toLocaleString('id-ID')}</p>
+                                  </div>
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Actual Cash</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Rp {details.actualCash.toLocaleString('id-ID')}</p>
+                                  </div>
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Selisih Kas</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: details.varianceAmount < 0 ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                                      Rp {details.varianceAmount.toLocaleString('id-ID')}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+                                  <span>Void nominal: Rp {details.voidAmount.toLocaleString('id-ID')}</span>
+                                  {s.notes && <span>Catatan: {s.notes}</span>}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
