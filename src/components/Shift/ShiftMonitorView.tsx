@@ -151,9 +151,12 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   // Ini memastikan statistik tidak mencampur data dari shift sebelumnya
   // dalam kasus edge di mana orders belum ter-clear saat shift dibuka ulang.
   const shiftOrders = orders.filter((o) => o.paidShiftId === currentShift.id && o.status !== 'CANCELLED');
-  const createdShiftOrders = orders.filter((o) => (o.createdShiftId || o.shiftId) === currentShift.id);
   const activeOrders = shiftOrders.filter((o) => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID');
-  const voidOrders = createdShiftOrders.filter((o) => o.status === 'CANCELLED');
+  // Void dihitung berdasarkan shift SAAT DIBATALKAN (completedShiftId), sama
+  // seperti riwayat shift di Kasir & Z-Report — order boleh dibuat pada shift
+  // sebelumnya lalu baru dibatalkan pada shift berjalan, dan sebaliknya order
+  // yang dibuat shift ini tapi dibatalkan shift lain TIDAK dihitung di sini.
+  const voidOrders = orders.filter((o) => o.status === 'CANCELLED' && o.completedShiftId === currentShift.id);
   const discountedOrders = shiftOrders.filter((o) => (o.discount ?? 0) > 0);
 
   // Fallback: kalkulasi dari orders jika shift counter belum terupdate
