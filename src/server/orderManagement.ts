@@ -199,13 +199,29 @@ export async function handleOrderRequest(
       if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(actor.role)) {
         return fail(403, 'Pembatalan membutuhkan persetujuan Manager atau Owner');
       }
-      const { error: voidError } = await admin.rpc('void_order', {
+      const voidShiftId = UUID_PATTERN.test(String(payload.shiftId || '')) ? String(payload.shiftId) : null;
+      let { error: voidError } = await admin.rpc('void_order', {
         p_order_id: payload.orderId,
         p_branch_id: branchId,
         p_reason: payload.reason ? String(payload.reason).slice(0, 500) : null,
         p_actor_user_id: actor.id,
         p_request_id: null,
+        p_shift_id: voidShiftId,
       });
+      // Kompatibilitas singkat selama migrasi p_shift_id belum diterapkan di database.
+      if (voidError && voidShiftId) {
+        ({ error: voidError } = await admin.rpc('void_order', {
+          p_order_id: payload.orderId,
+          p_branch_id: branchId,
+          p_reason: payload.reason ? String(payload.reason).slice(0, 500) : null,
+          p_actor_user_id: actor.id,
+          p_request_id: null,
+        }));
+        if (!voidError) {
+          await admin.from('orders').update({ completed_shift_id: voidShiftId })
+            .eq('id', payload.orderId).eq('branch_id', branchId).is('completed_shift_id', null);
+        }
+      }
       if (voidError) return fail(500, 'Pembatalan pesanan gagal diproses');
       return { status: 200, data: { success: true } };
     }
