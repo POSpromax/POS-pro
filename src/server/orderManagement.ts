@@ -122,7 +122,74 @@ export async function handleOrderRequest(
 
   if (method === 'PATCH') {
     if (!actor) return fail(401, 'Sesi telah berakhir');
-    if (!UUID_PATTERN.test(String(payload.orderId || '')) || !ORDER_STATUSES.has(payload.status)) return fail(400, 'Status pesanan tidak valid');
+
+    // ========================================================================
+    // P0 — PAY ORDER: Immutable payment snapshot via finalize_order_payment
+    // ========================================================================
+    if (payload.action === 'PAY') {
+      // Validate payment parameters
+      if (!UUID_PATTERN.test(String(payload.orderId || ''))) {
+        return fail(400, 'ID pesanan tidak valid');
+      }
+      if (!PAYMENT_METHODS.has(String(payload.paymentMethod || ''))) {
+        return fail(400, 'Metode pembayaran tidak valid');
+      }
+      if (!UUID_PATTERN.test(String(payload.paidShiftId || ''))) {
+        return fail(400, 'ID shift pembayaran tidak valid');
+      }
+
+      // Role check: SUPER_OWNER, OWNER, MANAGER, ADMIN, KASIR
+      const paymentRoles = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
+      if (!paymentRoles.has(actor.role)) {
+        return fail(403, 'Role tidak memiliki izin untuk memproses pembayaran');
+      }
+
+      const paidAmount = Math.floor(Number(payload.paidAmount) || 0);
+      if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+        return fail(400, 'Jumlah pembayaran tidak valid');
+      }
+
+      // Call finalize_order_payment RPC
+      const { data: paymentResult, error: paymentError } = await admin.rpc(
+        'finalize_order_payment',
+        {
+          p_order_id: payload.orderId,
+          p_branch_id: branchId,
+          p_payment_method: payload.paymentMethod,
+          p_paid_amount: paidAmount,
+          p_paid_shift_id: payload.paidShiftId,
+          p_cashier_user_id: actor.id,
+        },
+      );
+
+      if (paymentError) {
+        return fail(500, `Pembayaran gagal: ${paymentError.message}`);
+      }
+
+      if (!paymentResult?.success) {
+        const errorMsg = paymentResult?.error || 'Pembayaran pesanan gagal diproses';
+        return fail(400, errorMsg);
+      }
+
+      // Fetch updated order after payment
+      try {
+        const orders = await readOrders(branchId, admin, payload.orderId);
+        return {
+          status: paymentResult.idempotent ? 200 : 200,
+          data: orders[0] || null,
+        };
+      } catch {
+        return fail(500, 'Pembayaran berhasil tetapi pesanan gagal dibaca ulang');
+      }
+    }
+
+    // ========================================================================
+    // Kitchen Status Updates (COOKING, READY, COMPLETED, CANCELLED)
+    // ========================================================================
+    if (!UUID_PATTERN.test(String(payload.orderId || '')) || !ORDER_STATUSES.has(payload.status)) {
+      return fail(400, 'Status pesanan tidak valid');
+    }
+
     const kitchenRoles = new Set(['KITCHEN', 'SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
     if (!kitchenRoles.has(actor.role)) return fail(403, 'Role tidak memiliki izin memperbarui status dapur');
 
