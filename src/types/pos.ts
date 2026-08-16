@@ -274,6 +274,13 @@ export interface PrinterConfig {
   /** Ukuran paket BLE. Nilai kecil lebih kompatibel dengan printer thermal murah. */
   chunkSize?: 20 | 64 | 128 | 256;
   lastConnectedAt?: string;
+  /**
+   * Auto-cetak tiket dapur (tanpa harga) begitu order baru/tambahan item
+   * masuk ke cabang ini. Berlaku per-terminal/device, bisa dinyalakan dari
+   * panel Kasir maupun Kitchen (KDS) — keduanya membaca & menulis flag yang
+   * sama karena printer terpasang pada device yang sama.
+   */
+  autoPrintKitchenOnNewOrder?: boolean;
 }
 
 export type MerchantChannel = 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD' | 'TIKTOK' | 'LAINNYA';

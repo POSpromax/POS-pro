@@ -4,7 +4,7 @@
  * Nusantara POS & Resto Full-Stack System
  */
 
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { HeaderBar } from './components/Navigation/HeaderBar';
@@ -492,6 +492,21 @@ export default function App() {
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
   const [isAttendanceConfigReady, setIsAttendanceConfigReady] = useState<boolean>(() => !cloudReadiness.supabase);
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(() => DBStorage.getPrinterConfig());
+  const printerConfigRef = useRef(printerConfig);
+  useEffect(() => { printerConfigRef.current = printerConfig; }, [printerConfig]);
+  const handleToggleAutoPrintKitchen = useCallback(() => {
+    setPrinterConfig((current) => {
+      const next: PrinterConfig = { ...current, autoPrintKitchenOnNewOrder: !current.autoPrintKitchenOnNewOrder };
+      DBStorage.savePrinterConfig(next);
+      showPushToast(
+        next.autoPrintKitchenOnNewOrder ? 'Auto Print Dinyalakan' : 'Auto Print Dimatikan',
+        next.autoPrintKitchenOnNewOrder
+          ? 'Tiket dapur akan otomatis tercetak saat order baru masuk.'
+          : 'Order baru tidak akan dicetak otomatis lagi.'
+      );
+      return next;
+    });
+  }, []);
   const [staffAccounts, setStaffAccounts] = useState<UserAccount[]>(() => DBStorage.getStaff());
   const [accessControl, setAccessControl] = useState<AccessControlRule[]>(() => DBStorage.getAccessControl());
   const roleAccessRule = accessControl.find((rule) => rule.role === activeUser.role);
@@ -767,6 +782,18 @@ export default function App() {
               if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
                 playNewOrderSound(profile.soundPesananMasuk);
               }
+            }
+
+            // Auto-cetak tiket dapur (tanpa harga) untuk order baru/tambahan item,
+            // hanya ketika toggle Auto Print diaktifkan dari panel Kasir atau KDS.
+            if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
+              changedOrders.forEach((order) => {
+                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current).then((result) => {
+                  if (!result.success) {
+                    showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
+                  }
+                });
+              });
             }
           }
           // Saat Supabase aktif, database adalah satu-satunya sumber kebenaran.
@@ -2229,6 +2256,7 @@ export default function App() {
             onSelectBranch={setCurrentBranch}
             printerConfig={printerConfig}
             onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
+            onToggleAutoPrintKitchen={handleToggleAutoPrintKitchen}
             onOpenCustomerSelfOrder={() => {
               setSelectedSelfOrderTable('');
               setIsSelfOrderModalOpen(true);
@@ -2262,6 +2290,7 @@ export default function App() {
                   onSelectBranch={setCurrentBranch}
                   printerConfig={printerConfig}
                   onOpenPrinterSetup={() => setIsPrinterModalOpen(true)}
+                  onToggleAutoPrintKitchen={handleToggleAutoPrintKitchen}
                   onOpenCustomerSelfOrder={() => {
                     setSelectedSelfOrderTable('');
                     setIsSelfOrderModalOpen(true);

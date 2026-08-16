@@ -702,6 +702,7 @@ export class DBStorage {
       isConnected: false,
       transport: 'AUTO',
       chunkSize: 128,
+      autoPrintKitchenOnNewOrder: false,
     });
     // Status koneksi GATT/SPP adalah state runtime dan selalu hilang ketika
     // browser/APK ditutup. Jangan menampilkan status hijau hanya karena nilai
@@ -711,6 +712,7 @@ export class DBStorage {
       isConnected: false,
       transport: stored.transport || 'AUTO',
       chunkSize: stored.chunkSize || 128,
+      autoPrintKitchenOnNewOrder: stored.autoPrintKitchenOnNewOrder ?? false,
     };
   }
 

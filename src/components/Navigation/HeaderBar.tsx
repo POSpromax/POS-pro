@@ -10,6 +10,7 @@ interface HeaderBarProps {
   onSelectBranch: (branch: Branch) => void;
   printerConfig: PrinterConfig;
   onOpenPrinterSetup: () => void;
+  onToggleAutoPrintKitchen?: () => void;
   onOpenCustomerSelfOrder?: () => void;
   onOpenTableManagement?: () => void;
   onOpenTableModal?: () => void;
@@ -38,6 +39,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onSelectBranch,
   printerConfig,
   onOpenPrinterSetup,
+  onToggleAutoPrintKitchen,
   onOpenCustomerSelfOrder,
   onOpenTableManagement,
   onOpenTableModal,
@@ -250,6 +252,25 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <Printer className="h-3.5 w-3.5" style={{ color: '#047857' }} />
             <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
           </button>
+
+          {/* Auto-Print Kitchen Ticket Toggle — shared by Kasir & KDS panel, output selalu format tiket dapur tanpa harga */}
+          {onToggleAutoPrintKitchen && (
+            <button
+              id="btn-header-auto-print-kitchen"
+              type="button"
+              onClick={onToggleAutoPrintKitchen}
+              title="Auto-cetak tiket dapur saat order baru masuk"
+              aria-pressed={!!printerConfig.autoPrintKitchenOnNewOrder}
+              className={`flex items-center gap-1.5 border font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8 ${
+                printerConfig.autoPrintKitchenOnNewOrder
+                  ? 'bg-[#047857] border-[#047857] text-white hover:bg-[#036548]'
+                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Auto Print {printerConfig.autoPrintKitchenOnNewOrder ? 'ON' : 'OFF'}</span>
+            </button>
+          )}
 
           {/* Dine In Pill Button (Solid Emerald Green #047857 when active) */}
           <button
