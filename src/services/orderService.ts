@@ -1,4 +1,4 @@
-import type { Order, OrderStatus } from '../types/pos';
+import type { Order, OrderStatus, PaymentMethod } from '../types/pos';
 import { ensureRealtimeAuth, getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
 async function token(): Promise<string> {
@@ -22,6 +22,45 @@ export const listCloudOrders = (branchId: string): Promise<Order[]> =>
 
 export const submitCloudOrder = (order: Order): Promise<Order> =>
   request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ branchId: order.branchId, order }) }, order.source !== 'SELF_ORDER');
+
+/**
+ * Pay an existing cloud order using immutable snapshot payment.
+ * 
+ * Contract:
+ * - Calls finalize_order_payment RPC (not checkout_order)
+ * - Order must already be saved in database
+ * - Validates order existence and branch
+ * - Rejects CANCELLED orders
+ * - Idempotent if already PAID
+ * - Never re-validates condiment/menu
+ * - Never mutates order_items
+ * - Deducts inventory once
+ * 
+ * @param branchId - branch UUID
+ * @param orderId - existing order UUID
+ * @param paymentMethod - CASH | QRIS | DEBIT | TRANSFER
+ * @param paidAmount - amount paid by customer (for CASH)
+ * @param paidShiftId - shift UUID when payment occurred
+ * @returns updated order with payment status PAID
+ */
+export const payCloudOrder = (
+  branchId: string,
+  orderId: string,
+  paymentMethod: PaymentMethod,
+  paidAmount: number,
+  paidShiftId: string,
+): Promise<Order> =>
+  request<Order>('/api/orders', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      branchId,
+      orderId,
+      paymentMethod,
+      paidAmount,
+      paidShiftId,
+      action: 'PAY', // Distinguish from status updates (COOKING, READY, COMPLETED)
+    }),
+  });
 
 export const updateCloudOrderStatus = (branchId: string, orderId: string, status: OrderStatus, shiftId?: string, reason?: string): Promise<void> =>
   request<void>('/api/orders', { method: 'PATCH', body: JSON.stringify({ branchId, orderId, status, shiftId, reason }) });
