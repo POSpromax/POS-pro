@@ -338,11 +338,7 @@ export class BluetoothPrinterService {
     const encoder = new TextEncoder();
     const lineWidth = config.paperSize === '80mm' ? 48 : 32;
 
-    const centerText = (str: string) => {
-      if (str.length >= lineWidth) return str.slice(0, lineWidth) + '\n';
-      const spaces = Math.floor((lineWidth - str.length) / 2);
-      return ' '.repeat(spaces) + str + '\n';
-    };
+    const centerText = (str: string) => `${str.slice(0, lineWidth)}\n`;
 
     const justifyText = (left: string, right: string) => {
       const spaceNeeded = lineWidth - left.length - right.length;
@@ -397,10 +393,7 @@ export class BluetoothPrinterService {
     const encoder = new TextEncoder();
     const lineWidth = config.paperSize === '80mm' ? 48 : 32;
     const separator = '-'.repeat(lineWidth) + '\n';
-    const center = (value: string) => {
-      const text = value.slice(0, lineWidth);
-      return `${' '.repeat(Math.max(0, Math.floor((lineWidth - text.length) / 2)))}${text}\n`;
-    };
+    const center = (value: string) => `${value.slice(0, lineWidth)}\n`;
     const justify = (left: string, right: string) => {
       const gap = lineWidth - left.length - right.length;
       return gap > 0 ? `${left}${' '.repeat(gap)}${right}\n` : `${left.slice(0, Math.max(0, lineWidth - right.length - 1))} ${right}\n`;
