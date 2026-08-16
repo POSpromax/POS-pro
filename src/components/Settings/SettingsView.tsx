@@ -288,6 +288,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     : currentBranch.code || 'Cabang';
 
   const tableTargetDirty = changedByKeys(['allowedSelfOrderTables']);
+  const gpsSettingsDirty = changedByKeys([
+    'isAttendanceEnabled',
+    'gpsLatitude',
+    'gpsLongitude',
+    'gpsRadiusMeters',
+    'maxGpsAccuracyMeters',
+    'requireGpsActive',
+  ]);
 
   // Condiment changes may round-trip through cloud and replace the group array.
   // Preserve the settings viewport so button/input changes never throw the user
@@ -451,7 +459,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       return 'Pajak harus berada pada rentang 0–100%.';
     }
 
-    if (formProfile.isAttendanceEnabled !== false && formProfile.requireGpsActive !== false) {
+    if (gpsSettingsDirty && formProfile.isAttendanceEnabled !== false && formProfile.requireGpsActive !== false) {
       const lat = Number(formProfile.gpsLatitude);
       const lng = Number(formProfile.gpsLongitude);
       const radius = Number(formProfile.gpsRadiusMeters ?? 20);

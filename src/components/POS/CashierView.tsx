@@ -283,6 +283,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
     if (!currentEditingOrderId) setTaxValue(configuredTaxPercent);
   }, [configuredTaxPercent, currentEditingOrderId]);
 
+  useEffect(() => {
+    if (!manualDiscountEnabled) setDiscountValue(0);
+  }, [manualDiscountEnabled]);
+
   if (!isShiftActiveForCurrentContext) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-[#F8FAFC]">
@@ -501,26 +505,22 @@ export const CashierView: React.FC<CashierViewProps> = ({
           {/* 1. LEFT PANEL: ANTREAN POS (Active Orders Queue Sidebar matching Emerald Green Mockup) */}
           <div className="hidden lg:flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
             {/* Panel Title Header */}
-            <div className="flex items-center justify-between pb-2">
+            <div className="flex items-center justify-between gap-2 pb-2">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl text-white flex items-center justify-center shadow-sm" style={{ background: '#047857' }}>
                   <FileText className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-sm font-extrabold text-[#111827]">Antrian POS</h2>
               </div>
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm" title="Online" />
+              <button
+                type="button"
+                onClick={handleClearCart}
+                className="flex items-center justify-center gap-1 rounded-lg bg-emerald-700 px-2 py-1.5 text-[10px] font-extrabold text-white transition-colors hover:bg-emerald-800"
+              >
+                <Plus className="h-3 w-3 stroke-[3]" />
+                <span>Order Baru</span>
+              </button>
             </div>
-
-            {/* Prominent Buat Order Baru Button at TOP of Left Sidebar Panel */}
-            <button
-              type="button"
-              onClick={handleClearCart}
-              className="mb-3 w-full flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-extrabold text-white shadow-sm active:scale-95 transition-all cursor-pointer"
-              style={{ background: 'linear-gradient(180deg, #059669 0%, #047857 100%)', color: '#ffffff' }}
-            >
-              <Plus className="w-4 h-4 text-white stroke-[3]" />
-              <span>Buat Order Baru</span>
-            </button>
 
             {/* Segmented Queue Switcher (Renamed 'Shift' to 'Riwayat' as requested) */}
             <div className="flex items-center rounded-full bg-slate-100 p-1 mb-3">
@@ -883,27 +883,32 @@ export const CashierView: React.FC<CashierViewProps> = ({
             {/* Cart Footer Breakdown — Minimalist Footer & No Duplicate Subtotal */}
             <div className="shrink-0 p-3 border-t border-slate-100 space-y-2 bg-white">
               {/* Discount and Tax inputs */}
-              <div className="grid grid-cols-2 gap-2">
+              {(manualDiscountEnabled || taxEnabled) && (
+              <div className={`grid gap-2 ${manualDiscountEnabled && taxEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {manualDiscountEnabled && (
                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700">
                   <Percent className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <input
                     type="number"
                     min="0"
                     max="100"
-                    disabled={!manualDiscountEnabled || isPaidOrder}
-                    placeholder={manualDiscountEnabled ? 'Diskon %' : 'Diskon off'}
+                    disabled={isPaidOrder}
+                    placeholder="Diskon %"
                     value={discountValue || ''}
                     onChange={(e) => setDiscountValue(Math.max(0, Math.min(100, Number(e.target.value))))}
                     className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs disabled:cursor-not-allowed disabled:text-slate-400"
-                    title={manualDiscountEnabled ? 'Diskon manual aktif dari Pengaturan Operasional' : 'Diskon manual dinonaktifkan dari Pengaturan Operasional'}
+                    title="Diskon manual aktif dari Pengaturan Operasional"
                   />
                 </div>
-
+                )}
+                {taxEnabled && (
                 <div className={`flex items-center justify-between rounded-xl border px-2.5 py-1.5 text-xs font-bold ${taxValue > 0 || taxEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                   <span>Pajak</span>
-                  <span className="font-extrabold text-[11px]">{taxValue > 0 ? `${taxValue}%` : taxEnabled ? '0%' : 'OFF'}</span>
+                  <span className="font-extrabold text-[11px]">{taxValue > 0 ? `${taxValue}%` : '0%'}</span>
                 </div>
+                )}
               </div>
+              )}
 
               {/* Subtotal row ONLY rendered if discount or tax > 0 */}
               {(discountAmount > 0 || taxAmount > 0) && (
@@ -924,26 +929,27 @@ export const CashierView: React.FC<CashierViewProps> = ({
               </div>
 
               {/* Bottom Action Buttons */}
-              <div className="grid grid-cols-3 gap-2 pt-0.5 pb-[max(12px,env(safe-area-inset-bottom))]">
+              <div className="grid grid-cols-2 gap-2 pt-0.5 pb-[max(12px,env(safe-area-inset-bottom))] sm:grid-cols-3 lg:flex">
                 {currentEditingOrder && !isLoadedClosed && onVoidOrder && ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && (
                   <button
                     type="button"
                     onClick={() => setIsVoidModalOpen(true)}
-                    className="col-span-1 flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700 hover:bg-rose-100"
                     title="Void pesanan dengan persetujuan"
-                    aria-label="Void pesanan"
                   >
                     <Ban className="h-4 w-4" />
+                    <span className="text-xs font-extrabold">Void</span>
                   </button>
                 )}
                 <button
                   type="button"
                   disabled={cartItems.length === 0}
                   onClick={() => onPrintPreBill(buildCurrentOrderDraft() as Order)}
-                  className="col-span-1 flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-3 text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white p-3 text-slate-700 transition-colors hover:bg-slate-50"
                   title="Cetak Tagihan"
                 >
                   <Printer className="w-4 h-4" />
+                  <span className="text-xs font-extrabold">Cetak</span>
                 </button>
 
                 <button
@@ -956,7 +962,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onSaveHoldOrder(draft);
                     handleClearCart();
                   }}
-                  className="col-span-1 flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-extrabold text-[#111827] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-extrabold text-[#111827] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Save className="w-4 h-4" style={{ color: '#047857' }} />
                   <span>Simpan</span>
@@ -964,12 +970,12 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
                 {isLoadedClosed ? (
                   /* Order sudah selesai/batal: hanya penanda, tidak ada aksi. */
-                  <div className="col-span-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-xs font-extrabold text-slate-500 select-none">
+                  <div className="col-span-full flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-xs font-extrabold text-slate-500 select-none">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{loadedStatus === 'CANCELLED' ? 'Pesanan Dibatalkan' : 'Pesanan Selesai'}</span>
                   </div>
                 ) : isLoadedPaidActive ? (
-                  <div className="col-span-3 flex items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
+                  <div className="col-span-full flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-extrabold text-amber-800">
                     <Clock className="h-4 w-4" />
                     <span>Lunas · Menunggu Kitchen Selesai</span>
                   </div>
@@ -982,7 +988,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       setPendingConfirm(null);
                       onOpenCheckoutModal(buildCurrentOrderDraft());
                     }}
-                    className="col-span-3 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="col-span-full flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                     style={{
                       background: 'linear-gradient(180deg, #059669 0%, #047857 100%)',
                       color: '#ffffff',
@@ -1022,6 +1028,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
               selectedCondiments: selectedCondiments.length > 0 ? selectedCondiments : undefined
             }
           ]));
+          setIsCondimentModalOpen(false);
+          setActiveItemForCondiment(null);
         }}
       />
 

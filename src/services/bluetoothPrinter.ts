@@ -372,10 +372,6 @@ export class BluetoothPrinterService {
     order.items.forEach((item) => {
       text += `${item.menuName}\n`;
       text += justifyText(`  ${item.quantity} x ${item.price.toLocaleString('id-ID')}`, (item.quantity * item.price).toLocaleString('id-ID'));
-      if (item.selectedCondiments?.length) {
-        item.selectedCondiments.forEach((group) => { text += `  + ${group.groupName}: ${group.options.join(', ')}\n`; });
-      }
-      if (item.notes) text += `  * ${item.notes}\n`;
     });
 
     text += separator;
@@ -481,7 +477,7 @@ export class BluetoothPrinterService {
     text += wrap(`${order.source === 'SELF_ORDER' ? 'SELF ORDER' : 'POS KASIR'} · ${order.customerName || 'Guest'}`);
     text += separator;
 
-    order.items.forEach((item, index) => {
+    order.items.forEach((item) => {
       text += '\x1D\x21\x10';
       text += wrap(`${item.quantity}x ${item.menuName}`);
       text += '\x1D\x21\x00';
@@ -489,7 +485,6 @@ export class BluetoothPrinterService {
         text += wrap(`${group.groupName.toUpperCase()}: ${group.options.join(', ')}`, '    ');
       });
       if (item.notes) text += wrap(item.notes, '    ! ');
-      if (index < order.items.length - 1) text += '\n';
     });
 
     if (order.notes) {
