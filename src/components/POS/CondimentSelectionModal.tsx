@@ -399,15 +399,15 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   };
 
   const renderQuickPreset = () => fillingGroup ? (
-    <section className="so-card p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Sparkles className="h-4 w-4" /></span>
+    <section className="so-card p-3">
+      <div className="flex items-start gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Sparkles className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-[.13em] text-[var(--so-text)]">Racikan Cepat</p>
           <p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Pilih racikan standar lalu ubah detail isian bila perlu.</p>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
         {([
           {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset)},
           {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], campurPreset)},
@@ -431,7 +431,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
       {fillingGroup && renderGroup(fillingGroup)}
       {standardGroups.map(renderGroup)}
       {applicableGroups.length === 0 && <div className="so-card px-4 py-8 text-center"><Utensils className="mx-auto h-6 w-6 text-[var(--so-text-faint)]" /><p className="mt-2 text-[10px] font-black text-[var(--so-text-soft)]">Menu ini tidak memiliki pilihan tambahan.</p></div>}
-      <label className="so-card block p-4"><span className="text-[8px] font-black uppercase tracking-[.13em] text-[var(--so-text-muted)]">Catatan item · opsional</span><textarea value={notes} onChange={(event) => setNotes(event.target.value.slice(0, 240))} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea mt-2 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold text-[var(--so-text-soft)] outline-none transition placeholder:text-[var(--so-text-faint)] focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>
+      <label className="so-card block p-3"><span className="text-[8px] font-black uppercase tracking-[.13em] text-[var(--so-text-muted)]">Catatan item · opsional</span><textarea value={notes} onChange={(event) => setNotes(event.target.value.slice(0, 240))} rows={2} placeholder="Contoh: dibungkus, kuah dipisah, tanpa sawi..." className="so-native-textarea mt-2 w-full resize-none rounded-xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] px-3 py-2.5 text-[10px] font-semibold text-[var(--so-text-soft)] outline-none transition placeholder:text-[var(--so-text-faint)] focus:border-[var(--so-brand-weak)] focus:bg-white" /></label>
     </>
   );
 
@@ -493,21 +493,22 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     <div className="theme-self-order fixed inset-0 z-50 flex items-end justify-center bg-[#0f172a]/45 backdrop-blur-[3px] sm:items-center sm:p-4 animate-fadeIn">
       <section className="flex max-h-[96dvh] w-full max-w-[540px] flex-col overflow-hidden rounded-t-[2rem] border border-[var(--so-border)] bg-[var(--so-canvas)] shadow-[0_-18px_70px_rgba(15,23,42,.18)] sm:rounded-[2rem] animate-slideUp">
         <header className="shrink-0 border-b border-[var(--so-border)] bg-white">
-          <div className="relative h-[210px] overflow-hidden bg-white sm:h-[232px]">
+          <div className="relative h-[152px] overflow-hidden bg-white sm:h-[168px]">
             {menuItem.image ? (
-              <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="so-food-photo h-full w-full object-contain px-6 py-3 sm:px-8" />
+              <img src={optimizeCloudinaryImage(menuItem.image, 900)} alt={menuItem.name} decoding="async" className="so-food-photo h-full w-full object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center"><Utensils className="h-12 w-12 text-[var(--so-text-faint)]" /></div>
             )}
-            <button type="button" onClick={onClose} aria-label="Tutup detail menu" className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--so-border)] bg-white/95 text-[var(--so-text)] shadow-sm transition active:scale-95"><X className="h-5 w-5" /></button>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/25 to-transparent" />
+            <button type="button" onClick={onClose} aria-label="Tutup detail menu" className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--so-border)] bg-white/95 text-[var(--so-text)] shadow-sm transition active:scale-95"><X className="h-5 w-5" /></button>
           </div>
-          <div className="flex items-start justify-between gap-4 px-4 pb-4 pt-2.5">
+          <div className="flex items-start justify-between gap-4 px-4 pb-3 pt-2">
             <div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[.17em] text-[var(--so-brand)]">Atur Pesanan</p><h2 className="mt-1 line-clamp-2 text-[17px] font-black leading-tight tracking-[-.02em] text-[var(--so-text)]">{menuItem.name}</h2></div>
             <span className="shrink-0 rounded-full bg-[var(--so-brand-soft)] px-3 py-1.5 text-[9px] font-black text-[var(--so-brand)]">Rp {finalUnitPrice.toLocaleString('id-ID')}</span>
           </div>
         </header>
-        <div className="flex-1 space-y-3 overflow-y-auto px-3.5 pb-4 pt-3 scrollbar-thin sm:px-4">{renderConfigurationContent()}</div>
-        <footer className="shrink-0 border-t border-[var(--so-border)] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><button type="button" onClick={handleSave} className="so-primary-button">Tambahkan · Rp {finalUnitPrice.toLocaleString('id-ID')}</button></footer>
+        <div className="flex-1 space-y-2.5 overflow-y-auto px-3.5 pb-4 pt-2.5 scrollbar-thin sm:px-4">{renderConfigurationContent()}</div>
+        <footer className="shrink-0 border-t border-[var(--so-border)] bg-white p-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]"><button type="button" onClick={handleSave} className="so-primary-button">Tambahkan · Rp {finalUnitPrice.toLocaleString('id-ID')}</button></footer>
       </section>
     </div>
   );
