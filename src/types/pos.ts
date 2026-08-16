@@ -215,6 +215,9 @@ export interface Shift {
   totalIncome: number;
   status: 'OPEN' | 'CLOSED';
   notes?: string;
+  actualCash?: number;
+  expectedCash?: number;
+  varianceAmount?: number;
   branchId?: string;
   branchName?: string;
   scheduledStart?: string;
