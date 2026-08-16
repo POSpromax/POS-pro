@@ -352,8 +352,8 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     const role = resolveSelfOrderRole(group);
 
     return (
-      <section key={group.id} className="so-card p-4">
-        <div className="mb-3 flex items-start justify-between gap-3">
+      <section key={group.id} className="so-card p-3">
+        <div className="mb-2 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-[11px] font-black uppercase tracking-[.12em] text-[var(--so-text)]">{group.name}</h3>
             <p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">
@@ -373,7 +373,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
           {options.map((option) => {
             const active = selected.includes(option.name);
             return (
@@ -381,7 +381,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
                 key={option.id}
                 type="button"
                 onClick={() => toggleOption(group, option.name)}
-                className={`flex min-h-[50px] items-center gap-2.5 rounded-[1rem] border px-3 py-2.5 text-left transition duration-150 active:scale-[.985] ${active ? 'border-[var(--so-brand-weak)] bg-[var(--so-brand-soft)] text-[var(--so-text)]' : 'border-[var(--so-border)] bg-white text-[var(--so-text-soft)] hover:border-[var(--so-brand-weak)]'}`}
+                className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition duration-150 active:scale-[.985] ${active ? 'border-[var(--so-brand-weak)] bg-[var(--so-brand-soft)] text-[var(--so-text)]' : 'border-[var(--so-border)] bg-white text-[var(--so-text-soft)] hover:border-[var(--so-brand-weak)]'}`}
               >
                 <span className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition ${single ? 'rounded-full' : 'rounded-md'} ${active ? 'border-[var(--so-brand)] bg-[var(--so-brand)] text-white' : 'border-[#d7d1cb] bg-white'}`}>
                   {active && (single ? <span className="h-2 w-2 rounded-full bg-white" /> : <Check className="h-3 w-3 stroke-[3]" />)}
