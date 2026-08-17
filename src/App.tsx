@@ -2707,6 +2707,7 @@ export default function App() {
             <AnalyticsExportView
               orders={orders}
               menuItems={menuItems}
+              rawMaterials={ownerMonitorData.rawMaterials.length > 0 ? ownerMonitorData.rawMaterials : rawMaterials}
               currentShift={currentShift}
               allShifts={shiftHistory}
               attendanceRecords={attendanceRecords}

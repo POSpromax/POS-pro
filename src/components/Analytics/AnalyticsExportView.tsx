@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile, Branch, RawMaterial } from '../../types/pos';
 import { DBStorage } from '../../services/dbStorage';
+import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
 import { ReportPeriod, REPORT_PERIODS, formatPeriodRange, getPeriodRange, isWithinPeriod } from '../../utils/reportPeriod';
 
 interface AnalyticsExportViewProps {
@@ -194,6 +195,13 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
+  const [inventorySearchTerm, setInventorySearchTerm] = useState('');
+  const [inventoryMovementPage, setInventoryMovementPage] = useState(1);
+  const [inventoryMovementPageSize, setInventoryMovementPageSize] = useState(50);
+  const [inventoryMovements, setInventoryMovements] = useState<StockMovement[]>([]);
+  const [inventoryMovementTotal, setInventoryMovementTotal] = useState(0);
+  const [inventoryMovementLoading, setInventoryMovementLoading] = useState(false);
+  const [inventoryMovementError, setInventoryMovementError] = useState('');
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
   // Filter cabang: default cabang aktif; 'ALL' = gabungan semua cabang.
@@ -544,6 +552,127 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     }, {});
   }, [allExpenses, orders, shifts]);
 
+  const inventoryMaterials = useMemo(() => {
+    const scopedMaterials = branchFilter === 'ALL'
+      ? rawMaterials
+      : rawMaterials.filter((material) => material.branchId === branchFilter);
+    const query = inventorySearchTerm.trim().toLowerCase();
+    return scopedMaterials
+      .filter((material) => (
+        !query
+        || material.name.toLowerCase().includes(query)
+        || material.unit.toLowerCase().includes(query)
+        || (material.branchName || '').toLowerCase().includes(query)
+      ))
+      .sort((left, right) => {
+        const leftLow = left.stockQuantity <= left.minStockThreshold ? 1 : 0;
+        const rightLow = right.stockQuantity <= right.minStockThreshold ? 1 : 0;
+        if (leftLow !== rightLow) return rightLow - leftLow;
+        return left.name.localeCompare(right.name, 'id-ID');
+      });
+  }, [branchFilter, inventorySearchTerm, rawMaterials]);
+
+  const inventoryUsageByMaterial = useMemo(() => {
+    const usage = new Map<string, number>();
+    paidOrders.forEach((order) => {
+      order.items.forEach((item) => {
+        const menu = menuItems.find((menuItem) => menuItem.id === item.menuId || menuItem.name === item.menuName);
+        menu?.ingredients?.forEach((ingredient) => {
+          usage.set(
+            ingredient.rawMaterialId,
+            (usage.get(ingredient.rawMaterialId) || 0) + (ingredient.amountNeeded * item.quantity),
+          );
+        });
+      });
+    });
+    return usage;
+  }, [menuItems, paidOrders]);
+
+  const inventoryTotals = useMemo(() => {
+    return inventoryMaterials.reduce((acc, material) => {
+      const usage = inventoryUsageByMaterial.get(material.id) || 0;
+      const value = material.stockQuantity * material.costPerUnit;
+      acc.totalValue += value;
+      acc.totalUsage += usage;
+      if (material.stockQuantity <= material.minStockThreshold) acc.lowStockCount += 1;
+      return acc;
+    }, { totalValue: 0, totalUsage: 0, lowStockCount: 0 });
+  }, [inventoryMaterials, inventoryUsageByMaterial]);
+
+  const inventoryPagination = usePaginatedList(
+    inventoryMaterials,
+    JSON.stringify([activeTab, branchFilter, inventorySearchTerm, inventoryMaterials.length]),
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'INVENTORY') return;
+    let cancelled = false;
+    const loadStockMovements = async () => {
+      const scopedBranchIds = branchFilter === 'ALL'
+        ? Array.from(new Set((branches.length > 0 ? branches.map((branch) => branch.id) : rawMaterials.map((material) => material.branchId)).filter(Boolean)))
+        : [branchFilter];
+
+      if (scopedBranchIds.length === 0) {
+        setInventoryMovements([]);
+        setInventoryMovementTotal(0);
+        setInventoryMovementError('');
+        return;
+      }
+
+      setInventoryMovementLoading(true);
+      setInventoryMovementError('');
+
+      try {
+        const requestedRows = inventoryMovementPage * inventoryMovementPageSize;
+        const results = await Promise.all(
+          scopedBranchIds.map((branchId) => listStockMovements({
+            branchId,
+            limit: requestedRows,
+            offset: 0,
+            from: periodRange.start.toISOString(),
+            to: periodRange.end.toISOString(),
+          })),
+        );
+
+        if (cancelled) return;
+
+        const mergedRows = results
+          .flatMap((result) => result.rows)
+          .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+        const offset = (inventoryMovementPage - 1) * inventoryMovementPageSize;
+        setInventoryMovements(mergedRows.slice(offset, offset + inventoryMovementPageSize));
+        setInventoryMovementTotal(results.reduce((total, result) => total + result.total, 0));
+      } catch (error) {
+        if (cancelled) return;
+        setInventoryMovements([]);
+        setInventoryMovementTotal(0);
+        setInventoryMovementError(error instanceof Error ? error.message : 'Riwayat mutasi stok gagal dimuat.');
+      } finally {
+        if (!cancelled) setInventoryMovementLoading(false);
+      }
+    };
+
+    void loadStockMovements();
+    return () => { cancelled = true; };
+  }, [
+    activeTab,
+    branchFilter,
+    branches,
+    inventoryMovementPage,
+    inventoryMovementPageSize,
+    periodRange.end,
+    periodRange.start,
+    rawMaterials,
+  ]);
+
+  useEffect(() => {
+    setInventoryMovementPage(1);
+  }, [branchFilter, inventoryMovementPageSize, period, inventorySearchTerm]);
+
+  const inventoryMovementTotalPages = Math.max(1, Math.ceil(inventoryMovementTotal / inventoryMovementPageSize));
+  const inventoryMovementStartItem = inventoryMovementTotal === 0 ? 0 : (inventoryMovementPage - 1) * inventoryMovementPageSize + 1;
+  const inventoryMovementEndItem = inventoryMovementTotal === 0 ? 0 : Math.min(inventoryMovementPage * inventoryMovementPageSize, inventoryMovementTotal);
+
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Pajak,Total,Status\n';
@@ -740,6 +869,15 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         >
           <UserCheck className="w-4 h-4" />
           Histori Presensi ({attendances.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('INVENTORY')}
+          className={`ui-tab ${activeTab === 'INVENTORY' ? 'ui-tab-active' : ''}`}
+        >
+          <Layers className="w-4 h-4" />
+          Laporan Stok ({inventoryMaterials.length})
         </button>
       </div>
 
@@ -1158,15 +1296,15 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </table>
             </div>
             <PaginationControls
-              page={shiftPagination.page}
-              pageSize={shiftPagination.pageSize}
-              totalItems={shiftPagination.totalItems}
-              totalPages={shiftPagination.totalPages}
-              startItem={shiftPagination.startItem}
-              endItem={shiftPagination.endItem}
-              onPageChange={shiftPagination.setPage}
-              onPageSizeChange={shiftPagination.setPageSize}
-              itemLabel="shift"
+              page={voidPagination.page}
+              pageSize={voidPagination.pageSize}
+              totalItems={voidPagination.totalItems}
+              totalPages={voidPagination.totalPages}
+              startItem={voidPagination.startItem}
+              endItem={voidPagination.endItem}
+              onPageChange={voidPagination.setPage}
+              onPageSizeChange={voidPagination.setPageSize}
+              itemLabel="void"
             />
           </div>
         </div>
@@ -1234,15 +1372,15 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </table>
             </div>
             <PaginationControls
-              page={attendancePagination.page}
-              pageSize={attendancePagination.pageSize}
-              totalItems={attendancePagination.totalItems}
-              totalPages={attendancePagination.totalPages}
-              startItem={attendancePagination.startItem}
-              endItem={attendancePagination.endItem}
-              onPageChange={attendancePagination.setPage}
-              onPageSizeChange={attendancePagination.setPageSize}
-              itemLabel="presensi"
+              page={taxPagination.page}
+              pageSize={taxPagination.pageSize}
+              totalItems={taxPagination.totalItems}
+              totalPages={taxPagination.totalPages}
+              startItem={taxPagination.startItem}
+              endItem={taxPagination.endItem}
+              onPageChange={taxPagination.setPage}
+              onPageSizeChange={taxPagination.setPageSize}
+              itemLabel="struk"
             />
           </div>
         </div>
@@ -1389,15 +1527,15 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </table>
           </div>
           <PaginationControls
-            page={voidPagination.page}
-            pageSize={voidPagination.pageSize}
-            totalItems={voidPagination.totalItems}
-            totalPages={voidPagination.totalPages}
-            startItem={voidPagination.startItem}
-            endItem={voidPagination.endItem}
-            onPageChange={voidPagination.setPage}
-            onPageSizeChange={voidPagination.setPageSize}
-            itemLabel="void"
+            page={shiftPagination.page}
+            pageSize={shiftPagination.pageSize}
+            totalItems={shiftPagination.totalItems}
+            totalPages={shiftPagination.totalPages}
+            startItem={shiftPagination.startItem}
+            endItem={shiftPagination.endItem}
+            onPageChange={shiftPagination.setPage}
+            onPageSizeChange={shiftPagination.setPageSize}
+            itemLabel="shift"
           />
         </div>
       )}
@@ -1479,16 +1617,251 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </table>
           </div>
           <PaginationControls
-            page={taxPagination.page}
-            pageSize={taxPagination.pageSize}
-            totalItems={taxPagination.totalItems}
-            totalPages={taxPagination.totalPages}
-            startItem={taxPagination.startItem}
-            endItem={taxPagination.endItem}
-            onPageChange={taxPagination.setPage}
-            onPageSizeChange={taxPagination.setPageSize}
-            itemLabel="struk"
+            page={attendancePagination.page}
+            pageSize={attendancePagination.pageSize}
+            totalItems={attendancePagination.totalItems}
+            totalPages={attendancePagination.totalPages}
+            startItem={attendancePagination.startItem}
+            endItem={attendancePagination.endItem}
+            onPageChange={attendancePagination.setPage}
+            onPageSizeChange={attendancePagination.setPageSize}
+            itemLabel="presensi"
           />
+        </div>
+      )}
+
+      {activeTab === 'INVENTORY' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">TOTAL BAHAN</p>
+              <p className="ui-stat-value text-[var(--text-primary)]">{inventoryMaterials.length}</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Bahan baku sesuai filter cabang</p>
+            </div>
+            <div className="ui-card bg-[var(--warning-soft)] border-amber-200 p-5 space-y-1">
+              <p className="ui-stat-label text-amber-700">STOK MENIPIS</p>
+              <p className="ui-stat-value text-amber-700">{inventoryTotals.lowStockCount}</p>
+              <p className="text-[11px] font-bold text-amber-700/80">Perlu restock segera</p>
+            </div>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">NILAI PERSEDIAAN</p>
+              <p className="ui-stat-value text-[var(--primary-text)]">Rp {inventoryTotals.totalValue.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Stok saat ini × biaya/unit</p>
+            </div>
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">PEMAKAIAN PERIODE</p>
+              <p className="ui-stat-value text-[var(--accent-green)]">{inventoryTotals.totalUsage.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Estimasi resep dari order lunas</p>
+            </div>
+          </div>
+
+          <div className="ui-card p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-[var(--primary-hover)]" />
+                  Ringkasan Persediaan Bahan
+                </h2>
+                <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Pantau stok aktif, kebutuhan restock, nilai persediaan, dan estimasi pemakaian bahan pada periode ini.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold"
+                style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)' }}>
+                <Search className="h-3.5 w-3.5" style={{ color: 'var(--text-tertiary)' }} />
+                <input
+                  type="text"
+                  placeholder="Cari bahan / cabang..."
+                  value={inventorySearchTerm}
+                  onChange={(event) => setInventorySearchTerm(event.target.value)}
+                  className="w-44 bg-transparent text-[12px] font-bold outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-bold">
+                <thead>
+                  <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                    style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                    <th className="py-3 px-3">Bahan Baku</th>
+                    {branchFilter === 'ALL' && <th className="py-3 px-3">Cabang</th>}
+                    <th className="py-3 px-3">Unit</th>
+                    <th className="py-3 px-3 text-right">Stok Saat Ini</th>
+                    <th className="py-3 px-3 text-right">Min. Stok</th>
+                    <th className="py-3 px-3 text-right">Terpakai</th>
+                    <th className="py-3 px-3 text-right">Nilai Stok</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
+                  {inventoryMaterials.length === 0 ? (
+                    <tr>
+                      <td colSpan={branchFilter === 'ALL' ? 8 : 7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                        Tidak ada bahan baku yang cocok dengan filter ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    inventoryPagination.visibleItems.map((material) => {
+                      const isLow = material.stockQuantity <= material.minStockThreshold;
+                      const usage = inventoryUsageByMaterial.get(material.id) || 0;
+                      const stockValue = material.stockQuantity * material.costPerUnit;
+                      return (
+                        <tr key={material.id} className="transition-colors"
+                          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                          <td className="py-3 px-3">
+                            <div className="font-bold" style={{ color: 'var(--text-primary)' }}>{material.name}</div>
+                            <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                              Biaya / {material.unit}: Rp {material.costPerUnit.toLocaleString('id-ID')}
+                            </div>
+                          </td>
+                          {branchFilter === 'ALL' && (
+                            <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{material.branchName || '-'}</td>
+                          )}
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{material.unit}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: isLow ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+                            {material.stockQuantity.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3 text-right" style={{ color: 'var(--text-secondary)' }}>{material.minStockThreshold.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--primary-text)' }}>{usage.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {stockValue.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                              isLow
+                                ? 'bg-[var(--warning-soft)] text-amber-700 border-amber-200'
+                                : 'bg-[var(--success-soft)] text-[var(--accent-green)] border-[#bbf7d0]'
+                            }`}>
+                              {isLow ? 'Restock' : 'Aman'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              page={inventoryPagination.page}
+              pageSize={inventoryPagination.pageSize}
+              totalItems={inventoryPagination.totalItems}
+              totalPages={inventoryPagination.totalPages}
+              startItem={inventoryPagination.startItem}
+              endItem={inventoryPagination.endItem}
+              onPageChange={inventoryPagination.setPage}
+              onPageSizeChange={inventoryPagination.setPageSize}
+              itemLabel="bahan"
+            />
+          </div>
+
+          <div className="ui-card p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+                  <History className="w-5 h-5 text-[var(--primary-hover)]" />
+                  Log Mutasi Stok
+                </h2>
+                <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Riwayat keluar-masuk stok pada periode terpilih, lengkap dengan alasan dan saldo akhir bahan.
+                </p>
+              </div>
+              <span className="text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                {formatPeriodRange(period, periodRange)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-bold">
+                <thead>
+                  <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                    style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                    <th className="py-3 px-3">Tanggal</th>
+                    {branchFilter === 'ALL' && <th className="py-3 px-3">Cabang</th>}
+                    <th className="py-3 px-3">Bahan</th>
+                    <th className="py-3 px-3">Jenis Mutasi</th>
+                    <th className="py-3 px-3 text-right">Perubahan</th>
+                    <th className="py-3 px-3 text-right">Saldo Akhir</th>
+                    <th className="py-3 px-3">Referensi / Alasan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
+                  {inventoryMovementLoading ? (
+                    <tr>
+                      <td colSpan={branchFilter === 'ALL' ? 7 : 6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                        Memuat log mutasi stok...
+                      </td>
+                    </tr>
+                  ) : inventoryMovementError ? (
+                    <tr>
+                      <td colSpan={branchFilter === 'ALL' ? 7 : 6} className="py-8 text-center font-bold" style={{ color: 'var(--accent-red)' }}>
+                        {inventoryMovementError}
+                      </td>
+                    </tr>
+                  ) : inventoryMovements.length === 0 ? (
+                    <tr>
+                      <td colSpan={branchFilter === 'ALL' ? 7 : 6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                        Belum ada mutasi stok pada periode ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    inventoryMovements.map((movement) => {
+                      const delta = movement.stockAfter - movement.stockBefore;
+                      const branchName = rawMaterials.find((material) => material.branchId === movement.branchId)?.branchName
+                        || branches.find((branch) => branch.id === movement.branchId)?.name
+                        || '-';
+                      return (
+                        <tr key={movement.id} className="transition-colors"
+                          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                          <td className="py-3 px-3 font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                            {new Date(movement.createdAt).toLocaleString('id-ID')}
+                          </td>
+                          {branchFilter === 'ALL' && (
+                            <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{branchName}</td>
+                          )}
+                          <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{movement.rawMaterialName || movement.rawMaterialId}</td>
+                          <td className="py-3 px-3">
+                            <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                              style={{ background: 'var(--surface-secondary)', color: 'var(--text-primary)' }}>
+                              {STOCK_MOVEMENT_LABELS[movement.type]}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: delta < 0 ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                            {delta > 0 ? '+' : ''}{delta.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>
+                            {movement.stockAfter.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>
+                            {movement.reason || movement.orderId || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              page={inventoryMovementPage}
+              pageSize={inventoryMovementPageSize}
+              totalItems={inventoryMovementTotal}
+              totalPages={inventoryMovementTotalPages}
+              startItem={inventoryMovementStartItem}
+              endItem={inventoryMovementEndItem}
+              onPageChange={setInventoryMovementPage}
+              onPageSizeChange={(pageSize) => {
+                setInventoryMovementPageSize(pageSize);
+                setInventoryMovementPage(1);
+              }}
+              itemLabel="mutasi"
+            />
+          </div>
         </div>
       )}
     </div>
