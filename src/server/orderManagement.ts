@@ -63,7 +63,9 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
   return { id: authData.user.id, tenantId: profile.tenant_id, name: profile.display_name || 'Staff', role: member.role };
 }
 
-async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string) {
+// summary=true melewati pengambilan order_items (payload jauh lebih kecil) —
+// dipakai dashboard owner yang hanya butuh agregat total/status, bukan detail item.
+async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string, summary = false) {
   const select = '*, restaurant_tables!orders_table_id_fkey(number)';
   let rows: any[] = [];
   if (orderId) {
@@ -85,7 +87,7 @@ async function readOrders(branchId: string, admin: SupabaseClient, orderId?: str
     rows = [...unique.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
   const ids = rows.map((row) => row.id);
-  const { data: items, error: itemsError } = ids.length
+  const { data: items, error: itemsError } = (ids.length && !summary)
     ? await admin.from('order_items').select('*').in('order_id', ids).order('created_at')
     : { data: [], error: null };
   if (itemsError) throw itemsError;
@@ -112,8 +114,9 @@ export async function handleOrderRequest(
   if (method === 'GET') {
     const orderId = payload.orderId ? String(payload.orderId) : undefined;
     if (!actor && (!orderId || !UUID_PATTERN.test(orderId))) return fail(401, 'Sesi telah berakhir');
+    const summary = payload.summary === '1' || payload.summary === true || payload.summary === 'true';
     try {
-      const orders = await readOrders(branchId, admin, orderId);
+      const orders = await readOrders(branchId, admin, orderId, summary);
       return { status: 200, data: orderId ? (orders[0] || null) : orders };
     } catch {
       return fail(500, 'Pesanan tidak dapat dimuat');

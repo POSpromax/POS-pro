@@ -13,6 +13,25 @@ async function currentTenantId(): Promise<string> {
   return data.tenant_id;
 }
 
+// Hanya bahan baku (tanpa menu & resep) — untuk dashboard owner yang cuma butuh
+// hitung stok kritis. Jauh lebih ringan daripada listCloudCatalog penuh.
+export async function listCloudRawMaterials(branchId: string): Promise<RawMaterial[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('raw_materials')
+    .select('id,name,unit,stock_quantity,min_stock_threshold,cost_per_unit,branch_id,material_group,take_away_usage_per_item')
+    .eq('branch_id', branchId)
+    .order('name');
+  if (error) throw new Error(error.message || 'Data bahan gagal dibaca');
+  return (data || []).map((row) => ({
+    id: row.id, name: row.name, unit: row.unit,
+    stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold),
+    costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '',
+    group: row.material_group || undefined,
+    takeAwayUsagePerItem: Number(row.take_away_usage_per_item || 0) || undefined,
+  }));
+}
+
 export async function listCloudCatalog(branchId: string): Promise<{ menuItems: MenuItem[]; rawMaterials: RawMaterial[] }> {
   const supabase = getSupabase();
   const [{ data: menuRows, error: menuError }, { data: rawRows, error: rawError }] = await Promise.all([

@@ -49,9 +49,9 @@ import {
   updateCloudStaff,
 } from './services/staffService';
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
-import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
+import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { getCloudOrder, listCloudOrders, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { getCloudOrder, listCloudOrders, listCloudOrdersSummary, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -695,16 +695,18 @@ export default function App() {
       lastOwnerRefreshAt = Date.now();
       try {
         const results = await Promise.allSettled(branches.map(async (branch) => {
-          const [branchOrders, branchTables, catalog] = await Promise.all([
-            listCloudOrders(branch.id),
+          // Dashboard owner hanya butuh agregat: order tanpa item (summary) & bahan
+          // baku saja (tanpa menu/resep). Jauh lebih hemat egress daripada fetch penuh.
+          const [branchOrders, branchTables, branchRawMaterials] = await Promise.all([
+            listCloudOrdersSummary(branch.id),
             listCloudTables(branch.id),
-            listCloudCatalog(branch.id),
+            listCloudRawMaterials(branch.id),
           ]);
           return {
             branchId: branch.id,
             orders: branchOrders,
             tables: branchTables,
-            rawMaterials: catalog.rawMaterials.map((material) => ({ ...material, branchName: branch.name })),
+            rawMaterials: branchRawMaterials.map((material) => ({ ...material, branchName: branch.name })),
           };
         }));
         const snapshots = results

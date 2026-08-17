@@ -20,6 +20,11 @@ async function request<T>(url: string, init?: RequestInit, authenticated = true)
 export const listCloudOrders = (branchId: string): Promise<Order[]> =>
   request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}`);
 
+// Versi RINGKAS tanpa item — untuk dashboard owner yang hanya butuh agregat
+// (omzet, jumlah transaksi). Payload jauh lebih kecil → hemat egress.
+export const listCloudOrdersSummary = (branchId: string): Promise<Order[]> =>
+  request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}&summary=1`);
+
 // Ambil SATU order (beserta itemnya) — dipakai refetch bertarget saat realtime,
 // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar order.
 // Mengembalikan null bila order tidak ada (mis. terhapus).
