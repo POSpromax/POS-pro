@@ -199,6 +199,7 @@ interface CashierViewProps {
   taxRatePercent?: number;
   manualDiscountEnabled?: boolean;
   tableSelectionRequest?: { tableNumber: string; requestId: number };
+  paymentSuccessSignal?: { orderId: string; requestId: number };
 }
 
 export const CashierView: React.FC<CashierViewProps> = ({
@@ -225,7 +226,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
   taxEnabled = false,
   taxRatePercent = 0,
   manualDiscountEnabled = true,
-  tableSelectionRequest
+  tableSelectionRequest,
+  paymentSuccessSignal
 }) => {
   // Two-stage confirmation timer
   const [pendingConfirm, setPendingConfirm] = useState<'SAVE' | 'PAY' | null>(null);
@@ -374,6 +376,20 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setTaxValue(configuredTaxPercent);
     setCurrentEditingOrderId(null);
   };
+
+  // Setelah pembayaran sukses di App.tsx, kosongkan keranjang agar kasir
+  // tidak bisa membayar ulang keranjang yang sama (mencegah order dobel).
+  // Hanya dikosongkan bila keranjang saat ini memang milik order yang baru
+  // dibayar (order baru: currentEditingOrderId masih null; order yang sedang
+  // di-edit: id-nya cocok) — agar tidak menghapus draft order lain yang mungkin
+  // sudah mulai disusun kasir.
+  useEffect(() => {
+    if (!paymentSuccessSignal) return;
+    if (!currentEditingOrderId || currentEditingOrderId === paymentSuccessSignal.orderId) {
+      handleClearCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentSuccessSignal]);
 
   const handleLoadExistingOrder = (order: Order) => {
     setCurrentEditingOrderId(order.id);
