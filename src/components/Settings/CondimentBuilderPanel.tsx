@@ -608,10 +608,34 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
 
   const addOption = () => {
     updateCurrent((group) => {
-      group.options = [...group.options, { id: makeTempId('opt'), name: 'OPSI BARU', price: 0, isAvailable: true }];
+      const existingNames = new Set(group.options.map((option) => normalize(option.name)));
+      let label = 'OPSI BARU';
+      let suffix = 2;
+      while (existingNames.has(normalize(label))) {
+        label = `OPSI BARU ${suffix}`;
+        suffix += 1;
+      }
+      group.options = [...group.options, { id: makeTempId('opt'), name: label, price: 0, isAvailable: true }];
       group.maxSelect = isSingle(group) ? 1 : Math.max(Number(group.maxSelect || 0), 1);
       return group;
     });
+  };
+
+  const addOptionToPreset = (field: 'selfOrderBaksoOnlyOptions' | 'selfOrderCampurOptions') => {
+    updateCurrent((group) => {
+      const existingNames = new Set(group.options.map((option) => normalize(option.name)));
+      let label = 'OPSI BARU';
+      let suffix = 2;
+      while (existingNames.has(normalize(label))) {
+        label = `OPSI BARU ${suffix}`;
+        suffix += 1;
+      }
+      group.options = [...group.options, { id: makeTempId('opt'), name: label, price: 0, isAvailable: true }];
+      group.maxSelect = isSingle(group) ? 1 : Math.max(Number(group.maxSelect || 0), 1);
+      group[field] = [...(group[field] || []), label];
+      return group;
+    });
+    setActiveStep('OPTIONS');
   };
 
   const moveOption = (optionId: string, direction: -1 | 1) => {
@@ -932,6 +956,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                               onApplyStandard={() => applyStandardFillingPreset('BAKSO_ONLY')}
                               onRemove={() => removeInstantPreset('BAKSO_ONLY')}
                               standardLabel="Isi Standard: Bawang + Seledri"
+                              onAddOption={() => addOptionToPreset('selfOrderBaksoOnlyOptions')}
                             />
                           )}
 
@@ -946,6 +971,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                                 onApplyStandard={() => applyStandardFillingPreset('CAMPUR')}
                                 onRemove={() => removeInstantPreset('CAMPUR')}
                                 standardLabel="Isi Standard: semua kecuali Kwetiaw"
+                                onAddOption={() => addOptionToPreset('selfOrderCampurOptions')}
                               />
                               <div className="rounded-xl border border-slate-200 bg-white p-3.5">
                                 <label className="text-[9px] font-black uppercase tracking-wide text-slate-500">Label ringkas Kitchen saat tepat sama racikan Campur</label>
@@ -1040,7 +1066,8 @@ const PresetEditor: React.FC<{
   onApplyStandard: () => void;
   onRemove: () => void;
   standardLabel: string;
-}> = ({ title, detail, options, selected, onToggle, onApplyStandard, onRemove, standardLabel }) => (
+  onAddOption?: () => void;
+}> = ({ title, detail, options, selected, onToggle, onApplyStandard, onRemove, standardLabel, onAddOption }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-3.5">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div>
@@ -1051,12 +1078,13 @@ const PresetEditor: React.FC<{
         <p className="mt-1 text-[9px] font-semibold text-slate-500">{detail}</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
+        {onAddOption && <button type="button" onClick={onAddOption} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[8px] font-black text-slate-600 hover:bg-slate-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Isian Baru</button>}
         <button type="button" onClick={onApplyStandard} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100">{standardLabel}</button>
         <button type="button" onClick={onRemove} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[8px] font-black text-rose-600 hover:bg-rose-100"><Trash2 className="mr-1 inline h-3 w-3" /> Hapus Racikan</button>
       </div>
     </div>
     {options.length === 0 ? (
-      <div className="mt-3 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-[9px] font-semibold text-amber-700">Belum ada opsi aktif pada grup ini. Tambahkan opsi di langkah 3 terlebih dahulu.</div>
+      <div className="mt-3 rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-[9px] font-semibold text-amber-700">Belum ada opsi aktif pada grup ini. Tambahkan opsi di langkah 3 terlebih dahulu, atau klik "Tambah Isian Baru" di atas.</div>
     ) : (
       <div className="mt-3 flex flex-wrap gap-2">{options.map((option) => { const active = selected.some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => onToggle(option.name)} className={`rounded-lg border px-2.5 py-2 text-[9px] font-black ${active ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{active ? '✓ ' : ''}{option.name}</button>; })}</div>
     )}
