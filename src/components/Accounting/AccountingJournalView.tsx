@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BookOpen, Plus, Trash2, Scale, TrendingUp, Wallet, Layers, Loader2,
-  CheckCircle2, AlertTriangle, RotateCcw, FileText,
+  CheckCircle2, AlertTriangle, RotateCcw, FileText, Sparkles, Pencil, X,
 } from 'lucide-react';
 import {
   loadAccounting, seedChartOfAccounts, createJournalEntry, voidJournalEntry,
+  loadRecommendations,
   computeBalances, buildIncomeStatement, buildBalanceSheet, buildTrialBalance,
-  type AccountingData, type Account,
+  type AccountingData, type Account, type JournalRecommendation,
 } from '../../services/accountingService';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
   onShowToast?: (title: string, message: string) => void;
 }
 
-type Tab = 'JOURNAL' | 'LEDGER' | 'TRIAL' | 'INCOME' | 'BALANCE' | 'COA';
+type Tab = 'RECOMMEND' | 'JOURNAL' | 'LEDGER' | 'TRIAL' | 'INCOME' | 'BALANCE' | 'COA';
 
 interface DraftLine {
   code: string;
@@ -56,6 +57,53 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
 
   const [ledgerCode, setLedgerCode] = useState('');
 
+  // Rekomendasi posting otomatis (perlu konfirmasi/penyesuaian).
+  const [recs, setRecs] = useState<JournalRecommendation[]>([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [postingId, setPostingId] = useState<string | null>(null);
+
+  const loadRecs = async () => {
+    if (!currentBranch.id) return;
+    setRecLoading(true);
+    try {
+      const result = await loadRecommendations(currentBranch.id, period);
+      setRecs(result.recommendations);
+    } catch (err) {
+      onShowToast?.('Rekomendasi Gagal', err instanceof Error ? err.message : 'Rekomendasi tidak dapat dimuat.');
+    } finally {
+      setRecLoading(false);
+    }
+  };
+
+  const confirmRec = async (rec: JournalRecommendation, override: { lines: Array<{ code: string; debit: number; credit: number }>; entryDate: string; description: string }) => {
+    const cleaned = override.lines.filter((l) => l.code && (l.debit > 0 || l.credit > 0));
+    const totalDebit = cleaned.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = cleaned.reduce((s, l) => s + l.credit, 0);
+    if (cleaned.length < 2 || Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
+      onShowToast?.('Tidak Seimbang', 'Total debit harus sama dengan kredit sebelum posting.');
+      return;
+    }
+    setPostingId(rec.id);
+    try {
+      await createJournalEntry({
+        branchId: currentBranch.id,
+        entryDate: override.entryDate,
+        description: override.description,
+        source: rec.source,
+        sourceId: rec.sourceId,
+        lines: cleaned,
+      });
+      onShowToast?.('Diposting', `${rec.title} masuk ke jurnal.`);
+      setRecs((current) => current.filter((r) => r.id !== rec.id));
+      await refresh();
+    } catch (err) {
+      onShowToast?.('Posting Gagal', err instanceof Error ? err.message : 'Rekomendasi gagal diposting.');
+    } finally {
+      setPostingId(null);
+    }
+  };
+
   const refresh = async () => {
     if (!currentBranch.id) return;
     setLoading(true);
@@ -74,6 +122,11 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentBranch.id, period]);
+
+  useEffect(() => {
+    if (tab === 'RECOMMEND' && data && data.coa.length > 0) void loadRecs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, currentBranch.id, period, data?.coa.length]);
 
   const activeAccounts = useMemo(
     () => (data?.coa || []).filter((a) => a.isActive).sort((a, b) => a.code.localeCompare(b.code)),
@@ -153,7 +206,9 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
 
   const needsSeed = !loading && !error && data != null && data.coa.length === 0;
 
+  const visibleRecs = recs.filter((r) => !dismissed.has(r.id));
   const tabs: Array<{ id: Tab; label: string; icon: typeof BookOpen }> = [
+    { id: 'RECOMMEND', label: 'Rekomendasi', icon: Sparkles },
     { id: 'JOURNAL', label: 'Jurnal Umum', icon: BookOpen },
     { id: 'LEDGER', label: 'Buku Besar', icon: FileText },
     { id: 'TRIAL', label: 'Neraca Saldo', icon: Scale },
@@ -198,6 +253,9 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
           >
             <t.icon className="h-3.5 w-3.5" />
             {t.label}
+            {t.id === 'RECOMMEND' && visibleRecs.length > 0 && (
+              <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent-red)] px-1 text-[9px] font-black text-white">{visibleRecs.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -232,6 +290,17 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
 
       {!loading && !error && data && data.coa.length > 0 && (
         <>
+          {tab === 'RECOMMEND' && (
+            <RecommendTab
+              recs={visibleRecs}
+              loading={recLoading}
+              accounts={activeAccounts}
+              postingId={postingId}
+              onReload={() => void loadRecs()}
+              onConfirm={(rec, override) => void confirmRec(rec, override)}
+              onDismiss={(id) => setDismissed((current) => new Set(current).add(id))}
+            />
+          )}
           {tab === 'JOURNAL' && (
             <JournalTab
               data={data}
@@ -614,6 +683,133 @@ function BalanceTab({ sheet }: { sheet: ReturnType<typeof buildBalanceSheet> }) 
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Rekomendasi Posting ────────────────────────────────────────────────────────
+
+const REC_KIND: Record<JournalRecommendation['kind'], { label: string; tone: string }> = {
+  SALES: { label: 'Penjualan', tone: 'bg-emerald-100 text-emerald-700' },
+  EXPENSE: { label: 'Beban', tone: 'bg-rose-100 text-rose-700' },
+  INCOME: { label: 'Pemasukan', tone: 'bg-sky-100 text-sky-700' },
+  PAYROLL: { label: 'Gaji', tone: 'bg-violet-100 text-violet-700' },
+};
+
+function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm, onDismiss }: {
+  recs: JournalRecommendation[];
+  loading: boolean;
+  accounts: Account[];
+  postingId: string | null;
+  onReload: () => void;
+  onConfirm: (rec: JournalRecommendation, override: { lines: Array<{ code: string; debit: number; credit: number }>; entryDate: string; description: string }) => void;
+  onDismiss: (id: string) => void;
+}) {
+  const [editId, setEditId] = useState<string | null>(null);
+  const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
+  const [draftDate, setDraftDate] = useState('');
+  const [draftDesc, setDraftDesc] = useState('');
+  const nameOf = (code: string) => accounts.find((a) => a.code === code)?.name || code;
+
+  const startEdit = (rec: JournalRecommendation) => {
+    setEditId(rec.id);
+    setDraftLines(rec.lines.map((l) => ({ code: l.code, debit: l.debit, credit: l.credit, memo: '' })));
+    setDraftDate(rec.date);
+    setDraftDesc(rec.title);
+  };
+  const setDraftLine = (i: number, patch: Partial<DraftLine>) => setDraftLines((c) => c.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const editDebit = draftLines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
+  const editCredit = draftLines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
+  const editBalanced = Math.round(editDebit * 100) === Math.round(editCredit * 100) && editDebit > 0;
+
+  if (loading) {
+    return <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-[var(--text-tertiary)]"><Loader2 className="h-5 w-5 animate-spin" /> Menyusun rekomendasi…</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--text-primary)]">Rekomendasi Jurnal Otomatis <span className="text-[var(--text-tertiary)]">({recs.length})</span></h3>
+          <p className="text-[12px] font-semibold text-[var(--text-secondary)]">Transaksi yang belum dijurnal — tinjau, sesuaikan bila perlu, lalu konfirmasi untuk posting.</p>
+        </div>
+        <button type="button" onClick={onReload} className="ui-button ui-button-secondary min-h-9 px-3 text-[12px]"><RotateCcw className="h-4 w-4" /> Segarkan</button>
+      </div>
+
+      {recs.length === 0 ? (
+        <div className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-10 text-center">
+          <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-[var(--primary-hover)]" />
+          <p className="text-sm font-bold text-[var(--text-primary)]">Semua transaksi periode ini sudah dijurnal 🎉</p>
+          <p className="mt-1 text-[12px] font-semibold text-[var(--text-tertiary)]">Rekomendasi baru muncul otomatis saat ada penjualan, biaya, atau gaji yang belum tercatat.</p>
+        </div>
+      ) : (
+        recs.map((rec) => {
+          const kind = REC_KIND[rec.kind];
+          const isEditing = editId === rec.id;
+          const isPosting = postingId === rec.id;
+          return (
+            <div key={rec.id} className="ui-card p-4">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${kind.tone}`}>{kind.label}</span>
+                  <div>
+                    <p className="text-[13px] font-bold text-[var(--text-primary)]">{rec.title}</p>
+                    <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">{new Date(`${rec.date}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+                <span className="font-mono text-[15px] font-black text-[var(--text-primary)]">{rp(rec.amount)}</span>
+              </div>
+
+              {isEditing ? (
+                <div className="space-y-3 rounded-xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className="ui-input font-mono text-[12px]" />
+                    <input type="text" value={draftDesc} onChange={(e) => setDraftDesc(e.target.value)} placeholder="Keterangan" className="ui-input text-[12px] sm:col-span-2" />
+                  </div>
+                  {draftLines.map((line, i) => (
+                    <div key={i} className="grid grid-cols-12 items-center gap-2">
+                      <select value={line.code} onChange={(e) => setDraftLine(i, { code: e.target.value })} className="ui-input col-span-12 sm:col-span-5 text-[12px]">
+                        <option value="">— pilih akun —</option>
+                        {accounts.map((a) => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
+                      </select>
+                      <input type="number" min={0} value={line.debit || ''} onChange={(e) => setDraftLine(i, { debit: Number(e.target.value) || 0, credit: 0 })} placeholder="Debit" className="ui-input col-span-6 sm:col-span-3 text-right font-mono text-[12px]" />
+                      <input type="number" min={0} value={line.credit || ''} onChange={(e) => setDraftLine(i, { credit: Number(e.target.value) || 0, debit: 0 })} placeholder="Kredit" className="ui-input col-span-6 sm:col-span-3 text-right font-mono text-[12px]" />
+                      <button type="button" onClick={() => setDraftLines((c) => (c.length > 2 ? c.filter((_, idx) => idx !== i) : c))} className="col-span-12 sm:col-span-1 flex justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-red)]"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between">
+                    <button type="button" onClick={() => setDraftLines((c) => [...c, emptyLine()])} className="text-[12px] font-bold text-[var(--primary-hover)] hover:underline">+ Tambah baris</button>
+                    {editBalanced
+                      ? <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--primary-soft)] px-2 py-1 text-[11px] text-[var(--primary-text)]"><CheckCircle2 className="h-3.5 w-3.5" /> Seimbang</span>
+                      : <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--danger-soft)] px-2 py-1 text-[11px] text-[var(--accent-red)]"><AlertTriangle className="h-3.5 w-3.5" /> Selisih {rp(Math.abs(editDebit - editCredit))}</span>}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditId(null)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]">Batal</button>
+                    <button type="button" disabled={!editBalanced || isPosting} onClick={() => { onConfirm(rec, { lines: draftLines.map((l) => ({ code: l.code, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 })), entryDate: draftDate, description: draftDesc }); setEditId(null); }} className="ui-button ui-button-primary min-h-8 px-3 text-[12px]">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Simpan & Posting</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1 rounded-xl bg-[var(--surface-secondary)] p-3">
+                    {rec.lines.map((line, i) => (
+                      <div key={i} className="grid grid-cols-12 gap-2 text-[12px]">
+                        <span className={`col-span-6 font-semibold text-[var(--text-primary)] ${line.credit > 0 ? 'pl-4' : ''}`}>{line.code} · {nameOf(line.code)}</span>
+                        <span className="col-span-3 text-right font-mono text-[var(--text-secondary)]">{line.debit > 0 ? rp(line.debit) : ''}</span>
+                        <span className="col-span-3 text-right font-mono text-[var(--text-secondary)]">{line.credit > 0 ? rp(line.credit) : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <button type="button" onClick={() => onDismiss(rec.id)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]"><X className="h-4 w-4" /> Abaikan</button>
+                    <button type="button" onClick={() => startEdit(rec)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]"><Pencil className="h-4 w-4" /> Sesuaikan</button>
+                    <button type="button" disabled={isPosting} onClick={() => onConfirm(rec, { lines: rec.lines, entryDate: rec.date, description: rec.title })} className="ui-button ui-button-primary min-h-8 px-3.5 text-[12px]">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Konfirmasi & Posting</button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

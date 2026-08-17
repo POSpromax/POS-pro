@@ -53,6 +53,7 @@ const DEFAULT_COA: DefaultAccount[] = [
 interface AccountingPayload {
   branchId?: string;
   action?: 'SEED_COA' | 'CREATE_ENTRY' | 'VOID_ENTRY';
+  view?: string;
   period?: string;
   entryDate?: string;
   description?: string;
@@ -61,6 +62,49 @@ interface AccountingPayload {
   sourceId?: string;
   lines?: Array<{ code?: string; debit?: number; credit?: number; memo?: string }>;
   entryId?: string;
+}
+
+const POSTABLE_SOURCES = new Set(['MANUAL', 'SALES', 'EXPENSE', 'PAYROLL', 'INVENTORY', 'ADJUSTMENT', 'OPENING']);
+
+// Peta kata kunci keterangan biaya -> kode akun beban. Default 6-9000 (lain-lain);
+// pengguna tetap bisa menyesuaikan akun saat mengonfirmasi rekomendasi.
+const EXPENSE_ACCOUNT_RULES: Array<{ re: RegExp; code: string }> = [
+  { re: /gas|lpg|elpiji|tabung/i, code: '6-4000' },
+  { re: /listrik|token|pln|air|pdam/i, code: '6-3000' },
+  { re: /sewa|kontrak|ruko/i, code: '6-2000' },
+  { re: /gaji|upah|bonus|thr|lembur/i, code: '6-1000' },
+  { re: /transport|bensin|solar|ongkir|parkir|tol|grab|gojek/i, code: '6-7000' },
+  { re: /promo|iklan|marketing|pemasaran|spanduk|banner|endorse/i, code: '6-6000' },
+  { re: /admin|bank|transfer|biaya app|langganan/i, code: '6-8000' },
+  { re: /belanja|bahan|stok|supplier|pasar|sayur|daging|ayam|bakso/i, code: '5-1000' },
+  { re: /perlengkapan|plastik|kemasan|tisu|sabun|gas elpiji|alat/i, code: '6-5000' },
+];
+const mapExpenseAccount = (description: string): string => {
+  const found = EXPENSE_ACCOUNT_RULES.find((rule) => rule.re.test(description || ''));
+  return found ? found.code : '6-9000';
+};
+
+const addDays = (dateKey: string, delta: number) => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return dt.toISOString().slice(0, 10);
+};
+
+const localDateKey = (iso: string, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(iso));
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+};
+
+export interface JournalRecommendation {
+  id: string;
+  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL';
+  source: string;
+  sourceId: string;
+  date: string;
+  title: string;
+  amount: number;
+  lines: Array<{ code: string; debit: number; credit: number }>;
 }
 
 export interface AccountingRequestResult { status: number; data: unknown }
@@ -85,7 +129,7 @@ async function resolveActor(payload: AccountingPayload, accessToken: string, adm
   const [{ data: profile }, { data: membership }, { data: branch }] = await Promise.all([
     admin.from('user_profiles').select('tenant_id,is_active').eq('user_id', actorId).maybeSingle(),
     admin.from('branch_members').select('role,is_active').eq('user_id', actorId).eq('branch_id', payload.branchId).maybeSingle(),
-    admin.from('branches').select('tenant_id,is_active').eq('id', payload.branchId).maybeSingle(),
+    admin.from('branches').select('tenant_id,is_active,timezone').eq('id', payload.branchId).maybeSingle(),
   ]);
   if (!profile?.is_active || !membership?.is_active || !branch?.is_active || profile.tenant_id !== branch.tenant_id) {
     return { error: fail(403, 'Akun tidak memiliki akses ke outlet ini') as AccountingRequestResult };
@@ -93,7 +137,109 @@ async function resolveActor(payload: AccountingPayload, accessToken: string, adm
   if (!MANAGEMENT_ROLES.has(membership.role)) {
     return { error: fail(403, 'Hanya manajemen yang dapat mengakses akuntansi') as AccountingRequestResult };
   }
-  return { actorId, tenantId: profile.tenant_id as string };
+  return { actorId, tenantId: profile.tenant_id as string, timeZone: (branch.timezone as string) || 'Asia/Jakarta' };
+}
+
+// Menyusun rekomendasi jurnal dari transaksi yang BELUM dijurnal pada periode:
+// penjualan (agregat per hari), biaya/pemasukan (per catatan), gaji (per periode).
+async function buildRecommendations(
+  branchId: string,
+  period: string,
+  timeZone: string,
+  admin: SupabaseClient,
+): Promise<JournalRecommendation[]> {
+  const { start, end } = periodBounds(period);
+  const rangeFrom = `${addDays(start, -1)}T00:00:00.000Z`;
+  const rangeTo = `${addDays(end, 1)}T23:59:59.999Z`;
+
+  const [postedRes, ordersRes, expenseRes, payrollRes] = await Promise.all([
+    admin.from('journal_entries').select('source_id').eq('branch_id', branchId).eq('status', 'POSTED').not('source_id', 'is', null),
+    admin.from('orders').select('created_at,payment_method,total_amount')
+      .eq('branch_id', branchId).eq('payment_status', 'PAID').neq('status', 'CANCELLED')
+      .gte('created_at', rangeFrom).lte('created_at', rangeTo),
+    admin.from('expense_income_records').select('id,record_type,amount,description,created_at')
+      .eq('branch_id', branchId).gte('created_at', rangeFrom).lte('created_at', rangeTo),
+    admin.from('payroll_snapshots').select('net_salary,staff_name').eq('branch_id', branchId).eq('period', period),
+  ]);
+
+  const posted = new Set((postedRes.data || []).map((r: any) => r.source_id));
+  const recommendations: JournalRecommendation[] = [];
+
+  // 1) Penjualan agregat per hari (dalam bulan periode).
+  const byDay = new Map<string, { cash: number; nonCash: number }>();
+  (ordersRes.data || []).forEach((row: any) => {
+    const dateKey = localDateKey(row.created_at, timeZone);
+    if (dateKey.slice(0, 7) !== period) return;
+    const total = Number(row.total_amount || 0);
+    if (total <= 0) return;
+    const method = String(row.payment_method || 'CASH').toUpperCase();
+    const bucket = byDay.get(dateKey) || { cash: 0, nonCash: 0 };
+    if (method === 'CASH' || method === '') bucket.cash += total;
+    else bucket.nonCash += total;
+    byDay.set(dateKey, bucket);
+  });
+  [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([dateKey, sums]) => {
+    const sourceId = `SALES:${dateKey}`;
+    if (posted.has(sourceId)) return;
+    const total = sums.cash + sums.nonCash;
+    if (total <= 0) return;
+    const lines: JournalRecommendation['lines'] = [];
+    if (sums.cash > 0) lines.push({ code: '1-1000', debit: sums.cash, credit: 0 });
+    if (sums.nonCash > 0) lines.push({ code: '1-1100', debit: sums.nonCash, credit: 0 });
+    lines.push({ code: '4-1000', debit: 0, credit: total });
+    recommendations.push({
+      id: sourceId, kind: 'SALES', source: 'SALES', sourceId, date: dateKey,
+      title: `Penjualan ${new Date(`${dateKey}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+      amount: total, lines,
+    });
+  });
+
+  // 2) Biaya & pemasukan operasional (per catatan).
+  (expenseRes.data || []).forEach((row: any) => {
+    const dateKey = localDateKey(row.created_at, timeZone);
+    if (dateKey.slice(0, 7) !== period) return;
+    const amount = Number(row.amount || 0);
+    if (amount <= 0) return;
+    if (row.record_type === 'EXPENSE') {
+      const sourceId = `EXPENSE:${row.id}`;
+      if (posted.has(sourceId)) return;
+      const account = mapExpenseAccount(row.description || '');
+      recommendations.push({
+        id: sourceId, kind: 'EXPENSE', source: 'EXPENSE', sourceId, date: dateKey,
+        title: row.description || 'Beban operasional', amount,
+        lines: [{ code: account, debit: amount, credit: 0 }, { code: '1-1000', debit: 0, credit: amount }],
+      });
+    } else if (row.record_type === 'INCOME') {
+      const sourceId = `INCOME:${row.id}`;
+      if (posted.has(sourceId)) return;
+      recommendations.push({
+        id: sourceId, kind: 'INCOME', source: 'EXPENSE', sourceId, date: dateKey,
+        title: row.description || 'Pemasukan lain', amount,
+        lines: [{ code: '1-1000', debit: amount, credit: 0 }, { code: '4-9000', debit: 0, credit: amount }],
+      });
+    }
+  });
+
+  // 3) Gaji: agregat snapshot payroll periode ini (kredit Kas).
+  const snaps = payrollRes.data || [];
+  if (snaps.length > 0) {
+    const sourceId = `PAYROLL:${period}`;
+    if (!posted.has(sourceId)) {
+      const totalNet = snaps.reduce((sum: number, s: any) => sum + Number(s.net_salary || 0), 0);
+      if (totalNet > 0) {
+        const [yr, mo] = period.split('-').map(Number);
+        const payDate = new Date(Date.UTC(yr, mo, 0)).toISOString().slice(0, 10);
+        recommendations.push({
+          id: sourceId, kind: 'PAYROLL', source: 'PAYROLL', sourceId, date: payDate,
+          title: `Gaji ${new Date(yr, mo - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} (${snaps.length} staff)`,
+          amount: totalNet,
+          lines: [{ code: '6-1000', debit: totalNet, credit: 0 }, { code: '1-1000', debit: 0, credit: totalNet }],
+        });
+      }
+    }
+  }
+
+  return recommendations;
 }
 
 async function seedDefaultCoa(branchId: string, tenantId: string, admin: SupabaseClient) {
@@ -128,6 +274,17 @@ export async function handleAccountingRequest(
 
   if (method === 'GET') {
     const period = payload.period && PERIOD_PATTERN.test(payload.period) ? payload.period : currentPeriod();
+
+    if (payload.view === 'recommendations') {
+      try {
+        const recommendations = await buildRecommendations(branchId, period, actor.timeZone, admin);
+        return { status: 200, data: { period, recommendations } };
+      } catch (error: any) {
+        if (error?.code === '42P01') return fail(503, 'Tabel akuntansi belum ada. Terapkan migrasi akuntansi di Supabase.');
+        return fail(500, 'Rekomendasi jurnal gagal dihitung');
+      }
+    }
+
     const { start, end, openingTo } = periodBounds(period);
 
     const [coaResult, entriesResult, openingResult] = await Promise.all([
@@ -219,13 +376,23 @@ export async function handleAccountingRequest(
       return fail(400, `Jurnal tidak seimbang: debit ${totalDebit} ≠ kredit ${totalCredit}`);
     }
 
+    // Sumber posting: MANUAL (default) atau hasil konfirmasi rekomendasi
+    // (SALES/EXPENSE/PAYROLL/...). sourceId dipakai mencegah posting ganda.
+    const source = payload.source && POSTABLE_SOURCES.has(payload.source) ? payload.source : 'MANUAL';
+    const sourceId = source !== 'MANUAL' && payload.sourceId ? String(payload.sourceId).slice(0, 80) : null;
+    if (sourceId) {
+      const { data: existing } = await admin.from('journal_entries')
+        .select('id').eq('branch_id', branchId).eq('source_id', sourceId).eq('status', 'POSTED').limit(1);
+      if (existing && existing.length > 0) return fail(409, 'Transaksi ini sudah pernah diposting ke jurnal.');
+    }
+
     const { data, error } = await admin.rpc('post_journal_entry', {
       p_branch_id: branchId,
       p_entry_date: entryDate,
       p_reference: payload.reference ? String(payload.reference).slice(0, 60) : null,
       p_description: payload.description ? String(payload.description).slice(0, 300) : '',
-      p_source: 'MANUAL',
-      p_source_id: null,
+      p_source: source,
+      p_source_id: sourceId,
       p_created_by: actor.actorId,
       p_lines: cleaned,
     });

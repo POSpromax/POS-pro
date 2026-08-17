@@ -72,6 +72,20 @@ async function requestAccounting(method: string, body: Record<string, unknown>):
 export const loadAccounting = (branchId: string, period: string): Promise<AccountingData> =>
   requestAccounting('GET', { branchId, period });
 
+export interface JournalRecommendation {
+  id: string;
+  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL';
+  source: string;
+  sourceId: string;
+  date: string;
+  title: string;
+  amount: number;
+  lines: Array<{ code: string; debit: number; credit: number }>;
+}
+
+export const loadRecommendations = (branchId: string, period: string): Promise<{ period: string; recommendations: JournalRecommendation[] }> =>
+  requestAccounting('GET', { branchId, period, view: 'recommendations' });
+
 export const seedChartOfAccounts = (branchId: string): Promise<{ ok: boolean }> =>
   requestAccounting('POST', { branchId, action: 'SEED_COA' });
 
@@ -80,6 +94,8 @@ export const createJournalEntry = (payload: {
   entryDate: string;
   description: string;
   reference?: string;
+  source?: string;
+  sourceId?: string;
   lines: Array<{ code: string; debit: number; credit: number; memo?: string }>;
 }): Promise<{ ok: boolean; entryId: string }> =>
   requestAccounting('POST', { ...payload, action: 'CREATE_ENTRY' });
