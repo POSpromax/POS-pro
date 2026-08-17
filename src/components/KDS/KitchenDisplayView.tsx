@@ -333,7 +333,11 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({
   }, [viewMode, visibleActiveOrders.length]);
 
   const masonryColumns = useMemo(() => {
-    const count = Math.max(1, Math.min(masonryColumnCount, visibleActiveOrders.length || 1));
+    // Jumlah kolom mengikuti LEBAR LAYAR (masonryColumnCount), bukan jumlah order.
+    // Dulu di-cap ke jumlah order sehingga 1 order → 1 kolom → kartu melebar
+    // penuh, lalu mengecil saat order lain masuk. Dengan kolom tetap, kartu
+    // punya ukuran baku; kolom yang belum terisi dibiarkan kosong.
+    const count = Math.max(1, masonryColumnCount);
     const columns: Order[][] = Array.from({length: count}, () => []);
     visibleActiveOrders.forEach((order, index) => {
       columns[index % count].push(order);
