@@ -274,6 +274,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newStaffPin, setNewStaffPin] = useState('');
   const [newStaffShift, setNewStaffShift] = useState('08:00');
   const [newStaffShiftEnd, setNewStaffShiftEnd] = useState('16:00');
+  // Identitas staff (opsional saat buat, bisa dilengkapi lewat Edit). No. HP
+  // dipakai untuk kirim slip gaji via WhatsApp.
+  const [newStaffPhone, setNewStaffPhone] = useState('');
+  const [newStaffFullNameKtp, setNewStaffFullNameKtp] = useState('');
+  const [newStaffNik, setNewStaffNik] = useState('');
+  const [newStaffBirthPlace, setNewStaffBirthPlace] = useState('');
+  const [newStaffBirthDate, setNewStaffBirthDate] = useState('');
+  const [newStaffAddress, setNewStaffAddress] = useState('');
+  const [newStaffJoinDate, setNewStaffJoinDate] = useState('');
   const [newStaffBranchId, setNewStaffBranchId] = useState(currentBranch.id);
 
   // Edit Staff Modal State
@@ -583,6 +592,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       toast('PIN Konflik', 'PIN sama atau terlalu mirip dengan akun lain. Gunakan kombinasi yang benar-benar berbeda.');
       return;
     }
+    if (newStaffNik && !/^\d{16}$/.test(newStaffNik)) {
+      toast('NIK Tidak Valid', 'NIK harus tepat 16 digit angka (atau kosongkan).');
+      return;
+    }
 
     const created: UserAccount = {
       id: 'usr-' + Date.now(),
@@ -593,13 +606,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       isActive: true,
       shiftStart: newStaffShift,
       shiftEnd: newStaffShiftEnd,
-      workDays: [1, 2, 3, 4, 5, 6]
+      workDays: [1, 2, 3, 4, 5, 6],
+      phone: newStaffPhone.trim() || undefined,
+      fullNameKtp: newStaffFullNameKtp.trim() || undefined,
+      nik: newStaffNik.trim() || undefined,
+      birthPlace: newStaffBirthPlace.trim() || undefined,
+      birthDate: newStaffBirthDate || undefined,
+      address: newStaffAddress.trim() || undefined,
+      joinDate: newStaffJoinDate || undefined,
     };
 
     try {
       await onSaveStaff(created);
       setNewStaffName('');
       setNewStaffPin('');
+      setNewStaffPhone('');
+      setNewStaffFullNameKtp('');
+      setNewStaffNik('');
+      setNewStaffBirthPlace('');
+      setNewStaffBirthDate('');
+      setNewStaffAddress('');
+      setNewStaffJoinDate('');
     } catch {
       // Parent callback displays the server error and keeps this form intact.
     }
@@ -1709,9 +1736,78 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       />
                     </div>
 
+                    <div>
+                      <span className="block text-[11px] font-semibold text-[var(--primary-hover)] uppercase mb-1">No. HP (WhatsApp)</span>
+                      <input
+                        type="tel"
+                        placeholder="08123456789"
+                        value={newStaffPhone}
+                        onChange={(e) => setNewStaffPhone(e.target.value)}
+                        className="w-full bg-white border border-[var(--brand-200)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">Nama Sesuai KTP</span>
+                      <input
+                        type="text"
+                        placeholder="Nama lengkap KTP"
+                        value={newStaffFullNameKtp}
+                        onChange={(e) => setNewStaffFullNameKtp(e.target.value)}
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">
+                        <span>NIK (16 Digit)</span>
+                        <span className="text-[9px] font-black text-[var(--text-tertiary)]">{newStaffNik.length}/16</span>
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="16 digit"
+                        value={newStaffNik}
+                        onChange={(e) => setNewStaffNik(e.target.value.replace(/\D/g, '').slice(0, 16))}
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)] tracking-wide"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">Tempat Lahir</span>
+                      <input
+                        type="text"
+                        placeholder="Kota"
+                        value={newStaffBirthPlace}
+                        onChange={(e) => setNewStaffBirthPlace(e.target.value)}
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">Tanggal Lahir</span>
+                      <input type="date" value={newStaffBirthDate} onChange={(e) => setNewStaffBirthDate(e.target.value)} className="ui-input" />
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">Tanggal Mulai Kerja</span>
+                      <input type="date" value={newStaffJoinDate} onChange={(e) => setNewStaffJoinDate(e.target.value)} className="ui-input" />
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <span className="block text-[11px] font-semibold text-[var(--text-secondary)] uppercase mb-1">Alamat Sesuai KTP</span>
+                      <input
+                        type="text"
+                        placeholder="Alamat lengkap"
+                        value={newStaffAddress}
+                        onChange={(e) => setNewStaffAddress(e.target.value)}
+                        className="w-full bg-white border border-[var(--panel-border)] rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                    </div>
+
                     <button
                       type="submit"
-                      className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                      className="md:col-span-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Plus className="w-4 h-4" /> Tambah Staff
                     </button>
