@@ -44,10 +44,21 @@ Terakhir diperbarui: 17 Agustus 2026.
   - ⚠️ **AKSI WAJIB:** jalankan migrasi baru `202608180032_owner_transaction_purge.sql` di Supabase SQL editor/CLI production sebelum fitur ini bisa dipakai — belum otomatis ter-apply.
   - **Belum diuji end-to-end dengan data production sungguhan** (tidak ada akses ke Supabase production dari sesi ini) — sebaiknya dicoba dulu di 1 cabang dengan retensi besar (mis. 365 hari) sebelum dipakai rutin.
 
+## Update 17 Agustus 2026 (lanjutan 2) — Final regression + fix bug order dobel (PR #21)
+
+- **Live regression testing** dilakukan lewat browser canvas (produksi `pos-pro-eight.vercel.app/pesan/01` untuk self-order, dan `localhost:3000` untuk POS/KDS/shift) setelah dev server lokal yang sempat hang di-restart.
+- Terverifikasi benar: self-order terkunci saat shift belum aktif; POS terkunci sampai shift dibuka; buka shift & modal awal berfungsi; preset condiment "Campur" ↔ uncheck manual berperilaku benar (`sameSelection()` TIDAK bug, sesuai audit sesi sebelumnya); tiket KDS menampilkan label ringkas ("CAMPUR") saat preset dipakai utuh, dan daftar isian rinci saat dikustomisasi manual — sesuai desain PR #17.
+- ⚠️ **Bug serius ditemukan & DIPERBAIKI (PR #21)**: setelah pembayaran sukses di Kasir POS, keranjang (`cartItems` di `CashierView.tsx`) untuk order baru (bukan hold/edit) **tidak pernah dikosongkan**. Ini memungkinkan kasir membuka ulang pembayaran pada keranjang yang sama dan membuat order berbayar ganda untuk item identik. Direproduksi langsung: 1 item dibayar 2x → 2 tiket KDS identik.
+  - Fix: `PaymentModal.tsx` menonaktifkan tombol bayar ("Memproses...") selama request async berjalan (cegah klik ganda pada modal yang sama); `App.tsx` mengirim sinyal `paymentSuccessSignal` ke `CashierView` setelah sukses agar keranjang direset (hanya untuk order yang benar-benar baru dibayar, tidak mengganggu draft order lain yang sedang disusun).
+  - Diverifikasi ulang setelah fix: 3x klik cepat "Bayar Tanpa Cetak" pada keranjang yang sama → hanya 1 order baru tercipta di KDS, keranjang otomatis kosong (Rp 0). Shift monitor menunjukkan tepat 3 transaksi total (2 dari reproduksi bug sebelum fix + 1 dari verifikasi setelah fix) dengan omset & uang laci yang konsisten — tidak ada duplikasi tersembunyi lain.
+- Order lifecycle KDS (NEW → COOKING → COMPLETED) diverifikasi lancar. Shift monitor (omset, uang tunai, riwayat transaksi) akurat.
+- **Belum sempat diuji dalam sesi ini**: penutupan shift penuh + cetak Z-Report (dihentikan sebelum submit karena data uji ada di dev DB lokal, bukan langkah kritis untuk memvalidasi fix di atas); modul Inventory/Stok dan Attendance/HR belum diregresi ulang pada sesi ini.
+
 ## Belum dikerjakan / pending (terbaru)
 
-1. **Final end-to-end regression pass** (lihat di atas, masih pending).
+1. ~~Final end-to-end regression pass~~ — **sudah dilakukan** (lihat update di atas). Sisa: uji penutupan shift + Z-Report, Inventory, dan Attendance secara live jika ingin regresi 100% lengkap.
 2. **Uji fitur Transaction Purge dengan data production sungguhan** setelah migrasi `202608180032` dijalankan.
+3. **Re-review PR #21** (fix order dobel) sebelum merge — perubahan menyentuh alur pembayaran inti POS, disarankan diuji sekali lagi secara manual di staging sebelum ke production.
 
 ## Reporting overhaul — rincian teknis (PR #16)
 
