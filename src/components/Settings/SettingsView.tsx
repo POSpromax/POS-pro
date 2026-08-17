@@ -59,6 +59,7 @@ import { uploadImage } from '../../services/cloudinaryMedia';
 import { CondimentPreviewPanel } from './CondimentPreviewPanel';
 import { CondimentBuilderPanel } from './CondimentBuilderPanel';
 import { purgeCompletedOrders } from '../../services/transactionPurgeService';
+import { resetPosData, type DataResetMode, type DataResetScope } from '../../services/dataResetService';
 
 const STAFF_WEEKDAYS = [
   { day: 1, short: 'Sen', label: 'Senin' },
@@ -246,6 +247,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [purgeConfirmName, setPurgeConfirmName] = useState('');
   const [purgeBusy, setPurgeBusy] = useState(false);
   const [purgeStep, setPurgeStep] = useState<'idle' | 'confirm'>('idle');
+  // Reset bersih data (setelan pabrik) — lihat kartu di bawah Purge.
+  const [resetMode, setResetMode] = useState<DataResetMode>('TRANSACTIONS');
+  const [resetScope, setResetScope] = useState<DataResetScope>('BRANCH');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetStep, setResetStep] = useState<'idle' | 'confirm'>('idle');
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingOptionValue, setEditingOptionValue] = useState('');
   const [condimentTextDrafts, setCondimentTextDrafts] = useState<Record<string, string>>({});
@@ -2183,6 +2190,117 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                   </div>
                 )}
+
+                {cloudMode && canManageTenant && (() => {
+                  const resetExpect = resetScope === 'TENANT' ? 'RESET SEMUA CABANG' : currentBranch.name;
+                  const resetReady = resetConfirm.trim().toLowerCase() === resetExpect.trim().toLowerCase();
+                  return (
+                    <div className="border border-rose-300 rounded-2xl p-5 bg-[var(--danger-soft)]/40 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                          <Trash2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-rose-900">Reset Bersih Data (Setelan Pabrik)</h3>
+                          <p className="text-[11px] text-[var(--accent-red)] font-medium">
+                            Bersihkan data uji coba untuk mulai berjualan. Akun, cabang, meja, staff, dan konfigurasi TIDAK dihapus. Tercatat di log audit permanen.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Pilih Mode */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={resetBusy}
+                          onClick={() => { setResetMode('TRANSACTIONS'); setResetStep('idle'); }}
+                          className={`text-left rounded-xl border p-3 transition-all ${resetMode === 'TRANSACTIONS' ? 'border-rose-500 bg-white ring-1 ring-rose-300' : 'border-rose-200 bg-white/60 hover:border-rose-300'}`}
+                        >
+                          <p className="text-xs font-black text-rose-900">Transaksi Saja</p>
+                          <p className="text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">Hapus semua order, pembayaran, shift, stok-gerak, presensi, kasbon. Master (menu, stok, meja) tetap utuh.</p>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={resetBusy}
+                          onClick={() => { setResetMode('FACTORY'); setResetStep('idle'); }}
+                          className={`text-left rounded-xl border p-3 transition-all ${resetMode === 'FACTORY' ? 'border-rose-500 bg-white ring-1 ring-rose-300' : 'border-rose-200 bg-white/60 hover:border-rose-300'}`}
+                        >
+                          <p className="text-xs font-black text-rose-900">Reset Total</p>
+                          <p className="text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">Transaksi + hapus menu & condiment + stok bahan di-nol-kan (bahan tetap ada). Untuk opname & menu ulang.</p>
+                        </button>
+                      </div>
+
+                      {/* Pilih Cakupan */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={resetBusy}
+                          onClick={() => { setResetScope('BRANCH'); setResetConfirm(''); setResetStep('idle'); }}
+                          className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${resetScope === 'BRANCH' ? 'border-rose-500 bg-white text-rose-900 ring-1 ring-rose-300' : 'border-rose-200 bg-white/60 text-[var(--text-secondary)] hover:border-rose-300'}`}
+                        >
+                          Cabang Ini ({currentBranch.name})
+                        </button>
+                        <button
+                          type="button"
+                          disabled={resetBusy}
+                          onClick={() => { setResetScope('TENANT'); setResetConfirm(''); setResetStep('idle'); }}
+                          className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${resetScope === 'TENANT' ? 'border-rose-500 bg-white text-rose-900 ring-1 ring-rose-300' : 'border-rose-200 bg-white/60 text-[var(--text-secondary)] hover:border-rose-300'}`}
+                        >
+                          Semua Cabang
+                        </button>
+                      </div>
+
+                      {/* Konfirmasi */}
+                      <label className="text-[11px] font-bold text-[var(--text-secondary)] space-y-1 block">
+                        <span>Ketik persis untuk konfirmasi: <strong>{resetExpect}</strong></span>
+                        <input
+                          type="text"
+                          value={resetConfirm}
+                          onChange={(event) => setResetConfirm(event.target.value)}
+                          disabled={resetBusy}
+                          placeholder={resetExpect}
+                          className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        disabled={resetBusy || !resetReady}
+                        onClick={async () => {
+                          if (resetStep !== 'confirm') {
+                            setResetStep('confirm');
+                            setTimeout(() => setResetStep('idle'), 6000);
+                            return;
+                          }
+                          setResetBusy(true);
+                          try {
+                            const result = await resetPosData({ branchId: currentBranch.id, mode: resetMode, scope: resetScope, confirmText: resetConfirm.trim() });
+                            const total = Object.values(result.counts || {}).reduce((a, b) => a + Number(b || 0), 0);
+                            toast(
+                              'Reset Selesai',
+                              `${result.mode === 'FACTORY' ? 'Reset total' : 'Reset transaksi'} pada ${result.branchCount} cabang. ${result.counts?.orders || 0} order, ${result.counts?.shifts || 0} shift${result.mode === 'FACTORY' ? `, ${result.counts?.menus || 0} menu` : ''} dihapus (total ${total} baris).`,
+                            );
+                            setResetConfirm('');
+                            setResetStep('idle');
+                          } catch (error) {
+                            toast('Reset Gagal', error instanceof Error ? error.message : 'Reset data gagal diproses');
+                          } finally {
+                            setResetBusy(false);
+                          }
+                        }}
+                        className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                          resetStep === 'confirm' ? 'bg-rose-900 shadow-rose-900/20 animate-pulse' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                        }`}
+                      >
+                        {resetBusy
+                          ? 'Memproses reset...'
+                          : resetStep === 'confirm'
+                            ? '🔴 Yakin? Klik lagi untuk hapus permanen'
+                            : `${resetMode === 'FACTORY' ? 'Reset Total' : 'Reset Transaksi'} — ${resetScope === 'TENANT' ? 'Semua Cabang' : currentBranch.name}`}
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Technical architecture is secondary information; keep it collapsed by default. */}
                 <details className="group rounded-2xl border border-slate-200 bg-white">

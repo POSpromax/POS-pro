@@ -13,6 +13,7 @@ import { getPublicCatalog } from './src/server/publicCatalog';
 import { handleCloudinarySign } from './src/server/cloudinarySign';
 import { handleTableSessionRequest } from './src/server/tableSession';
 import { handleBranchRequest } from './src/server/branchManagement';
+import { handleDataResetRequest } from './src/server/dataReset';
 
 async function startServer() {
   const app = express();
@@ -142,6 +143,18 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server cabang belum dikonfigurasi' });
+    }
+  });
+
+  app.post('/api/data-reset', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleDataResetRequest(req.method, req.body || {}, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server reset data belum dikonfigurasi' });
     }
   });
 
