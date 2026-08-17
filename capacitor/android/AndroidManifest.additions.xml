@@ -1,0 +1,49 @@
+<!--
+  Tambahkan potongan ini ke android/app/src/main/AndroidManifest.xml hasil
+  `npx cap add android`.
+
+  1) Blok <uses-permission>/<uses-feature> di bawah diletakkan di dalam <manifest>
+     SEBELUM <application>.
+  2) Blok <service> diletakkan di DALAM <application>.
+-->
+
+<!-- ==== Letakkan di dalam <manifest>, sebelum <application> ==== -->
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+<!-- Presensi: selfie + GPS -->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!-- Printer Bluetooth (Android 12+) -->
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission
+    android:name="android.permission.BLUETOOTH_SCAN"
+    android:usesPermissionFlags="neverForLocation" />
+<!-- Android <= 11 -->
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+<!-- Foreground service printer + notifikasi -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
+<!-- ==== Letakkan di DALAM <application> ==== -->
+<service
+    android:name=".PrinterForegroundService"
+    android:exported="false"
+    android:foregroundServiceType="connectedDevice" />
+
+<!--
+  Catatan tambahan pada <application ...>:
+    android:usesCleartextTraffic="false"   (HTTPS only)
+  dan pada <activity MainActivity ...> untuk terminal tablet kasir bisa dikunci:
+    android:screenOrientation="sensorLandscape"
+    android:configChanges="orientation|screenSize|keyboardHidden"
+-->
