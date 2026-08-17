@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   Download,
@@ -28,13 +28,14 @@ import {
   ChevronRight,
   ShieldCheck
 } from 'lucide-react';
-import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile, Branch } from '../../types/pos';
+import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile, Branch, RawMaterial } from '../../types/pos';
 import { DBStorage } from '../../services/dbStorage';
 import { ReportPeriod, REPORT_PERIODS, formatPeriodRange, getPeriodRange, isWithinPeriod } from '../../utils/reportPeriod';
 
 interface AnalyticsExportViewProps {
   orders: Order[];
   menuItems: MenuItem[];
+  rawMaterials?: RawMaterial[];
   currentShift: Shift;
   allShifts?: Shift[];
   attendanceRecords?: AttendanceRecord[];
@@ -44,11 +45,143 @@ interface AnalyticsExportViewProps {
   currentBranchId?: string;
 }
 
-type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY';
+type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY' | 'INVENTORY';
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+
+interface PaginatedResult<T> {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  startItem: number;
+  endItem: number;
+  visibleItems: T[];
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  setPageSize: React.Dispatch<React.SetStateAction<number>>;
+}
+
+interface PaginationControlsProps {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  startItem: number;
+  endItem: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  itemLabel: string;
+}
+
+const addCalendarDays = (date: Date, days: number): Date => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const addCalendarMonths = (date: Date, months: number): Date => new Date(date.getFullYear(), date.getMonth() + months, 1);
+
+const startOfLocalDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const usePaginatedList = <T,>(items: T[], resetKey: string): PaginatedResult<T> => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  useEffect(() => {
+    setPage(1);
+  }, [resetKey]);
+
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const visibleItems = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return items.slice(startIndex, startIndex + pageSize);
+  }, [items, page, pageSize]);
+
+  const startItem = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endItem = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+
+  return {
+    page,
+    pageSize,
+    totalItems,
+    totalPages,
+    startItem,
+    endItem,
+    visibleItems,
+    setPage,
+    setPageSize,
+  };
+};
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
+  startItem,
+  endItem,
+  onPageChange,
+  onPageSizeChange,
+  itemLabel,
+}) => (
+  <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between"
+    style={{ borderColor: 'var(--panel-border-light)' }}>
+    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+      <span>
+        Menampilkan {startItem}-{endItem} dari {totalItems} {itemLabel}
+      </span>
+      <label className="flex items-center gap-2 rounded-full border px-3 py-1"
+        style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+        <span>Baris</span>
+        <select
+          value={pageSize}
+          onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          className="bg-transparent text-[11px] font-bold outline-none"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {PAGE_SIZE_OPTIONS.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+
+    <div className="flex items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+      >
+        Sebelumnya
+      </button>
+      <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+        Halaman {page} / {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+      >
+        Berikutnya
+      </button>
+    </div>
+  </div>
+);
 
 export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   orders,
   menuItems,
+  rawMaterials = [],
   currentShift,
   allShifts: propShifts,
   attendanceRecords: propAttendance,
@@ -60,6 +193,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
   // Filter cabang: default cabang aktif; 'ALL' = gabungan semua cabang.
@@ -148,6 +282,31 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     return list.sort((a, b) => b.qty - a.qty);
   }, [paidOrders, menuItems, categoryFilter, searchTerm]);
 
+  const topSellingPagination = usePaginatedList(
+    topSellingList,
+    JSON.stringify([activeTab, period, branchFilter, categoryFilter, searchTerm, topSellingList.length]),
+  );
+
+  const voidPagination = usePaginatedList(
+    voidOrders,
+    JSON.stringify([activeTab, period, branchFilter, voidOrders.length]),
+  );
+
+  const taxPagination = usePaginatedList(
+    paidOrders,
+    JSON.stringify([activeTab, period, branchFilter, paidOrders.length]),
+  );
+
+  const shiftPagination = usePaginatedList(
+    shifts,
+    JSON.stringify([activeTab, period, branchFilter, shifts.length]),
+  );
+
+  const attendancePagination = usePaginatedList(
+    attendances,
+    JSON.stringify([activeTab, period, branchFilter, attendances.length]),
+  );
+
   const hourlyPeakData = useMemo(() => {
     const hours: { hourLabel: string; count: number; revenue: number }[] = [];
     for (let h = 7; h <= 22; h++) {
@@ -164,55 +323,101 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   const maxHourlyRevenue = useMemo(() => Math.max(...hourlyPeakData.map((h) => h.revenue), 1), [hourlyPeakData]);
 
-  // Tren per tanggal dalam periode terpilih — melihat naik-turun omset harian.
-  const dailyTrendData = useMemo(() => {
-    const buckets = new Map<string, { key: string; label: string; revenue: number; count: number }>();
-    paidOrders.forEach((order) => {
-      const date = new Date(order.createdAt);
-      if (Number.isNaN(date.getTime())) return;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      const bucket = buckets.get(key) || {
-        key,
-        label: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
-        revenue: 0,
-        count: 0
-      };
-      bucket.revenue += order.total;
-      bucket.count += 1;
-      buckets.set(key, bucket);
-    });
-    return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-  }, [paidOrders]);
-
-  const maxDailyRevenue = useMemo(() => Math.max(...dailyTrendData.map((d) => d.revenue), 1), [dailyTrendData]);
-
-  // Tren per BULAN — untuk periode Tahun.
-  const monthlyTrendData = useMemo(() => {
-    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const buckets = new Map<string, { key: string; label: string; revenue: number; count: number }>();
-    paidOrders.forEach((order) => {
-      const date = new Date(order.createdAt);
-      if (Number.isNaN(date.getTime())) return;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const bucket = buckets.get(key) || { key, label: names[date.getMonth()], revenue: 0, count: 0 };
-      bucket.revenue += order.total;
-      bucket.count += 1;
-      buckets.set(key, bucket);
-    });
-    return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-  }, [paidOrders]);
-
-  // Grafik tren utama MENYESUAIKAN periode: Hari ini/Kemarin→per jam,
-  // Minggu/Bulan→per tanggal, Tahun/Semua→per bulan.
+  // Grafik tren utama MENYESUAIKAN periode dan selalu mengisi seluruh bucket
+  // periode, termasuk hari/bulan tanpa penjualan.
   const trendChart = useMemo(() => {
+    const aggregate = <T extends { key: string; label: string; axisLabel: string }>(seed: T[]) => {
+      const bucketMap = new Map(seed.map((item) => [item.key, { ...item, revenue: 0, count: 0 }]));
+      paidOrders.forEach((order) => {
+        const orderDate = new Date(order.createdAt);
+        if (Number.isNaN(orderDate.getTime())) return;
+        const key = period === 'YEAR' || period === 'ALL'
+          ? `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`
+          : `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')}`;
+        const bucket = bucketMap.get(key);
+        if (!bucket) return;
+        bucket.revenue += order.total;
+        bucket.count += 1;
+      });
+      return [...bucketMap.values()];
+    };
+
     if (period === 'TODAY' || period === 'YESTERDAY') {
-      return { title: 'Tren Omset per Jam', data: hourlyPeakData.map((h) => ({ label: h.hourLabel, revenue: h.revenue, count: h.count })) };
+      return {
+        title: 'Tren Omset per Jam',
+        data: hourlyPeakData.map((hour) => ({
+          label: hour.hourLabel,
+          axisLabel: `${hour.hourLabel.slice(0, 2)}h`,
+          revenue: hour.revenue,
+          count: hour.count,
+        })),
+      };
     }
+
+    if (period === 'WEEK') {
+      const weekSeed = Array.from({ length: 7 }, (_, index) => {
+        const bucketDate = addCalendarDays(periodRange.start, index);
+        return {
+          key: `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, '0')}-${String(bucketDate.getDate()).padStart(2, '0')}`,
+          label: bucketDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }),
+          axisLabel: bucketDate.toLocaleDateString('id-ID', { weekday: 'short' }),
+        };
+      });
+      return { title: 'Tren Omset 7 Hari Minggu Ini', data: aggregate(weekSeed) };
+    }
+
+    if (period === 'MONTH') {
+      const monthStart = new Date(periodRange.start.getFullYear(), periodRange.start.getMonth(), 1);
+      const monthEnd = new Date(periodRange.start.getFullYear(), periodRange.start.getMonth() + 1, 1);
+      const totalDays = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86400000);
+      const monthSeed = Array.from({ length: totalDays }, (_, index) => {
+        const bucketDate = addCalendarDays(monthStart, index);
+        return {
+          key: `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, '0')}-${String(bucketDate.getDate()).padStart(2, '0')}`,
+          label: bucketDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+          axisLabel: bucketDate.toLocaleDateString('id-ID', { day: 'numeric' }),
+        };
+      });
+      return { title: 'Tren Omset Harian Bulan Ini', data: aggregate(monthSeed) };
+    }
+
     if (period === 'YEAR' || period === 'ALL') {
-      return { title: 'Tren Omset per Bulan', data: monthlyTrendData.map((m) => ({ label: m.label, revenue: m.revenue, count: m.count })) };
+      const monthStart = period === 'YEAR'
+        ? new Date(periodRange.start.getFullYear(), 0, 1)
+        : new Date(
+          paidOrders.length > 0 ? new Date(paidOrders[paidOrders.length - 1].createdAt).getFullYear() : new Date().getFullYear(),
+          paidOrders.length > 0 ? new Date(paidOrders[paidOrders.length - 1].createdAt).getMonth() : new Date().getMonth(),
+          1,
+        );
+      const totalMonths = period === 'YEAR'
+        ? 12
+        : Math.max(
+          1,
+          ((new Date().getFullYear() - monthStart.getFullYear()) * 12)
+            + (new Date().getMonth() - monthStart.getMonth())
+            + 1,
+        );
+      const monthSeed = Array.from({ length: totalMonths }, (_, index) => {
+        const bucketDate = addCalendarMonths(monthStart, index);
+        return {
+          key: `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, '0')}`,
+          label: bucketDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+          axisLabel: bucketDate.toLocaleDateString('id-ID', { month: 'short' }),
+        };
+      });
+      return { title: period === 'YEAR' ? 'Tren Omset 12 Bulan Tahun Ini' : 'Tren Omset per Bulan', data: aggregate(monthSeed) };
     }
-    return { title: 'Tren Omset per Tanggal', data: dailyTrendData.map((d) => ({ label: d.label, revenue: d.revenue, count: d.count })) };
-  }, [period, hourlyPeakData, dailyTrendData, monthlyTrendData]);
+
+    const fallbackDate = startOfLocalDay(periodRange.start);
+    return {
+      title: 'Tren Omset per Tanggal',
+      data: aggregate([{
+        key: `${fallbackDate.getFullYear()}-${String(fallbackDate.getMonth() + 1).padStart(2, '0')}-${String(fallbackDate.getDate()).padStart(2, '0')}`,
+        label: fallbackDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        axisLabel: fallbackDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      }]),
+    };
+  }, [hourlyPeakData, paidOrders, period, periodRange]);
   const maxTrendRevenue = useMemo(() => Math.max(...trendChart.data.map((d) => d.revenue), 1), [trendChart]);
 
   // Hari apa yang paling laris — dirata-rata supaya periode yang memuat lebih
@@ -244,6 +449,100 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     () => weekdayPerformance.reduce((best, row) => (row.avgRevenue > best.avgRevenue ? row : best), weekdayPerformance[0]),
     [weekdayPerformance]
   );
+
+  const shiftPreviewMap = useMemo(() => {
+    const paidOrdersByShift = new Map<string, Order[]>();
+    const voidOrdersByShift = new Map<string, Order[]>();
+    const expenseRecordsByShift = new Map<string, ExpenseIncomeRecord[]>();
+
+    orders.forEach((order) => {
+      if (order.paidShiftId && order.paymentStatus === 'PAID' && order.status !== 'CANCELLED') {
+        const rows = paidOrdersByShift.get(order.paidShiftId) || [];
+        rows.push(order);
+        paidOrdersByShift.set(order.paidShiftId, rows);
+      }
+      if (order.completedShiftId && order.status === 'CANCELLED') {
+        const rows = voidOrdersByShift.get(order.completedShiftId) || [];
+        rows.push(order);
+        voidOrdersByShift.set(order.completedShiftId, rows);
+      }
+    });
+
+    allExpenses.forEach((record) => {
+      const rows = expenseRecordsByShift.get(record.shiftId) || [];
+      rows.push(record);
+      expenseRecordsByShift.set(record.shiftId, rows);
+    });
+
+    return shifts.reduce<Record<string, {
+      orderCount: number;
+      grossSales: number;
+      cashSales: number;
+      qrisSales: number;
+      debitSales: number;
+      nonCashSales: number;
+      totalDiscount: number;
+      totalTax: number;
+      totalIncome: number;
+      totalExpense: number;
+      expectedCash: number;
+      actualCash: number;
+      varianceAmount: number;
+      voidCount: number;
+      voidAmount: number;
+    }>>((acc, shift) => {
+      const paidShiftOrders = paidOrdersByShift.get(shift.id) || [];
+      const voidShiftOrders = voidOrdersByShift.get(shift.id) || [];
+      const shiftRecords = expenseRecordsByShift.get(shift.id) || [];
+      const hasPaidOrders = paidShiftOrders.length > 0;
+      const qrisSales = paidShiftOrders
+        .filter((order) => order.paymentMethod === 'QRIS')
+        .reduce((total, order) => total + order.total, 0);
+      const debitSales = paidShiftOrders
+        .filter((order) => order.paymentMethod === 'DEBIT')
+        .reduce((total, order) => total + order.total, 0);
+      const cashSales = hasPaidOrders
+        ? paidShiftOrders
+          .filter((order) => order.paymentMethod === 'CASH')
+          .reduce((total, order) => total + order.total, 0)
+        : shift.cashSales;
+      const totalExpense = shift.totalExpense > 0
+        ? shift.totalExpense
+        : shiftRecords
+          .filter((record) => record.type === 'EXPENSE')
+          .reduce((total, record) => total + record.amount, 0);
+      const totalIncome = shift.totalIncome > 0
+        ? shift.totalIncome
+        : shiftRecords
+          .filter((record) => record.type === 'INCOME')
+          .reduce((total, record) => total + record.amount, 0);
+      const grossSales = hasPaidOrders
+        ? paidShiftOrders.reduce((total, order) => total + order.total, 0)
+        : shift.grossOmset;
+      const nonCashSales = hasPaidOrders ? qrisSales + debitSales : shift.nonCashSales;
+      const expectedCash = shift.expectedCash ?? (shift.initialCash + cashSales + totalIncome - totalExpense);
+      const actualCash = shift.actualCash ?? expectedCash;
+
+      acc[shift.id] = {
+        orderCount: paidShiftOrders.length,
+        grossSales,
+        cashSales,
+        qrisSales,
+        debitSales,
+        nonCashSales,
+        totalDiscount: paidShiftOrders.reduce((total, order) => total + (order.discount || 0), 0),
+        totalTax: paidShiftOrders.reduce((total, order) => total + (order.tax || 0), 0),
+        totalIncome,
+        totalExpense,
+        expectedCash,
+        actualCash,
+        varianceAmount: shift.varianceAmount ?? actualCash - expectedCash,
+        voidCount: voidShiftOrders.length,
+        voidAmount: voidShiftOrders.reduce((total, order) => total + (order.total || 0), 0),
+      };
+      return acc;
+    }, {});
+  }, [allExpenses, orders, shifts]);
 
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
@@ -616,7 +915,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                               />
                             </div>
                             <span className="whitespace-nowrap text-[10px] font-bold"
-                              style={{ color: 'var(--text-tertiary)' }}>{point.label.split(' ')[0]}</span>
+                              style={{ color: 'var(--text-tertiary)' }}>{point.axisLabel}</span>
                           </div>
                         );
                       })}
@@ -747,18 +1046,19 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <td colSpan={7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Tidak ada data penjualan menu</td>
                   </tr>
                 ) : (
-                  topSellingList.map((item, idx) => {
+                  topSellingPagination.visibleItems.map((item, idx) => {
                     const profit = item.revenue - item.hppCost;
                     const marginPct = item.revenue > 0 ? Math.round((profit / item.revenue) * 100) : 0;
+                    const ranking = topSellingPagination.startItem + idx;
                     return (
                       <tr key={item.name} className="hover:bg-[var(--brand-100)]/40 transition-colors">
                         <td className="py-3 px-3 font-bold">
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-[11px] font-bold text-white ${
-                            idx === 0 ? 'bg-[var(--accent-amber)]'
-                            : idx === 1 ? 'bg-[var(--text-tertiary)]'
-                            : idx === 2 ? 'bg-[var(--primary-hover)]'
+                            ranking === 1 ? 'bg-[var(--accent-amber)]'
+                            : ranking === 2 ? 'bg-[var(--text-tertiary)]'
+                            : ranking === 3 ? 'bg-[var(--primary-hover)]'
                             : 'bg-[var(--surface-secondary)] !text-[var(--text-secondary)]'
-                          }`}>#{idx + 1}</span>
+                          }`}>#{ranking}</span>
                         </td>
                         <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
                         <td className="py-3 px-3">
@@ -779,6 +1079,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={topSellingPagination.page}
+            pageSize={topSellingPagination.pageSize}
+            totalItems={topSellingPagination.totalItems}
+            totalPages={topSellingPagination.totalPages}
+            startItem={topSellingPagination.startItem}
+            endItem={topSellingPagination.endItem}
+            onPageChange={topSellingPagination.setPage}
+            onPageSizeChange={topSellingPagination.setPageSize}
+            itemLabel="menu"
+          />
         </div>
       )}
 
@@ -827,7 +1138,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                       <td colSpan={6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Tidak ada catatan pembatalan (Void) hari ini</td>
                     </tr>
                   ) : (
-                    voidOrders.map((o) => (
+                    voidPagination.visibleItems.map((o) => (
                       <tr key={o.id} className="transition-colors"
                         style={{ '--hover-bg': 'var(--danger-soft)' } as React.CSSProperties}
                         onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--danger-soft)'}
@@ -846,6 +1157,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={shiftPagination.page}
+              pageSize={shiftPagination.pageSize}
+              totalItems={shiftPagination.totalItems}
+              totalPages={shiftPagination.totalPages}
+              startItem={shiftPagination.startItem}
+              endItem={shiftPagination.endItem}
+              onPageChange={shiftPagination.setPage}
+              onPageSizeChange={shiftPagination.setPageSize}
+              itemLabel="shift"
+            />
           </div>
         </div>
       )}
@@ -895,7 +1217,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                       <td colSpan={6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas</td>
                     </tr>
                   ) : (
-                    paidOrders.map((o) => (
+                    taxPagination.visibleItems.map((o) => (
                       <tr key={o.id} className="transition-colors"
                         onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
                         onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
@@ -911,6 +1233,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={attendancePagination.page}
+              pageSize={attendancePagination.pageSize}
+              totalItems={attendancePagination.totalItems}
+              totalPages={attendancePagination.totalPages}
+              startItem={attendancePagination.startItem}
+              endItem={attendancePagination.endItem}
+              onPageChange={attendancePagination.setPage}
+              onPageSizeChange={attendancePagination.setPageSize}
+              itemLabel="presensi"
+            />
           </div>
         </div>
       )}
@@ -939,6 +1272,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <thead>
                 <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
                   style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                  <th className="py-3 px-3 text-center">Detail</th>
                   <th className="py-3 px-3">ID Shift</th>
                   <th className="py-3 px-3">Kasir / Staf</th>
                   <th className="py-3 px-3">Mulai Shift</th>
@@ -953,36 +1287,118 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                 {shifts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada riwayat shift recorded</td>
+                    <td colSpan={10} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada riwayat shift recorded</td>
                   </tr>
                 ) : (
-                  shifts.map((s) => (
-                    <tr key={s.id} className="transition-colors"
-                      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
-                      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
-                      <td className="py-3 px-3 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{s.id}</td>
-                      <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{s.staffName} <span className="text-[11px] font-bold" style={{ color: 'var(--primary-text)' }}>({s.staffRole})</span></td>
-                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(s.startTime).toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {s.initialCash.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {s.cashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {s.nonCashSales.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {s.totalExpense.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          s.status === 'OPEN'
-                            ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border border-[#bbf7d0]'
-                            : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'
-                        }`}>
-                          {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  shiftPagination.visibleItems.map((s) => {
+                    const details = shiftPreviewMap[s.id];
+                    const isExpanded = expandedShiftId === s.id;
+                    return (
+                      <React.Fragment key={s.id}>
+                        <tr className="transition-colors"
+                          onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
+                          onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedShiftId((current) => current === s.id ? null : s.id)}
+                              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
+                              style={{ borderColor: 'var(--panel-border)', background: isExpanded ? 'var(--brand-100)' : 'var(--surface-secondary)', color: 'var(--text-primary)' }}
+                            >
+                              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                              {isExpanded ? 'Tutup' : 'Lihat'}
+                            </button>
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{s.id}</td>
+                          <td className="py-3 px-3 font-bold" style={{ color: 'var(--text-primary)' }}>{s.staffName} <span className="text-[11px] font-bold" style={{ color: 'var(--primary-text)' }}>({s.staffRole})</span></td>
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(s.startTime).toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{s.endTime ? new Date(s.endTime).toLocaleString('id-ID') : '-'}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {s.initialCash.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-green)' }}>Rp {details?.cashSales.toLocaleString('id-ID') || s.cashSales.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold text-[var(--primary-hover)]">Rp {details?.nonCashSales.toLocaleString('id-ID') || s.nonCashSales.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>Rp {details?.totalExpense.toLocaleString('id-ID') || s.totalExpense.toLocaleString('id-ID')}</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              s.status === 'OPEN'
+                                ? 'bg-[var(--success-soft)] text-[var(--accent-green)] border border-[#bbf7d0]'
+                                : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)]'
+                            }`}>
+                              {s.status === 'OPEN' ? 'OPEN (AKTIF)' : 'CLOSED'}
+                            </span>
+                          </td>
+                        </tr>
+                        {isExpanded && details && (
+                          <tr>
+                            <td colSpan={10} className="px-3 pb-4">
+                              <div className="rounded-2xl border p-4 space-y-4"
+                                style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)' }}>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                                  {[
+                                    ['Order lunas', `${details.orderCount} struk`],
+                                    ['Void transaksi', `${details.voidCount} struk`],
+                                    ['Diskon', `Rp ${details.totalDiscount.toLocaleString('id-ID')}`],
+                                    ['Pajak PB1', `Rp ${details.totalTax.toLocaleString('id-ID')}`],
+                                    ['Omset bruto', `Rp ${details.grossSales.toLocaleString('id-ID')}`],
+                                    ['Tunai', `Rp ${details.cashSales.toLocaleString('id-ID')}`],
+                                    ['QRIS', `Rp ${details.qrisSales.toLocaleString('id-ID')}`],
+                                    ['Debit', `Rp ${details.debitSales.toLocaleString('id-ID')}`],
+                                    ['Pemasukan', `Rp ${details.totalIncome.toLocaleString('id-ID')}`],
+                                    ['Pengeluaran', `Rp ${details.totalExpense.toLocaleString('id-ID')}`],
+                                  ].map(([label, value]) => (
+                                    <div key={label} className="rounded-xl border px-3 py-2.5"
+                                      style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                      <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+                                      <p className="mt-1 text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Expected Cash</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Rp {details.expectedCash.toLocaleString('id-ID')}</p>
+                                  </div>
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Actual Cash</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Rp {details.actualCash.toLocaleString('id-ID')}</p>
+                                  </div>
+                                  <div className="rounded-xl border px-3 py-3"
+                                    style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-primary)' }}>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>Selisih Kas</p>
+                                    <p className="mt-1 text-sm font-bold" style={{ color: details.varianceAmount < 0 ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                                      Rp {details.varianceAmount.toLocaleString('id-ID')}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+                                  <span>Void nominal: Rp {details.voidAmount.toLocaleString('id-ID')}</span>
+                                  {s.notes && <span>Catatan: {s.notes}</span>}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={voidPagination.page}
+            pageSize={voidPagination.pageSize}
+            totalItems={voidPagination.totalItems}
+            totalPages={voidPagination.totalPages}
+            startItem={voidPagination.startItem}
+            endItem={voidPagination.endItem}
+            onPageChange={voidPagination.setPage}
+            onPageSizeChange={voidPagination.setPageSize}
+            itemLabel="void"
+          />
         </div>
       )}
 
@@ -1016,7 +1432,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     <td colSpan={7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada catatan presensi karyawan</td>
                   </tr>
                 ) : (
-                  attendances.map((att) => (
+                  attendancePagination.visibleItems.map((att) => (
                     <tr key={att.id} className="transition-colors"
                       onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--surface-secondary)'}
                       onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
@@ -1062,6 +1478,17 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={taxPagination.page}
+            pageSize={taxPagination.pageSize}
+            totalItems={taxPagination.totalItems}
+            totalPages={taxPagination.totalPages}
+            startItem={taxPagination.startItem}
+            endItem={taxPagination.endItem}
+            onPageChange={taxPagination.setPage}
+            onPageSizeChange={taxPagination.setPageSize}
+            itemLabel="struk"
+          />
         </div>
       )}
     </div>
