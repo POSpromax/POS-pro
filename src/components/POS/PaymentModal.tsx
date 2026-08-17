@@ -7,7 +7,7 @@ interface PaymentModalProps {
   onClose: () => void;
   order: Partial<Order> | null;
   profile: RestaurantProfile;
-  onProcessPayment: (paymentMethod: PaymentMethod, cashPaid: number, shouldPrint: boolean) => void;
+  onProcessPayment: (paymentMethod: PaymentMethod, cashPaid: number, shouldPrint: boolean) => void | Promise<void>;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -19,18 +19,34 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [cashPaid, setCashPaid] = useState<number>(order?.total || 0);
+  // Mencegah klik ganda / double-submit selama pembayaran diproses async,
+  // yang sebelumnya bisa membuat order terbayar dua kali (duplicate order).
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setPaymentMethod('CASH');
     setCashPaid(order?.total || 0);
+    setIsSubmitting(false);
   }, [isOpen, order?.id, order?.total]);
 
   if (!isOpen || !order) return null;
 
   const totalAmount = order.total || 0;
   const changeAmount = Math.max(0, cashPaid - totalAmount);
-  const canProcessPayment = paymentMethod !== 'CASH' || cashPaid >= totalAmount;
+  const canProcessPayment = (paymentMethod !== 'CASH' || cashPaid >= totalAmount) && !isSubmitting;
+
+  const handlePay = async (shouldPrint: boolean) => {
+    if (isSubmitting || !canProcessPayment) return;
+    setIsSubmitting(true);
+    try {
+      await onProcessPayment(paymentMethod, cashPaid, shouldPrint);
+    } finally {
+      // Jika modal masih terbuka (pembayaran gagal), izinkan coba lagi.
+      // Jika sukses, modal akan ditutup oleh parent sehingga state ini di-reset oleh effect di atas.
+      setIsSubmitting(false);
+    }
+  };
 
   // Quick Nominals matching Image 5
   const nominals = [
@@ -259,19 +275,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => onProcessPayment(paymentMethod, cashPaid, false)}
+              onClick={() => void handlePay(false)}
               disabled={!canProcessPayment}
               className="ui-button ui-button-secondary px-5 py-3 text-xs flex items-center gap-1.5"
             >
-              <Check className="w-4 h-4 text-[var(--text-secondary)]" /> Bayar Tanpa Cetak
+              <Check className="w-4 h-4 text-[var(--text-secondary)]" /> {isSubmitting ? 'Memproses...' : 'Bayar Tanpa Cetak'}
             </button>
 
             <button
-              onClick={() => onProcessPayment(paymentMethod, cashPaid, true)}
+              onClick={() => void handlePay(true)}
               disabled={!canProcessPayment}
               className="ui-button ui-button-primary px-6 py-3 text-xs flex items-center gap-1.5"
             >
-              <Printer className="w-4 h-4" /> Bayar & Cetak Struk
+              <Printer className="w-4 h-4" /> {isSubmitting ? 'Memproses...' : 'Bayar & Cetak Struk'}
             </button>
           </div>
         </div>
