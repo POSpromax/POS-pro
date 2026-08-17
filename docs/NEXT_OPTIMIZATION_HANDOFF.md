@@ -1,6 +1,49 @@
 # Handoff Aktif POS-PRO
 
-Terakhir diperbarui: 14 Agustus 2026.
+Terakhir diperbarui: 17 Agustus 2026.
+
+## Update 17 Agustus 2026 (sesi ini)
+
+### Selesai & sudah di-merge ke `main` (PR #11 - #17)
+
+1. **Self-order foto & kepadatan modal condiment** (PR #11) — foto menu di header modal condiment self-order diperbesar (`object-cover`, tanpa padding), panel foto dipersempit (152/168px), padding header/body/quick-preset/notes dirapatkan. File: `src/components/POS/CondimentSelectionModal.tsx`.
+2. **Toggle Auto Print Kitchen** (PR #12) — tombol ON/OFF bersama di `HeaderBar` (dipakai Kasir & KDS), field `PrinterConfig.autoPrintKitchenOnNewOrder`, auto-cetak tiket dapur (format kitchen, tanpa harga) saat order baru/berubah terdeteksi. Printer retry otomatis sekali setelah reconnect jika print gagal. File: `src/types/pos.ts`, `src/services/dbStorage.ts`, `src/components/Navigation/HeaderBar.tsx`, `src/App.tsx`, `src/services/bluetoothPrinter.ts`.
+3. **Atribusi shift untuk order void + baris void di Z-Report** (PR #13) — RPC `void_order()` kini menerima `p_shift_id` dan menstempel `completed_shift_id`; trigger `set_order_shift_attribution()` menstempel `completed_shift_id` juga untuk status `CANCELLED` (sebelumnya hanya `COMPLETED`). Z-Report menampilkan `voidCount`/`voidAmount`. File: `supabase/migrations/202608170031_void_order_shift_attribution.sql`, `src/server/orderManagement.ts`, `src/services/bluetoothPrinter.ts`, `src/App.tsx`.
+4. **Konsistensi ShiftMonitorView** (PR #14) — daftar void di `ShiftMonitorView.tsx` disamakan memakai `completedShiftId` (sebelumnya `createdShiftId`), konsisten dengan aturan bisnis "riwayat shift = order yang SELESAI/void pada shift tersebut".
+5. **PERBAIKAN KRITIS migrasi void-shift** (PR #15) — migrasi `202608170031` gagal di production dengan error `column "completed_shift_id" does not exist` karena migrasi `202608130022` (yang membuat kolom tsb) rupanya belum pernah diterapkan di database production. Migrasi `202608170031` sekarang **self-contained**: menambahkan `created_shift_id`/`paid_shift_id`/`completed_shift_id` dengan `add column if not exists`, FK guard, dan membuat ulang trigger `orders_set_shift_attribution` secara defensif — aman dijalankan berapa kali pun dan terlepas dari migrasi mana yang sudah/belum diterapkan sebelumnya.
+   - ⚠️ **AKSI WAJIB:** jalankan ulang file migrasi `202608170031_void_order_shift_attribution.sql` yang sudah diperbaiki ini di Supabase SQL editor/CLI production. Versi sebelumnya gagal total (tidak ada perubahan yang tersimpan).
+6. **Reporting overhaul** (PR #16, dikerjakan oleh background agent, sudah divalidasi & di-review) — lihat detail lengkap di bagian "Reporting overhaul — rincian teknis" di bawah.
+7. **UX Racikan Instan: tombol tambah isian baru** (PR #16) — Settings > Isian & Topping > Racikan Instan (editor preset Bakso Saja/Campur) sebelumnya tidak punya cara menambah bahan baru tanpa pindah ke step "3. Opsi" terlebih dahulu. Ditambahkan tombol **"Tambah Isian Baru"** langsung di editor preset yang otomatis membuat opsi baru (nama unik `OPSI BARU`/`OPSI BARU 2`/dst), langsung memasukkannya ke preset aktif, dan pindah ke step Opsi supaya bisa langsung diganti nama/harga. File: `src/components/Settings/CondimentBuilderPanel.tsx`.
+8. **Konsistensi label ringkas Kitchen (cetak vs KDS)** (PR #17) — tiket dapur yang dicetak (`generateKitchenTicketBytes`) sebelumnya SELALU mencetak daftar isian mentah dan tidak pernah memakai label ringkas (mis. "CAMPUR"), berbeda dari kartu KDS yang sudah benar memakai `summarizeCondimentOptions()` (hanya menampilkan label ringkas bila pilihan customer PERSIS sama dengan preset). Sekarang cetak tiket dapur memakai logika yang sama persis via `condimentGroups` yang di-thread ke `printKitchenTicket`/`generateKitchenTicketBytes` (termasuk `condimentGroupsRef` di `App.tsx` untuk menghindari stale closure pada efek auto-print).
+
+### Temuan baru (belum tentu bug, perlu verifikasi user)
+
+- **Kemungkinan penyebab laporan "TAMBAHAN: CAMPUR" ganda dengan detail isian**: setelah audit mendalam, logika exact-match `summarizeCondimentOptions()` di `src/utils/condimentUtils.ts` sudah BENAR — label ringkas ("CAMPUR") hanya muncul jika seluruh pilihan customer persis sama dengan preset `selfOrderCampurOptions`; begitu satu opsi diubah, fungsi ini mengembalikan daftar mentah. Root cause paling mungkin dari laporan user: ada grup condiment TERPISAH bernama "Tambahan" (bukan grup ISIAN yang sama) di Pengaturan cabang tersebut yang punya opsi atau `allSelectedLabel` yang KEBETULAN juga bernama "CAMPUR", sehingga tiket menampilkan dua baris berbeda: `ISIAN: <daftar mentah>` (grup ISIAN, benar) dan `TAMBAHAN: CAMPUR` (grup lain, juga benar apa adanya). **Perlu dicek langsung**: buka Settings > Isian & Topping, cari grup selain "ISIAN" yang punya opsi/label "CAMPUR", lalu rename/hapus jika membingungkan. PR #17 di atas menyamakan perilaku ringkas antara cetak & KDS untuk grup ISIAN itu sendiri, tapi tidak mengubah data condiment groups yang sudah dikonfigurasi user.
+- **`AnalyticsExportView.tsx` sudah sangat besar** (~1800+ baris). Jika ada pekerjaan reporting lanjutan, sebaiknya dipecah jadi sub-komponen/hook: pagination primitives, trend chart data prep, shift preview table, inventory report.
+- **Filter cabang di Analytics belum konsisten**: `App.tsx` mengirim `orders`/`shiftHistory`/`expenseRecords`/`attendanceRecords` cabang aktif saja ke `AnalyticsExportView` untuk sebagian besar tab (kecuali inventory yang sudah memakai `ownerMonitorData.rawMaterials` bila tersedia), padahal UI filter cabang tersedia untuk semua tab.
+- **Pemakaian inventory bersifat estimasi**, dihitung dari `paidOrders` × `menuItems.ingredients.amountNeeded`, bukan dari ledger stok sesungguhnya — cukup baik untuk laporan tapi bukan pengganti agregasi RPC Supabase yang akurat.
+- **Nama cabang pada baris mutasi stok direkonstruksi di client** dari cache `rawMaterials`/`branches`; bisa tampil `-` bila cache tidak lengkap.
+- Detail teknis lengkap (termasuk cara verifikasi pagination/chart/shift-preview/inventory report) ada di file terpisah `reporting-overhaul-handoff.md` (lihat bagian di bawah).
+
+### Belum dikerjakan / pending
+
+1. **Final end-to-end regression pass**: self-order -> POS -> bayar -> KDS -> tutup shift -> laporan -> presensi -> inventory, memakai PIN `123456` di browser production/staging.
+2. **Desain transaction purge**: fitur purge transaksi cloud khusus Owner, ter-audit, per-cabang, tetap mempertahankan master data. Belum dimulai.
+3. Racikan Instan: perbaikan yang dilakukan hanya menambah *jalan pintas* menambah opsi baru dari dalam editor preset. Belum ada perubahan struktural pada cara opsi preset disimpan/divalidasi.
+
+## Reporting overhaul — rincian teknis (PR #16)
+
+Dikerjakan oleh background agent dalam worktree yang sama, lalu direview, digabung (merge conflict diselesaikan dengan mempertahankan versi agent karena origin/main belum punya perubahan ini), divalidasi ulang (`lint`+`build` lulus), dan di-merge.
+
+**Commit:**
+- `e0327e6` — pagination + full chart buckets (week=7 hari, month=semua tanggal, year=12 bulan, zero-filled)
+- `36ebe42` — expandable shift detail preview (breakdown pembayaran, pajak, diskon, variance, void, income/expense per shift)
+- `0a9ab67` — Laporan Stok baru (ringkasan bahan, stok menipis, nilai persediaan, pemakaian; log mutasi stok berpaginasi); `stockLedgerService.listStockMovements()` diubah dari hardcode `.limit(100)` menjadi API terstruktur `{ branchId, rawMaterialId?, limit?, offset?, from?, to? }` yang mengembalikan `{ rows, total, limit, offset, hasMore }`.
+
+Detail lengkap (file yang diubah, cara verifikasi manual di UI, batasan yang diketahui) ada di:
+`C:\Users\GGUNA\.copilot\session-state\51ce82d2-c047-4ef0-8264-cd682c05d65a\files\reporting-overhaul-handoff.md`
+
+Jika melanjutkan pekerjaan ini di editor/agent lain (mis. Claude Code), salin file tersebut ke folder kerja lokal terlebih dahulu karena berada di luar repo (folder artefak sesi).
 
 ## Status stabil saat ini
 
@@ -88,6 +131,8 @@ Terakhir diperbarui: 14 Agustus 2026.
 2. Uji POS -> KDS -> bayar -> ledger stok -> tutup shift pada dua perangkat.
 3. Pastikan order self-order masuk hanya pada cabang/meja aktif yang benar.
 4. Tambahkan automated integration test untuk checkout idempotent dan role/RLS.
+5. **Jalankan ulang migrasi `202608170031_void_order_shift_attribution.sql` versi terbaru di production** (lihat "Update 17 Agustus 2026").
+6. **Final end-to-end regression pass**: self-order -> POS -> bayar -> KDS -> tutup shift -> laporan -> presensi -> inventory, PIN `123456`.
 
 Migrasi terbaru yang wajib diterapkan berurutan:
 
@@ -95,6 +140,7 @@ Migrasi terbaru yang wajib diterapkan berurutan:
 2. `202608130022_shift_attribution_public_route.sql`
 3. `202608140023_atomic_self_order_table_claim.sql`
 4. `202608140024_branch_hr_configuration.sql`
+5. `202608170031_void_order_shift_attribution.sql` (⚠️ **jalankan ulang versi terbaru** — versi sebelumnya gagal di production dengan error `column "completed_shift_id" does not exist`; sudah diperbaiki agar self-contained, lihat "Update 17 Agustus 2026" di atas)
 
 Perubahan 14 Agustus tahap akhir:
 
@@ -121,6 +167,7 @@ npm.cmd run copy:branch-inventory -- <source-branch-uuid> <target-branch-uuid>
 2. Pembelian, waste, adjustment, dan transfer antar-cabang melalui ledger.
 3. Approval pengirim/penerima untuk transfer.
 4. Versi resep dan histori perubahan HPP.
+5. **Desain transaction purge** khusus Owner: per-cabang, ter-audit, tetap mempertahankan master data. Belum dimulai.
 
 ### P1 — ketahanan aplikasi
 
