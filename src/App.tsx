@@ -1499,9 +1499,19 @@ export default function App() {
         return;
       }
       try {
-        saved = isCloudOrderId(fullOrder.id)
-          ? await payCloudOrder(currentBranch.id, fullOrder.id, paymentMethod, cashPaid, currentShift.id)
-          : await submitCloudOrder(fullOrder);
+        if (isCloudOrderId(fullOrder.id)) {
+          // payCloudOrder hanya memfinalisasi pembayaran (immutable snapshot) dan
+          // TIDAK memperbarui item. Kalau order tersimpan diubah (mis. ada
+          // tambahan item setelah dibuka), sinkronkan item dulu — setara menekan
+          // Simpan — supaya kasir bisa langsung Bayar tanpa Simpan manual.
+          const existingOrder = orders.find((order) => order.id === fullOrder.id);
+          if (!existingOrder || hasUnsavedOrderChanges(fullOrder, existingOrder)) {
+            await submitCloudOrder({ ...fullOrder, paymentStatus: 'UNPAID' });
+          }
+          saved = await payCloudOrder(currentBranch.id, fullOrder.id, paymentMethod, cashPaid, currentShift.id);
+        } else {
+          saved = await submitCloudOrder(fullOrder);
+        }
         setOrders((current) => [saved, ...current.filter((order) => order.id !== fullOrder.id && order.id !== saved.id)]);
         await refreshBranchTables(saved.branchId);
         try {

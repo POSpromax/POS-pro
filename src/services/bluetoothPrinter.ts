@@ -111,6 +111,20 @@ export class BluetoothPrinterService {
     }, delay);
   }
 
+  // Web BLE tidak bisa menjaga koneksi saat PWA di-background (OS men-suspend
+  // halaman & memutus GATT). Saat POS kembali ke depan (buka lagi dari
+  // ShopeeFood/Grab), reset backoff dan langsung coba sambung ulang supaya
+  // printer siap tanpa operator membuka Setup Printer.
+  static resumeReconnect() {
+    if (this.intentionalDisconnect || this.runtimeStatus.connected || !this.lastConfig) return;
+    if (this.autoReconnectTimer !== null) {
+      window.clearTimeout(this.autoReconnectTimer);
+      this.autoReconnectTimer = null;
+    }
+    this.autoReconnectAttempts = 0;
+    this.scheduleAutoReconnect();
+  }
+
   static subscribe(listener: (status: PrinterRuntimeStatus) => void): () => void {
     this.listeners.add(listener);
     listener(this.runtimeStatus);
@@ -554,4 +568,18 @@ export class BluetoothPrinterService {
     if (config.paperSize === '80mm') text += '\x1D\x56\x41\x03';
     return encoder.encode(text);
   }
+}
+
+// Saat halaman kembali terlihat / mendapat fokus / internet pulih, coba sambung
+// ulang printer. Ini kunci agar setelah beralih ke ShopeeFood/Grab lalu kembali
+// ke POS, printer otomatis tersambung kembali (dalam batas Web BLE PWA).
+if (typeof window !== 'undefined') {
+  const resume = () => {
+    if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+      BluetoothPrinterService.resumeReconnect();
+    }
+  };
+  document.addEventListener('visibilitychange', resume);
+  window.addEventListener('focus', resume);
+  window.addEventListener('online', resume);
 }
