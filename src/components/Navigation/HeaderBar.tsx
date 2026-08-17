@@ -126,35 +126,28 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
         </div>
 
-        {/* Online / Offline Pill Badge matching Target Mockup */}
+        {/* Status internet: lampu titik saja (hijau = online, abu = offline) */}
         <div
-          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold tracking-wide border shadow-2xs shrink-0"
+          className="flex h-6 w-6 items-center justify-center rounded-full border shadow-2xs shrink-0"
           style={
             isOnline
-              ? { background: '#DCFCE7', color: '#166534', borderColor: '#86EFAC' }
-              : { background: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' }
+              ? { background: '#DCFCE7', borderColor: '#86EFAC' }
+              : { background: '#F1F5F9', borderColor: '#CBD5E1' }
           }
           role="status"
-          title={`Status internet: ${isOnline ? 'terhubung' : 'terputus'}`}
+          title={`Status internet: ${isOnline ? 'terhubung (online)' : 'terputus (offline)'}`}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#166534] animate-pulse" />
-          <span>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+          <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-[#166534] animate-pulse' : 'bg-slate-400'}`} />
         </div>
       </div>
 
       {!isOwnerMode && (
         <div
-          className="flex min-w-0 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5"
           title={`Outlet aktif: ${currentBranch.name}`}
         >
           <Store className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
-          <div className="min-w-0 leading-none">
-            <p className="text-[7px] font-black uppercase tracking-wider text-emerald-600">Outlet aktif</p>
-            <p className="mt-0.5 max-w-32 truncate text-[9px] font-extrabold text-emerald-900">
-              {currentBranch.code || currentBranch.name}
-              <span className="hidden lg:inline"> · {currentBranch.name.replace(/^Bakso Ujo\s*-\s*/i, '')}</span>
-            </p>
-          </div>
+          <span className="text-xs font-black text-emerald-900">{currentBranch.code || currentBranch.name}</span>
         </div>
       )}
 
@@ -210,8 +203,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             </button>
           )}
 
-          {/* Search Input Bar with keyboard shortcut */}
-          <div className="flex min-w-[140px] max-w-[240px] flex-1 items-center gap-1.5 rounded-xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3.5 py-1.5 text-xs transition-all focus-within:border-[var(--primary)] focus-within:bg-white focus-within:shadow-[var(--focus-ring)]">
+          {/* Search Input Bar — lebar tetap ringkas agar tidak berdempetan */}
+          <div className="flex w-32 sm:w-40 shrink items-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3 py-1.5 h-8 text-xs transition-all focus-within:border-[var(--primary)] focus-within:bg-white focus-within:shadow-[var(--focus-ring)]">
             <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <input
               id="input-header-search"
@@ -227,48 +220,57 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             </kbd>
           </div>
 
-          {/* Meja Customer Pill Button */}
+          {/* Meja Customer — ikon saja */}
           {onOpenTableManagement && (
             <button
               id="btn-header-meja-customer"
               type="button"
               onClick={onOpenTableManagement}
-              className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-[#111827] font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
+              className="flex h-8 w-8 items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 text-[#111827] rounded-full transition-all cursor-pointer shrink-0"
               title="Konfigurasi Meja Customer Order"
+              aria-label="Konfigurasi Meja Customer Order"
             >
-              <Grid2X2 className="h-3.5 w-3.5" />
-              <span>Meja Customer</span>
+              <Grid2X2 className="h-4 w-4" />
             </button>
           )}
 
-          {/* Setup Printer Pill Button */}
+          {/* Setup Printer — ikon saja (hijau = terhubung, abu = belum) */}
           <button
             id="btn-header-setup-printer"
             type="button"
             onClick={onOpenPrinterSetup}
-            className="flex items-center gap-1.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-[#047857] font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8"
-            style={{ color: '#047857', borderColor: '#A7F3D0' }}
+            className="relative flex h-8 w-8 items-center justify-center bg-white border hover:bg-emerald-50 rounded-full transition-all cursor-pointer shrink-0"
+            style={{ borderColor: printerConfig.isConnected ? '#A7F3D0' : '#E5E7EB' }}
+            title={printerConfig.isConnected ? 'Printer terhubung — buka Setup Printer' : 'Setup Printer (belum terhubung)'}
+            aria-label="Setup Printer"
           >
-            <Printer className="h-3.5 w-3.5" style={{ color: '#047857' }} />
-            <span>{printerConfig.isConnected ? 'Printer Ready' : 'Setup Printer'}</span>
+            <Printer className="h-4 w-4" style={{ color: printerConfig.isConnected ? '#047857' : '#94A3B8' }} />
+            {printerConfig.isConnected && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 border border-white" />
+            )}
           </button>
 
-          {/* Auto-Print Kitchen Ticket Toggle — shared by Kasir & KDS panel, output selalu format tiket dapur tanpa harga */}
+          {/* Auto-cetak tiket dapur — saklar ikon saja (tanpa label) */}
           {onToggleAutoPrintKitchen && (
             <button
               id="btn-header-auto-print-kitchen"
               type="button"
               onClick={onToggleAutoPrintKitchen}
-              title="Auto-cetak tiket dapur saat order baru masuk"
+              title={`Auto-cetak tiket dapur saat order baru: ${printerConfig.autoPrintKitchenOnNewOrder ? 'AKTIF' : 'NONAKTIF'}`}
               aria-pressed={!!printerConfig.autoPrintKitchenOnNewOrder}
-              className={`flex items-center gap-1.5 border font-extrabold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shrink-0 whitespace-nowrap h-8 ${
+              aria-label="Saklar auto-cetak tiket dapur"
+              className={`relative flex h-8 w-8 items-center justify-center border rounded-full transition-all cursor-pointer shrink-0 ${
                 printerConfig.autoPrintKitchenOnNewOrder
                   ? 'bg-[#047857] border-[#047857] text-white hover:bg-[#036548]'
-                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
               }`}
             >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Auto Print {printerConfig.autoPrintKitchenOnNewOrder ? 'ON' : 'OFF'}</span>
+              <Printer className="h-4 w-4" />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white text-[6px] font-black leading-none flex items-center justify-center ${
+                  printerConfig.autoPrintKitchenOnNewOrder ? 'bg-emerald-400' : 'bg-slate-300'
+                }`}
+              />
             </button>
           )}
 

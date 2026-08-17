@@ -73,10 +73,42 @@ export class BluetoothPrinterService {
     connecting: false,
     transport: null,
   };
+  // Auto-reconnect state: simpan config terakhir agar bisa menyambung ulang
+  // sendiri saat printer putus mendadak (bukan karena user menekan disconnect).
+  private static lastConfig: PrinterConfig | null = null;
+  private static intentionalDisconnect = false;
+  private static autoReconnectTimer: number | null = null;
+  private static autoReconnectAttempts = 0;
 
   private static updateStatus(patch: Partial<PrinterRuntimeStatus>) {
     this.runtimeStatus = { ...this.runtimeStatus, ...patch };
     this.listeners.forEach((listener) => listener(this.runtimeStatus));
+  }
+
+  // Dipanggil setiap koneksi berhasil: catat config & reset state auto-reconnect.
+  private static onConnected(config?: PrinterConfig) {
+    if (config) this.lastConfig = config;
+    this.intentionalDisconnect = false;
+    this.autoReconnectAttempts = 0;
+    if (this.autoReconnectTimer !== null) {
+      window.clearTimeout(this.autoReconnectTimer);
+      this.autoReconnectTimer = null;
+    }
+  }
+
+  // Coba sambung ulang otomatis dengan backoff (1s,2s,4s,8s; maks 5x), hanya
+  // untuk putus tak sengaja pada perangkat yang sudah pernah diizinkan.
+  private static scheduleAutoReconnect() {
+    if (this.intentionalDisconnect || !this.lastConfig) return;
+    if (this.autoReconnectTimer !== null || this.autoReconnectAttempts >= 5) return;
+    const delay = Math.min(8000, 1000 * 2 ** this.autoReconnectAttempts);
+    this.autoReconnectAttempts += 1;
+    this.autoReconnectTimer = window.setTimeout(async () => {
+      this.autoReconnectTimer = null;
+      if (this.intentionalDisconnect || this.runtimeStatus.connected || !this.lastConfig) return;
+      const ok = await this.reconnect(this.lastConfig).catch(() => false);
+      if (!ok) this.scheduleAutoReconnect();
+    }, delay);
   }
 
   static subscribe(listener: (status: PrinterRuntimeStatus) => void): () => void {
@@ -123,6 +155,7 @@ export class BluetoothPrinterService {
       if (nativeAvailable && requestedTransport !== 'WEB_BLE') {
         const nativeDevice = await connectAndroidPrinter();
         this.activeTransport = 'ANDROID_NATIVE';
+        this.onConnected(config);
         this.updateStatus({
           connected: true,
           connecting: false,
@@ -141,7 +174,9 @@ export class BluetoothPrinterService {
         };
       }
 
-      return await this.connectWebBle(config);
+      const webResult = await this.connectWebBle(config);
+      if (webResult.success) this.onConnected(config);
+      return webResult;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Koneksi Bluetooth dibatalkan.';
       this.updateStatus({ connected: false, connecting: false, error: message });
@@ -223,6 +258,9 @@ export class BluetoothPrinterService {
     BluetoothPrinterService.gattServer = null;
     BluetoothPrinterService.printCharacteristic = null;
     BluetoothPrinterService.updateStatus({ connected: false, connecting: false, error: 'Printer terputus.' });
+    // Putus mendadak (idle) → coba sambung ulang sendiri, tanpa perlu operator
+    // membuka Setup Printer.
+    BluetoothPrinterService.scheduleAutoReconnect();
   };
 
   static async reconnect(config: PrinterConfig): Promise<boolean> {
@@ -231,6 +269,7 @@ export class BluetoothPrinterService {
       const connected = await reconnectAndroidPrinter(config.bluetoothAddress);
       if (connected) {
         this.activeTransport = 'ANDROID_NATIVE';
+        this.onConnected(config);
         this.updateStatus({ connected: true, transport: 'ANDROID_NATIVE', deviceName: config.deviceName, error: undefined });
         return true;
       }
@@ -246,6 +285,7 @@ export class BluetoothPrinterService {
       const remembered = permittedDevices.find((device: any) => device.id === config.deviceId);
       if (!remembered) return false;
       await this.attachWebBleDevice(remembered);
+      this.onConnected(config);
       return true;
     } catch (error) {
       this.updateStatus({ connected: false, error: error instanceof Error ? error.message : 'Reconnect printer gagal.' });
@@ -254,6 +294,12 @@ export class BluetoothPrinterService {
   }
 
   static async disconnect(): Promise<void> {
+    // Tandai sebagai disengaja agar auto-reconnect tidak melawan keputusan user.
+    this.intentionalDisconnect = true;
+    if (this.autoReconnectTimer !== null) {
+      window.clearTimeout(this.autoReconnectTimer);
+      this.autoReconnectTimer = null;
+    }
     try {
       if (this.activeTransport === 'ANDROID_NATIVE') await disconnectAndroidPrinter();
       if (this.device) this.device.removeEventListener?.('gattserverdisconnected', this.handleWebBleDisconnected);

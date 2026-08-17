@@ -241,7 +241,18 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // State for POS Queue Tab & Global Topping Saklar Switch
   const [queueTab, setQueueTab] = useState<'ACTIVE' | 'HISTORY'>('ACTIVE');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [isCondimentsEnabled, setIsCondimentsEnabled] = useState<boolean>(true); // Saklar ON/OFF Condiment Global di Panel Kasir
+  // Saklar Topping/Condiment: preferensi KASIR yang persisten (localStorage),
+  // supaya tidak reset saat pindah tab/muat ulang dan tidak "melompat" saat
+  // membuka order lama. Hanya memengaruhi terminal kasir — self-order selalu
+  // menampilkan condiment apa pun status saklar ini.
+  const [isCondimentsEnabled, setIsCondimentsEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem('pos_cashier_condiments') !== 'off'; } catch { return true; }
+  });
+  const toggleCondiments = () => setIsCondimentsEnabled((prev) => {
+    const next = !prev;
+    try { localStorage.setItem('pos_cashier_condiments', next ? 'on' : 'off'); } catch { /* storage tak tersedia */ }
+    return next;
+  });
 
   // Active Order Builder State — Starts with null editing ID for a fresh active order!
   const [customerName, setCustomerName] = useState<string>('Guest');
@@ -400,7 +411,8 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setDiscountValue(order.discount || 0);
     const taxableBase = Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0));
     setTaxValue(taxableBase > 0 && Number(order.tax || 0) > 0 ? Math.round((Number(order.tax || 0) / taxableBase) * 10000) / 100 : configuredTaxPercent);
-    setIsCondimentsEnabled(order.condimentsEnabled !== false);
+    // Saklar Topping TIDAK diubah saat memuat order lama — ini preferensi kasir,
+    // bukan properti per-order, supaya tetap stabil.
     onSelectExistingOrderToEdit(order);
   };
 
@@ -512,7 +524,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
             onSelectOrderType: setOrderType,
             onClearCart: handleClearCart,
             isCondimentsEnabled,
-            onToggleCondiments: () => setIsCondimentsEnabled(!isCondimentsEnabled)
+            onToggleCondiments: toggleCondiments
           })
         : headerElement}
 
