@@ -2598,9 +2598,13 @@ export default function App() {
                 const shiftBeingClosed = { ...currentShift };
                 const ordersForShift = getPaidOrdersForShift(orders, shiftBeingClosed.id);
 
-                // Recalculate metrics from orders in case cloud sync already zeroed currentShift
-                if (ordersForShift.length > 0 && shiftBeingClosed.grossOmset === 0) {
-                  shiftBeingClosed.grossOmset = ordersForShift.reduce((s, o) => s + (o.subtotal || o.total), 0);
+                // Selalu hitung ulang dari order yang termuat supaya angka tutup
+                // shift (riwayat lokal + Z-Report) SAMA dengan Laporan — bukan
+                // snapshot currentShift yang bisa tertinggal (stale). Snapshot
+                // hanya dipertahankan bila order tak termuat (ordersForShift kosong).
+                // Pakai o.total, konsisten dengan buildZReportData & AnalyticsExportView.
+                if (ordersForShift.length > 0) {
+                  shiftBeingClosed.grossOmset = ordersForShift.reduce((s, o) => s + o.total, 0);
                   shiftBeingClosed.cashSales = ordersForShift.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((s, o) => s + o.total, 0);
                   shiftBeingClosed.nonCashSales = ordersForShift.filter((o) => o.paymentMethod === 'QRIS' || o.paymentMethod === 'DEBIT').reduce((s, o) => s + o.total, 0);
                 }

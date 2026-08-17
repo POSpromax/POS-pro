@@ -159,20 +159,28 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const voidOrders = orders.filter((o) => o.status === 'CANCELLED' && o.completedShiftId === currentShift.id);
   const discountedOrders = shiftOrders.filter((o) => (o.discount ?? 0) > 0);
 
-  // Fallback: kalkulasi dari orders jika shift counter belum terupdate
-  const grossOmset = currentShift.grossOmset > 0
-    ? currentShift.grossOmset
-    : activeOrders.reduce((sum, o) => sum + o.total, 0);
-
-  const tunaiSales = currentShift.cashSales > 0
-    ? currentShift.cashSales
-    : activeOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((sum, o) => sum + o.total, 0);
+  // Angka WAJIB sama dengan Laporan (AnalyticsExportView) dan Z-Report
+  // (buildZReportData): selama order shift ini sudah termuat, JUMLAHKAN LIVE dari
+  // order — jangan pakai snapshot shift (currentShift.*) yang bisa tertinggal
+  // (stale) karena objek shift tidak selalu ikut ter-refresh saat order baru
+  // masuk realtime. Snapshot hanya dipakai bila order belum termuat (mis. layar
+  // baru dibuka / order ter-evict), sama persis dengan pola buildZReportData.
+  const hasLoadedOrders = activeOrders.length > 0;
 
   const qrisSales  = activeOrders.filter((o) => o.paymentMethod === 'QRIS').reduce((sum, o) => sum + o.total, 0);
   const debitSales = activeOrders.filter((o) => o.paymentMethod === 'DEBIT').reduce((sum, o) => sum + o.total, 0);
-  const nonTunaiSales = currentShift.nonCashSales > 0
-    ? currentShift.nonCashSales
-    : qrisSales + debitSales;
+
+  const grossOmset = hasLoadedOrders
+    ? activeOrders.reduce((sum, o) => sum + o.total, 0)
+    : currentShift.grossOmset;
+
+  const tunaiSales = hasLoadedOrders
+    ? activeOrders.filter((o) => o.paymentMethod === 'CASH' || !o.paymentMethod).reduce((sum, o) => sum + o.total, 0)
+    : currentShift.cashSales;
+
+  const nonTunaiSales = hasLoadedOrders
+    ? qrisSales + debitSales
+    : currentShift.nonCashSales;
 
   const totalDiscount = activeOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
   const totalTax      = activeOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
