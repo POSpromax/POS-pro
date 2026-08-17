@@ -58,6 +58,7 @@ import { playNewOrderSound, playSelfOrderAlertSound } from '../../utils/audioNot
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { CondimentPreviewPanel } from './CondimentPreviewPanel';
 import { CondimentBuilderPanel } from './CondimentBuilderPanel';
+import { purgeCompletedOrders } from '../../services/transactionPurgeService';
 
 const STAFF_WEEKDAYS = [
   { day: 1, short: 'Sen', label: 'Senin' },
@@ -241,6 +242,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
+  const [purgeRetentionDays, setPurgeRetentionDays] = useState(180);
+  const [purgeConfirmName, setPurgeConfirmName] = useState('');
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgeStep, setPurgeStep] = useState<'idle' | 'confirm'>('idle');
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingOptionValue, setEditingOptionValue] = useState('');
   const [condimentTextDrafts, setCondimentTextDrafts] = useState<Record<string, string>>({});
@@ -2097,6 +2102,87 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {cloudMode && canManageTenant && (
+                  <div className="border border-rose-200 rounded-2xl p-5 bg-[var(--danger-soft)]/30 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                        <Trash2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-rose-900">Purge Riwayat Transaksi Cloud</h3>
+                        <p className="text-[11px] text-[var(--accent-red)] font-medium">
+                          Hapus permanen order selesai/dibatalkan yang lebih tua dari periode retensi. Menu, resep, staff, dan kartu stok tidak ikut terhapus. Setiap eksekusi tercatat di log audit permanen.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="text-[11px] font-bold text-[var(--text-secondary)] space-y-1">
+                        <span>Hapus order lebih tua dari</span>
+                        <select
+                          value={purgeRetentionDays}
+                          onChange={(event) => setPurgeRetentionDays(Number(event.target.value))}
+                          disabled={purgeBusy}
+                          className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                        >
+                          <option value={90}>90 hari</option>
+                          <option value={180}>180 hari (disarankan)</option>
+                          <option value={365}>365 hari</option>
+                          <option value={730}>2 tahun</option>
+                        </select>
+                      </label>
+                      <label className="text-[11px] font-bold text-[var(--text-secondary)] space-y-1">
+                        <span>Ketik nama cabang ini untuk konfirmasi: <strong>{currentBranch.name}</strong></span>
+                        <input
+                          type="text"
+                          value={purgeConfirmName}
+                          onChange={(event) => setPurgeConfirmName(event.target.value)}
+                          disabled={purgeBusy}
+                          placeholder={currentBranch.name}
+                          className="w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={purgeBusy || purgeConfirmName.trim().toLowerCase() !== currentBranch.name.trim().toLowerCase()}
+                      onClick={async () => {
+                        if (purgeStep !== 'confirm') {
+                          setPurgeStep('confirm');
+                          setTimeout(() => setPurgeStep('idle'), 5000);
+                          return;
+                        }
+                        setPurgeBusy(true);
+                        try {
+                          const result = await purgeCompletedOrders(currentBranch.id, purgeRetentionDays, purgeConfirmName.trim());
+                          toast(
+                            'Purge Selesai',
+                            result.orderCount > 0
+                              ? `${result.orderCount} order, ${result.paymentCount} pembayaran, dan ${result.eventCount} event dihapus permanen.`
+                              : 'Tidak ada order yang memenuhi kriteria periode retensi ini.',
+                          );
+                          setPurgeConfirmName('');
+                          setPurgeStep('idle');
+                        } catch (error) {
+                          toast('Purge Gagal', error instanceof Error ? error.message : 'Purge transaksi gagal diproses');
+                        } finally {
+                          setPurgeBusy(false);
+                        }
+                      }}
+                      className={`w-full py-3 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                        purgeStep === 'confirm' ? 'bg-rose-900 shadow-rose-900/20 animate-pulse' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                      }`}
+                    >
+                      {purgeBusy
+                        ? 'Memproses purge...'
+                        : purgeStep === 'confirm'
+                          ? '🔴 Yakin? Klik lagi untuk hapus permanen'
+                          : `Purge Transaksi > ${purgeRetentionDays} Hari`}
+                    </button>
+                  </div>
+                )}
 
                 {/* Technical architecture is secondary information; keep it collapsed by default. */}
                 <details className="group rounded-2xl border border-slate-200 bg-white">
