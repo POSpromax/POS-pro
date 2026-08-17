@@ -15,6 +15,8 @@
     "copy:branch-inventory": "tsx scripts/copy-branch-inventory.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "^2.112.2",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
@@ -24,6 +26,7 @@
     "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
