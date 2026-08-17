@@ -120,6 +120,10 @@ const normalizeOrderItemsForComparison = (items: Order['items'] = []) => {
 };
 
 const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean => {
+  // condimentsEnabled (saklar Topping) SENGAJA tidak dibandingkan: itu preferensi
+  // UI kasir, bukan isi pesanan. Kalau ikut dibandingkan, mematikan saklar Topping
+  // membuat order tersimpan dianggap "berubah" → memicu re-submit + re-validasi
+  // saat Bayar → pembayaran bisa terblokir. Bayar tidak boleh bergantung saklar.
   const comparableDraft = {
     customerName: draft.customerName || 'Guest',
     tableNumber: draft.tableNumber || '',
@@ -129,7 +133,6 @@ const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean =>
     discount: draft.discount || 0,
     tax: draft.tax || 0,
     total: draft.total || 0,
-    condimentsEnabled: draft.condimentsEnabled !== false,
   };
   const comparableSaved = {
     customerName: saved.customerName || 'Guest',
@@ -140,7 +143,6 @@ const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean =>
     discount: saved.discount || 0,
     tax: saved.tax || 0,
     total: saved.total || 0,
-    condimentsEnabled: saved.condimentsEnabled !== false,
   };
   return JSON.stringify(comparableDraft) !== JSON.stringify(comparableSaved);
 };

@@ -552,7 +552,23 @@ export class BluetoothPrinterService {
     text += wrap(`${order.source === 'SELF_ORDER' ? 'SELF ORDER' : 'POS KASIR'} · ${order.customerName || 'Guest'}`);
     text += separator;
 
-    order.items.forEach((item) => {
+    // Urutkan item mengikuti kategori seperti tampilan Kitchen Monitor
+    // (BAKSO → MIE AYAM → MAKANAN → TAMBAHAN → KRIUK → BUNDLING → MINUMAN;
+    // kategori tak dikenal tepat sebelum MINUMAN). Item asli tidak diubah.
+    const CATEGORY_ORDER = ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'BUNDLING', 'MINUMAN'];
+    const categoryRank = (category?: string): number => {
+      const normalized = String(category || '').trim().toUpperCase();
+      const index = CATEGORY_ORDER.indexOf(normalized);
+      if (index >= 0) return index;
+      const drinkIndex = CATEGORY_ORDER.indexOf('MINUMAN');
+      return drinkIndex >= 0 ? drinkIndex - 0.5 : CATEGORY_ORDER.length;
+    };
+    const sortedItems = order.items
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => (categoryRank(a.item.category) - categoryRank(b.item.category)) || (a.index - b.index))
+      .map((entry) => entry.item);
+
+    sortedItems.forEach((item) => {
       text += '\x1D\x21\x10';
       text += wrap(`${item.quantity}x ${item.menuName}`);
       text += '\x1D\x21\x00';
@@ -563,6 +579,8 @@ export class BluetoothPrinterService {
         text += wrap(`${group.groupName.toUpperCase()}: ${summary}`, '    ');
       });
       if (item.notes) text += wrap(item.notes, '    ! ');
+      // Sedikit renggang antar item agar tidak terlalu rapat.
+      text += '\n';
     });
 
     if (order.notes) {
