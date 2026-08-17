@@ -94,6 +94,7 @@ const ShiftMonitorView = lazyWithVersionRecovery('shift', () => import('./compon
 const AttendanceView = lazyWithVersionRecovery('attendance', () => import('./components/Attendance/AttendanceView').then((m) => ({ default: m.AttendanceView })));
 const InventoryHppView = lazyWithVersionRecovery('inventory', () => import('./components/Inventory/InventoryHppView').then((m) => ({ default: m.InventoryHppView })));
 const AnalyticsExportView = lazyWithVersionRecovery('analytics', () => import('./components/Analytics/AnalyticsExportView').then((m) => ({ default: m.AnalyticsExportView })));
+const AccountingJournalView = lazyWithVersionRecovery('accounting', () => import('./components/Accounting/AccountingJournalView').then((m) => ({ default: m.AccountingJournalView })));
 const SettingsView = lazyWithVersionRecovery('settings', () => import('./components/Settings/SettingsView').then((m) => ({ default: m.SettingsView })));
 const SuperOwnerDashboardView = lazyWithVersionRecovery('owner', () => import('./components/Analytics/SuperOwnerDashboardView').then((m) => ({ default: m.SuperOwnerDashboardView })));
 const BlueprintArchitectureView = lazyWithVersionRecovery('blueprint', () => import('./components/Owner/BlueprintArchitectureView').then((m) => ({ default: m.BlueprintArchitectureView })));
@@ -254,6 +255,7 @@ const canAccessTab = (rule: AccessControlRule | undefined, tab: string): boolean
   if (tab === 'shift') return rule.canAccessShift;
   if (tab === 'inventory') return rule.canAccessInventory;
   if (tab === 'analytics' || tab === 'superowner') return rule.canAccessAnalytics;
+  if (tab === 'accounting') return rule.canAccessAnalytics;
   if (tab === 'attendance') return rule.canAccessAttendance ?? rule.canAccessSettings;
   // 'payroll' sempat tertinggal di sini: sidebar menampilkan menunya lewat
   // aturan canAccessSettings, tapi fungsi ini menjatuhkannya ke false, jadi
@@ -331,7 +333,7 @@ export default function App() {
   // Tab change with system portal awareness
   const handleTabChange = (targetTab: string) => {
     const cashierTabs = ['pos', 'kds', 'shift', 'inventory'];
-    const ownerTabs = ['superowner', 'blueprint', 'analytics', 'inventory', 'tables', 'attendance', 'payroll', 'selforder', 'settings'];
+    const ownerTabs = ['superowner', 'blueprint', 'analytics', 'accounting', 'inventory', 'tables', 'attendance', 'payroll', 'selforder', 'settings'];
     const baseRule = DBStorage.getAccessControl().find((item) => item.role === activeUser.role);
     const rule = baseRule ? { ...baseRule, ...(activeUser.permissions || {}) } : undefined;
 
@@ -2825,6 +2827,14 @@ export default function App() {
               profile={profile}
               branches={accessibleBranches}
               currentBranchId={currentBranch.id}
+            />
+          )}
+
+          {activeTab === 'accounting' && (
+            <AccountingJournalView
+              currentBranch={currentBranch}
+              activeUser={activeUser}
+              onShowToast={showPushToast}
             />
           )}
 

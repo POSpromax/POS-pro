@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Boxes,
   Building2,
+  Calculator,
   Clock,
   Compass,
   Crown,
@@ -48,6 +49,7 @@ const OWNER_NAV_ITEMS: NavigationItem[] = [
   { id: 'superowner', label: 'Dashboard Owner', icon: Building2 },
   { id: 'blueprint', label: 'Rancang Bangun', icon: Compass },
   { id: 'analytics', label: 'Laporan & Omzet', icon: TrendingUp },
+  { id: 'accounting', label: 'Jurnal & Akuntansi', icon: Calculator },
   { id: 'inventory', label: 'Stok, Bahan & HPP', icon: Boxes },
   { id: 'tables', label: 'Meja & QR Code', icon: Grid2X2 },
   { id: 'attendance', label: 'Absensi Staff', icon: Crown },
@@ -78,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (id === 'shift') return accessRule.canAccessShift;
     if (id === 'inventory') return accessRule.canAccessInventory;
     if (id === 'analytics' || id === 'superowner') return accessRule.canAccessAnalytics;
+    if (id === 'accounting') return accessRule.canAccessAnalytics;
     return accessRule.canAccessSettings;
   };
 

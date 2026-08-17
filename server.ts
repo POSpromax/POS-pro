@@ -8,6 +8,7 @@ import { handleStaffRequest } from './src/server/staffManagement';
 import { handleAttendanceRequest } from './src/server/attendanceManagement';
 import { handleHrRequest } from './src/server/hrManagement';
 import { handleOrderRequest } from './src/server/orderManagement';
+import { handleAccountingRequest } from './src/server/accountingManagement';
 import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
 import { handleCloudinarySign } from './src/server/cloudinarySign';
@@ -118,6 +119,19 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server pesanan belum dikonfigurasi' });
+    }
+  });
+
+  app.all('/api/accounting', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const payload = req.method === 'GET' ? req.query : (req.body || {});
+      const result = await handleAccountingRequest(req.method, payload, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server akuntansi belum dikonfigurasi' });
     }
   });
 
