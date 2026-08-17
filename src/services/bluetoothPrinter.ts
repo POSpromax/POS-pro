@@ -1,4 +1,4 @@
-import { Order, RestaurantProfile, PrinterConfig, Shift } from '../types/pos';
+import { Order, RestaurantProfile, PrinterConfig, Shift, CondimentGroup } from '../types/pos';
 import {
   connectAndroidPrinter,
   disconnectAndroidPrinter,
@@ -8,6 +8,7 @@ import {
   printAndroidBase64,
   reconnectAndroidPrinter,
 } from './androidPrinterBridge';
+import { summarizeCondimentOptions } from '../utils/condimentUtils';
 
 type PrinterTransport = 'WEB_BLE' | 'ANDROID_NATIVE';
 
@@ -270,8 +271,8 @@ export class BluetoothPrinterService {
     return this.enqueuePrint(() => this.performPrint(this.generateReceiptBytes(order, profile, config), config));
   }
 
-  static async printKitchenTicket(order: Order, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
-    return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config), config));
+  static async printKitchenTicket(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = []): Promise<{ success: boolean; error?: string }> {
+    return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config, condimentGroups), config));
   }
 
   static async printZReport(report: ZReportData, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
@@ -449,7 +450,7 @@ export class BluetoothPrinterService {
    * Kertas dapur hanya memuat informasi yang diperlukan untuk memasak dan
    * mengantar, dengan kuantitas/item dibuat lebih besar agar cepat dipindai.
    */
-  static generateKitchenTicketBytes(order: Order, profile: RestaurantProfile, config: PrinterConfig): Uint8Array {
+  static generateKitchenTicketBytes(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = []): Uint8Array {
     const encoder = new TextEncoder();
     const lineWidth = config.paperSize === '80mm' ? 48 : 32;
     const separator = '-'.repeat(lineWidth) + '\n';
@@ -491,7 +492,10 @@ export class BluetoothPrinterService {
       text += wrap(`${item.quantity}x ${item.menuName}`);
       text += '\x1D\x21\x00';
       item.selectedCondiments?.forEach((group) => {
-        text += wrap(`${group.groupName.toUpperCase()}: ${group.options.join(', ')}`, '    ');
+        const summary = condimentGroups.length
+          ? summarizeCondimentOptions(group, condimentGroups)
+          : group.options.join(', ');
+        text += wrap(`${group.groupName.toUpperCase()}: ${summary}`, '    ');
       });
       if (item.notes) text += wrap(item.notes, '    ! ');
     });
