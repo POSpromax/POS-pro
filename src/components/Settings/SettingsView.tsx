@@ -264,6 +264,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [lastSavedAt, setLastSavedAt] = useState<string>('');
   const [saveConfirmKind, setSaveConfirmKind] = useState<'PROFILE' | 'ACCESS' | null>(null);
   const [autoSavePulse, setAutoSavePulse] = useState(false);
+  // GPS outlet: status deteksi lokasi perangkat & input tempel koordinat/link Maps.
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [detectedGpsAccuracy, setDetectedGpsAccuracy] = useState<number | null>(null);
+  const [mapsLinkInput, setMapsLinkInput] = useState('');
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
   const [isSyncingTables, setIsSyncingTables] = useState<boolean>(false);
   const [draggedKdsCategory, setDraggedKdsCategory] = useState<CategoryType | null>(null);
@@ -559,27 +563,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleGetCurrentLocation = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setFormProfile((prev) => ({
-            ...prev,
-            gpsLatitude: lat,
-            gpsLongitude: lng
-          }));
-          const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-          window.open(mapsUrl, '_blank');
-          toast('GPS Terdeteksi', `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}. Google Maps dibuka untuk verifikasi.`);
-        },
-        (err) => {
-          toast('GPS Gagal', 'Gagal mengambil lokasi GPS: ' + err.message);
-        }
-      );
-    } else {
-      toast('GPS Tidak Didukung', 'Browser Anda tidak mendukung fitur Geolocation GPS.');
+    if (!('geolocation' in navigator)) {
+      toast('GPS Tidak Didukung', 'Browser/perangkat ini tidak mendukung Geolocation GPS.');
+      return;
     }
+    // Deteksi lokasi PERANGKAT yang sedang dipakai konfigurasi. Titik langsung
+    // mengisi form (tidak memaksa pindah ke tab Google Maps — itu yang bikin
+    // titik tak bisa tersimpan). Tekan SIMPAN untuk menyimpan permanen.
+    setIsDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = Math.round(pos.coords.accuracy || 0);
+        setFormProfile((prev) => ({ ...prev, gpsLatitude: lat, gpsLongitude: lng }));
+        setDetectedGpsAccuracy(accuracy);
+        setIsDetectingGps(false);
+        toast(
+          'Lokasi Perangkat Terdeteksi',
+          `Titik terisi (akurasi ±${accuracy} m). Tekan SIMPAN untuk mengunci lokasi outlet ini.`,
+        );
+      },
+      (err) => {
+        setIsDetectingGps(false);
+        const reason = err.code === err.PERMISSION_DENIED
+          ? 'Izin lokasi ditolak. Aktifkan izin lokasi untuk aplikasi ini, lalu coba lagi.'
+          : err.code === err.TIMEOUT
+            ? 'Sinyal GPS lambat. Pastikan berada di area outlet dengan langit terbuka, lalu coba lagi.'
+            : err.message || 'Gagal mengambil lokasi.';
+        toast('GPS Gagal', reason);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
+  // Ambil titik dari teks apa pun: "lat,lng", atau URL Google Maps yang memuat
+  // "@lat,lng" maupun "q=lat,lng". Memudahkan pilih titik mana pun di Maps lalu
+  // menyalin koordinat/link ke sini — tanpa perlu SDK peta.
+  const applyMapsLink = () => {
+    const raw = mapsLinkInput.trim();
+    if (!raw) {
+      toast('Kosong', 'Tempel koordinat "lat,lng" atau link Google Maps dulu.');
+      return;
+    }
+    const match = raw.match(/@?(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/) || raw.match(/q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+    if (!match) {
+      toast('Format Tidak Dikenali', 'Contoh yang benar: -6.609013, 106.782932 atau tempel link Google Maps.');
+      return;
+    }
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+      toast('Koordinat Tidak Valid', 'Latitude harus -90..90 dan longitude -180..180.');
+      return;
+    }
+    setFormProfile((prev) => ({ ...prev, gpsLatitude: lat, gpsLongitude: lng }));
+    setDetectedGpsAccuracy(null);
+    setMapsLinkInput('');
+    toast('Titik Diterapkan', `Latitude ${lat.toFixed(6)}, Longitude ${lng.toFixed(6)}. Tekan SIMPAN untuk menyimpan.`);
   };
 
   const handleAddStaff = async (e: React.FormEvent) => {
@@ -1596,10 +1637,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={handleGetCurrentLocation}
-                      className="text-xs font-bold text-[var(--primary-hover)] hover:text-[var(--primary-text)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                      disabled={isDetectingGps}
+                      className="text-xs font-bold text-[var(--text-inverse)] bg-[var(--primary)] hover:bg-[var(--primary-hover)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all disabled:opacity-60 disabled:cursor-wait"
                     >
-                      <MapPin className="w-4 h-4 text-[var(--primary-hover)]" />
-                      <span>📍 Ambil Lokasi & Buka Google Maps</span>
+                      <MapPin className="w-4 h-4" />
+                      <span>{isDetectingGps ? 'Mendeteksi lokasi…' : '📍 Gunakan Lokasi Perangkat Ini'}</span>
                     </button>
 
                     <a
@@ -1609,8 +1651,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className="text-xs font-bold text-[var(--text-primary)] hover:text-slate-900 bg-[var(--surface-secondary)] border border-[var(--panel-border)] px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                     >
                       <ExternalLink className="w-4 h-4 text-[var(--text-secondary)]" />
-                      <span>🗺️ Lihat Titik di Google Maps</span>
+                      <span>🗺️ Verifikasi Titik di Google Maps</span>
                     </a>
+
+                    {detectedGpsAccuracy != null && (
+                      <span
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                          detectedGpsAccuracy <= Number(formProfile.maxGpsAccuracyMeters ?? 80)
+                            ? 'bg-[var(--primary-soft)] text-[var(--primary-text)] border border-[var(--primary-border)]'
+                            : 'bg-[var(--danger-soft)] text-[var(--accent-red)]'
+                        }`}
+                      >
+                        Akurasi ±{detectedGpsAccuracy} m
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tempel titik dari Google Maps: pilih titik mana pun di Maps,
+                      salin koordinat / link-nya, tempel di sini, lalu Terapkan. */}
+                  <div className="border-t border-[var(--panel-border-light)] pt-3">
+                    <label className="block text-[11px] font-semibold text-[var(--text-tertiary)] uppercase mb-1">
+                      Tempel Titik dari Google Maps (opsional)
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                      <input
+                        type="text"
+                        value={mapsLinkInput}
+                        onChange={(e) => setMapsLinkInput(e.target.value)}
+                        placeholder="Contoh: -6.609013, 106.782932  atau tempel link Google Maps"
+                        className="flex-1 bg-white border border-[var(--panel-border)] rounded-2xl px-3.5 py-2.5 text-xs font-mono font-semibold text-[var(--text-primary)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyMapsLink}
+                        className="text-xs font-bold text-[var(--primary-hover)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition-all hover:bg-[var(--brand-100)] shrink-0"
+                      >
+                        Terapkan Titik
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
+                      Di Google Maps: klik-tahan titik lokasi → koordinat muncul di bawah → salin → tempel di sini → Terapkan → SIMPAN.
+                    </p>
                   </div>
                 </div>
 

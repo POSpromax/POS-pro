@@ -370,11 +370,11 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                 <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider">RIWAYAT TRANSAKSI</h3>
               </div>
               <span className="bg-[var(--surface-secondary)] text-[var(--text-secondary)] border border-[var(--panel-border)] text-[11px] font-bold px-3 py-1 rounded-full">
-                {orders.length} Item
+                {activeOrders.length} Struk
               </span>
             </div>
 
-            {orders.length === 0 ? (
+            {activeOrders.length === 0 ? (
               <div className="py-12 text-center text-[11px] font-bold text-[var(--text-tertiary)]">
                 Belum ada transaksi
               </div>
@@ -385,7 +385,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   <span className="col-span-6">INFO</span>
                   <span className="col-span-3 text-right">TOTAL</span>
                 </div>
-                {orders.map((ord) => (
+                {activeOrders.map((ord) => (
                   <div key={ord.id} className="grid grid-cols-12 items-center p-3 bg-[var(--surface-secondary)] rounded-2xl border border-[var(--panel-border-light)] hover:bg-[var(--panel-border)]/50 transition-colors">
                     <span className="col-span-3 text-[11px] font-bold text-[var(--text-secondary)] font-mono">
                       {new Date(ord.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
