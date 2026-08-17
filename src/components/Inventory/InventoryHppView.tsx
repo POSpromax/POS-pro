@@ -146,8 +146,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     setLedgerError('');
     setLedgerState('LOADING');
     try {
-      const rows = await listStockMovements(raw.branchId, raw.id, 60);
-      setLedgerRows(rows);
+      const result = await listStockMovements({ branchId: raw.branchId, rawMaterialId: raw.id, limit: 60 });
+      setLedgerRows(result.rows);
       setLedgerState('IDLE');
     } catch (error) {
       setLedgerError(error instanceof Error ? error.message : 'Riwayat stok gagal dimuat.');

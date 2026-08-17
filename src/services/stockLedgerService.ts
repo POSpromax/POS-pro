@@ -12,6 +12,7 @@ export type StockMovementType =
 
 export interface StockMovement {
   id: string;
+  branchId: string;
   rawMaterialId: string;
   rawMaterialName?: string;
   type: StockMovementType;
@@ -21,6 +22,23 @@ export interface StockMovement {
   reason?: string;
   orderId?: string;
   createdAt: string;
+}
+
+export interface ListStockMovementsParams {
+  branchId: string;
+  rawMaterialId?: string;
+  limit?: number;
+  offset?: number;
+  from?: string;
+  to?: string;
+}
+
+export interface ListStockMovementsResult {
+  rows: StockMovement[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 export const STOCK_MOVEMENT_LABELS: Record<StockMovementType, string> = {
@@ -37,23 +55,35 @@ export const STOCK_MOVEMENT_LABELS: Record<StockMovementType, string> = {
 /** Jenis pergerakan yang boleh dipilih petugas saat menyesuaikan stok. */
 export const MANUAL_MOVEMENT_TYPES: StockMovementType[] = ['PURCHASE', 'WASTE', 'ADJUSTMENT', 'OPNAME'];
 
-export async function listStockMovements(branchId: string, rawMaterialId?: string, limit = 100): Promise<StockMovement[]> {
-  if (!isSupabaseConfigured()) return [];
+export async function listStockMovements({
+  branchId,
+  rawMaterialId,
+  limit = 100,
+  offset = 0,
+  from,
+  to,
+}: ListStockMovementsParams): Promise<ListStockMovementsResult> {
+  if (!isSupabaseConfigured()) {
+    return { rows: [], total: 0, limit, offset, hasMore: false };
+  }
 
   let query = getSupabase()
     .from('stock_movements')
-    .select('id,raw_material_id,movement_type,quantity,stock_before,stock_after,reason,order_id,created_at,raw_materials(name)')
+    .select('id,branch_id,raw_material_id,movement_type,quantity,stock_before,stock_after,reason,order_id,created_at,raw_materials(name)', { count: 'exact' })
     .eq('branch_id', branchId)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (rawMaterialId) query = query.eq('raw_material_id', rawMaterialId);
+  if (from) query = query.gte('created_at', from);
+  if (to) query = query.lt('created_at', to);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) throw new Error(error.message);
 
-  return (data || []).map((row: any) => ({
+  const rows = (data || []).map((row: any) => ({
     id: row.id,
+    branchId: row.branch_id,
     rawMaterialId: row.raw_material_id,
     rawMaterialName: row.raw_materials?.name,
     type: row.movement_type,
@@ -64,6 +94,14 @@ export async function listStockMovements(branchId: string, rawMaterialId?: strin
     orderId: row.order_id || undefined,
     createdAt: row.created_at
   }));
+
+  return {
+    rows,
+    total: count || 0,
+    limit,
+    offset,
+    hasMore: offset + rows.length < (count || 0),
+  };
 }
 
 /**
