@@ -28,8 +28,26 @@ Terakhir diperbarui: 17 Agustus 2026.
 ### Belum dikerjakan / pending
 
 1. **Final end-to-end regression pass**: self-order -> POS -> bayar -> KDS -> tutup shift -> laporan -> presensi -> inventory, memakai PIN `123456` di browser production/staging.
-2. **Desain transaction purge**: fitur purge transaksi cloud khusus Owner, ter-audit, per-cabang, tetap mempertahankan master data. Belum dimulai.
-3. Racikan Instan: perbaikan yang dilakukan hanya menambah *jalan pintas* menambah opsi baru dari dalam editor preset. Belum ada perubahan struktural pada cara opsi preset disimpan/divalidasi.
+2. Racikan Instan: perbaikan yang dilakukan hanya menambah *jalan pintas* menambah opsi baru dari dalam editor preset. Belum ada perubahan struktural pada cara opsi preset disimpan/divalidasi.
+
+## Update 17 Agustus 2026 (lanjutan) — Transaction Purge (PR #18-#19)
+
+- **PR #18**: dokumentasi ini sendiri (recap sesi + item aksi migrasi + backlog).
+- **PR #19 — Fitur Purge Riwayat Transaksi Cloud (owner-only, teraudit)**:
+  - Tabel baru `transaction_purge_log` (RLS: hanya `select` untuk OWNER/SUPER_OWNER di cabang tsb; tidak ada policy insert/update/delete dari client — hanya RPC yang boleh menulis).
+  - RPC `purge_completed_orders(p_branch_id, p_cutoff_at, p_confirm_branch_name, p_actor_user_id)`: hanya menghapus `orders` berstatus `COMPLETED`/`CANCELLED` yang lebih tua dari cutoff (order yang masih berjalan TIDAK PERNAH disentuh apa pun cutoff-nya). Mencatat jumlah order/payment/event + total nominal ke `transaction_purge_log` **sebelum** menghapus apa pun, dalam satu transaksi SQL (`begin`/`commit`) — jika penghapusan gagal, log ikut ter-rollback sehingga tidak pernah ada log yang menyebut penghapusan yang sebenarnya tidak terjadi. Konfirmasi nama cabang divalidasi ulang di level database (bukan cuma client).
+  - `order_items` ikut terhapus otomatis (`on delete cascade` dari `orders`, sudah ada sejak awal); `restaurant_tables.active_order_id` dan `stock_movements.order_id` otomatis di-null-kan (`on delete set null`, sudah ada sejak awal) — histori kartu stok tidak berlubang, master data (menu/resep/staff/meja/config) tidak pernah tersentuh.
+  - Server: `src/server/transactionPurge.ts` + `api/transaction-purge.ts` — memvalidasi role OWNER/SUPER_OWNER dan retention 30-3650 hari sebelum memanggil RPC lewat service-role client.
+  - Client: `src/services/transactionPurgeService.ts`.
+  - UI: kartu baru "Purge Riwayat Transaksi Cloud" di Settings > Sistem & Data (hanya tampil saat mode cloud aktif & role Owner/Super Owner) — dropdown retensi (90/180/365 hari/2 tahun), input ketik-ulang-nama-cabang untuk konfirmasi, tombol eksekusi dua-klik (mirror UX Factory Reset lokal yang sudah ada).
+  - **Keputusan cakupan** (dibuat otonom karena user tidak tersedia untuk klarifikasi saat itu): hanya `orders`+`payments`+`order_events` yang dipurge; `cashier_shifts` dan `stock_movements` (ledger) sengaja TIDAK ikut dihapus supaya riwayat shift dan kartu stok historis tetap utuh walau order sumbernya sudah dipurge.
+  - ⚠️ **AKSI WAJIB:** jalankan migrasi baru `202608180032_owner_transaction_purge.sql` di Supabase SQL editor/CLI production sebelum fitur ini bisa dipakai — belum otomatis ter-apply.
+  - **Belum diuji end-to-end dengan data production sungguhan** (tidak ada akses ke Supabase production dari sesi ini) — sebaiknya dicoba dulu di 1 cabang dengan retensi besar (mis. 365 hari) sebelum dipakai rutin.
+
+## Belum dikerjakan / pending (terbaru)
+
+1. **Final end-to-end regression pass** (lihat di atas, masih pending).
+2. **Uji fitur Transaction Purge dengan data production sungguhan** setelah migrasi `202608180032` dijalankan.
 
 ## Reporting overhaul — rincian teknis (PR #16)
 
@@ -141,6 +159,7 @@ Migrasi terbaru yang wajib diterapkan berurutan:
 3. `202608140023_atomic_self_order_table_claim.sql`
 4. `202608140024_branch_hr_configuration.sql`
 5. `202608170031_void_order_shift_attribution.sql` (⚠️ **jalankan ulang versi terbaru** — versi sebelumnya gagal di production dengan error `column "completed_shift_id" does not exist`; sudah diperbaiki agar self-contained, lihat "Update 17 Agustus 2026" di atas)
+6. `202608180032_owner_transaction_purge.sql` (fitur baru: purge riwayat transaksi cloud owner-only, lihat "Update 17 Agustus 2026 (lanjutan)" di atas — wajib dijalankan sebelum fitur purge bisa dipakai)
 
 Perubahan 14 Agustus tahap akhir:
 
@@ -167,7 +186,7 @@ npm.cmd run copy:branch-inventory -- <source-branch-uuid> <target-branch-uuid>
 2. Pembelian, waste, adjustment, dan transfer antar-cabang melalui ledger.
 3. Approval pengirim/penerima untuk transfer.
 4. Versi resep dan histori perubahan HPP.
-5. **Desain transaction purge** khusus Owner: per-cabang, ter-audit, tetap mempertahankan master data. Belum dimulai.
+5. **Desain transaction purge** khusus Owner: per-cabang, ter-audit, tetap mempertahankan master data. **Selesai (PR #19) — lihat "Update 17 Agustus 2026 (lanjutan)" di atas. Migrasi `202608180032` masih perlu dijalankan di production dan fitur belum diuji dengan data production sungguhan.**
 
 ### P1 — ketahanan aplikasi
 
