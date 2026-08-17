@@ -20,6 +20,12 @@ async function request<T>(url: string, init?: RequestInit, authenticated = true)
 export const listCloudOrders = (branchId: string): Promise<Order[]> =>
   request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}`);
 
+// Ambil SATU order (beserta itemnya) — dipakai refetch bertarget saat realtime,
+// jauh lebih hemat egress daripada mengunduh ulang seluruh daftar order.
+// Mengembalikan null bila order tidak ada (mis. terhapus).
+export const getCloudOrder = (branchId: string, orderId: string): Promise<Order | null> =>
+  request<Order | null>(`/api/orders?branchId=${encodeURIComponent(branchId)}&orderId=${encodeURIComponent(orderId)}`);
+
 export const submitCloudOrder = (order: Order): Promise<Order> =>
   request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ branchId: order.branchId, order }) }, order.source !== 'SELF_ORDER');
 
@@ -74,7 +80,10 @@ export type RealtimeConnectionState = 'CONNECTING' | 'HEALTHY' | 'DEGRADED';
 
 export function subscribeCloudOrders(
   branchId: string,
-  onChange: () => void,
+  // changedOrderIds: daftar id order yang berubah pada jendela debounce, agar
+  // pemanggil bisa refetch bertarget. null = tak dapat diidentifikasi → pemanggil
+  // sebaiknya refetch penuh (fallback aman).
+  onChange: (changedOrderIds: string[] | null) => void,
   onConnectionState?: (state: RealtimeConnectionState) => void,
 ): () => void {
   if (!isSupabaseConfigured() || !branchId) return () => undefined;
@@ -84,9 +93,25 @@ export function subscribeCloudOrders(
   let disposed = false;
   let channel: ReturnType<typeof supabase.channel> | null = null;
 
-  const notify = () => {
+  // Kumpulkan id order yang berubah selama jendela debounce. Bila ada event yang
+  // id-nya tak bisa dibaca dari payload broadcast, tandai full agar pemanggil
+  // mengambil ulang seluruh daftar (perilaku lama — aman, tanpa regresi).
+  let pendingIds = new Set<string>();
+  let needFull = false;
+  const flush = () => {
+    const ids = needFull ? null : [...pendingIds];
+    pendingIds = new Set();
+    needFull = false;
+    onChange(ids);
+  };
+  const notify = (message?: any) => {
+    const p = message?.payload || {};
+    const record = p.record || p.new || p.old_record || p.old;
+    const id = record?.id;
+    if (typeof id === 'string' && id) pendingIds.add(id);
+    else needFull = true;
     window.clearTimeout(timer);
-    timer = window.setTimeout(onChange, 180);
+    timer = window.setTimeout(flush, 180);
   };
 
   onConnectionState?.('CONNECTING');

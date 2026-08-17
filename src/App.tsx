@@ -51,7 +51,7 @@ import {
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { listCloudOrders, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { getCloudOrder, listCloudOrders, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -859,15 +859,75 @@ export default function App() {
           if (refreshQueued && isRuntimeActive()) { refreshQueued = false; refresh(); }
         });
     };
+    // Refetch BERTARGET: ambil hanya order yang berubah lalu merge ke state —
+    // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar (~150 order)
+    // pada setiap event realtime. Notifikasi suara & auto-cetak tetap dijalankan.
+    const applyOrderUpdates = (changedIds: string[]) => {
+      void Promise.all(
+        changedIds.map((id) =>
+          getCloudOrder(branchId, id)
+            .then((order) => ({ id, order }))
+            .catch(() => ({ id, order: undefined as Order | null | undefined })),
+        ),
+      ).then((results) => {
+        if (!isRuntimeActive()) return;
+        const fetched = results
+          .map((entry) => entry.order)
+          .filter((order): order is Order => !!order && (!order.branchId || order.branchId === branchId));
+        const deletedIds = new Set(results.filter((entry) => entry.order === null).map((entry) => entry.id));
+
+        const changedForNotify = isFirstLoad
+          ? []
+          : fetched.filter((order) => (
+              order.items.reduce((sum, item) => sum + item.quantity, 0) > (knownItemQuantities.get(order.id) || 0)
+            ));
+
+        fetched.forEach((order) => knownItemQuantities.set(order.id, order.items.reduce((sum, item) => sum + item.quantity, 0)));
+        deletedIds.forEach((id) => knownItemQuantities.delete(id));
+
+        setOrders((current) => {
+          const map = new Map(current.map((order) => [order.id, order] as [string, Order]));
+          deletedIds.forEach((id) => map.delete(id));
+          fetched.forEach((order) => map.set(order.id, order));
+          return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        });
+
+        if (changedForNotify.length > 0) {
+          const selfOrders = changedForNotify.filter((order) => order.source === 'SELF_ORDER');
+          if (selfOrders.length > 0) {
+            if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profile.soundCustomerOrder);
+            selfOrders.forEach((order) => showPushToast('Pesanan Self-order Masuk', `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`));
+          } else if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+            playNewOrderSound(profile.soundPesananMasuk);
+          }
+          if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
+            changedForNotify.forEach((order) => {
+              void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
+                if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
+              });
+            });
+          }
+        }
+
+        setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
+        branchRuntimeGuardRef.current.recordSync(runtimeToken, 'ORDERS');
+      }).catch(() => { /* jaringan sesaat — event/fallback berikutnya menyusul */ });
+    };
+
     lastFallbackAt = Date.now();
     refresh();
     const unsubscribe = subscribeCloudOrders(
       branchId,
-      () => {
+      (changedIds) => {
         if (!isRuntimeActive()) return;
         setOrderSyncHealth((current) => ({ ...current, lastRealtimeEvent: Date.now() }));
         branchRuntimeGuardRef.current.recordRealtime(runtimeToken, 'ORDERS');
-        refresh();
+        // Bertarget bila id order diketahui & jumlahnya wajar; selain itu full.
+        if (changedIds && changedIds.length > 0 && changedIds.length <= 8) {
+          applyOrderUpdates(changedIds);
+        } else {
+          refresh();
+        }
         void refreshBranchTables(branchId);
       },
       (state) => {
