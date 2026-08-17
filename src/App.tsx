@@ -1328,6 +1328,9 @@ export default function App() {
   // 6. Modals State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
   const [activeCheckoutOrder, setActiveCheckoutOrder] = useState<Partial<Order> | null>(null);
+  // Sinyal ke CashierView agar keranjang dikosongkan setelah pembayaran sukses —
+  // mencegah kasir membayar ulang keranjang yang sama (order dobel).
+  const [paymentSuccessSignal, setPaymentSuccessSignal] = useState<{ orderId: string; requestId: number } | null>(null);
 
   const [isSelfOrderModalOpen, setIsSelfOrderModalOpen] = useState<boolean>(false);
   const [isTableManagementOpen, setIsTableManagementOpen] = useState<boolean>(false);
@@ -1520,6 +1523,7 @@ export default function App() {
     }
     setIsPaymentModalOpen(false);
     setActiveCheckoutOrder(null);
+    setPaymentSuccessSignal({ orderId: fullOrder.id, requestId: Date.now() });
 
     showPushToast('Pembayaran Lunas!', `Order ${saved.orderNumber} telah dibayar (${paymentMethod}). Disampaikan ke Dapur.`);
     if (profile.soundNotificationsEnabled !== false) {
@@ -2341,6 +2345,7 @@ export default function App() {
               taxRatePercent={profile.taxRatePercent || 0}
               manualDiscountEnabled={profile.isManualDiscountEnabled !== false && activeAccessRule?.canGiveDiscount !== false}
               tableSelectionRequest={tableSelectionRequest || undefined}
+              paymentSuccessSignal={paymentSuccessSignal || undefined}
             />
           )}
 
