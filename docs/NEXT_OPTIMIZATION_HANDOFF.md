@@ -52,13 +52,19 @@ Terakhir diperbarui: 17 Agustus 2026.
   - Fix: `PaymentModal.tsx` menonaktifkan tombol bayar ("Memproses...") selama request async berjalan (cegah klik ganda pada modal yang sama); `App.tsx` mengirim sinyal `paymentSuccessSignal` ke `CashierView` setelah sukses agar keranjang direset (hanya untuk order yang benar-benar baru dibayar, tidak mengganggu draft order lain yang sedang disusun).
   - Diverifikasi ulang setelah fix: 3x klik cepat "Bayar Tanpa Cetak" pada keranjang yang sama → hanya 1 order baru tercipta di KDS, keranjang otomatis kosong (Rp 0). Shift monitor menunjukkan tepat 3 transaksi total (2 dari reproduksi bug sebelum fix + 1 dari verifikasi setelah fix) dengan omset & uang laci yang konsisten — tidak ada duplikasi tersembunyi lain.
 - Order lifecycle KDS (NEW → COOKING → COMPLETED) diverifikasi lancar. Shift monitor (omset, uang tunai, riwayat transaksi) akurat.
-- **Belum sempat diuji dalam sesi ini**: penutupan shift penuh + cetak Z-Report (dihentikan sebelum submit karena data uji ada di dev DB lokal, bukan langkah kritis untuk memvalidasi fix di atas); modul Inventory/Stok dan Attendance/HR belum diregresi ulang pada sesi ini.
+- **Lanjutan (setelah PR #21)**: regresi diselesaikan penuh — tutup shift + Z-Report, Inventory/Stok, Attendance/HR, dan Laporan & Omzet semuanya diuji live di dev server lokal:
+  - Tutup shift: alur hitung uang fisik laci → selisih Rp 0 → "TUTUP SHIFT & CETAK LAPORAN" berhasil menutup shift (status `CLOSED` tercatat di histori shift). "Cetak Z-Report Gagal" yang muncul hanya karena tidak ada printer Bluetooth fisik terhubung di lingkungan uji — sesuai desain fallback ("Pembayaran/shift tetap sah ketika proses cetak gagal").
+  - Inventory/Stok: kesiapan cabang (menu/bahan/resep/HPP), daftar bahan & batas minimum tampil benar tanpa error.
+  - Attendance/HR: matriks kehadiran bulanan, daftar staff, dan filter periode tampil benar; Owner memang dikecualikan dari absensi operasional (sesuai desain).
+  - Laporan & Omzet: grafik omset per-jam, distribusi metode bayar, dan tab Histori Shift/Presensi/Stok semua render tanpa error.
+  - ⚠️ **Catatan penting (bukan bug)**: dev server lokal sempat berhenti merespons dan di-restart selama sesi ini. Setelah restart, seluruh data uji sebelumnya (shift `shf-8231` + 3 order test) hilang total dari Laporan bahkan dengan filter "Semua". Diverifikasi bahwa **tidak ada file `.env`/`.env.local`** di worktree ini — artinya dev server lokal berjalan dalam **mode demo (localStorage)**, bukan tersambung ke Supabase cloud sungguhan. Ini sesuai desain ("localStorage hanya boleh hidup dalam mode demo ketika Supabase tidak dikonfigurasi") sehingga kehilangan data pada restart adalah perilaku yang diharapkan untuk dev lokal, **bukan indikasi bug kehilangan data di production/cloud**. Untuk pengujian yang mencerminkan production sungguhan, dev server perlu dikonfigurasi dengan kredensial Supabase asli (`.env.local` dengan `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` dll).
 
 ## Belum dikerjakan / pending (terbaru)
 
-1. ~~Final end-to-end regression pass~~ — **sudah dilakukan** (lihat update di atas). Sisa: uji penutupan shift + Z-Report, Inventory, dan Attendance secara live jika ingin regresi 100% lengkap.
+1. ~~Final end-to-end regression pass~~ — **SELESAI**. Semua modul inti (self-order, POS, pembayaran, KDS, shift close, Z-Report, Inventory, Attendance, Laporan) sudah diregresi live tanpa temuan bug baru selain yang sudah diperbaiki di PR #21.
 2. **Uji fitur Transaction Purge dengan data production sungguhan** setelah migrasi `202608180032` dijalankan.
 3. **Re-review PR #21** (fix order dobel) sebelum merge — perubahan menyentuh alur pembayaran inti POS, disarankan diuji sekali lagi secara manual di staging sebelum ke production.
+4. **(Opsional, untuk pengujian lebih realistis ke depan)**: siapkan `.env.local` dengan kredensial Supabase project asli di lingkungan dev lokal, agar regresi berikutnya benar-benar menguji persistensi cloud, bukan mode demo/localStorage.
 
 ## Reporting overhaul — rincian teknis (PR #16)
 
