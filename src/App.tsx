@@ -483,6 +483,8 @@ export default function App() {
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => cloudReadiness.supabase ? [] : DBStorage.getRawMaterials());
   const [tables, setTables] = useState<RestaurantTable[]>(() => cloudReadiness.supabase ? [] : DBStorage.getTables());
   const [condimentGroups, setCondimentGroups] = useState<CondimentGroup[]>(() => cloudReadiness.supabase ? [] : DBStorage.getCondimentGroups());
+  const condimentGroupsRef = useRef(condimentGroups);
+  useEffect(() => { condimentGroupsRef.current = condimentGroups; }, [condimentGroups]);
   const [orders, setOrders] = useState<Order[]>(() => cloudReadiness.supabase ? [] : DBStorage.getOrders());
   const [ownerMonitorData, setOwnerMonitorData] = useState<{
     branchIds: string[];
@@ -794,7 +796,7 @@ export default function App() {
             // hanya ketika toggle Auto Print diaktifkan dari panel Kasir atau KDS.
             if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
               changedOrders.forEach((order) => {
-                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current).then((result) => {
+                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
                   if (!result.success) {
                     showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
                   }
@@ -1554,7 +1556,7 @@ export default function App() {
   };
 
   const printKitchenTicket = async (order: Order) => {
-    const result = await BluetoothPrinterService.printKitchenTicket(order, profile, printerConfig);
+    const result = await BluetoothPrinterService.printKitchenTicket(order, profile, printerConfig, condimentGroups);
     if (result.success) {
       showPushToast('Tiket Dapur Tercetak', `${formatOrderLabel(order)} dikirim tanpa harga ke printer kitchen.`);
     } else {
