@@ -667,9 +667,13 @@ export default function App() {
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     let cancelled = false;
     let running = false;
+    // Cegah refetch beruntun: fokus jendela yang bolak-balik tidak boleh memicu
+    // pembacaan ulang seluruh cabang (orders+tables+katalog) berkali-kali.
+    let lastOwnerRefreshAt = 0;
     const refreshOwnerMonitor = async () => {
       if (running) return;
       running = true;
+      lastOwnerRefreshAt = Date.now();
       try {
         const results = await Promise.allSettled(branches.map(async (branch) => {
           const [branchOrders, branchTables, catalog] = await Promise.all([
@@ -702,7 +706,11 @@ export default function App() {
     };
     void refreshOwnerMonitor();
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void refreshOwnerMonitor();
+      if (document.visibilityState !== 'visible') return;
+      // Throttle fokus: abaikan bila baru saja refresh (<30 dtk). Interval 120s
+      // tidak terpengaruh karena selalu > 30s.
+      if (Date.now() - lastOwnerRefreshAt < 30_000) return;
+      void refreshOwnerMonitor();
     };
     const timer = window.setInterval(refreshWhenVisible, 120_000);
     window.addEventListener('focus', refreshWhenVisible);
