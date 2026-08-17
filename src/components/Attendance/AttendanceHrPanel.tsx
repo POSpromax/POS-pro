@@ -111,6 +111,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     staff: visibleStaff.length,
     present: new Set(rangeRecords.filter((record) => record.type === 'CLOCK_IN').map((record) => record.staffId)).size,
     late: rangeRecords.filter((record) => record.type === 'CLOCK_IN' && record.status === 'LATE').length,
+    lateMinutes: rangeRecords.filter((record) => record.type === 'CLOCK_IN' && record.status === 'LATE').reduce((sum, record) => sum + (record.minutesLate || 0), 0),
     pendingLeave: data.leaveRequests.filter((request) => request.status === 'PENDING').length,
   }), [data.leaveRequests, rangeRecords, visibleStaff.length]);
 
@@ -119,16 +120,80 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     return Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => index + 1);
   }, [attendanceMonth]);
 
-  const matrixCell = (staffId: string, day: number) => {
-    const dateKey = `${attendanceMonth}-${String(day).padStart(2, '0')}`;
-    const records = attendanceRecords.filter((record) => record.staffId === staffId && record.timestamp.slice(0, 10) === dateKey);
-    const clockIn = records.find((record) => record.type === 'CLOCK_IN');
-    const clockOut = records.find((record) => record.type === 'CLOCK_OUT');
-    if (!clockIn) return { label: '-', tone: 'bg-slate-50 text-slate-300', title: 'Tidak ada presensi' };
-    if (clockIn.status === 'LATE') return { label: 'T', tone: 'bg-amber-100 text-amber-700', title: `Terlambat ${clockIn.minutesLate || 0} menit` };
-    if (!clockOut) return { label: 'IN', tone: 'bg-sky-100 text-sky-700', title: 'Sudah masuk, belum clock out' };
-    return { label: 'H', tone: 'bg-emerald-100 text-emerald-700', title: 'Hadir lengkap' };
+  // ── Status harian & KPI ──────────────────────────────────────────────────────
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const approvedLeaves = useMemo(() => data.leaveRequests.filter((r) => r.status === 'APPROVED'), [data.leaveRequests]);
+  const workingDaysConfig = data.hrConfig?.workingDays?.length ? data.hrConfig.workingDays : DEFAULT_HR_CONFIG.workingDays;
+  const workDaysFor = (staff: UserAccount): number[] =>
+    (Array.isArray(staff.workDays) && staff.workDays.length ? staff.workDays : workingDaysConfig);
+  const leaveOn = (staffId: string, dateKey: string) =>
+    approvedLeaves.find((r) => r.user_id === staffId && r.start_date <= dateKey && dateKey <= r.end_date);
+
+  type DayCode = 'PRESENT' | 'LATE' | 'OPEN' | 'LEAVE' | 'OFF' | 'ABSENT' | 'UPCOMING';
+  const dayStatus = (staff: UserAccount, dateKey: string): {
+    code: DayCode; minutesLate: number; workMinutes: number; clockInMin: number | null; leaveType?: string;
+  } => {
+    const records = (recordsByStaff.get(staff.id) || []).filter((r) => r.timestamp.slice(0, 10) === dateKey);
+    const clockIn = records.find((r) => r.type === 'CLOCK_IN');
+    const clockOut = records.slice().reverse().find((r) => r.type === 'CLOCK_OUT');
+    if (clockIn) {
+      const inDate = new Date(clockIn.timestamp);
+      const clockInMin = inDate.getHours() * 60 + inDate.getMinutes();
+      const workMinutes = clockOut ? Math.max(0, Math.round((+new Date(clockOut.timestamp) - +new Date(clockIn.timestamp)) / 60000)) : 0;
+      if (clockIn.status === 'LATE') return { code: 'LATE', minutesLate: clockIn.minutesLate || 0, workMinutes, clockInMin };
+      if (!clockOut) return { code: 'OPEN', minutesLate: 0, workMinutes: 0, clockInMin };
+      return { code: 'PRESENT', minutesLate: 0, workMinutes, clockInMin };
+    }
+    const leave = leaveOn(staff.id, dateKey);
+    if (leave) return { code: 'LEAVE', minutesLate: 0, workMinutes: 0, clockInMin: null, leaveType: leave.leave_type };
+    const dow = new Date(`${dateKey}T00:00:00`).getDay();
+    if (!workDaysFor(staff).includes(dow)) return { code: 'OFF', minutesLate: 0, workMinutes: 0, clockInMin: null };
+    if (dateKey >= todayKey) return { code: 'UPCOMING', minutesLate: 0, workMinutes: 0, clockInMin: null };
+    return { code: 'ABSENT', minutesLate: 0, workMinutes: 0, clockInMin: null };
   };
+
+  const CELL_STYLE: Record<DayCode, { label: string; tone: string; title: string }> = {
+    PRESENT: { label: 'H', tone: 'bg-emerald-100 text-emerald-700', title: 'Hadir lengkap' },
+    LATE: { label: 'T', tone: 'bg-amber-100 text-amber-700', title: 'Terlambat' },
+    OPEN: { label: 'IN', tone: 'bg-sky-100 text-sky-700', title: 'Sudah masuk, belum clock out' },
+    LEAVE: { label: 'I', tone: 'bg-violet-100 text-violet-700', title: 'Izin/Cuti/Sakit (disetujui)' },
+    OFF: { label: 'L', tone: 'bg-slate-100 text-slate-400', title: 'Hari libur' },
+    ABSENT: { label: 'A', tone: 'bg-rose-100 text-rose-700', title: 'Alpha / tanpa keterangan' },
+    UPCOMING: { label: '·', tone: 'bg-slate-50 text-slate-300', title: 'Belum berjalan' },
+  };
+  const matrixCell = (staffId: string, day: number) => {
+    const staff = branchStaff.find((s) => s.id === staffId);
+    if (!staff) return CELL_STYLE.UPCOMING;
+    const status = dayStatus(staff, `${attendanceMonth}-${String(day).padStart(2, '0')}`);
+    const base = CELL_STYLE[status.code];
+    if (status.code === 'LATE') return { ...base, title: `Terlambat ${status.minutesLate} menit` };
+    if (status.code === 'LEAVE') return { ...base, title: `${status.leaveType || 'Izin'} (disetujui)` };
+    return base;
+  };
+
+  const fmtMinOfDay = (m: number | null) => (m == null ? '—' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+
+  // KPI kehadiran per staff untuk bulan matriks (attendanceMonth).
+  const staffKpis = useMemo(() => visibleStaff.map((staff) => {
+    let onTime = 0, late = 0, leaveDays = 0, absent = 0, offDays = 0, lateMinutes = 0, workMinutes = 0;
+    const clockInMins: number[] = [];
+    matrixDays.forEach((day) => {
+      const s = dayStatus(staff, `${attendanceMonth}-${String(day).padStart(2, '0')}`);
+      if (s.code === 'PRESENT') { onTime++; workMinutes += s.workMinutes; if (s.clockInMin != null) clockInMins.push(s.clockInMin); }
+      else if (s.code === 'LATE') { late++; lateMinutes += s.minutesLate; workMinutes += s.workMinutes; if (s.clockInMin != null) clockInMins.push(s.clockInMin); }
+      else if (s.code === 'OPEN') { onTime++; if (s.clockInMin != null) clockInMins.push(s.clockInMin); }
+      else if (s.code === 'LEAVE') leaveDays++;
+      else if (s.code === 'ABSENT') absent++;
+      else if (s.code === 'OFF') offDays++;
+    });
+    const present = onTime + late;
+    const expected = present + absent; // hari kerja terlewat yang seharusnya hadir (izin dikecualikan)
+    const attendanceRate = expected > 0 ? Math.round((present / expected) * 100) : 100;
+    const punctuality = present > 0 ? Math.round((onTime / present) * 100) : 100;
+    const avgClockIn = clockInMins.length ? Math.round(clockInMins.reduce((a, b) => a + b, 0) / clockInMins.length) : null;
+    return { staff, onTime, late, present, leaveDays, absent, offDays, lateMinutes, workHours: workMinutes / 60, attendanceRate, punctuality, avgClockIn };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [visibleStaff, matrixDays, attendanceMonth, recordsByStaff, approvedLeaves, data.hrConfig, todayKey]);
 
   const saveHrPolicy = async () => {
     setLoading(true);
@@ -366,17 +431,18 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
             { label: 'Staff aktif', value: monitoring.staff, icon: Users, tone: 'bg-emerald-50 text-emerald-700' },
             { label: 'Hadir periode', value: monitoring.present, icon: CalendarDays, tone: 'bg-sky-50 text-sky-700' },
             { label: 'Kejadian telat', value: monitoring.late, icon: Clock3, tone: 'bg-amber-50 text-amber-700' },
+            { label: 'Total menit telat', value: monitoring.lateMinutes, icon: Clock3, tone: 'bg-orange-50 text-orange-700' },
             { label: 'Izin menunggu', value: monitoring.pendingLeave, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
           ].map((metric) => <div key={metric.label} className="rounded-2xl border border-[var(--panel-border)] bg-white p-4"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${metric.tone}`}><metric.icon className="h-4 w-4" /></div><p className="mt-4 text-2xl font-black tabular-nums">{metric.value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-wider text-slate-400">{metric.label}</p></div>)}
         </div>
 
         {attendanceRange === 'MONTH' && <div className="overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--panel-border)] p-4"><div><h3 className="text-sm font-bold">Matriks 1 Bulan</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">H = hadir lengkap, T = terlambat, IN = belum clock out.</p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-500">{attendanceMonth}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--panel-border)] p-4"><div><h3 className="text-sm font-bold">Matriks 1 Bulan</h3><p className="mt-1 text-[10px] font-semibold text-slate-400 flex flex-wrap gap-x-2.5 gap-y-1"><span><b className="text-emerald-600">H</b> Hadir</span><span><b className="text-amber-600">T</b> Telat</span><span><b className="text-sky-600">IN</b> Belum clock-out</span><span><b className="text-violet-600">I</b> Izin/Cuti/Sakit</span><span><b className="text-slate-400">L</b> Libur</span><span><b className="text-rose-600">A</b> Alpha</span></p></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-500">{attendanceMonth}</span></div>
           <div className="overflow-x-auto">
             <table className="min-w-max border-collapse text-[10px]">
               <thead><tr className="bg-slate-50"><th className="sticky left-0 z-10 min-w-44 border-b border-r border-slate-200 bg-slate-50 px-3 py-2 text-left font-black">Karyawan</th>{matrixDays.map((day) => <th key={day} className="h-9 w-9 border-b border-slate-200 text-center font-black text-slate-400">{day}</th>)}</tr></thead>
@@ -384,6 +450,60 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
             </table>
           </div>
         </div>}
+
+        {/* ── Tabel KPI Kehadiran per Staff (bulan matriks) ── */}
+        <div className="overflow-hidden rounded-2xl border border-[var(--panel-border)] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--panel-border)] p-4">
+            <div>
+              <h3 className="text-sm font-bold">KPI Kehadiran per Staff</h3>
+              <p className="mt-1 text-[10px] font-semibold text-slate-400">Ringkasan kinerja kehadiran bulan {attendanceMonth}. Kehadiran% = hadir ÷ hari kerja terlewat (izin dikecualikan).</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-max border-collapse text-[11px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <thead>
+                <tr className="bg-slate-50 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                  <th className="sticky left-0 z-10 min-w-40 border-b border-r border-slate-200 bg-slate-50 px-3 py-2.5 text-left">Karyawan</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Hadir</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Telat</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Izin</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Alpha</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Kehadiran</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Tepat Waktu</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Rata² Masuk</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Jam Kerja</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Menit Telat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffKpis.map((k) => {
+                  const rateTone = k.attendanceRate >= 90 ? 'text-emerald-600' : k.attendanceRate >= 75 ? 'text-amber-600' : 'text-rose-600';
+                  const punctTone = k.punctuality >= 90 ? 'text-emerald-600' : k.punctuality >= 75 ? 'text-amber-600' : 'text-rose-600';
+                  return (
+                    <tr key={k.staff.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
+                      <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2">
+                        <button type="button" onClick={() => setDetailStaff(k.staff)} className="text-left">
+                          <span className="block max-w-36 truncate font-black text-[var(--text-primary)]">{k.staff.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400">{k.staff.role}</span>
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 text-center font-bold text-emerald-600">{k.onTime}</td>
+                      <td className="px-3 py-2 text-center font-bold text-amber-600">{k.late}</td>
+                      <td className="px-3 py-2 text-center font-bold text-violet-600">{k.leaveDays}</td>
+                      <td className="px-3 py-2 text-center font-bold text-rose-600">{k.absent}</td>
+                      <td className={`px-3 py-2 text-center font-black ${rateTone}`}>{k.attendanceRate}%</td>
+                      <td className={`px-3 py-2 text-center font-black ${punctTone}`}>{k.punctuality}%</td>
+                      <td className="px-3 py-2 text-center font-mono text-slate-600">{fmtMinOfDay(k.avgClockIn)}</td>
+                      <td className="px-3 py-2 text-center font-mono text-slate-600">{k.workHours > 0 ? `${k.workHours.toFixed(1)} j` : '—'}</td>
+                      <td className="px-3 py-2 text-center font-mono text-slate-600">{k.lateMinutes}</td>
+                    </tr>
+                  );
+                })}
+                {staffKpis.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-slate-400">Belum ada data staff.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visibleStaff.map((staff) => {

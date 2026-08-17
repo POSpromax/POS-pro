@@ -75,6 +75,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [gpsPosition, setGpsPosition] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
   const [isGpsValid, setIsGpsValid] = useState(!profile.requireGpsActive);
 
+  // Jam berjalan (live) + ringkasan presensi terakhir untuk layar sukses.
+  const [nowTs, setNowTs] = useState(() => new Date());
+  const [lastSaved, setLastSaved] = useState<AttendanceRecord | null>(null);
+  const [successWorkMinutes, setSuccessWorkMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTs(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // Live WebCam Streaming States & Refs
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -368,6 +377,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setUploadMessage('');
     setIsSubmitting(false);
     stopCameraStream();
+    // Ringkasan untuk layar sukses: durasi kerja bila ini CLOCK OUT.
+    let workMinutes: number | null = null;
+    if (clockType === 'CLOCK_OUT') {
+      const lastIn = [...todayRecords].reverse().find((r) => r.type === 'CLOCK_IN');
+      if (lastIn) workMinutes = Math.max(0, Math.round((Date.now() - new Date(lastIn.timestamp).getTime()) / 60000));
+    }
+    setLastSaved(record);
+    setSuccessWorkMinutes(workMinutes);
     setStep('SUCCESS');
     setTimeout(() => {
       setStep(terminalMode || cloudReadiness.supabase ? 'SELFIE_GPS' : 'PIN');
@@ -388,9 +405,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             {terminalMode ? 'Terminal absensi aktif.' : ownerManagementOnly ? 'Mode manajemen — akun Owner tidak dicatat sebagai staff absensi.' : 'Masukkan PIN 6-digit — sistem otomatis mengenali identitas Anda.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-          <Clock className="w-3.5 h-3.5" />
-          {currentBranch.name}
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-white px-4 py-2 shadow-sm">
+          <Clock className="h-5 w-5 text-[var(--primary-hover)]" />
+          <div className="text-right">
+            <p className="font-mono text-lg font-black leading-none tracking-tight text-[var(--text-primary)] tabular-nums">
+              {nowTs.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              {nowTs.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })} · {currentBranch.name}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -600,9 +624,30 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <CheckCircle2 className="w-16 h-16 text-emerald-500" />
               <div>
                 <p className="text-lg font-bold text-emerald-900">Presensi Berhasil!</p>
-                <p className="text-sm font-bold text-emerald-700">{selectedStaff.name}</p>
-                <p className="text-xs font-bold text-emerald-600 mt-1">{clockType === 'CLOCK_IN' ? 'CLOCK IN' : 'CLOCK OUT'} tercatat</p>
+                <p className="text-sm font-bold text-emerald-700">{lastSaved?.staffName || selectedStaff.name}</p>
               </div>
+              {lastSaved && (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-white px-4 py-2.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700">
+                      {lastSaved.type === 'CLOCK_IN' ? 'Jam Masuk' : 'Jam Pulang'}
+                    </span>
+                    <span className="font-mono text-lg font-black text-emerald-900 tabular-nums">
+                      {new Date(lastSaved.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  {lastSaved.type === 'CLOCK_IN' && (
+                    <div className={`rounded-xl px-4 py-2 text-[12px] font-black ${lastSaved.status === 'LATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {lastSaved.status === 'LATE' ? `TERLAMBAT ${lastSaved.minutesLate || 0} MENIT` : 'TEPAT WAKTU'}
+                    </div>
+                  )}
+                  {lastSaved.type === 'CLOCK_OUT' && successWorkMinutes != null && (
+                    <div className="rounded-xl bg-emerald-100 px-4 py-2 text-[12px] font-black text-emerald-700">
+                      DURASI KERJA {Math.floor(successWorkMinutes / 60)}j {successWorkMinutes % 60}m
+                    </div>
+                  )}
+                </div>
+              )}
               <p className="text-[11px] font-bold text-emerald-500">Kembali otomatis dalam 3 detik...</p>
             </div>
           )}
