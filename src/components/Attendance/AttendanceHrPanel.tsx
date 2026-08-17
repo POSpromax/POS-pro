@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, CalendarDays, ChevronRight, Clock3, FileCheck2, MessageCircle, Minus,
+  AlertTriangle, CalendarDays, ChevronRight, Clock3, FileCheck2, History, MessageCircle, Minus,
   Paperclip, Plus, Save, Send, Settings2, UserRoundSearch, Users, WalletCards, X,
 } from 'lucide-react';
 import type { AttendanceRecord, Branch, UserAccount } from '../../types/pos';
@@ -72,6 +72,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
 
   // ── Payslip state ───────────────────────────────────────────────────────────
   const [slipStaff, setSlipStaff]       = useState<UserAccount | null>(null);
+  const [historyStaff, setHistoryStaff] = useState<UserAccount | null>(null);
   const [slipPeriod, setSlipPeriod]     = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -81,12 +82,14 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     if (!cloudReadiness.supabase) return;
     setLoading(true);
     setError('');
-    try { setData(await loadHrData(currentBranch.id, slipPeriod)); }
+    // Tanpa filter periode: memuat SELURUH snapshot payroll agar histori gaji
+    // lintas bulan tersedia (jumlahnya kecil: beberapa staff × beberapa bulan).
+    try { setData(await loadHrData(currentBranch.id)); }
     catch (err) { setError(err instanceof Error ? err.message : 'Data HR gagal dimuat'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id, slipPeriod]);
+  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id]);
   useEffect(() => { setHrConfigDraft(data.hrConfig || DEFAULT_HR_CONFIG); }, [data.hrConfig]);
 
   const branchStaff = useMemo(() => staffAccounts.filter((staff) => staff.isActive !== false && staff.role !== 'OWNER' && staff.role !== 'SUPER_OWNER' && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id))), [staffAccounts, currentBranch.id]);
@@ -616,6 +619,12 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                           className="ui-button ui-button-secondary gap-1.5 text-[11px]" style={{ minHeight: '32px', padding: '0 12px' }}>
                           Slip Gaji
                         </button>
+                        <button
+                          onClick={() => setHistoryStaff(staff)}
+                          className="ui-button ui-button-secondary gap-1.5 text-[11px]" style={{ minHeight: '32px', padding: '0 12px' }}>
+                          <History className="h-3.5 w-3.5" />
+                          Histori
+                        </button>
                         <button onClick={() => openKasbon(staff)}
                           className="ui-button ui-button-secondary gap-1.5 text-[11px]" style={{ minHeight: '32px', padding: '0 12px' }}>
                           <Plus className="h-3.5 w-3.5" />
@@ -908,6 +917,69 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
           </div>
         </div>
       )}
+
+      {/* ── Modal Histori Gaji per Staff ── */}
+      {historyStaff && (() => {
+        const snaps = (data.payrollSnapshots || [])
+          .filter((s) => s.user_id === historyStaff.id)
+          .sort((a, b) => b.period.localeCompare(a.period));
+        const totalNet = snaps.reduce((sum, s) => sum + Number(s.net_salary || 0), 0);
+        const statusOf = (period: string) => (data.payrollPeriods || []).find((p) => p.period === period)?.status || 'FINALIZED';
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md" style={{ background: 'rgba(24,24,27,0.45)' }}>
+            <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border bg-white p-5" style={{ borderColor: 'var(--panel-border)' }}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="h-5 w-5" style={{ color: 'var(--primary-hover)' }} />
+                  <div>
+                    <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Histori Gaji — {historyStaff.name}</h3>
+                    <p className="text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{snaps.length} periode terfinalisasi · Total {money(totalNet)}</p>
+                  </div>
+                </div>
+                <button onClick={() => setHistoryStaff(null)} className="ui-icon-button h-8 w-8"><X className="h-4 w-4" /></button>
+              </div>
+              {snaps.length === 0 ? (
+                <p className="py-10 text-center text-[12px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                  Belum ada histori. Histori gaji muncul setelah periode payroll <b>difinalisasi</b> pada rekap payroll.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {snaps.map((s) => {
+                    const slip = buildSlip(historyStaff, s.period);
+                    const status = statusOf(s.period);
+                    const [yr, mo] = s.period.split('-').map(Number);
+                    const label = new Date(yr, mo - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                    return (
+                      <div key={s.id} className="rounded-2xl border p-4" style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-card)' }}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>{label}</p>
+                            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                              Kotor {money(Number(s.gross_salary || 0))} · Potongan {money(Number(s.total_deduction || 0))} · Hadir {s.attendance_count} hari · Telat {s.late_minutes} mnt
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2.5 py-1 text-[9px] font-black tracking-wider ${status === 'LOCKED' ? 'bg-slate-900 text-white' : status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{status}</span>
+                            <span className="text-[15px] font-extrabold tabular-nums" style={{ color: 'var(--primary-solid)' }}>{money(Number(s.net_salary || 0))}</span>
+                          </div>
+                        </div>
+                        {slip && (
+                          <div className="mt-3 flex justify-end">
+                            <a href={buildWhatsAppSlipUrl(slip, currentBranch.name)} target="_blank" rel="noreferrer"
+                              className="ui-button gap-2 text-[11px]" style={{ minHeight: '32px', padding: '0 12px', background: '#25d366', borderColor: '#25d366', color: '#fff' }}>
+                              <MessageCircle className="h-3.5 w-3.5" /> Kirim ulang via WA
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 }
