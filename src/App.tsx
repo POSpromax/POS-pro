@@ -502,6 +502,23 @@ export default function App() {
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(() => DBStorage.getPrinterConfig());
   const printerConfigRef = useRef(printerConfig);
   useEffect(() => { printerConfigRef.current = printerConfig; }, [printerConfig]);
+
+  // Web BLE kehilangan koneksi tiap halaman dimuat ulang. Saat startup, jaga
+  // indikator koneksi tetap sinkron dan coba sambung ulang printer yang tersimpan
+  // (best-effort, tanpa prompt karena perangkat sudah pernah diizinkan). Bersama
+  // reconnect-on-foreground di bluetoothPrinter.ts, printer pulih otomatis setelah
+  // reload maupun kembali dari aplikasi lain.
+  useEffect(() => {
+    const unsubscribe = BluetoothPrinterService.subscribe((status) => {
+      setPrinterConfig((current) => (current.isConnected === status.connected ? current : { ...current, isConnected: status.connected }));
+    });
+    const config = printerConfigRef.current;
+    if (config?.deviceId || config?.bluetoothAddress) {
+      void BluetoothPrinterService.reconnect(config).catch(() => undefined);
+    }
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const handleToggleAutoPrintKitchen = useCallback(() => {
     setPrinterConfig((current) => {
       const next: PrinterConfig = { ...current, autoPrintKitchenOnNewOrder: !current.autoPrintKitchenOnNewOrder };

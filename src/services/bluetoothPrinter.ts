@@ -278,6 +278,11 @@ export class BluetoothPrinterService {
   };
 
   static async reconnect(config: PrinterConfig): Promise<boolean> {
+    // Simpan config sedari awal supaya auto-reconnect (foreground/disconnect)
+    // tetap punya rujukan meski attempt ini gagal — penting setelah reload yang
+    // menghapus state runtime.
+    this.lastConfig = config;
+    this.intentionalDisconnect = false;
     const preferred = config.transport || 'AUTO';
     if (preferred !== 'WEB_BLE' && await isAndroidPrinterAvailable()) {
       const connected = await reconnectAndroidPrinter(config.bluetoothAddress);
