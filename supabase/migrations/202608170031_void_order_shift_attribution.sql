@@ -8,6 +8,44 @@
 
 begin;
 
+-- Defensif: pastikan kolom atribusi shift dari migrasi 202608130022 memang
+-- ada sebelum migrasi ini berjalan. Beberapa lingkungan menjalankan file ini
+-- di luar urutan penuh migration folder, sehingga tanpa guard ini statement
+-- di bawah gagal dengan "column completed_shift_id does not exist".
+alter table public.orders
+  add column if not exists created_shift_id uuid,
+  add column if not exists paid_shift_id uuid,
+  add column if not exists completed_shift_id uuid;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.orders'::regclass
+      and conname = 'orders_created_shift_id_fkey'
+  ) then
+    alter table public.orders add constraint orders_created_shift_id_fkey
+      foreign key (created_shift_id) references public.cashier_shifts(id) on delete set null;
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.orders'::regclass
+      and conname = 'orders_paid_shift_id_fkey'
+  ) then
+    alter table public.orders add constraint orders_paid_shift_id_fkey
+      foreign key (paid_shift_id) references public.cashier_shifts(id) on delete set null;
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.orders'::regclass
+      and conname = 'orders_completed_shift_id_fkey'
+  ) then
+    alter table public.orders add constraint orders_completed_shift_id_fkey
+      foreign key (completed_shift_id) references public.cashier_shifts(id) on delete set null;
+  end if;
+end;
+$$;
+
 create or replace function public.set_order_shift_attribution()
 returns trigger
 language plpgsql
@@ -112,6 +150,14 @@ begin
   return new;
 end;
 $$;
+
+-- Defensif: pastikan trigger ini benar-benar terpasang, walau migrasi 022
+-- yang membuatnya pertama kali belum sempat dijalankan di database ini.
+drop trigger if exists orders_set_shift_attribution on public.orders;
+create trigger orders_set_shift_attribution
+before insert or update of shift_id, payment_status, status,
+  created_shift_id, paid_shift_id, completed_shift_id on public.orders
+for each row execute function public.set_order_shift_attribution();
 
 -- void_order() sekarang menerima p_shift_id agar bisa menstempel
 -- completed_shift_id secara eksplisit (void tidak selalu lewat trigger
