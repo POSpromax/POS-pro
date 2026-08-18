@@ -32,6 +32,15 @@ const distanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) 
   return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+// Menit-dalam-hari (0..1439) pada zona waktu outlet. Dipakai agar perhitungan
+// telat di tampilan report SAMA dengan finalisasi payroll (keduanya sadar-timezone),
+// bukan bergantung timezone runtime server.
+const localMinuteOfDay = (iso: string, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso));
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return Number(map.hour) * 60 + Number(map.minute);
+};
+
 export async function handleAttendanceRequest(
   method: string,
   payload: AttendancePayload,
@@ -76,24 +85,31 @@ export async function handleAttendanceRequest(
     const { data: events, error: eventsError } = await query;
     if (eventsError) return fail(500, 'Riwayat presensi tidak dapat dimuat');
 
+    const timeZone = branch.timezone || 'Asia/Jakarta';
     const userIds = [...new Set((events || []).map((event) => event.user_id))];
-    const [{ data: profiles }, { data: memberships }, { data: schedules }] = await Promise.all([
+    const [{ data: profiles }, { data: memberships }, { data: schedules }, { data: hrConfig }] = await Promise.all([
       userIds.length ? admin.from('user_profiles').select('user_id,display_name').in('user_id', userIds) : Promise.resolve({ data: [] }),
       userIds.length ? admin.from('branch_members').select('user_id,role').eq('branch_id', payload.branchId).in('user_id', userIds) : Promise.resolve({ data: [] }),
-      admin.from('staff_schedules').select('id,starts_at,grace_minutes').eq('branch_id', payload.branchId),
+      admin.from('staff_schedules').select('id,starts_at,grace_minutes,spans_midnight').eq('branch_id', payload.branchId),
+      admin.from('branch_hr_config').select('late_penalty_grace_minutes').eq('branch_id', payload.branchId).maybeSingle(),
     ]);
     const names = new Map((profiles || []).map((item) => [item.user_id, item.display_name]));
     const roles = new Map((memberships || []).map((item) => [item.user_id, item.role]));
     const scheduleMap = new Map((schedules || []).map((item) => [item.id, item]));
+    // Toleransi telat = maksimum dari kebijakan HR outlet & toleransi jadwal.
+    // IDENTIK dengan yang dipakai finalisasi payroll -> angka telat konsisten.
+    const policyGrace = Number((hrConfig as any)?.late_penalty_grace_minutes || 0);
     const records = (events || []).map((event) => {
       const schedule = event.schedule_id ? scheduleMap.get(event.schedule_id) : undefined;
       let minutesLate = 0;
       if (event.event_type === 'CLOCK_IN' && schedule?.starts_at) {
-        const occurred = new Date(event.occurred_at);
-        const [hours, minutes] = schedule.starts_at.split(':').map(Number);
-        const scheduled = new Date(occurred);
-        scheduled.setHours(hours, minutes, 0, 0);
-        minutesLate = Math.max(0, Math.floor((occurred.getTime() - scheduled.getTime()) / 60_000));
+        const eventMinutes = localMinuteOfDay(event.occurred_at, timeZone);
+        const [hours, minutes] = String(schedule.starts_at).split(':').map(Number);
+        const startMinutes = hours * 60 + minutes;
+        let delta = eventMinutes - startMinutes;
+        if (schedule.spans_midnight && delta < -720) delta += 1440;
+        const grace = Math.max(policyGrace, Number(schedule.grace_minutes || 0));
+        minutesLate = Math.max(0, delta - grace);
       }
       return {
         id: event.id,
@@ -115,7 +131,7 @@ export async function handleAttendanceRequest(
         selfieValidated: Boolean(event.selfie_public_id),
         scheduledStart: schedule?.starts_at?.slice(0, 5),
         minutesLate,
-        status: minutesLate > Number(schedule?.grace_minutes || 0) ? 'LATE' : 'ON_TIME',
+        status: minutesLate > 0 ? 'LATE' : 'ON_TIME',
       };
     }).filter((record) => record.role !== 'OWNER' && record.role !== 'SUPER_OWNER');
     return { status: 200, data: { records, scope: canViewBranch ? 'BRANCH' : 'SELF' } };
