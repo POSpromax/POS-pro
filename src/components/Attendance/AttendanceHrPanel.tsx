@@ -37,6 +37,15 @@ interface Props {
 
 const MANAGEMENT = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'];
 const money = (value: number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+
+// Status kinerja (reward otomatis) dari KPI kehadiran. Dipakai badge di report.
+const performanceStatus = (present: number, attendanceRate: number, punctuality: number, absent: number): { label: string; tone: string } => {
+  if (present === 0) return { label: 'Belum Ada Presensi', tone: 'bg-slate-100 text-slate-500' };
+  if (absent === 0 && attendanceRate >= 95 && punctuality >= 95) return { label: 'Teladan', tone: 'bg-emerald-100 text-emerald-700' };
+  if (attendanceRate >= 85 && punctuality >= 80) return { label: 'Baik', tone: 'bg-sky-100 text-sky-700' };
+  if (attendanceRate >= 70) return { label: 'Cukup', tone: 'bg-amber-100 text-amber-700' };
+  return { label: 'Perlu Perhatian', tone: 'bg-rose-100 text-rose-700' };
+};
 const DEFAULT_HR_CONFIG: HrConfig = {
   leaveReasons: [
     { code: 'SICK', label: 'Sakit', enabled: true, paid: true },
@@ -205,7 +214,8 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     const attendanceRate = expected > 0 ? Math.round((present / expected) * 100) : 100;
     const punctuality = present > 0 ? Math.round((onTime / present) * 100) : 100;
     const avgClockIn = clockInMins.length ? Math.round(clockInMins.reduce((a, b) => a + b, 0) / clockInMins.length) : null;
-    return { staff, onTime, late, present, leaveDays, absent, offDays, lateMinutes, workHours: workMinutes / 60, attendanceRate, punctuality, avgClockIn };
+    const status = performanceStatus(present, attendanceRate, punctuality, absent);
+    return { staff, onTime, late, present, leaveDays, absent, offDays, lateMinutes, workHours: workMinutes / 60, attendanceRate, punctuality, avgClockIn, status };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [visibleStaff, matrixDays, attendanceMonth, recordsByStaff, approvedLeaves, data.hrConfig, todayKey]);
 
@@ -487,6 +497,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                   <th className="border-b border-slate-200 px-3 py-2.5 text-center">Rata² Masuk</th>
                   <th className="border-b border-slate-200 px-3 py-2.5 text-center">Jam Kerja</th>
                   <th className="border-b border-slate-200 px-3 py-2.5 text-center">Menit Telat</th>
+                  <th className="border-b border-slate-200 px-3 py-2.5 text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -510,10 +521,11 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                       <td className="px-3 py-2 text-center font-mono text-slate-600">{fmtMinOfDay(k.avgClockIn)}</td>
                       <td className="px-3 py-2 text-center font-mono text-slate-600">{k.workHours > 0 ? `${k.workHours.toFixed(1)} j` : '—'}</td>
                       <td className="px-3 py-2 text-center font-mono text-slate-600">{k.lateMinutes}</td>
+                      <td className="px-3 py-2 text-center"><span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${k.status.tone}`}>{k.status.label}</span></td>
                     </tr>
                   );
                 })}
-                {staffKpis.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-slate-400">Belum ada data staff.</td></tr>}
+                {staffKpis.length === 0 && <tr><td colSpan={11} className="p-6 text-center text-slate-400">Belum ada data staff.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -523,7 +535,8 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
           {visibleStaff.map((staff) => {
             const records = (recordsByStaff.get(staff.id) || []).filter((record) => rangeRecords.some((visible) => visible.id === record.id));
             const last = records.slice().sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))[0];
-            return <button key={staff.id} onClick={() => setDetailStaff(staff)} className="flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 text-left transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)]/40"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] font-bold text-white">{staff.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{staff.name}</p><p className="text-[11px] font-bold text-slate-400">{staff.role} · {records.filter((record) => record.type === 'CLOCK_IN').length} hari hadir</p><p className={`mt-1 truncate text-[11px] font-bold ${last ? 'text-[var(--primary-hover)]' : 'text-slate-400'}`}>{last ? `${last.type.replace('_', ' ')} · ${new Date(last.timestamp).toLocaleString('id-ID')}` : 'Belum ada presensi pada periode'}</p></div><ChevronRight className="h-4 w-4 text-slate-400" /></button>;
+            const kpi = staffKpis.find((k) => k.staff.id === staff.id);
+            return <button key={staff.id} onClick={() => setDetailStaff(staff)} className="flex items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 text-left transition hover:border-[var(--primary)] hover:bg-[var(--brand-100)]/40"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary)] font-bold text-white">{staff.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><p className="truncate text-sm font-bold">{staff.name}</p>{kpi && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${kpi.status.tone}`}>{kpi.status.label}</span>}</div><p className="text-[11px] font-bold text-slate-400">{staff.role} · {records.filter((record) => record.type === 'CLOCK_IN').length} hari hadir</p><p className={`mt-1 truncate text-[11px] font-bold ${last ? 'text-[var(--primary-hover)]' : 'text-slate-400'}`}>{last ? `${last.type.replace('_', ' ')} · ${new Date(last.timestamp).toLocaleString('id-ID')}` : 'Belum ada presensi pada periode'}</p></div><ChevronRight className="h-4 w-4 text-slate-400" /></button>;
           })}
         </div>
       </div>}
