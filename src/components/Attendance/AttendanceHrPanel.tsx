@@ -125,6 +125,14 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
 
   // ── Status harian & KPI ──────────────────────────────────────────────────────
   const todayKey = new Date().toISOString().slice(0, 10);
+  // Tanggal sistem mulai melacak presensi di outlet ini (record paling awal).
+  // Hari sebelum ini tidak boleh dihitung Alpha — sistem belum dipakai.
+  const trackingStart = useMemo(
+    () => (attendanceRecords.length
+      ? attendanceRecords.reduce((min, r) => (r.timestamp.slice(0, 10) < min ? r.timestamp.slice(0, 10) : min), '9999-12-31')
+      : todayKey),
+    [attendanceRecords, todayKey],
+  );
   const approvedLeaves = useMemo(() => data.leaveRequests.filter((r) => r.status === 'APPROVED'), [data.leaveRequests]);
   const workingDaysConfig = data.hrConfig?.workingDays?.length ? data.hrConfig.workingDays : DEFAULT_HR_CONFIG.workingDays;
   const workDaysFor = (staff: UserAccount): number[] =>
@@ -152,6 +160,9 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     const dow = new Date(`${dateKey}T00:00:00`).getDay();
     if (!workDaysFor(staff).includes(dow)) return { code: 'OFF', minutesLate: 0, workMinutes: 0, clockInMin: null };
     if (dateKey >= todayKey) return { code: 'UPCOMING', minutesLate: 0, workMinutes: 0, clockInMin: null };
+    // Sebelum sistem melacak / sebelum staff bergabung: bukan Alpha (netral).
+    const joinKey = staff.joinDate ? String(staff.joinDate).slice(0, 10) : '';
+    if (dateKey < trackingStart || (joinKey && dateKey < joinKey)) return { code: 'UPCOMING', minutesLate: 0, workMinutes: 0, clockInMin: null };
     return { code: 'ABSENT', minutesLate: 0, workMinutes: 0, clockInMin: null };
   };
 

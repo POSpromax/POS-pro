@@ -259,6 +259,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   };
 
   useEffect(() => {
+    // Mode owner (hanya memantau dashboard presensi) TIDAK boleh menyalakan
+    // kamera/GPS — owner tidak melakukan clock in/out. Bila sempat aktif, matikan.
+    if (ownerManagementOnly) {
+      stopCameraStream();
+      return;
+    }
     if (step !== 'SELFIE_GPS' || profile.isAttendanceEnabled === false) return;
     const requestKey = `${currentBranch.id}:${selectedStaff.id}`;
     if (permissionRequestKeyRef.current === requestKey) return;
@@ -268,7 +274,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     if (profile.requireSelfiePhoto) void startCameraStream();
   // Permission requests intentionally run once after a verified identity changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, currentBranch.id, selectedStaff.id, profile.isAttendanceEnabled, profile.requireGpsActive, profile.requireSelfiePhoto]);
+  }, [ownerManagementOnly, step, currentBranch.id, selectedStaff.id, profile.isAttendanceEnabled, profile.requireGpsActive, profile.requireSelfiePhoto]);
 
   const verifyPin = useCallback((pin: string) => {
     setIsVerifying(true);
