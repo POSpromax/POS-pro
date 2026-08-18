@@ -243,6 +243,39 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const totalSubtotal = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.subtotal || o.total), 0), [paidOrders]);
   const totalTax = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.tax || 0), 0), [paidOrders]);
   const totalDiscount = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.discount || 0), 0), [paidOrders]);
+
+  // MAKAN STAFF: transaksi berdiskon 100% (potongan menutup seluruh subtotal).
+  // Dikelompokkan per nama & per hari agar jatah harian (1 makanan + 1 minuman)
+  // bisa dikontrol dari histori, sesuai cara kerja outlet.
+  const STAFF_MEAL_FOOD_LIMIT = 1;
+  const STAFF_MEAL_DRINK_LIMIT = 1;
+  const staffMeals = useMemo(() => {
+    const freeOrders = paidOrders.filter((o) => {
+      const sub = Number(o.subtotal || 0);
+      return sub > 0 && Number(o.discount || 0) >= sub;
+    });
+    const map = new Map<string, { name: string; date: string; food: number; drink: number; value: number; count: number }>();
+    freeOrders.forEach((o) => {
+      const date = new Date(o.createdAt).toISOString().slice(0, 10);
+      const name = (o.customerName || 'Tanpa Nama').trim() || 'Tanpa Nama';
+      const key = `${date}::${name.toLowerCase()}`;
+      const bucket = map.get(key) || { name, date, food: 0, drink: 0, value: 0, count: 0 };
+      (o.items || []).forEach((item) => {
+        const qty = Number(item.quantity || 0);
+        if (String(item.category || '').toUpperCase() === 'MINUMAN') bucket.drink += qty;
+        else bucket.food += qty;
+      });
+      bucket.value += Number(o.subtotal || 0);
+      bucket.count += 1;
+      map.set(key, bucket);
+    });
+    return [...map.values()].sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+  }, [paidOrders]);
+  const staffMealTotalValue = useMemo(() => staffMeals.reduce((sum, r) => sum + r.value, 0), [staffMeals]);
+  const staffMealOverLimit = useMemo(
+    () => staffMeals.filter((r) => r.food > STAFF_MEAL_FOOD_LIMIT || r.drink > STAFF_MEAL_DRINK_LIMIT).length,
+    [staffMeals],
+  );
   const netOmset = grossOmset - totalTax;
 
   const totalTransactions = paidOrders.length;
@@ -1328,6 +1361,77 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <p className="ui-stat-value text-[var(--text-primary)]">Rp {totalSubtotal.toLocaleString('id-ID')}</p>
               <p className="text-[11px] font-bold text-[var(--text-tertiary)]">Subtotal murni sebelum diskon & pajak</p>
             </div>
+          </div>
+
+          {/* ── MAKAN STAFF (diskon 100%) — kontrol jatah harian ── */}
+          <div className="ui-card p-6 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
+                  Makan Staff (Diskon 100%)
+                </h2>
+                <p className="mt-1 text-[11px] font-semibold text-[var(--text-tertiary)]">
+                  Jatah harian: {STAFF_MEAL_FOOD_LIMIT} makanan + {STAFF_MEAL_DRINK_LIMIT} minuman per orang.
+                  Baris merah = melebihi jatah. Nama diambil dari kolom pelanggan saat input.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <span className="rounded-xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-3 py-1.5 text-[11px] font-bold text-[var(--text-secondary)]">
+                  Nilai: Rp {staffMealTotalValue.toLocaleString('id-ID')}
+                </span>
+                {staffMealOverLimit > 0 && (
+                  <span className="rounded-xl bg-[var(--danger-soft)] px-3 py-1.5 text-[11px] font-black text-[var(--accent-red)]">
+                    {staffMealOverLimit} melebihi jatah
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {staffMeals.length === 0 ? (
+              <p className="py-8 text-center text-xs font-bold text-[var(--text-tertiary)]">
+                Belum ada transaksi diskon 100% pada periode ini.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <thead>
+                    <tr className="border-b text-[11px] font-bold uppercase tracking-wider"
+                      style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
+                      <th className="p-3">Tanggal</th>
+                      <th className="p-3">Nama</th>
+                      <th className="p-3 text-center">Makanan</th>
+                      <th className="p-3 text-center">Minuman</th>
+                      <th className="p-3 text-center">Struk</th>
+                      <th className="p-3 text-right">Nilai</th>
+                      <th className="p-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffMeals.map((row) => {
+                      const over = row.food > STAFF_MEAL_FOOD_LIMIT || row.drink > STAFF_MEAL_DRINK_LIMIT;
+                      return (
+                        <tr key={`${row.date}-${row.name}`} className="border-b" style={{ borderColor: 'var(--panel-border-light)' }}>
+                          <td className="p-3 font-mono text-[var(--text-secondary)]">
+                            {new Date(`${row.date}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                          </td>
+                          <td className="p-3 text-[var(--text-primary)]">{row.name}</td>
+                          <td className={`p-3 text-center ${row.food > STAFF_MEAL_FOOD_LIMIT ? 'text-[var(--accent-red)]' : 'text-[var(--text-secondary)]'}`}>{row.food}</td>
+                          <td className={`p-3 text-center ${row.drink > STAFF_MEAL_DRINK_LIMIT ? 'text-[var(--accent-red)]' : 'text-[var(--text-secondary)]'}`}>{row.drink}</td>
+                          <td className="p-3 text-center text-[var(--text-secondary)]">{row.count}</td>
+                          <td className="p-3 text-right font-mono text-[var(--text-primary)]">Rp {row.value.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-center">
+                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${over ? 'bg-[var(--danger-soft)] text-[var(--accent-red)]' : 'bg-[var(--primary-soft)] text-[var(--primary-text)]'}`}>
+                              {over ? 'Lebih' : 'Sesuai'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           <div className="ui-card p-6 space-y-4">
