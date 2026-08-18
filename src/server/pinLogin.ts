@@ -69,10 +69,11 @@ export async function handlePinLogin(
 
   if (error) {
     console.error('[verify_staff_pin RPC ERROR]:', error);
-    const developmentDetail = process.env.NODE_ENV !== 'production' && error.message
-      ? `: ${error.message}`
-      : '';
-    return { status: 500, data: { error: `Verifikasi tidak dapat diproses${developmentDetail}` } };
+    // DIAGNOSTIK SEMENTARA: tampilkan pesan asli RPC agar akar masalah login
+    // terlihat langsung. Setelah ketemu, kembalikan ke pesan generik.
+    const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint]
+      .filter(Boolean).join(' · ');
+    return { status: 500, data: { error: `Verifikasi gagal${detail ? `: ${detail}` : ''}`, code: (error as { code?: string }).code } };
   }
 
   const verification = (data?.[0] || null) as VerificationRow | null;
@@ -95,7 +96,7 @@ export async function handlePinLogin(
   );
   const email = userResult?.user?.email;
   if (userError || !email) {
-    return { status: 409, data: { error: 'Akun Auth staf belum lengkap' } };
+    return { status: 409, data: { error: `Akun Auth staf belum lengkap${userError?.message ? `: ${userError.message}` : ''}` } };
   }
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
@@ -104,7 +105,7 @@ export async function handlePinLogin(
   });
   const tokenHash = link?.properties?.hashed_token;
   if (linkError || !tokenHash) {
-    return { status: 500, data: { error: 'Sesi staf tidak dapat dibuat' } };
+    return { status: 500, data: { error: `Sesi staf tidak dapat dibuat${linkError?.message ? `: ${linkError.message}` : ''}` } };
   }
 
   const { data: memberships } = await admin.from('branch_members')
