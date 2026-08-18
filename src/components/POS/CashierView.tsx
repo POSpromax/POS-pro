@@ -260,6 +260,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [discountValue, setDiscountValue] = useState<number>(0);
+  // Diskon bisa PERSEN (%) atau NOMINAL rupiah. Mode nominal dipakai mis. untuk
+  // potongan tetap; 100% dipakai untuk makan staff (gratis).
+  const [discountMode, setDiscountMode] = useState<'PERCENT' | 'AMOUNT'>('PERCENT');
   const configuredTaxPercent = taxEnabled ? Math.max(0, Math.min(100, Number(taxRatePercent) || 0)) : 0;
   const [taxValue, setTaxValue] = useState<number>(configuredTaxPercent);
   const [currentEditingOrderId, setCurrentEditingOrderId] = useState<string | null>(null);
@@ -394,6 +397,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCustomerName(order.customerName || 'Guest');
     setSelectedTable(order.tableNumber && order.tableNumber !== '-' ? order.tableNumber : '-');
     setOrderType(order.type || 'DINE_IN');
+    // order.discount tersimpan sebagai NOMINAL rupiah, jadi muat sebagai mode
+    // AMOUNT (sebelumnya dibaca sebagai persen -> nilai diskon jadi salah).
+    setDiscountMode('AMOUNT');
     setDiscountValue(order.discount || 0);
     const taxableBase = Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0));
     setTaxValue(taxableBase > 0 && Number(order.tax || 0) > 0 ? Math.round((Number(order.tax || 0) / taxableBase) * 10000) / 100 : configuredTaxPercent);
@@ -454,7 +460,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   // Calculation Math Audit — Sum, Discount, Tax, Total
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discountAmount = Math.min(subtotal, (subtotal * discountValue) / 100);
+  const discountAmount = Math.min(
+    subtotal,
+    discountMode === 'AMOUNT' ? Math.max(0, discountValue) : (subtotal * discountValue) / 100,
+  );
   const taxAmount = Math.round(((subtotal - discountAmount) * taxValue) / 100);
   const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
@@ -921,19 +930,36 @@ export const CashierView: React.FC<CashierViewProps> = ({
               {(manualDiscountEnabled || taxEnabled) && (
               <div className={`grid gap-2 ${manualDiscountEnabled && taxEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {manualDiscountEnabled && (
-                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700">
-                  <Percent className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-700">
+                  {/* Pilih satuan diskon: % atau Rp */}
+                  <button
+                    type="button"
+                    disabled={isPaidOrder}
+                    onClick={() => { setDiscountMode((m) => (m === 'PERCENT' ? 'AMOUNT' : 'PERCENT')); setDiscountValue(0); }}
+                    className="shrink-0 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Ganti satuan diskon (persen / rupiah)"
+                  >
+                    {discountMode === 'PERCENT' ? '%' : 'Rp'}
+                  </button>
                   <input
                     type="number"
                     min="0"
-                    max="100"
+                    max={discountMode === 'PERCENT' ? 100 : undefined}
                     disabled={isPaidOrder}
-                    placeholder="Diskon %"
+                    placeholder={discountMode === 'PERCENT' ? 'Diskon %' : 'Diskon Rp'}
                     value={discountValue || ''}
-                    onChange={(e) => setDiscountValue(Math.max(0, Math.min(100, Number(e.target.value))))}
+                    onChange={(e) => {
+                      const raw = Math.max(0, Number(e.target.value));
+                      setDiscountValue(discountMode === 'PERCENT' ? Math.min(100, raw) : raw);
+                    }}
                     className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs disabled:cursor-not-allowed disabled:text-slate-400"
                     title="Diskon manual aktif dari Pengaturan Operasional"
                   />
+                  {discountMode === 'PERCENT' && discountValue > 0 && (
+                    <span className="shrink-0 text-[10px] font-bold text-slate-400">
+                      {Math.round(discountAmount / 1000)}rb
+                    </span>
+                  )}
                 </div>
                 )}
                 {taxEnabled && (
