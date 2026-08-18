@@ -40,7 +40,13 @@ export async function uploadImage(file: File, folder: MediaFolder, branchId: str
     body: JSON.stringify({folder, branchId}),
   });
 
-  if (!signatureResponse.ok) throw new Error('Gagal memperoleh izin upload media.');
+  if (!signatureResponse.ok) {
+    // Tampilkan sebab asli dari server (mis. "Konfigurasi Cloudinary tidak valid",
+    // "Role tidak diizinkan…", "Unauthorized") agar mudah didiagnosis, bukan pesan
+    // generik yang menyembunyikan masalah sebenarnya.
+    const detail = await signatureResponse.json().catch(() => ({} as { error?: string }));
+    throw new Error(detail?.error ? `Gagal upload foto: ${detail.error}` : 'Gagal memperoleh izin upload media.');
+  }
   const signed = await signatureResponse.json() as UploadSignature;
 
   const body = new FormData();
@@ -58,7 +64,10 @@ export async function uploadImage(file: File, folder: MediaFolder, branchId: str
     {method: 'POST', body},
   );
 
-  if (!uploadResponse.ok) throw new Error('Upload media gagal.');
+  if (!uploadResponse.ok) {
+    const detail = await uploadResponse.json().catch(() => ({} as { error?: { message?: string } }));
+    throw new Error(detail?.error?.message ? `Upload media gagal: ${detail.error.message}` : 'Upload media gagal.');
+  }
   const result = await uploadResponse.json();
   return {
     publicId: result.public_id,
