@@ -60,6 +60,7 @@ import { CondimentPreviewPanel } from './CondimentPreviewPanel';
 import { CondimentBuilderPanel } from './CondimentBuilderPanel';
 import { purgeCompletedOrders } from '../../services/transactionPurgeService';
 import { resetPosData, type DataResetMode, type DataResetScope } from '../../services/dataResetService';
+import { resolveMapsShortLink } from '../../services/geoService';
 
 const STAFF_WEEKDAYS = [
   { day: 1, short: 'Sen', label: 'Senin' },
@@ -268,6 +269,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isDetectingGps, setIsDetectingGps] = useState(false);
   const [detectedGpsAccuracy, setDetectedGpsAccuracy] = useState<number | null>(null);
   const [mapsLinkInput, setMapsLinkInput] = useState('');
+  const [isResolvingLink, setIsResolvingLink] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
   const [isSyncingTables, setIsSyncingTables] = useState<boolean>(false);
   const [draggedKdsCategory, setDraggedKdsCategory] = useState<CategoryType | null>(null);
@@ -601,43 +603,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // yang memuat "@lat,lng", "!3d..!4d..", atau "q=/ll=". Link PENDEK (maps.app.goo.gl)
   // tidak memuat koordinat sehingga tak bisa diurai — cara paling andal tetap tombol
   // "Gunakan Lokasi Perangkat Ini" saat berada di outlet.
-  const applyMapsLink = () => {
+  const applyCoords = (lat: number, lng: number) => {
+    setFormProfile((prev) => ({ ...prev, gpsLatitude: lat, gpsLongitude: lng }));
+    setDetectedGpsAccuracy(null);
+    setMapsLinkInput('');
+    toast('Titik Diterapkan', `Latitude ${lat.toFixed(6)}, Longitude ${lng.toFixed(6)}. Tekan SIMPAN untuk menyimpan.`);
+  };
+
+  const applyMapsLink = async () => {
     const raw = mapsLinkInput.trim();
     if (!raw) {
       toast('Kosong', 'Tempel koordinat "lat,lng" atau link Google Maps dulu.');
       return;
     }
-    // Link pendek/share dari HP tidak berisi koordinat.
-    if (/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(raw)) {
-      toast(
-        'Link Pendek Tak Berisi Koordinat',
-        'Link "maps.app.goo.gl" tidak memuat titik GPS. Di Google Maps: klik-tahan titik lokasi → koordinat (mis. -6.609, 106.782) muncul → salin ANGKA-nya (bukan tombol Share) → tempel di sini. Atau tekan "Gunakan Lokasi Perangkat Ini" saat di outlet.',
-      );
-      return;
-    }
-    // Beberapa pola, urut dari yang paling menandai TITIK pin sebenarnya.
+    // 1) Coba baca koordinat langsung dari teks (koordinat mentah / URL penuh).
     const patterns = [
       /!3d(-?\d{1,3}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/,            // data pin pada URL place
       /@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,                 // pusat peta /@lat,lng
       /[?&](?:q|ll|query|daddr|destination|sll)=(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/i, // q=/ll=
       /(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,                   // koordinat mentah "lat, lng"
     ];
-    let match: RegExpMatchArray | null = null;
-    for (const re of patterns) { match = raw.match(re); if (match) break; }
-    if (!match) {
-      toast('Format Tidak Dikenali', 'Tempel KOORDINAT seperti -6.609013, 106.782932 (klik-tahan titik di Google Maps lalu salin angkanya), atau link Maps penuh yang memuat "@lat,lng".');
+    for (const re of patterns) {
+      const m = raw.match(re);
+      if (m) {
+        const lat = Number(m[1]);
+        const lng = Number(m[2]);
+        if (Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180) {
+          applyCoords(lat, lng);
+          return;
+        }
+      }
+    }
+    // 2) Tidak ada koordinat di teks — kalau ini link Google (termasuk PENDEK),
+    // minta server mengikuti redirect lalu mengambil koordinatnya.
+    const urlInText = raw.match(/https?:\/\/[^\s]+/)?.[0] || raw;
+    if (/(maps\.app\.goo\.gl|goo\.gl|g\.co|google\.[a-z.]+\/maps|maps\.google)/i.test(urlInText)) {
+      setIsResolvingLink(true);
+      try {
+        const { lat, lng } = await resolveMapsShortLink(urlInText);
+        applyCoords(lat, lng);
+      } catch (err) {
+        toast('Gagal Ambil Titik dari Link', err instanceof Error ? err.message : 'Link tidak dapat dibaca. Salin koordinat manual dari Google Maps.');
+      } finally {
+        setIsResolvingLink(false);
+      }
       return;
     }
-    const lat = Number(match[1]);
-    const lng = Number(match[2]);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
-      toast('Koordinat Tidak Valid', 'Latitude harus -90..90 dan longitude -180..180.');
-      return;
-    }
-    setFormProfile((prev) => ({ ...prev, gpsLatitude: lat, gpsLongitude: lng }));
-    setDetectedGpsAccuracy(null);
-    setMapsLinkInput('');
-    toast('Titik Diterapkan', `Latitude ${lat.toFixed(6)}, Longitude ${lng.toFixed(6)}. Tekan SIMPAN untuk menyimpan.`);
+    toast('Format Tidak Dikenali', 'Tempel KOORDINAT seperti -6.609013, 106.782932, atau link Google Maps (link pendek maps.app.goo.gl kini otomatis diambil titiknya).');
   };
 
   const handleAddStaff = async (e: React.FormEvent) => {
@@ -1700,16 +1712,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       />
                       <button
                         type="button"
-                        onClick={applyMapsLink}
-                        className="text-xs font-bold text-[var(--primary-hover)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition-all hover:bg-[var(--brand-100)] shrink-0"
+                        onClick={() => void applyMapsLink()}
+                        disabled={isResolvingLink}
+                        className="text-xs font-bold text-[var(--primary-hover)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition-all hover:bg-[var(--brand-100)] shrink-0 disabled:opacity-60 disabled:cursor-wait"
                       >
-                        Terapkan Titik
+                        {isResolvingLink ? 'Mengambil titik…' : 'Terapkan Titik'}
                       </button>
                     </div>
                     <p className="mt-1.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
                       Cara termudah &amp; paling akurat: tekan <b>“Gunakan Lokasi Perangkat Ini”</b> saat berada di outlet (pakai HP). •
-                      Jika tempel manual: di Google Maps <b>klik-tahan titik</b> → koordinat (mis. -6.609, 106.782) muncul → <b>salin ANGKA-nya</b> → tempel → Terapkan → SIMPAN.
-                      Link Share pendek (<span className="font-mono">maps.app.goo.gl</span>) <b>tidak bisa</b> karena tak memuat koordinat.
+                      Bisa juga tempel <b>koordinat</b> (mis. -6.609, 106.782) <b>atau</b> link Google Maps apa saja —
+                      termasuk link Share pendek <span className="font-mono">maps.app.goo.gl</span> (titik diambil otomatis) — lalu Terapkan → SIMPAN.
                     </p>
                   </div>
                 </div>

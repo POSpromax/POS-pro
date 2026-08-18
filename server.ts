@@ -9,6 +9,7 @@ import { handleAttendanceRequest } from './src/server/attendanceManagement';
 import { handleHrRequest } from './src/server/hrManagement';
 import { handleOrderRequest } from './src/server/orderManagement';
 import { handleAccountingRequest } from './src/server/accountingManagement';
+import { handleResolveMaps } from './src/server/resolveMaps';
 import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
 import { handleCloudinarySign } from './src/server/cloudinarySign';
@@ -132,6 +133,18 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server akuntansi belum dikonfigurasi' });
+    }
+  });
+
+  app.post('/api/resolve-maps', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleResolveMaps(req.method, accessToken, req.body || {}, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server belum dikonfigurasi' });
     }
   });
 
