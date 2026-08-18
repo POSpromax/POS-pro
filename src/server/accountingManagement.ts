@@ -52,7 +52,7 @@ const DEFAULT_COA: DefaultAccount[] = [
 
 interface AccountingPayload {
   branchId?: string;
-  action?: 'SEED_COA' | 'CREATE_ENTRY' | 'VOID_ENTRY';
+  action?: 'SEED_COA' | 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'VOID_ENTRY' | 'DELETE_ENTRY' | 'SAVE_ACCOUNT' | 'DELETE_ACCOUNT';
   view?: string;
   period?: string;
   entryDate?: string;
@@ -62,6 +62,32 @@ interface AccountingPayload {
   sourceId?: string;
   lines?: Array<{ code?: string; debit?: number; credit?: number; memo?: string }>;
   entryId?: string;
+  account?: { id?: string; code?: string; name?: string; type?: string; normalBalance?: string };
+  accountId?: string;
+}
+
+const ACCOUNT_TYPES = new Set(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']);
+const naturalBalance = (type: string): NormalBalance => (type === 'ASSET' || type === 'EXPENSE' ? 'DEBIT' : 'CREDIT');
+
+// Rapikan & validasi baris jurnal (dipakai CREATE & UPDATE).
+// error terisi bila tidak valid; jika error kosong, lines siap dipakai.
+function cleanLines(rawLines: unknown): { error?: string; lines: Array<{ code: string; debit: number; credit: number; memo?: string }> } {
+  const lines = Array.isArray(rawLines) ? rawLines : [];
+  const cleaned = lines
+    .map((line: any) => ({
+      code: String(line.code || '').trim(),
+      debit: Math.round((Number(line.debit) || 0) * 100) / 100,
+      credit: Math.round((Number(line.credit) || 0) * 100) / 100,
+      memo: line.memo ? String(line.memo).slice(0, 200) : undefined,
+    }))
+    .filter((line) => line.code && (line.debit > 0 || line.credit > 0));
+  if (cleaned.length < 2) return { error: 'Jurnal minimal 2 baris (debit dan kredit)', lines: [] };
+  const totalDebit = cleaned.reduce((sum, line) => sum + line.debit, 0);
+  const totalCredit = cleaned.reduce((sum, line) => sum + line.credit, 0);
+  if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
+    return { error: `Jurnal tidak seimbang: debit ${totalDebit} ≠ kredit ${totalCredit}`, lines: [] };
+  }
+  return { lines: cleaned };
 }
 
 const POSTABLE_SOURCES = new Set(['MANUAL', 'SALES', 'EXPENSE', 'PAYROLL', 'INVENTORY', 'ADJUSTMENT', 'OPENING']);
@@ -360,21 +386,8 @@ export async function handleAccountingRequest(
   if (payload.action === 'CREATE_ENTRY') {
     const entryDate = payload.entryDate;
     if (!entryDate || !DATE_PATTERN.test(entryDate)) return fail(400, 'Tanggal jurnal tidak valid');
-    const lines = Array.isArray(payload.lines) ? payload.lines : [];
-    const cleaned = lines
-      .map((line) => ({
-        code: String(line.code || '').trim(),
-        debit: Math.round((Number(line.debit) || 0) * 100) / 100,
-        credit: Math.round((Number(line.credit) || 0) * 100) / 100,
-        memo: line.memo ? String(line.memo).slice(0, 200) : undefined,
-      }))
-      .filter((line) => line.code && (line.debit > 0 || line.credit > 0));
-    if (cleaned.length < 2) return fail(400, 'Jurnal minimal 2 baris (debit dan kredit)');
-    const totalDebit = cleaned.reduce((sum, line) => sum + line.debit, 0);
-    const totalCredit = cleaned.reduce((sum, line) => sum + line.credit, 0);
-    if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
-      return fail(400, `Jurnal tidak seimbang: debit ${totalDebit} ≠ kredit ${totalCredit}`);
-    }
+    const parsed = cleanLines(payload.lines);
+    if (parsed.error) return fail(400, parsed.error);
 
     // Sumber posting: MANUAL (default) atau hasil konfirmasi rekomendasi
     // (SALES/EXPENSE/PAYROLL/...). sourceId dipakai mencegah posting ganda.
@@ -394,10 +407,28 @@ export async function handleAccountingRequest(
       p_source: source,
       p_source_id: sourceId,
       p_created_by: actor.actorId,
-      p_lines: cleaned,
+      p_lines: parsed.lines,
     });
     if (error) return fail(400, error.message || 'Jurnal gagal disimpan');
     return { status: 200, data: { ok: true, entryId: data } };
+  }
+
+  if (payload.action === 'UPDATE_ENTRY') {
+    if (!payload.entryId || !UUID_PATTERN.test(payload.entryId)) return fail(400, 'Jurnal tidak valid');
+    const entryDate = payload.entryDate;
+    if (!entryDate || !DATE_PATTERN.test(entryDate)) return fail(400, 'Tanggal jurnal tidak valid');
+    const parsed = cleanLines(payload.lines);
+    if (parsed.error) return fail(400, parsed.error);
+    const { error } = await admin.rpc('update_journal_entry', {
+      p_entry_id: payload.entryId,
+      p_branch_id: branchId,
+      p_entry_date: entryDate,
+      p_reference: payload.reference ? String(payload.reference).slice(0, 60) : null,
+      p_description: payload.description ? String(payload.description).slice(0, 300) : '',
+      p_lines: parsed.lines,
+    });
+    if (error) return fail(400, error.message || 'Jurnal gagal diperbarui');
+    return { status: 200, data: { ok: true } };
   }
 
   if (payload.action === 'VOID_ENTRY') {
@@ -407,6 +438,64 @@ export async function handleAccountingRequest(
       .eq('id', payload.entryId)
       .eq('branch_id', branchId);
     if (error) return fail(500, 'Jurnal gagal dibatalkan');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'DELETE_ENTRY') {
+    if (!payload.entryId || !UUID_PATTERN.test(payload.entryId)) return fail(400, 'Jurnal tidak valid');
+    // Hapus permanen (baris ikut terhapus via ON DELETE CASCADE). Jurnal hasil
+    // rekomendasi yang dihapus otomatis muncul lagi di daftar rekomendasi.
+    const { error } = await admin.from('journal_entries').delete().eq('id', payload.entryId).eq('branch_id', branchId);
+    if (error) return fail(500, 'Jurnal gagal dihapus');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'SAVE_ACCOUNT') {
+    const account = payload.account || {};
+    const code = String(account.code || '').trim();
+    const name = String(account.name || '').trim();
+    const type = String(account.type || '').toUpperCase();
+    if (!code || code.length > 20) return fail(400, 'Kode akun wajib (maks 20 karakter)');
+    if (!name || name.length > 80) return fail(400, 'Nama akun wajib (maks 80 karakter)');
+    if (!ACCOUNT_TYPES.has(type)) return fail(400, 'Tipe akun tidak valid');
+    const normalBalance = account.normalBalance && (account.normalBalance === 'DEBIT' || account.normalBalance === 'CREDIT')
+      ? account.normalBalance : naturalBalance(type);
+
+    if (account.id && UUID_PATTERN.test(account.id)) {
+      // Edit akun yang ada. Kode tidak diubah bila bentrok — cek duplikat kode lain.
+      const { data: dup } = await admin.from('chart_of_accounts')
+        .select('id').eq('branch_id', branchId).eq('code', code).neq('id', account.id).limit(1);
+      if (dup && dup.length > 0) return fail(409, `Kode akun ${code} sudah dipakai akun lain`);
+      const { error } = await admin.from('chart_of_accounts')
+        .update({ code, name, type, normal_balance: normalBalance, updated_at: new Date().toISOString() })
+        .eq('id', account.id).eq('branch_id', branchId);
+      if (error) return fail(500, 'Akun gagal diperbarui');
+      // Selaraskan account_code pada baris jurnal bila kode berubah.
+      await admin.from('journal_lines').update({ account_code: code }).eq('account_id', account.id).eq('branch_id', branchId);
+      return { status: 200, data: { ok: true } };
+    }
+
+    const { data: dup } = await admin.from('chart_of_accounts').select('id').eq('branch_id', branchId).eq('code', code).limit(1);
+    if (dup && dup.length > 0) return fail(409, `Kode akun ${code} sudah ada`);
+    const { error } = await admin.from('chart_of_accounts').insert({
+      tenant_id: actor.tenantId, branch_id: branchId, code, name, type,
+      normal_balance: normalBalance, is_system: false, sort_order: 999,
+    });
+    if (error) return fail(500, 'Akun gagal disimpan');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'DELETE_ACCOUNT') {
+    if (!payload.accountId || !UUID_PATTERN.test(payload.accountId)) return fail(400, 'Akun tidak valid');
+    const { data: account } = await admin.from('chart_of_accounts')
+      .select('is_system').eq('id', payload.accountId).eq('branch_id', branchId).maybeSingle();
+    if (!account) return fail(404, 'Akun tidak ditemukan');
+    if (account.is_system) return fail(400, 'Akun inti sistem tidak boleh dihapus (dipakai posting otomatis)');
+    const { count } = await admin.from('journal_lines')
+      .select('id', { count: 'exact', head: true }).eq('account_id', payload.accountId).eq('branch_id', branchId);
+    if ((count || 0) > 0) return fail(400, 'Akun sudah dipakai di jurnal — nonaktifkan atau kosongkan dulu, tidak bisa dihapus.');
+    const { error } = await admin.from('chart_of_accounts').delete().eq('id', payload.accountId).eq('branch_id', branchId);
+    if (error) return fail(500, 'Akun gagal dihapus');
     return { status: 200, data: { ok: true } };
   }
 

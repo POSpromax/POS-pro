@@ -4,10 +4,11 @@ import {
   CheckCircle2, AlertTriangle, RotateCcw, FileText, Sparkles, Pencil, X,
 } from 'lucide-react';
 import {
-  loadAccounting, seedChartOfAccounts, createJournalEntry, voidJournalEntry,
+  loadAccounting, seedChartOfAccounts, createJournalEntry, updateJournalEntry, deleteJournalEntry,
+  saveAccount, deleteAccount,
   loadRecommendations,
   computeBalances, buildIncomeStatement, buildBalanceSheet, buildTrialBalance,
-  type AccountingData, type Account, type JournalRecommendation,
+  type AccountingData, type Account, type AccountType, type JournalRecommendation, type JournalEntry,
 } from '../../services/accountingService';
 
 interface Props {
@@ -47,8 +48,9 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
   const [error, setError] = useState('');
   const [seeding, setSeeding] = useState(false);
 
-  // Form jurnal baru
+  // Form jurnal (buat baru / edit)
   const [showForm, setShowForm] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [entryDate, setEntryDate] = useState(todayKey());
   const [description, setDescription] = useState('');
   const [reference, setReference] = useState('');
@@ -172,10 +174,17 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     }
     setSaving(true);
     try {
-      await createJournalEntry({ branchId: currentBranch.id, entryDate, description, reference: reference || undefined, lines: cleaned });
-      onShowToast?.('Jurnal Tersimpan', 'Ayat jurnal berhasil dicatat.');
+      if (editingEntryId) {
+        await updateJournalEntry({ branchId: currentBranch.id, entryId: editingEntryId, entryDate, description, reference: reference || undefined, lines: cleaned });
+        onShowToast?.('Jurnal Diperbarui', 'Perubahan ayat jurnal tersimpan.');
+      } else {
+        await createJournalEntry({ branchId: currentBranch.id, entryDate, description, reference: reference || undefined, lines: cleaned });
+        onShowToast?.('Jurnal Tersimpan', 'Ayat jurnal berhasil dicatat.');
+      }
+      setEditingEntryId(null);
       setDescription('');
       setReference('');
+      setEntryDate(todayKey());
       setLines([emptyLine(), emptyLine()]);
       setShowForm(false);
       await refresh();
@@ -186,13 +195,35 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     }
   };
 
-  const handleVoid = async (entryId: string) => {
+  const startEditEntry = (entry: JournalEntry) => {
+    setEditingEntryId(entry.id);
+    setEntryDate(entry.entryDate);
+    setDescription(entry.description || '');
+    setReference(entry.reference || '');
+    setLines(entry.lines.length
+      ? entry.lines.map((l) => ({ code: l.accountCode, debit: l.debit, credit: l.credit, memo: l.memo || '' }))
+      : [emptyLine(), emptyLine()]);
+    setShowForm(true);
+  };
+
+  const cancelEdit = () => {
+    setEditingEntryId(null);
+    setDescription('');
+    setReference('');
+    setEntryDate(todayKey());
+    setLines([emptyLine(), emptyLine()]);
+    setShowForm(false);
+  };
+
+  const deleteEntry = async (entryId: string) => {
     try {
-      await voidJournalEntry(currentBranch.id, entryId);
-      onShowToast?.('Jurnal Dibatalkan', 'Ayat jurnal ditandai batal (void).');
+      await deleteJournalEntry(currentBranch.id, entryId);
+      onShowToast?.('Jurnal Dihapus', 'Ayat jurnal dihapus permanen.');
+      if (editingEntryId === entryId) cancelEdit();
       await refresh();
+      if (tab === 'RECOMMEND') void loadRecs();
     } catch (err) {
-      onShowToast?.('Gagal', err instanceof Error ? err.message : 'Jurnal gagal dibatalkan.');
+      onShowToast?.('Gagal', err instanceof Error ? err.message : 'Jurnal gagal dihapus.');
     }
   };
 
@@ -306,6 +337,8 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
               data={data}
               showForm={showForm}
               setShowForm={setShowForm}
+              editingEntryId={editingEntryId}
+              onCancelEdit={cancelEdit}
               entryDate={entryDate}
               setEntryDate={setEntryDate}
               description={description}
@@ -322,7 +355,8 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
               balanced={balanced}
               saving={saving}
               onSubmit={() => void submitEntry()}
-              onVoid={(id) => void handleVoid(id)}
+              onStartEdit={startEditEntry}
+              onDelete={(id) => void deleteEntry(id)}
             />
           )}
           {tab === 'LEDGER' && (
@@ -331,7 +365,31 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
           {tab === 'TRIAL' && <TrialTab trial={trial} />}
           {tab === 'INCOME' && <IncomeTab income={income} period={period} />}
           {tab === 'BALANCE' && <BalanceTab sheet={sheet} />}
-          {tab === 'COA' && <CoaTab accounts={data.coa} />}
+          {tab === 'COA' && (
+            <CoaTab
+              accounts={data.coa}
+              onSave={async (account) => {
+                try {
+                  await saveAccount(currentBranch.id, account);
+                  onShowToast?.('Akun Disimpan', `Akun ${account.code} · ${account.name} tersimpan.`);
+                  await refresh();
+                  return true;
+                } catch (err) {
+                  onShowToast?.('Gagal', err instanceof Error ? err.message : 'Akun gagal disimpan.');
+                  return false;
+                }
+              }}
+              onDelete={async (accountId) => {
+                try {
+                  await deleteAccount(currentBranch.id, accountId);
+                  onShowToast?.('Akun Dihapus', 'Akun berhasil dihapus.');
+                  await refresh();
+                } catch (err) {
+                  onShowToast?.('Gagal', err instanceof Error ? err.message : 'Akun gagal dihapus.');
+                }
+              }}
+            />
+          )}
         </>
       )}
     </div>
@@ -343,6 +401,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
 function JournalTab(props: {
   data: AccountingData;
   showForm: boolean; setShowForm: (v: boolean) => void;
+  editingEntryId: string | null; onCancelEdit: () => void;
   entryDate: string; setEntryDate: (v: string) => void;
   description: string; setDescription: (v: string) => void;
   reference: string; setReference: (v: string) => void;
@@ -350,21 +409,28 @@ function JournalTab(props: {
   addLine: () => void; removeLine: (i: number) => void;
   accounts: Account[];
   totalDebit: number; totalCredit: number; balanced: boolean;
-  saving: boolean; onSubmit: () => void; onVoid: (id: string) => void;
+  saving: boolean; onSubmit: () => void;
+  onStartEdit: (entry: JournalEntry) => void; onDelete: (id: string) => void;
 }) {
   const { data, accounts } = props;
+  const isEditing = props.editingEntryId != null;
   const accountName = (code: string) => accounts.find((a) => a.code === code)?.name || code;
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-[var(--text-primary)]">Ayat Jurnal Periode Ini <span className="text-[var(--text-tertiary)]">({data.entries.length})</span></h3>
-        <button type="button" onClick={() => props.setShowForm(!props.showForm)} className="ui-button ui-button-primary min-h-9 px-3.5 text-[12px]">
+        <button
+          type="button"
+          onClick={() => (props.showForm ? props.onCancelEdit() : props.setShowForm(true))}
+          className="ui-button ui-button-primary min-h-9 px-3.5 text-[12px]"
+        >
           <Plus className="h-4 w-4" /> {props.showForm ? 'Tutup Form' : 'Buat Jurnal'}
         </button>
       </div>
 
       {props.showForm && (
         <div className="ui-card p-5 space-y-4">
+          <p className="text-[11px] font-black uppercase tracking-wider text-[var(--primary-hover)]">{isEditing ? 'Edit Ayat Jurnal' : 'Ayat Jurnal Baru'}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Tanggal</label>
@@ -423,9 +489,12 @@ function JournalTab(props: {
                 ? <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--primary-soft)] px-2 py-1 text-[11px] text-[var(--primary-text)]"><CheckCircle2 className="h-3.5 w-3.5" /> Seimbang</span>
                 : <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--danger-soft)] px-2 py-1 text-[11px] text-[var(--accent-red)]"><AlertTriangle className="h-3.5 w-3.5" /> Selisih {rp(Math.abs(props.totalDebit - props.totalCredit))}</span>}
             </div>
-            <button type="button" disabled={!props.balanced || props.saving} onClick={props.onSubmit} className="ui-button ui-button-primary min-h-9 px-4">
-              {props.saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Simpan Jurnal
-            </button>
+            <div className="flex items-center gap-2">
+              {isEditing && <button type="button" onClick={props.onCancelEdit} className="ui-button ui-button-secondary min-h-9 px-3">Batal</button>}
+              <button type="button" disabled={!props.balanced || props.saving} onClick={props.onSubmit} className="ui-button ui-button-primary min-h-9 px-4">
+                {props.saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {isEditing ? 'Simpan Perubahan' : 'Simpan Jurnal'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -450,13 +519,17 @@ function JournalTab(props: {
                       {entry.source !== 'MANUAL' && <span className="ml-1.5 text-[10px] font-bold uppercase text-[var(--text-tertiary)]">· {entry.source}</span>}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[13px] font-bold text-[var(--text-primary)]">{rp(total)}</span>
-                    {!isVoid && entry.source === 'MANUAL' && (
-                      <button type="button" onClick={() => props.onVoid(entry.id)} className="text-[var(--text-tertiary)] hover:text-[var(--accent-red)]" title="Batalkan jurnal">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                  <div className="flex items-center gap-1.5">
+                    <span className="mr-1 font-mono text-[13px] font-bold text-[var(--text-primary)]">{rp(total)}</span>
+                    <button type="button" onClick={() => props.onStartEdit(entry)} className="rounded-lg p-1 text-[var(--text-tertiary)] hover:bg-[var(--brand-100)] hover:text-[var(--primary-hover)]" title="Edit jurnal">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { if (window.confirm(`Hapus permanen jurnal "${entry.description || entry.entryDate}" (${rp(total)})?`)) props.onDelete(entry.id); }}
+                      className="rounded-lg p-1 text-[var(--text-tertiary)] hover:bg-[var(--danger-soft)] hover:text-[var(--accent-red)]" title="Hapus jurnal">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -816,27 +889,98 @@ function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm,
 
 // ── Bagan Akun ─────────────────────────────────────────────────────────────────
 
-function CoaTab({ accounts }: { accounts: Account[] }) {
+function CoaTab({ accounts, onSave, onDelete }: {
+  accounts: Account[];
+  onSave: (account: { id?: string; code: string; name: string; type: AccountType }) => Promise<boolean>;
+  onDelete: (accountId: string) => Promise<void>;
+}) {
   const groups: Account['type'][] = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+  const [editing, setEditing] = useState<Account | 'NEW' | null>(null);
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [type, setType] = useState<AccountType>('EXPENSE');
+  const [saving, setSaving] = useState(false);
+  const isSystem = editing !== 'NEW' && editing?.isSystem === true;
+
+  const open = (acc: Account | 'NEW') => {
+    setEditing(acc);
+    if (acc === 'NEW') { setCode(''); setName(''); setType('EXPENSE'); }
+    else { setCode(acc.code); setName(acc.name); setType(acc.type); }
+  };
+  const save = async () => {
+    if (!code.trim() || !name.trim()) return;
+    setSaving(true);
+    const ok = await onSave({ id: editing !== 'NEW' && editing ? editing.id : undefined, code: code.trim(), name: name.trim(), type });
+    setSaving(false);
+    if (ok) setEditing(null);
+  };
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {groups.map((type) => {
-        const rows = accounts.filter((a) => a.type === type).sort((a, b) => a.code.localeCompare(b.code));
-        if (rows.length === 0) return null;
-        return (
-          <div key={type} className="ui-card p-4">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--primary-hover)]">{TYPE_LABEL[type]}</p>
-            <div className="space-y-1">
-              {rows.map((a) => (
-                <div key={a.code} className="flex items-center justify-between text-[12px]">
-                  <span className="text-[var(--text-primary)]"><span className="font-mono text-[var(--text-tertiary)]">{a.code}</span> · {a.name}</span>
-                  {a.isSystem && <span className="rounded bg-[var(--surface-secondary)] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[var(--text-tertiary)]">inti</span>}
-                </div>
-              ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-[var(--text-primary)]">Bagan Akun <span className="text-[var(--text-tertiary)]">({accounts.length})</span></h3>
+        <button type="button" onClick={() => open('NEW')} className="ui-button ui-button-primary min-h-9 px-3.5 text-[12px]"><Plus className="h-4 w-4" /> Tambah Akun</button>
+      </div>
+
+      {editing && (
+        <div className="ui-card p-5 space-y-3">
+          <p className="text-[11px] font-black uppercase tracking-wider text-[var(--primary-hover)]">{editing === 'NEW' ? 'Akun Baru' : 'Edit Akun'}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Kode</label>
+              <input value={code} onChange={(e) => setCode(e.target.value)} disabled={isSystem} placeholder="mis. 6-2100" className="ui-input w-full font-mono text-[12px] disabled:opacity-60" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Nama Akun</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="mis. Beban Kebersihan" className="ui-input w-full text-[12px]" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Tipe</label>
+              <select value={type} onChange={(e) => setType(e.target.value as AccountType)} disabled={isSystem} className="ui-input w-full text-[12px] disabled:opacity-60">
+                {groups.map((g) => <option key={g} value={g}>{TYPE_LABEL[g]}</option>)}
+              </select>
             </div>
           </div>
-        );
-      })}
+          <p className="text-[10px] leading-snug text-[var(--text-tertiary)]">
+            Saldo normal otomatis: <b>{type === 'ASSET' || type === 'EXPENSE' ? 'Debit' : 'Kredit'}</b>.
+            {isSystem && ' Akun inti: kode & tipe terkunci (dipakai posting otomatis), hanya nama yang bisa diubah.'}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setEditing(null)} className="ui-button ui-button-secondary">Batal</button>
+            <button type="button" disabled={saving || !code.trim() || !name.trim()} onClick={() => void save()} className="ui-button ui-button-primary">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Simpan
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {groups.map((groupType) => {
+          const rows = accounts.filter((a) => a.type === groupType).sort((a, b) => a.code.localeCompare(b.code));
+          if (rows.length === 0) return null;
+          return (
+            <div key={groupType} className="ui-card p-4">
+              <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--primary-hover)]">{TYPE_LABEL[groupType]}</p>
+              <div className="space-y-0.5">
+                {rows.map((a) => (
+                  <div key={a.code} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-[12px] hover:bg-[var(--surface-secondary)]">
+                    <span className="min-w-0 truncate text-[var(--text-primary)]">
+                      <span className="font-mono text-[var(--text-tertiary)]">{a.code}</span> · {a.name}
+                      {a.isSystem && <span className="ml-1.5 rounded bg-[var(--surface-secondary)] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[var(--text-tertiary)]">inti</span>}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-0.5">
+                      <button type="button" onClick={() => open(a)} className="rounded p-1 text-[var(--text-tertiary)] hover:text-[var(--primary-hover)]" title="Edit akun"><Pencil className="h-3.5 w-3.5" /></button>
+                      {!a.isSystem && (
+                        <button type="button" onClick={() => { if (window.confirm(`Hapus akun ${a.code} · ${a.name}?`)) void onDelete(a.id); }} className="rounded p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-red)]" title="Hapus akun"><Trash2 className="h-3.5 w-3.5" /></button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

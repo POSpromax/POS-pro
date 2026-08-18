@@ -103,6 +103,27 @@ export const createJournalEntry = (payload: {
 export const voidJournalEntry = (branchId: string, entryId: string): Promise<{ ok: boolean }> =>
   requestAccounting('POST', { branchId, entryId, action: 'VOID_ENTRY' });
 
+export const updateJournalEntry = (payload: {
+  branchId: string;
+  entryId: string;
+  entryDate: string;
+  description: string;
+  reference?: string;
+  lines: Array<{ code: string; debit: number; credit: number; memo?: string }>;
+}): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { ...payload, action: 'UPDATE_ENTRY' });
+
+export const deleteJournalEntry = (branchId: string, entryId: string): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { branchId, entryId, action: 'DELETE_ENTRY' });
+
+export const saveAccount = (branchId: string, account: {
+  id?: string; code: string; name: string; type: AccountType; normalBalance?: NormalBalance;
+}): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { branchId, account, action: 'SAVE_ACCOUNT' });
+
+export const deleteAccount = (branchId: string, accountId: string): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { branchId, accountId, action: 'DELETE_ACCOUNT' });
+
 // ── Perhitungan (murni, dari data yang sudah diambil) ─────────────────────────
 
 export interface AccountBalance {
