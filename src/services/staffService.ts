@@ -36,6 +36,18 @@ export async function updateCloudStaff(staff: UserAccount): Promise<void> {
   await authorizedRequest('PATCH', staff);
 }
 
+/**
+ * Memperbarui HANYA matriks izin staf. Dipakai saat menyimpan Hak Akses agar
+ * tidak mengirim seluruh data staf (yang membuat server menulis ulang profil,
+ * meng-hash ulang PIN, dan membangun ulang jadwal untuk tiap staf).
+ */
+export async function updateCloudStaffPermissions(
+  userId: string,
+  permissions: Record<string, boolean>,
+): Promise<void> {
+  await authorizedRequest('PATCH', { id: userId, permissions, permissionsOnly: true });
+}
+
 export async function deactivateCloudStaff(id: string): Promise<void> {
   await authorizedRequest('DELETE', { id });
 }

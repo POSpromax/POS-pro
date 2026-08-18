@@ -16,6 +16,9 @@ interface StaffPayload {
   shiftEnd?: string;
   workDays?: number[];
   permissions?: Record<string, boolean>;
+  // true = HANYA perbarui matriks izin membership. Melewati update profil, PIN,
+  // dan jadwal — dipakai saat menyimpan matriks Hak Akses untuk banyak staf.
+  permissionsOnly?: boolean;
   phone?: string;
   fullNameKtp?: string;
   nik?: string;
@@ -230,6 +233,29 @@ async function updateStaff(
     admin.from('branch_members').select('branch_id,role,is_active').eq('user_id', payload.id),
   ]);
   if (targetProfile?.tenant_id !== auth.tenantId) return fail(404, 'Staff tidak ditemukan');
+
+  // ── Jalur RINGAN: hanya perbarui izin membership ───────────────────────────
+  // Menyimpan matriks Hak Akses sebelumnya mengirim SELURUH data staf, sehingga
+  // server ikut menulis ulang profil, MENGHASH ULANG PIN (bcrypt), dan membangun
+  // ulang jadwal — untuk setiap staf. Itu lambat dan berisiko menimpa PIN.
+  if (payload.permissionsOnly === true) {
+    const managerRoles = new Set(auth.memberships.map((item) => item.role));
+    if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].some((role) => managerRoles.has(role))) {
+      return fail(403, 'Hanya manajemen yang dapat mengubah hak akses');
+    }
+    const scopedBranches = (existingMemberships || [])
+      .map((item) => item.branch_id)
+      .filter((id) => allowedBranches.has(id));
+    if (scopedBranches.length === 0) return { status: 200, data: { success: true } };
+    const { error: permError } = await admin
+      .from('branch_members')
+      .update({ permissions: payload.permissions || {} })
+      .eq('user_id', payload.id)
+      .in('branch_id', scopedBranches);
+    if (permError) return fail(500, 'Hak akses staff gagal diperbarui');
+    return { status: 200, data: { success: true } };
+  }
+
   const callerRoles = new Set(auth.memberships.map((item) => item.role));
   const isOwner = callerRoles.has('SUPER_OWNER') || callerRoles.has('OWNER');
   const callerRank = Math.max(...Array.from(callerRoles).map((item) => ROLE_RANK[item] || 0));

@@ -47,6 +47,7 @@ import {
   deactivateCloudStaff,
   listCloudStaff,
   updateCloudStaff,
+  updateCloudStaffPermissions,
 } from './services/staffService';
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
@@ -1345,7 +1346,10 @@ export default function App() {
         const rule = rules.find((item) => item.role === staff.role);
         if (!rule) return Promise.resolve();
         const { role: _role, ...permissions } = rule;
-        return updateCloudStaff({ ...staff, permissions });
+        // Kirim HANYA izin — bukan seluruh data staf. Mengirim data penuh membuat
+        // server menulis ulang profil, meng-hash ulang PIN (bcrypt), dan membangun
+        // ulang jadwal untuk tiap staf: lambat dan berisiko menimpa PIN.
+        return updateCloudStaffPermissions(staff.id, permissions as Record<string, boolean>);
       }));
       setAccessControl(rules);
       await refreshCloudStaff();
