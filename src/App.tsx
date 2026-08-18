@@ -956,9 +956,12 @@ export default function App() {
       // Afterwards Broadcast remains primary and polling becomes a sparse
       // safety net, keeping free-tier traffic low.
       const warmup = Date.now() - branchMountedAt < 60_000;
+      // Saat DEGRADED, JANGAN full-refetch tiap 5 detik — itu memicu meltdown
+      // (300KB × tiap 5s × banyak terminal -> DB makin jenuh -> tetap degraded).
+      // Perlonggar jauh supaya DB bisa pulih dan realtime re-heal.
       const fallbackDelay = realtimeState === 'HEALTHY'
-        ? (warmup ? 10_000 : 120_000)
-        : visibleTab === 'pos' ? 5_000 : visibleTab === 'kds' ? 8_000 : 20_000;
+        ? (warmup ? 15_000 : 120_000)
+        : visibleTab === 'pos' ? 25_000 : visibleTab === 'kds' ? 30_000 : 60_000;
       if (!fallbackDelay || Date.now() - lastFallbackAt < fallbackDelay) return;
       lastFallbackAt = Date.now();
       refresh();
@@ -1168,9 +1171,9 @@ export default function App() {
           );
         }
 
-        if (['pos', 'kds', 'inventory', 'settings'].includes(activeTab)) {
-          jobs.push(refreshCloudCatalog(branchId, currentBranch.name));
-        }
+        // Katalog TIDAK di-refetch di reconcile: perubahan menu/bahan sudah punya
+        // handler broadcast bertarget sendiri + dimuat saat ganti tab. Refetch
+        // katalog penuh (~50KB) tiap reconcile hanya memboroskan egress.
 
         if (activeTab === 'shift') {
           jobs.push(
@@ -1253,9 +1256,10 @@ export default function App() {
     const fallbackTimer = window.setInterval(() => {
       if (!isRuntimeCurrent() || document.visibilityState !== 'visible') return;
       const warmup = Date.now() - branchMountedAt < 60_000;
+      // Degraded: reconcile jarang (30s), bukan tiap 5s — hindari memperberat DB.
       const delay = realtimeState === 'HEALTHY'
-        ? (warmup ? 10_000 : 120_000)
-        : 5_000;
+        ? (warmup ? 15_000 : 120_000)
+        : 30_000;
       if (Date.now() - lastReconcileAt < delay) return;
       void reconcileOperations();
     }, 5_000);
