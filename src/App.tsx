@@ -2814,6 +2814,13 @@ export default function App() {
                   showPushToast('Katalog Direset', 'Katalog menu & bahan baku berhasil dikembalikan ke standar resto.');
                 }
               }}
+              onRefreshCatalog={async () => {
+                // Setelah opname hanya bahan baku yang berubah — tarik BAHAN saja
+                // (ringan), bukan seluruh katalog menu+resep, demi hemat egress.
+                if (!cloudReadiness.supabase) { setRawMaterials(DBStorage.getRawMaterials()); return; }
+                const mats = await listCloudRawMaterials(currentBranch.id);
+                setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name })));
+              }}
               canViewCost={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)}
               canDeleteCatalog={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)}
               onShowToast={showPushToast}

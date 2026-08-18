@@ -35,8 +35,9 @@ import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../.
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materialGroup';
 import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
+import { StockOpnamePanel } from './StockOpnamePanel';
 
-type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN';
+type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN' | 'OPNAME';
 
 const SUB_TAB_TO_GROUP: Partial<Record<SubTab, MaterialGroup>> = {
   BAHAN: 'MENU',
@@ -60,8 +61,9 @@ interface InventoryHppViewProps {
   onSaveMenuItem: (menu: MenuItem) => void;
   onDeleteMenuItem: (id: string) => void;
   onResetCatalogDefaults: () => void;
+  onRefreshCatalog?: () => Promise<void> | void;
   // canViewCost=false (mis. KASIR): sembunyikan HPP, harga modal, & nilai aset;
-  // batasi hanya ke daftar menu. canDeleteCatalog=false: sembunyikan tombol hapus.
+  // batasi hanya ke daftar menu + stok opname. canDeleteCatalog=false: sembunyikan hapus.
   canViewCost?: boolean;
   canDeleteCatalog?: boolean;
   onShowToast?: (title: string, message: string) => void;
@@ -77,6 +79,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   onSaveMenuItem,
   onDeleteMenuItem,
   onResetCatalogDefaults,
+  onRefreshCatalog,
   canViewCost = true,
   canDeleteCatalog = true,
   onShowToast
@@ -506,11 +509,12 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           <div className="flex w-max items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
             {([
               { key: 'MENU' as const, icon: Utensils, label: 'DAFTAR MENU' },
+              { key: 'OPNAME' as const, icon: ClipboardCheck, label: 'STOK OPNAME' },
               { key: 'BAHAN' as const, icon: Package, label: 'BAHAN MENU' },
               { key: 'DAPUR' as const, icon: ChefHat, label: 'STOK DAPUR' },
               { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'KEMASAN' },
               { key: 'LAPORAN' as const, icon: FileText, label: 'LAPORAN' },
-            ].filter((t) => canViewCost || t.key === 'MENU')).map(({ key, icon: Icon, label }) => (
+            ].filter((t) => canViewCost || t.key === 'MENU' || t.key === 'OPNAME')).map(({ key, icon: Icon, label }) => (
               <button
                 key={key}
                 onClick={() => setSubTab(key)}
@@ -529,7 +533,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         </div>
 
-        {/* Search + Actions row — stacks on mobile */}
+        {/* Search + Actions row — stacks on mobile. Disembunyikan di tab Opname
+            karena panel opname punya pencarian & aksi sendiri. */}
+        {subTab !== 'OPNAME' && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -601,6 +607,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Panel kesiapan inventory (bahan/HPP) — hanya untuk yang boleh lihat biaya */}
@@ -758,6 +765,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         </div>
       </div>
+      )}
+
+      {subTab === 'OPNAME' && (
+        <StockOpnamePanel
+          rawMaterials={rawMaterials}
+          branchId={currentBranch?.id}
+          onRefresh={() => onRefreshCatalog?.()}
+          onShowToast={(t, m) => toast(t, m)}
+        />
       )}
 
       {/* Stock list — grid or list mode */}
