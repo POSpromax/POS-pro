@@ -823,10 +823,12 @@ export default function App() {
               }
             }
 
-            // Auto-cetak tiket dapur (tanpa harga) untuk order baru/tambahan item,
-            // hanya ketika toggle Auto Print diaktifkan dari panel Kasir atau KDS.
+            // Auto-cetak tiket dapur (tanpa harga) HANYA untuk pesanan SELF-ORDER:
+            // pesanan ini tidak ditangani kasir sehingga dapur perlu cetakan otomatis.
+            // Order yang diinput kasir tidak ikut auto-cetak (kasir cetak manual bila
+            // perlu) supaya menyimpan input pesanan tidak memicu resi tak diinginkan.
             if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
-              changedOrders.forEach((order) => {
+              selfOrders.forEach((order) => {
                 void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
                   if (!result.success) {
                     showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
@@ -904,8 +906,9 @@ export default function App() {
           } else if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
             playNewOrderSound(profile.soundPesananMasuk);
           }
+          // Auto-cetak dapur HANYA untuk self-order (bukan order input kasir).
           if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
-            changedForNotify.forEach((order) => {
+            selfOrders.forEach((order) => {
               void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
                 if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
               });
