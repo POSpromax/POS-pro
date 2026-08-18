@@ -597,18 +597,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     );
   };
 
-  // Ambil titik dari teks apa pun: "lat,lng", atau URL Google Maps yang memuat
-  // "@lat,lng" maupun "q=lat,lng". Memudahkan pilih titik mana pun di Maps lalu
-  // menyalin koordinat/link ke sini — tanpa perlu SDK peta.
+  // Ambil titik dari teks apa pun: koordinat "lat,lng" atau URL Google Maps PENUH
+  // yang memuat "@lat,lng", "!3d..!4d..", atau "q=/ll=". Link PENDEK (maps.app.goo.gl)
+  // tidak memuat koordinat sehingga tak bisa diurai — cara paling andal tetap tombol
+  // "Gunakan Lokasi Perangkat Ini" saat berada di outlet.
   const applyMapsLink = () => {
     const raw = mapsLinkInput.trim();
     if (!raw) {
       toast('Kosong', 'Tempel koordinat "lat,lng" atau link Google Maps dulu.');
       return;
     }
-    const match = raw.match(/@?(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/) || raw.match(/q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+    // Link pendek/share dari HP tidak berisi koordinat.
+    if (/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(raw)) {
+      toast(
+        'Link Pendek Tak Berisi Koordinat',
+        'Link "maps.app.goo.gl" tidak memuat titik GPS. Di Google Maps: klik-tahan titik lokasi → koordinat (mis. -6.609, 106.782) muncul → salin ANGKA-nya (bukan tombol Share) → tempel di sini. Atau tekan "Gunakan Lokasi Perangkat Ini" saat di outlet.',
+      );
+      return;
+    }
+    // Beberapa pola, urut dari yang paling menandai TITIK pin sebenarnya.
+    const patterns = [
+      /!3d(-?\d{1,3}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/,            // data pin pada URL place
+      /@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,                 // pusat peta /@lat,lng
+      /[?&](?:q|ll|query|daddr|destination|sll)=(-?\d{1,3}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/i, // q=/ll=
+      /(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/,                   // koordinat mentah "lat, lng"
+    ];
+    let match: RegExpMatchArray | null = null;
+    for (const re of patterns) { match = raw.match(re); if (match) break; }
     if (!match) {
-      toast('Format Tidak Dikenali', 'Contoh yang benar: -6.609013, 106.782932 atau tempel link Google Maps.');
+      toast('Format Tidak Dikenali', 'Tempel KOORDINAT seperti -6.609013, 106.782932 (klik-tahan titik di Google Maps lalu salin angkanya), atau link Maps penuh yang memuat "@lat,lng".');
       return;
     }
     const lat = Number(match[1]);
@@ -1690,7 +1707,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </button>
                     </div>
                     <p className="mt-1.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
-                      Di Google Maps: klik-tahan titik lokasi → koordinat muncul di bawah → salin → tempel di sini → Terapkan → SIMPAN.
+                      Cara termudah &amp; paling akurat: tekan <b>“Gunakan Lokasi Perangkat Ini”</b> saat berada di outlet (pakai HP). •
+                      Jika tempel manual: di Google Maps <b>klik-tahan titik</b> → koordinat (mis. -6.609, 106.782) muncul → <b>salin ANGKA-nya</b> → tempel → Terapkan → SIMPAN.
+                      Link Share pendek (<span className="font-mono">maps.app.goo.gl</span>) <b>tidak bisa</b> karena tak memuat koordinat.
                     </p>
                   </div>
                 </div>
