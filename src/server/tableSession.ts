@@ -36,8 +36,15 @@ export async function handleTableSessionRequest(
   }
 
   const { data: member } = await admin.from('branch_members').select('role,is_active').eq('user_id', user.id).eq('branch_id', branchId).maybeSingle();
-  if (!member?.is_active || !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'].includes(member.role)) {
-    return { status: 403, data: { error: 'Akun tidak memiliki izin mengelola meja outlet ini' } };
+  // KITCHEN boleh MEMBACA daftar meja (App memuatnya saat KDS dibuka), tetapi
+  // tidak boleh mengubah status/konfigurasi meja.
+  const READ_ROLES = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR', 'KITCHEN'];
+  const MUTATE_ROLES = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'];
+  if (!member?.is_active || !READ_ROLES.includes(member.role)) {
+    return { status: 403, data: { error: 'Akun tidak memiliki izin meja outlet ini' } };
+  }
+  if (action !== 'LIST' && !MUTATE_ROLES.includes(member.role)) {
+    return { status: 403, data: { error: 'Peran ini hanya dapat membaca meja, tidak mengubahnya' } };
   }
 
   if (action === 'LIST') {

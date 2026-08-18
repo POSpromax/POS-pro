@@ -300,23 +300,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
     if (!manualDiscountEnabled) setDiscountValue(0);
   }, [manualDiscountEnabled]);
 
-  if (!isShiftActiveForCurrentContext) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col bg-[#F8FAFC]">
-        {headerElement}
-        <div className="flex flex-1 items-center justify-center select-none">
-          <div className="rounded-2xl border border-slate-200 bg-white px-7 py-5 text-center shadow-sm">
-            <p className="font-extrabold text-xs md:text-sm tracking-widest uppercase text-slate-600">
-              {isShiftStatusLoading ? 'MEMASTIKAN STATUS SHIFT…' : 'POS TERKUNCI – BUKA SHIFT DULU'}
-            </p>
-            {!isShiftStatusLoading && onOpenShiftTab && (
-              <button type="button" onClick={onOpenShiftTab} className="ui-button ui-button-primary mt-3 px-4 py-2 text-xs">Buka halaman shift</button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Gerbang "shift terkunci" DIPINDAH ke bawah (sebelum return utama) supaya
+  // TIDAK ada early-return sebelum hook — early-return di sini menyebabkan jumlah
+  // hook berubah saat status shift berubah -> React error #310 (crash POS).
 
   // Filtered Menu Items
   const filteredMenu = menuItems.filter((item) => {
@@ -514,6 +500,25 @@ export const CashierView: React.FC<CashierViewProps> = ({
     cashierName: activeUser.name,
     condimentsEnabled: isCondimentsEnabled,
   });
+
+  // Gerbang shift: dirender SETELAH semua hook dipanggil (mencegah React #310).
+  if (!isShiftActiveForCurrentContext) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col bg-[#F8FAFC]">
+        {headerElement}
+        <div className="flex flex-1 items-center justify-center select-none">
+          <div className="rounded-2xl border border-slate-200 bg-white px-7 py-5 text-center shadow-sm">
+            <p className="font-extrabold text-xs md:text-sm tracking-widest uppercase text-slate-600">
+              {isShiftStatusLoading ? 'MEMASTIKAN STATUS SHIFT…' : 'POS TERKUNCI – BUKA SHIFT DULU'}
+            </p>
+            {!isShiftStatusLoading && onOpenShiftTab && (
+              <button type="button" onClick={onOpenShiftTab} className="ui-button ui-button-primary mt-3 px-4 py-2 text-xs">Buka halaman shift</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[#F8FAFC] font-sans select-none text-[#111827]">

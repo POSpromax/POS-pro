@@ -2,7 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIVE_STATUSES = ['OPEN', 'HANDOVER'];
-const ALLOWED_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
+// KITCHEN boleh BACA status shift (KDS butuh konteks shift), tetapi tidak boleh
+// membuka/menutup shift — mutasi shift dijaga terpisah di bawah.
+const ALLOWED_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR', 'KITCHEN']);
+const SHIFT_MUTATION_ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR']);
 
 export interface ShiftRequestResult {
   status: number;
@@ -177,6 +180,9 @@ export async function handleShiftRequest(
       return fail(500, 'Gagal membaca data shift dari server');
     }
   }
+
+  // Mutasi shift (buka/tutup/HANDOVER/biaya) tetap khusus kasir & manajemen.
+  if (!SHIFT_MUTATION_ROLES.has(actor.role)) return fail(403, 'Peran ini tidak dapat mengubah shift');
 
   const action = String(payload.action || '').toUpperCase();
 
