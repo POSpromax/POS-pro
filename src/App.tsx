@@ -264,7 +264,10 @@ const canAccessTab = (rule: AccessControlRule | undefined, tab: string): boolean
   return false;
 };
 
-const getDefaultAccessDestination = (rule: AccessControlRule): { portal: 'KASIR' | 'OWNER'; tab: string } => {
+const getDefaultAccessDestination = (rule: AccessControlRule, role?: string): { portal: 'KASIR' | 'OWNER'; tab: string } => {
+  // Role KITCHEN mendarat di KDS (halaman kerjanya), bukan kasir — walau ada sisa
+  // izin POS dari permissions per-staf. Halaman awal harus mengikuti fungsi role.
+  if (role === 'KITCHEN' && rule.canAccessKDS) return { portal: 'KASIR', tab: 'kds' };
   if (rule.canAccessAnalytics) return { portal: 'OWNER', tab: 'superowner' };
   if (rule.canAccessSettings) return { portal: 'OWNER', tab: 'settings' };
   if (rule.canAccessPOS) return { portal: 'KASIR', tab: 'pos' };
@@ -1355,7 +1358,7 @@ export default function App() {
 
   useEffect(() => {
     if (!activeAccessRule || canAccessTab(activeAccessRule, activeTab)) return;
-    const destination = getDefaultAccessDestination(activeAccessRule);
+    const destination = getDefaultAccessDestination(activeAccessRule, activeUser.role);
     if (!destination.tab) {
       setIsPinModalOpen(true);
       return;
@@ -2244,7 +2247,7 @@ export default function App() {
       showPushToast('Akses Belum Diatur', `Role ${userAccount.role} belum memiliki matriks akses.`);
       return;
     }
-    const destination = getDefaultAccessDestination(rule);
+    const destination = getDefaultAccessDestination(rule, userAccount.role);
     if (!destination.tab) {
       void logoutTerminal();
       showPushToast('Akses Ditolak', `Role ${userAccount.role} belum diberi akses ke modul apa pun.`);
