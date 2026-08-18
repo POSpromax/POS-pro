@@ -71,9 +71,9 @@ export async function handlePinLogin(
     console.error('[verify_staff_pin RPC ERROR]:', error);
     // DIAGNOSTIK SEMENTARA: tampilkan pesan asli RPC agar akar masalah login
     // terlihat langsung. Setelah ketemu, kembalikan ke pesan generik.
-    const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint]
+    const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint, (error as { code?: string }).code]
       .filter(Boolean).join(' · ');
-    return { status: 500, data: { error: `Verifikasi gagal${detail ? `: ${detail}` : ''}`, code: (error as { code?: string }).code } };
+    return { status: 500, data: { error: `Verifikasi gagal${detail ? `: ${detail}` : ''}` } };
   }
 
   const verification = (data?.[0] || null) as VerificationRow | null;
