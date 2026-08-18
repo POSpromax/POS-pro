@@ -1208,7 +1208,15 @@ export default function App() {
                 .catch(() => undefined);
             }
           });
-        } else if (table === 'menu_items' || table === 'menu_item_ingredients' || table === 'raw_materials') {
+        } else if (table === 'raw_materials') {
+          // Deduksi stok terjadi TIAP order dibayar. Refetch bahan saja (~10KB),
+          // bukan seluruh katalog (menu+resep+bahan ~50KB) — hemat egress.
+          debounce('rawmaterials', () => {
+            void listCloudRawMaterials(branchId)
+              .then((mats) => { if (isRuntimeCurrent()) setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name }))); })
+              .catch(() => undefined);
+          });
+        } else if (table === 'menu_items' || table === 'menu_item_ingredients') {
           debounce('catalog', () => { void refreshCloudCatalog(branchId, currentBranch.name); });
         } else if (table === 'condiment_groups' || table === 'condiment_options') {
           debounce('condiments', () => {

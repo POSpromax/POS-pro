@@ -111,8 +111,11 @@ export function subscribeCloudOrders(
   };
   const notify = (message?: any) => {
     const p = message?.payload || {};
+    // Payload broadcast kini datar: { table, operation, id }. Baca p.id dulu;
+    // fallback ke struktur record (kompatibel bila format berubah). Tanpa id ->
+    // refetch penuh (aman).
     const record = p.record || p.new || p.old_record || p.old;
-    const id = record?.id;
+    const id = (typeof p.id === 'string' && p.id) ? p.id : record?.id;
     if (typeof id === 'string' && id) pendingIds.add(id);
     else needFull = true;
     window.clearTimeout(timer);
