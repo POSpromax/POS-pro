@@ -11,12 +11,28 @@ type HrAction =
   | 'REVIEW_LEAVE'
   | 'SAVE_PAYROLL_PROFILE'
   | 'SAVE_HR_CONFIG'
+  | 'SAVE_PAYROLL_ADJUSTMENT'
   | 'REQUEST_KASBON'
   | 'REVIEW_KASBON'
   | 'DEDUCT_KASBON'
   | 'FINALIZE_PAYROLL_PERIOD'
   | 'MARK_PAYROLL_PAID'
   | 'LOCK_PAYROLL_PERIOD';
+
+interface LatePenaltyTier { maxMinutes: number; amount: number }
+
+// Potongan telat bertingkat: cari tier pertama yang menampung menit telat;
+// bila melebihi semua batas, pakai tier terakhir (tarif maksimum).
+const tierPenalty = (lateMinutes: number, tiers: LatePenaltyTier[]): number => {
+  if (lateMinutes <= 0 || !tiers.length) return 0;
+  const sorted = [...tiers].sort((a, b) => a.maxMinutes - b.maxMinutes);
+  const hit = sorted.find((t) => lateMinutes <= t.maxMinutes);
+  return Math.round(Number((hit || sorted[sorted.length - 1]).amount) || 0);
+};
+const normalizeTiers = (raw: any): LatePenaltyTier[] => (Array.isArray(raw) ? raw : [])
+  .map((t: any) => ({ maxMinutes: Math.round(Number(t?.maxMinutes) || 0), amount: Math.round(Number(t?.amount) || 0) }))
+  .filter((t) => t.maxMinutes > 0 && t.amount >= 0)
+  .slice(0, 6);
 
 interface HrPayload {
   branchId?: string;
@@ -38,8 +54,12 @@ interface HrPayload {
   lateDeductionPerMinute?: number;
   leaveReasons?: Array<{ code?: string; label?: string; enabled?: boolean; paid?: boolean }>;
   latePenaltyGraceMinutes?: number;
+  latePenaltyTiers?: Array<{ maxMinutes?: number; amount?: number }>;
+  overtimeMinMinutes?: number;
   workingDays?: number[];
   amount?: number;
+  bonus?: number;
+  note?: string;
   deductMonth?: string;
   kasbonId?: string;
   period?: string;
@@ -146,13 +166,14 @@ export async function handleHrRequest(
     if (safePeriod(payload.period)) snapshotQuery = snapshotQuery.eq('period', payload.period!);
     if (!isManagement) snapshotQuery = snapshotQuery.eq('user_id', actorId);
 
-    const [leaveResult, payrollResult, hrConfigResult, advanceResult, periodResult, snapshotResult] = await Promise.all([
+    const [leaveResult, payrollResult, hrConfigResult, advanceResult, periodResult, snapshotResult, adjustmentResult] = await Promise.all([
       leaveQuery,
       payrollQuery,
-      admin.from('branch_hr_config').select('leave_reasons,late_penalty_grace_minutes,working_days').eq('branch_id', payload.branchId).maybeSingle(),
+      admin.from('branch_hr_config').select('leave_reasons,late_penalty_grace_minutes,working_days,late_penalty_tiers,overtime_min_minutes').eq('branch_id', payload.branchId).maybeSingle(),
       advanceQuery,
       periodQuery,
       snapshotQuery,
+      admin.from('payroll_adjustments').select('user_id,period,bonus,note').eq('branch_id', payload.branchId),
     ]);
     if (leaveResult.error || payrollResult.error) return fail(500, 'Data HR belum siap. Terapkan migrasi HR terbaru di Supabase.');
     if (advanceResult.error && advanceResult.error.code !== '42P01' && advanceResult.error.code !== '42703') return fail(500, 'Data kasbon tidak dapat dimuat');
@@ -190,6 +211,7 @@ export async function handleHrRequest(
         kasbonRecords: advances.filter((row: any) => isOperationalPayrollUser(row.user_id)).map((row: any) => mapAdvance(row, names.get(row.user_id) || 'Staff')),
         payrollPeriods: periodResult.data || [],
         payrollSnapshots: snapshots.filter((row: any) => isOperationalPayrollUser(row.user_id)),
+        payrollAdjustments: (adjustmentResult.data || []).filter((row: any) => isOperationalPayrollUser(row.user_id)),
         hrConfig: {
           leaveReasons: hrConfig?.leave_reasons || [
             { code: 'SICK', label: 'Sakit', enabled: true, paid: true },
@@ -198,6 +220,8 @@ export async function handleHrRequest(
             { code: 'UNPAID', label: 'Izin tanpa dibayar', enabled: true, paid: false },
           ],
           latePenaltyGraceMinutes: Number(hrConfig?.late_penalty_grace_minutes || 0),
+          latePenaltyTiers: normalizeTiers(hrConfig?.late_penalty_tiers),
+          overtimeMinMinutes: Number(hrConfig?.overtime_min_minutes ?? 30),
           workingDays: hrConfig?.working_days || [1, 2, 3, 4, 5, 6],
         },
       },
@@ -334,16 +358,42 @@ export async function handleHrRequest(
       enabled: reason.enabled !== false,
       paid: reason.paid !== false,
     }));
+    const tiers = normalizeTiers(payload.latePenaltyTiers);
+    const overtimeMin = Math.round(Number(payload.overtimeMinMinutes ?? 30));
+    if (!Number.isFinite(overtimeMin) || overtimeMin < 0 || overtimeMin > 480) {
+      return fail(400, 'Ambang lembur harus antara 0–480 menit');
+    }
     const { error } = await admin.from('branch_hr_config').upsert({
       tenant_id: profile.tenant_id,
       branch_id: payload.branchId,
       leave_reasons: normalizedReasons,
       late_penalty_grace_minutes: grace,
+      late_penalty_tiers: tiers,
+      overtime_min_minutes: overtimeMin,
       working_days: workingDays,
       updated_by: actorId,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'tenant_id,branch_id' });
     if (error) return fail(500, 'Konfigurasi HR tidak dapat disimpan');
+    return { status: 200, data: { success: true } };
+  }
+
+  if (method === 'PATCH' && payload.action === 'SAVE_PAYROLL_ADJUSTMENT') {
+    if (!isManagement) return fail(403, 'Hanya manajemen yang dapat mengatur bonus');
+    if (!payload.userId || !UUID_PATTERN.test(payload.userId)) return fail(400, 'Staff tidak valid');
+    if (!safePeriod(payload.period)) return fail(400, 'Periode tidak valid');
+    const bonus = Math.max(0, Math.round(Number(payload.bonus) || 0));
+    const { error } = await admin.from('payroll_adjustments').upsert({
+      tenant_id: profile.tenant_id,
+      branch_id: payload.branchId,
+      period: payload.period,
+      user_id: payload.userId,
+      bonus,
+      note: payload.note ? String(payload.note).slice(0, 200) : '',
+      updated_by: actorId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'branch_id,period,user_id' });
+    if (error) return fail(500, 'Bonus tidak dapat disimpan. Terapkan migrasi payroll terbaru.');
     return { status: 200, data: { success: true } };
   }
 
@@ -364,8 +414,11 @@ export async function handleHrRequest(
 
     const [{ data: payrollProfiles, error: payrollError }, { data: hrConfig }] = await Promise.all([
       admin.from('payroll_profiles').select('*').eq('branch_id', payload.branchId).eq('is_active', true),
-      admin.from('branch_hr_config').select('late_penalty_grace_minutes').eq('branch_id', payload.branchId).maybeSingle(),
+      admin.from('branch_hr_config').select('late_penalty_grace_minutes,late_penalty_tiers,overtime_min_minutes').eq('branch_id', payload.branchId).maybeSingle(),
     ]);
+    const penaltyTiers = normalizeTiers(hrConfig?.late_penalty_tiers);
+    const tiersActive = penaltyTiers.length > 0 && penaltyTiers.some((t) => t.amount > 0);
+    const overtimeThreshold = Math.max(0, Number(hrConfig?.overtime_min_minutes ?? 30));
     if (payrollError) return fail(500, 'Profil payroll tidak dapat dimuat');
     if (!payrollProfiles?.length) return fail(400, 'Belum ada profil payroll aktif untuk outlet ini');
 
@@ -379,7 +432,7 @@ export async function handleHrRequest(
 
     const staffIds = payableProfiles.map((row: any) => row.user_id);
     const bounds = periodQueryBounds(period);
-    const [usersResult, attendanceResult, schedulesResult, advancesResult] = await Promise.all([
+    const [usersResult, attendanceResult, schedulesResult, advancesResult, adjustmentsResult] = await Promise.all([
       admin.from('user_profiles').select('user_id,display_name').in('user_id', staffIds),
       admin.from('attendance_events')
         .select('user_id,event_type,occurred_at,schedule_id')
@@ -391,12 +444,15 @@ export async function handleHrRequest(
         .order('occurred_at', { ascending: true }),
       admin.from('staff_schedules').select('id,starts_at,ends_at,grace_minutes,spans_midnight').eq('branch_id', payload.branchId),
       admin.from('staff_advances').select('user_id,amount').eq('branch_id', payload.branchId).eq('deduct_month', period).eq('status', 'APPROVED'),
+      admin.from('payroll_adjustments').select('user_id,bonus').eq('branch_id', payload.branchId).eq('period', period),
     ]);
     if (attendanceResult.error || schedulesResult.error || advancesResult.error) return fail(500, 'Data pendukung payroll tidak dapat dihitung');
 
     const names = new Map((usersResult.data || []).map((row: any) => [row.user_id, row.display_name]));
     const schedules = new Map((schedulesResult.data || []).map((row: any) => [row.id, row]));
-    const attendanceByStaff = new Map<string, { dates: Set<string>; lateMinutes: number; overtimeMinutes: number }>();
+    const bonusByStaff = new Map<string, number>((adjustmentsResult.data || []).map((row: any) => [row.user_id, Number(row.bonus || 0)]));
+    // lateDayMinutes: menit telat PER HARI (untuk penalty bertingkat per kejadian).
+    const attendanceByStaff = new Map<string, { dates: Set<string>; lateMinutes: number; overtimeMinutes: number; lateDayMinutes: number[] }>();
     const openClockInByStaff = new Map<string, any>();
     const policyGrace = Number(hrConfig?.late_penalty_grace_minutes || 0);
 
@@ -411,7 +467,7 @@ export async function handleHrRequest(
     };
 
     for (const event of attendanceResult.data || []) {
-      const stats = attendanceByStaff.get(event.user_id) || { dates: new Set<string>(), lateMinutes: 0, overtimeMinutes: 0 };
+      const stats = attendanceByStaff.get(event.user_id) || { dates: new Set<string>(), lateMinutes: 0, overtimeMinutes: 0, lateDayMinutes: [] as number[] };
 
       if (event.event_type === 'CLOCK_IN') {
         // Only CLOCK_IN belonging to this local payroll month contributes attendance/late stats.
@@ -426,7 +482,8 @@ export async function handleHrRequest(
             let delta = eventMinutes - startMinutes;
             if (schedule.spans_midnight && delta < -720) delta += 1440;
             const grace = Math.max(policyGrace, Number(schedule.grace_minutes || 0));
-            stats.lateMinutes += Math.max(0, delta - grace);
+            const dayLate = Math.max(0, delta - grace);
+            if (dayLate > 0) { stats.lateMinutes += dayLate; stats.lateDayMinutes.push(dayLate); }
           }
           openClockInByStaff.set(event.user_id, event);
         }
@@ -437,7 +494,9 @@ export async function handleHrRequest(
           const schedule = clockIn.schedule_id ? schedules.get(clockIn.schedule_id) : undefined;
           const scheduledMinutes = scheduleDurationMinutes(schedule);
           if (actualMinutes > 0 && actualMinutes <= 36 * 60 && scheduledMinutes > 0) {
-            stats.overtimeMinutes += Math.max(0, actualMinutes - scheduledMinutes);
+            const dayOvertime = Math.max(0, actualMinutes - scheduledMinutes);
+            // Lembur hanya dihitung bila mencapai ambang (mis. >= 30 menit).
+            if (dayOvertime >= overtimeThreshold) stats.overtimeMinutes += dayOvertime;
           }
           openClockInByStaff.delete(event.user_id);
         }
@@ -461,14 +520,19 @@ export async function handleHrRequest(
     if (periodError || !periodRow) return fail(500, 'Periode payroll tidak dapat dibuat. Terapkan migrasi payroll terbaru.');
 
     const snapshots = payableProfiles.map((row: any) => {
-      const stats = attendanceByStaff.get(row.user_id) || { dates: new Set<string>(), lateMinutes: 0, overtimeMinutes: 0 };
+      const stats = attendanceByStaff.get(row.user_id) || { dates: new Set<string>(), lateMinutes: 0, overtimeMinutes: 0, lateDayMinutes: [] as number[] };
       const base = Number(row.base_salary || 0);
       const meal = Number(row.meal_allowance || 0);
       const transport = Number(row.transport_allowance || 0);
       const overtimeMinutes = Math.max(0, Math.round(stats.overtimeMinutes));
       const overtimePay = Math.round((overtimeMinutes * Number(row.overtime_hourly_rate || 0)) / 60);
       const gross = base + meal + transport + overtimePay;
-      const lateDeduction = Math.round(stats.lateMinutes * Number(row.late_deduction_per_minute || 0));
+      // Penalty telat: bertingkat per kejadian bila tier aktif, jika tidak pakai
+      // tarif per-menit lama (backward compatible).
+      const lateDeduction = tiersActive
+        ? stats.lateDayMinutes.reduce((sum, m) => sum + tierPenalty(m, penaltyTiers), 0)
+        : Math.round(stats.lateMinutes * Number(row.late_deduction_per_minute || 0));
+      const bonus = bonusByStaff.get(row.user_id) || 0;
       const kasbonDeduction = advancesByStaff.get(row.user_id) || 0;
       const totalDeduction = lateDeduction + kasbonDeduction;
       return {
@@ -488,12 +552,15 @@ export async function handleHrRequest(
         late_minutes: stats.lateMinutes,
         late_deduction: lateDeduction,
         kasbon_deduction: kasbonDeduction,
-        manual_adjustment: 0,
+        manual_adjustment: bonus,
         total_deduction: totalDeduction,
-        net_salary: Math.max(0, gross - totalDeduction),
+        net_salary: Math.max(0, gross - totalDeduction + bonus),
         calculation_meta: {
           payroll_profile_updated_at: row.updated_at,
           policy_grace_minutes: policyGrace,
+          late_penalty_mode: tiersActive ? 'tiered' : 'per_minute',
+          overtime_min_minutes: overtimeThreshold,
+          bonus,
           overtime_source: 'paired_clock_duration_minus_schedule_duration',
           generated_at: now,
           timezone: timeZone,

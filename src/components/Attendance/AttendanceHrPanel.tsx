@@ -18,6 +18,7 @@ import {
   reviewLeave,
   savePayrollProfile,
   saveHrConfig,
+  savePayrollAdjustment,
   submitLeave,
   type HrData,
   type HrConfig,
@@ -54,6 +55,12 @@ const DEFAULT_HR_CONFIG: HrConfig = {
     { code: 'UNPAID', label: 'Izin tanpa dibayar', enabled: true, paid: false },
   ],
   latePenaltyGraceMinutes: 0,
+  latePenaltyTiers: [
+    { maxMinutes: 15, amount: 0 },
+    { maxMinutes: 30, amount: 0 },
+    { maxMinutes: 60, amount: 0 },
+  ],
+  overtimeMinMinutes: 30,
   workingDays: [1, 2, 3, 4, 5, 6],
 };
 
@@ -82,6 +89,8 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   // ── Payslip state ───────────────────────────────────────────────────────────
   const [slipStaff, setSlipStaff]       = useState<UserAccount | null>(null);
   const [historyStaff, setHistoryStaff] = useState<UserAccount | null>(null);
+  const [bonusDraft, setBonusDraft]     = useState<number | ''>('');
+  const [savingBonus, setSavingBonus]   = useState(false);
   const [slipPeriod, setSlipPeriod]     = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -100,6 +109,38 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
 
   useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id]);
   useEffect(() => { setHrConfigDraft(data.hrConfig || DEFAULT_HR_CONFIG); }, [data.hrConfig]);
+  useEffect(() => {
+    if (!slipStaff) return;
+    const adj = (data.payrollAdjustments || []).find((a) => a.user_id === slipStaff.id && a.period === slipPeriod);
+    setBonusDraft(adj?.bonus || '');
+  }, [slipStaff, slipPeriod, data.payrollAdjustments]);
+
+  const saveBonus = async (staff: UserAccount) => {
+    setSavingBonus(true);
+    try {
+      await savePayrollAdjustment({ branchId: currentBranch.id, userId: staff.id, period: slipPeriod, bonus: Number(bonusDraft) || 0 });
+      await refresh();
+      onShowToast('Bonus Disimpan', `Bonus ${staff.name} untuk ${slipPeriod} tersimpan. Untuk periode terfinalisasi, finalisasi ulang agar masuk snapshot.`);
+    } catch (err) { onShowToast('Bonus Gagal', err instanceof Error ? err.message : 'Bonus tidak dapat disimpan.'); }
+    finally { setSavingBonus(false); }
+  };
+
+  // Editor tingkat penalty telat (branch_hr_config.latePenaltyTiers).
+  const defaultTiers = DEFAULT_HR_CONFIG.latePenaltyTiers || [];
+  const tiersDraft = hrConfigDraft.latePenaltyTiers?.length ? hrConfigDraft.latePenaltyTiers : defaultTiers;
+  const baseTiers = () => (hrConfigDraft.latePenaltyTiers?.length ? hrConfigDraft.latePenaltyTiers : defaultTiers);
+  const updateTier = (i: number, patch: Partial<{ maxMinutes: number; amount: number }>) =>
+    setHrConfigDraft((c) => ({ ...c, latePenaltyTiers: baseTiers().map((t, idx) => (idx === i ? { ...t, ...patch } : t)) }));
+  const addTier = () =>
+    setHrConfigDraft((c) => {
+      const base = baseTiers();
+      return { ...c, latePenaltyTiers: [...base, { maxMinutes: (base[base.length - 1]?.maxMinutes || 0) + 30, amount: 0 }].slice(0, 6) };
+    });
+  const removeTier = (i: number) =>
+    setHrConfigDraft((c) => {
+      const base = baseTiers();
+      return { ...c, latePenaltyTiers: base.length > 1 ? base.filter((_, idx) => idx !== i) : base };
+    });
 
   const branchStaff = useMemo(() => staffAccounts.filter((staff) => staff.isActive !== false && staff.role !== 'OWNER' && staff.role !== 'SUPER_OWNER' && (!staff.branchIds?.length || staff.branchIds.includes(currentBranch.id))), [staffAccounts, currentBranch.id]);
   const recordsByStaff = useMemo(() => new Map(branchStaff.map((staff) => [staff.id, attendanceRecords.filter((record) => record.staffId === staff.id)])), [branchStaff, attendanceRecords]);
@@ -347,6 +388,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
         overtimeMinutes: Number(snapshot.overtime_minutes || 0),
         overtimePay: Number(snapshot.overtime_pay || 0),
         grossSalary: Number(snapshot.gross_salary || 0),
+        bonus: Number(snapshot.manual_adjustment || 0),
         lateDeduction: Number(snapshot.late_deduction || 0),
         kasbonDeduction: Number(snapshot.kasbon_deduction || 0),
         totalDeduction: Number(snapshot.total_deduction || 0),
@@ -376,6 +418,10 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       .filter((k) => k.user_id === staff.id && k.deduct_month === period && k.status === 'APPROVED')
       .reduce((s, k) => s + k.amount, 0);
 
+    // Bonus manual periode ini (reward)
+    const bonus = (data.payrollAdjustments || [])
+      .find((a) => a.user_id === staff.id && a.period === period)?.bonus || 0;
+
     return calculatePayslip({
       profile,
       staffId: staff.id,
@@ -385,9 +431,10 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
       lateMinutes,
       attendanceCount,
       kasbonDeduction,
+      bonus,
       overtimeMinutes: 0,
       overtimePay: 0,
-      notes: 'Draft: lembur dihitung akurat saat periode difinalisasi',
+      notes: 'Draft: lembur & penalty bertingkat dihitung akurat saat periode difinalisasi',
     });
   };
 
@@ -567,6 +614,39 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
             </div>
           </div>
 
+          {/* ── Aturan Penalty & Lembur ── */}
+          <div className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 md:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h3 className="text-sm font-bold">Aturan Penalty Telat & Lembur</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">Dipakai saat finalisasi payroll untuk semua staff. Nominal bisa diubah kapan saja.</p></div>
+              <button type="button" onClick={() => void saveHrPolicy()} disabled={loading} className="ui-button ui-button-primary gap-2"><Save className="h-3.5 w-3.5" /> Simpan aturan</button>
+            </div>
+            <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_260px]">
+              <div>
+                <p className="ui-form-label mb-2">Potongan telat bertingkat (per kejadian)</p>
+                <div className="space-y-2">
+                  {tiersDraft.map((tier, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="w-14 text-[10px] font-black uppercase text-slate-400">{index === tiersDraft.length - 1 ? '≤ (mnt)' : 's/d (mnt)'}</span>
+                      <input type="number" min={1} value={tier.maxMinutes} onChange={(e) => updateTier(index, { maxMinutes: Number(e.target.value) || 0 })} className="ui-input w-20 font-mono text-[12px]" />
+                      <span className="text-slate-400">→</span>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">Rp</span>
+                        <input type="number" min={0} value={tier.amount} onChange={(e) => updateTier(index, { amount: Number(e.target.value) || 0 })} className="ui-input w-full pl-7 font-mono text-[12px]" placeholder="0" />
+                      </div>
+                      <button type="button" onClick={() => removeTier(index)} className="text-slate-400 hover:text-rose-600"><X className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addTier} className="text-[12px] font-bold text-[var(--primary-hover)] hover:underline">+ Tambah tingkat</button>
+                </div>
+                <p className="mt-2 text-[10px] leading-snug text-slate-400">Telat melebihi batas tertinggi memakai tarif tingkat terakhir. Bila semua nominal 0, sistem memakai tarif "Potongan/Menit" per staff (lama). Toleransi telat diatur di Kebijakan HR di atas.</p>
+              </div>
+              <div className="space-y-4">
+                <label className="ui-form-group"><span className="ui-form-label">Lembur dihitung mulai</span><div className="relative"><input type="number" min={0} max={480} value={hrConfigDraft.overtimeMinMinutes ?? 30} onChange={(e) => setHrConfigDraft((c) => ({ ...c, overtimeMinMinutes: Number(e.target.value) }))} className="ui-input pr-16 font-mono" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">menit</span></div></label>
+                <p className="text-[10px] leading-snug text-slate-400">Kelebihan kerja setelah jadwal pulang dihitung lembur bila mencapai menit ini. Tarif lembur/jam diatur per staff di tombol "Atur Gaji".</p>
+              </div>
+            </div>
+          </div>
+
           {/* ── Rekap Payroll Bulanan ── */}
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -672,6 +752,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                                 { label: 'Tunjangan Makan', value: slip.mealAllowance },
                                 { label: 'Tunjangan Transport', value: slip.transportAllowance },
                                 { label: `Lembur (${slip.overtimeMinutes} mnt)`, value: slip.overtimePay, color: slip.overtimePay > 0 ? 'var(--accent-green)' : undefined },
+                                { label: 'Bonus', value: slip.bonus, color: slip.bonus > 0 ? 'var(--accent-green)' : undefined },
                                 { label: 'Gaji Kotor', value: slip.grossSalary, color: 'var(--primary-solid)', bold: true },
                                 { label: 'Potongan Terlambat', value: -slip.lateDeduction, color: slip.lateDeduction > 0 ? 'var(--accent-red)' : undefined },
                                 { label: 'Kasbon', value: -slip.kasbonDeduction, color: slip.kasbonDeduction > 0 ? 'var(--accent-red)' : undefined },
@@ -685,6 +766,22 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                                   </p>
                                 </div>
                               ))}
+                            </div>
+
+                            {/* Bonus manual (reward) */}
+                            <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5"
+                              style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-card)' }}>
+                              <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>Bonus / Reward {slip.periodLabel}</span>
+                              <div className="relative ml-auto">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold" style={{ color: 'var(--text-tertiary)' }}>Rp</span>
+                                <input type="number" min={0} value={bonusDraft}
+                                  onChange={(e) => setBonusDraft(e.target.value === '' ? '' : Number(e.target.value))}
+                                  className="ui-input w-32 pl-7 font-mono text-[12px]" placeholder="0" />
+                              </div>
+                              <button type="button" disabled={savingBonus} onClick={() => void saveBonus(staff)}
+                                className="ui-button ui-button-secondary text-[11px]" style={{ minHeight: '32px', padding: '0 12px' }}>
+                                Simpan Bonus
+                              </button>
                             </div>
 
                             {/* Total bersih */}

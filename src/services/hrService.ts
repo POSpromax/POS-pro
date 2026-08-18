@@ -34,10 +34,24 @@ export interface HrLeaveReason {
   paid: boolean;
 }
 
+export interface LatePenaltyTier {
+  maxMinutes: number;
+  amount: number;
+}
+
 export interface HrConfig {
   leaveReasons: HrLeaveReason[];
   latePenaltyGraceMinutes: number;
+  latePenaltyTiers?: LatePenaltyTier[];
+  overtimeMinMinutes?: number;
   workingDays: number[];
+}
+
+export interface PayrollAdjustment {
+  user_id: string;
+  period: string;
+  bonus: number;
+  note: string;
 }
 
 // ── Kasbon (pinjaman gaji di muka) ───────────────────────────────────────────
@@ -74,6 +88,7 @@ export interface PayslipData {
   overtimeMinutes: number;
   overtimePay: number;
   grossSalary: number;          // base + meal + transport + overtime
+  bonus: number;                // Bonus manual per periode (reward)
   lateDeduction: number;        // Potongan keterlambatan (dari attendance)
   kasbonDeduction: number;      // Kasbon yang dipotong bulan ini
   totalDeduction: number;       // lateDeduction + kasbonDeduction
@@ -128,6 +143,7 @@ export interface HrData {
   hrConfig?: HrConfig;
   payrollPeriods?: PayrollPeriodRecord[];
   payrollSnapshots?: PayrollSnapshotRecord[];
+  payrollAdjustments?: PayrollAdjustment[];
 }
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
@@ -166,6 +182,9 @@ export const savePayrollProfile = (payload: Record<string, unknown>) =>
 
 export const saveHrConfig = (payload: Record<string, unknown>) =>
   requestHr('PATCH', { action: 'SAVE_HR_CONFIG', ...payload });
+
+export const savePayrollAdjustment = (payload: { branchId: string; userId: string; period: string; bonus: number; note?: string }) =>
+  requestHr('PATCH', { action: 'SAVE_PAYROLL_ADJUSTMENT', ...payload });
 
 // ── Kasbon endpoints ──────────────────────────────────────────────────────────
 
@@ -212,6 +231,7 @@ export function calculatePayslip(params: {
   kasbonDeduction: number;
   overtimeMinutes?: number;
   overtimePay?: number;
+  bonus?: number;
   notes?: string;
 }): PayslipData {
   const { profile, period, lateMinutes, kasbonDeduction } = params;
@@ -228,9 +248,10 @@ export function calculatePayslip(params: {
   const overtimeMinutes = Math.max(0, Math.round(params.overtimeMinutes ?? 0));
   const overtimePay = Math.max(0, Math.round(params.overtimePay ?? 0));
   const grossSalary = (profile.base_salary ?? 0) + mealAllowance + transportAllowance + overtimePay;
+  const bonus = Math.max(0, Math.round(params.bonus ?? 0));
   const lateDeduction = Math.round(lateMinutes * (profile.late_deduction_per_minute ?? 0));
   const totalDeduction = lateDeduction + (kasbonDeduction ?? 0);
-  const netSalary = Math.max(0, grossSalary - totalDeduction);
+  const netSalary = Math.max(0, grossSalary - totalDeduction + bonus);
 
   return {
     staffId: params.staffId,
@@ -244,6 +265,7 @@ export function calculatePayslip(params: {
     overtimeMinutes,
     overtimePay,
     grossSalary,
+    bonus,
     lateDeduction,
     kasbonDeduction: kasbonDeduction ?? 0,
     totalDeduction,
@@ -272,7 +294,8 @@ export function buildWhatsAppSlipText(
     slip.mealAllowance > 0 ? `Tunjangan Makan  : ${rp(slip.mealAllowance)}` : null,
     slip.transportAllowance > 0 ? `Tunjangan Trans. : ${rp(slip.transportAllowance)}` : null,
     slip.overtimePay > 0 ? `Lembur           : ${rp(slip.overtimePay)} (${slip.overtimeMinutes} mnt)` : null,
-    `Gaji Kotor       : *${rp(slip.grossSalary)}*`,
+    slip.bonus > 0 ? `Bonus            : ${rp(slip.bonus)}` : null,
+    `Gaji Kotor       : *${rp(slip.grossSalary + slip.bonus)}*`,
     ``,
     `*POTONGAN*`,
     slip.lateDeduction > 0 ? `Keterlambatan    : -${rp(slip.lateDeduction)} (${slip.lateMinutes} mnt)` : null,
