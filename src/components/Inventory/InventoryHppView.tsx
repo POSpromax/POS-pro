@@ -60,6 +60,10 @@ interface InventoryHppViewProps {
   onSaveMenuItem: (menu: MenuItem) => void;
   onDeleteMenuItem: (id: string) => void;
   onResetCatalogDefaults: () => void;
+  // canViewCost=false (mis. KASIR): sembunyikan HPP, harga modal, & nilai aset;
+  // batasi hanya ke daftar menu. canDeleteCatalog=false: sembunyikan tombol hapus.
+  canViewCost?: boolean;
+  canDeleteCatalog?: boolean;
   onShowToast?: (title: string, message: string) => void;
 }
 
@@ -73,6 +77,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   onSaveMenuItem,
   onDeleteMenuItem,
   onResetCatalogDefaults,
+  canViewCost = true,
+  canDeleteCatalog = true,
   onShowToast
 }) => {
   const toast = (title: string, message: string) => {
@@ -106,7 +112,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     toast('Cetak', 'Jendela cetak dibuka.');
   };
 
-  const [subTab, setSubTab] = useState<SubTab>('BAHAN');
+  // KASIR (tanpa akses HPP) hanya boleh di Daftar Menu.
+  const [subTab, setSubTab] = useState<SubTab>(canViewCost ? 'BAHAN' : 'MENU');
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState<string>('');
@@ -503,7 +510,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               { key: 'DAPUR' as const, icon: ChefHat, label: 'STOK DAPUR' },
               { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'KEMASAN' },
               { key: 'LAPORAN' as const, icon: FileText, label: 'LAPORAN' },
-            ]).map(({ key, icon: Icon, label }) => (
+            ].filter((t) => canViewCost || t.key === 'MENU')).map(({ key, icon: Icon, label }) => (
               <button
                 key={key}
                 onClick={() => setSubTab(key)}
@@ -558,12 +565,14 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </div>
             )}
 
-            <button
-              onClick={handleExportCSV}
-              className="ui-button ui-button-secondary gap-1 text-[11px]"
-            >
-              <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
-            </button>
+            {canViewCost && (
+              <button
+                onClick={handleExportCSV}
+                className="ui-button ui-button-secondary gap-1 text-[11px]"
+              >
+                <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
+              </button>
+            )}
 
             {subTab === 'MENU' ? (
               <button
@@ -581,18 +590,21 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </button>
             )}
 
-            <button
-              onClick={onResetCatalogDefaults}
-              className="p-2 bg-[var(--surface-card)] border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] rounded-full cursor-pointer transition-colors shrink-0"
-              title="Reset & Muat Data Standar Resto"
-            >
-              <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </button>
+            {canDeleteCatalog && (
+              <button
+                onClick={onResetCatalogDefaults}
+                className="p-2 bg-[var(--surface-card)] border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] rounded-full cursor-pointer transition-colors shrink-0"
+                title="Reset & Muat Data Standar Resto"
+              >
+                <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Metric Cards — 2 cols on mobile, 4 on desktop */}
+      {/* Panel kesiapan inventory (bahan/HPP) — hanya untuk yang boleh lihat biaya */}
+      {canViewCost && (
       <section className={`mb-4 overflow-hidden rounded-2xl border shadow-sm ${isInventoryOperationalReady ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : 'border-[var(--panel-border)] bg-[var(--surface-card)]'}`}>
         <button
           type="button"
@@ -669,6 +681,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         )}
       </section>
+      )}
 
       {subTab === 'MENU' && recipeMissingCount > 0 && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 shadow-[0_8px_22px_rgba(180,83,9,0.08)] sm:flex-row sm:items-center sm:justify-between">
@@ -699,6 +712,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         </div>
       )}
 
+      {canViewCost && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4 mb-4 md:mb-6">
         <div className="ui-card-feature flex items-center justify-between p-3 md:p-5">
           <div>
@@ -744,6 +758,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Stock list — grid or list mode */}
       {activeGroup && (
@@ -894,7 +909,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
-                    {cat !== 'TAMBAHAN' && (
+                    {cat !== 'TAMBAHAN' && canDeleteCatalog && (
                       <button
                         onClick={() => {
                           if (confirmingDeleteCat === cat) {
@@ -987,7 +1002,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                                   <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                 </button>
 
-                                {isStickyItem ? (
+                                {!canDeleteCatalog ? null : isStickyItem ? (
                                   <span className="p-1 md:p-1.5 text-slate-300 cursor-not-allowed" title="Item Sistem Melekat (Tidak bisa dihapus)">
                                     <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-40" />
                                   </span>

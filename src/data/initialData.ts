@@ -921,7 +921,7 @@ export const INITIAL_ACCESS_CONTROL: AccessControlRule[] = [
   { role: 'OWNER', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
   { role: 'MANAGER', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: false, canVoidOrder: true },
   { role: 'ADMIN', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
-  { role: 'KASIR', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: false, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false },
+  { role: 'KASIR', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false },
   { role: 'KITCHEN', canAccessPOS: false, canAccessKDS: true, canAccessShift: false, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false }
 ];
 

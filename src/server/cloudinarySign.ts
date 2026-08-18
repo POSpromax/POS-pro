@@ -105,7 +105,12 @@ export async function handleCloudinarySign(
     authorization,
   );
   if (!profile?.is_active || !membership?.is_active) return fail(403, 'Akses outlet ditolak');
-  if ((requestedFolder === 'branding' || requestedFolder === 'menus') && !MANAGEMENT_ROLES.has(membership.role)) {
+  // Branding (logo/wallpaper) tetap khusus manajemen. Foto menu boleh juga oleh
+  // KASIR karena kasir diizinkan mengedit menu (bukan menghapus).
+  if (requestedFolder === 'branding' && !MANAGEMENT_ROLES.has(membership.role)) {
+    return fail(403, 'Role tidak diizinkan mengunggah media ini');
+  }
+  if (requestedFolder === 'menus' && !MANAGEMENT_ROLES.has(membership.role) && membership.role !== 'KASIR') {
     return fail(403, 'Role tidak diizinkan mengunggah media ini');
   }
 
