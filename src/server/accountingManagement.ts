@@ -95,15 +95,17 @@ const POSTABLE_SOURCES = new Set(['MANUAL', 'SALES', 'EXPENSE', 'PAYROLL', 'INVE
 // Peta kata kunci keterangan biaya -> kode akun beban. Default 6-9000 (lain-lain);
 // pengguna tetap bisa menyesuaikan akun saat mengonfirmasi rekomendasi.
 const EXPENSE_ACCOUNT_RULES: Array<{ re: RegExp; code: string }> = [
+  // Bahan baku / belanja dapur -> HPP. Didahulukan karena paling sering dipakai
+  // dan namanya sering berupa nama makanan/bahan langsung.
+  { re: /belanja|bahan|stok|supplier|pasar|sayur|daging|ayam|sapi|bakso|mie|tahu|telur|bumbu|beras|minyak|gula|garam|kecap|saus|cabe|cabai|bawang|kol|sawi|seledri|penyet|es batu|susu|kopi|teh|sirup|buah|durian|alpukat/i, code: '5-1000' },
   { re: /gas|lpg|elpiji|tabung/i, code: '6-4000' },
-  { re: /listrik|token|pln|air|pdam/i, code: '6-3000' },
-  { re: /sewa|kontrak|ruko/i, code: '6-2000' },
-  { re: /gaji|upah|bonus|thr|lembur/i, code: '6-1000' },
-  { re: /transport|bensin|solar|ongkir|parkir|tol|grab|gojek/i, code: '6-7000' },
-  { re: /promo|iklan|marketing|pemasaran|spanduk|banner|endorse/i, code: '6-6000' },
-  { re: /admin|bank|transfer|biaya app|langganan/i, code: '6-8000' },
-  { re: /belanja|bahan|stok|supplier|pasar|sayur|daging|ayam|bakso/i, code: '5-1000' },
-  { re: /perlengkapan|plastik|kemasan|tisu|sabun|gas elpiji|alat/i, code: '6-5000' },
+  { re: /listrik|token|pln|air|pdam|galon/i, code: '6-3000' },
+  { re: /sewa|kontrak|ruko|kios/i, code: '6-2000' },
+  { re: /gaji|upah|bonus|thr|lembur|kasbon/i, code: '6-1000' },
+  { re: /transport|bensin|solar|ongkir|kirim|parkir|tol|grab|gojek|angkut/i, code: '6-7000' },
+  { re: /promo|iklan|marketing|pemasaran|spanduk|banner|endorse|brosur/i, code: '6-6000' },
+  { re: /admin|bank|transfer|biaya app|langganan|internet|pulsa|wifi/i, code: '6-8000' },
+  { re: /perlengkapan|plastik|kemasan|tisu|sabun|alat|sendok|sedotan|kertas|gelas|mangkok|pembersih|sapu|servis|perbaikan/i, code: '6-5000' },
 ];
 const mapExpenseAccount = (description: string): string => {
   const found = EXPENSE_ACCOUNT_RULES.find((rule) => rule.re.test(description || ''));
