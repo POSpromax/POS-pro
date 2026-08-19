@@ -104,6 +104,90 @@ async function aggregateShiftMetrics(shiftId: string, branchId: string, admin: S
   return { grossOmset, cashSales, nonCashSales, totalExpense, totalIncome };
 }
 
+/**
+ * Memetakan BANYAK shift sekaligus dengan jumlah query tetap (4), bukan ~4 query
+ * PER shift. Riwayat shift memuat sampai 100 baris; versi lama menjalankan
+ * ~400 query dalam satu permintaan — beban DB & egress yang besar.
+ */
+async function mapShiftsBatch(rows: any[], branchId: string, admin: SupabaseClient) {
+  if (rows.length === 0) return [];
+  const shiftIds = rows.map((row) => row.id);
+  const userIds = [...new Set(rows.map((row) => row.opened_by).filter(Boolean))];
+
+  const [profilesRes, membersRes, paymentsRes, expensesRes] = await Promise.all([
+    userIds.length
+      ? admin.from('user_profiles').select('user_id,display_name').in('user_id', userIds)
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? admin.from('branch_members').select('user_id,role').eq('branch_id', branchId).in('user_id', userIds)
+      : Promise.resolve({ data: [], error: null }),
+    admin.from('payments')
+      .select('shift_id,amount,method,orders!inner(status)')
+      .eq('branch_id', branchId)
+      .in('shift_id', shiftIds)
+      .eq('status', 'PAID')
+      .neq('orders.status', 'CANCELLED'),
+    admin.from('expense_income_records')
+      .select('shift_id,record_type,amount')
+      .eq('branch_id', branchId)
+      .in('shift_id', shiftIds),
+  ]);
+
+  const names = new Map((profilesRes.data || []).map((r: any) => [r.user_id, r.display_name]));
+  const roles = new Map((membersRes.data || []).map((r: any) => [r.user_id, r.role]));
+
+  // Fallback bila kolom payments.shift_id belum ada (migrasi lama).
+  let salesRows: Array<{ shift_id: string; amount: number; method: string }> = [];
+  if (paymentsRes.error) {
+    const { data: orders } = await admin.from('orders')
+      .select('shift_id,total_amount,payment_method')
+      .eq('branch_id', branchId)
+      .in('shift_id', shiftIds)
+      .eq('payment_status', 'PAID')
+      .neq('status', 'CANCELLED');
+    salesRows = (orders || []).map((o: any) => ({ shift_id: o.shift_id, amount: Number(o.total_amount || 0), method: o.payment_method }));
+  } else {
+    salesRows = (paymentsRes.data || []).map((p: any) => ({ shift_id: p.shift_id, amount: Number(p.amount || 0), method: p.method }));
+  }
+
+  const metrics = new Map<string, { grossOmset: number; cashSales: number; nonCashSales: number; totalExpense: number; totalIncome: number }>();
+  const bucket = (id: string) => {
+    let m = metrics.get(id);
+    if (!m) { m = { grossOmset: 0, cashSales: 0, nonCashSales: 0, totalExpense: 0, totalIncome: 0 }; metrics.set(id, m); }
+    return m;
+  };
+  salesRows.forEach((s) => {
+    if (!s.shift_id) return;
+    const m = bucket(s.shift_id);
+    m.grossOmset += s.amount;
+    if (s.method === 'CASH') m.cashSales += s.amount; else m.nonCashSales += s.amount;
+  });
+  (expensesRes.data || []).forEach((r: any) => {
+    if (!r.shift_id) return;
+    const m = bucket(r.shift_id);
+    const amount = Number(r.amount || 0);
+    if (r.record_type === 'EXPENSE') m.totalExpense += amount;
+    else if (r.record_type === 'INCOME') m.totalIncome += amount;
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    staffId: row.opened_by || '',
+    staffName: names.get(row.opened_by) || 'Kasir',
+    staffRole: roles.get(row.opened_by) || 'KASIR',
+    startTime: row.opened_at,
+    endTime: row.closed_at || undefined,
+    initialCash: Number(row.opening_cash || 0),
+    ...(metrics.get(row.id) || { grossOmset: 0, cashSales: 0, nonCashSales: 0, totalExpense: 0, totalIncome: 0 }),
+    status: row.status === 'CLOSED' ? 'CLOSED' : 'OPEN',
+    notes: row.variance_reason || undefined,
+    actualCash: row.actual_cash == null ? undefined : Number(row.actual_cash),
+    expectedCash: row.expected_cash == null ? undefined : Number(row.expected_cash),
+    varianceAmount: row.variance_amount == null ? undefined : Number(row.variance_amount),
+    branchId: row.branch_id,
+  }));
+}
+
 async function mapShift(row: any, admin: SupabaseClient) {
   const [{ data: staffProfile }, { data: staffMembership }, metrics] = await Promise.all([
     row.opened_by
@@ -171,7 +255,8 @@ export async function handleShiftRequest(
           .order('closed_at', { ascending: false })
           .limit(100);
         if (error) throw error;
-        return { status: 200, data: { shifts: await Promise.all((rows || []).map((row) => mapShift(row, admin))) } };
+        // Batch: 4 query total, bukan ~4 query per shift (100 shift = ~400 query).
+        return { status: 200, data: { shifts: await mapShiftsBatch(rows || [], branchId, admin) } };
       }
       const active = await readActiveShift(branchId, admin);
       return { status: 200, data: { shift: active ? await mapShift(active, admin) : null } };
