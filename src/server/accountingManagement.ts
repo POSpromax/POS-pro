@@ -40,6 +40,7 @@ const DEFAULT_COA: DefaultAccount[] = [
   // BEBAN (saldo normal debit)
   { code: '5-1000', name: 'Harga Pokok Penjualan (HPP)', type: 'EXPENSE', normal: 'DEBIT', system: true },
   { code: '6-1000', name: 'Beban Gaji & Upah', type: 'EXPENSE', normal: 'DEBIT', system: true },
+  { code: '6-1100', name: 'Beban Konsumsi Karyawan', type: 'EXPENSE', normal: 'DEBIT', system: true },
   { code: '6-2000', name: 'Beban Sewa', type: 'EXPENSE', normal: 'DEBIT' },
   { code: '6-3000', name: 'Beban Listrik & Air', type: 'EXPENSE', normal: 'DEBIT' },
   { code: '6-4000', name: 'Beban Gas', type: 'EXPENSE', normal: 'DEBIT' },
@@ -129,7 +130,7 @@ const localDateKey = (iso: string, timeZone: string) => {
 
 export interface JournalRecommendation {
   id: string;
-  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL';
+  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL' | 'STAFF_MEAL';
   source: string;
   sourceId: string;
   date: string;
@@ -205,7 +206,7 @@ async function buildRecommendations(
 
   const [postedRes, ordersRes, expenseRes, payrollRes] = await Promise.all([
     admin.from('journal_entries').select('source_id').eq('branch_id', branchId).eq('status', 'POSTED').not('source_id', 'is', null),
-    admin.from('orders').select('created_at,payment_method,total_amount')
+    admin.from('orders').select('id,created_at,payment_method,total_amount,subtotal_amount,discount_amount')
       .eq('branch_id', branchId).eq('payment_status', 'PAID').neq('status', 'CANCELLED')
       .gte('created_at', rangeFrom).lte('created_at', rangeTo),
     admin.from('expense_income_records').select('id,record_type,amount,description,created_at')
@@ -270,6 +271,62 @@ async function buildRecommendations(
       });
     }
   });
+
+  // 2b) MAKAN STAFF: order berdiskon 100% (potongan menutup seluruh subtotal).
+  // Pembelian bahan sudah dibebankan langsung ke HPP (5-1000), jadi biayanya
+  // SUDAH masuk HPP. Karena itu jurnalnya adalah REKLASIFIKASI senilai HPP:
+  //   Dr 6-1100 Beban Konsumsi Karyawan / Cr 5-1000 HPP
+  // Bukan kredit Persediaan — itu akan dobel-hitung karena persediaan tidak
+  // dipelihara di buku besar pada metode ini. Laba bersih tidak berubah,
+  // tetapi biaya makan staff terlihat sebagai baris tersendiri.
+  const staffMealOrders = (ordersRes.data || []).filter((row: any) => {
+    const sub = Number(row.subtotal_amount || 0);
+    return sub > 0 && Number(row.discount_amount || 0) >= sub;
+  });
+  if (staffMealOrders.length > 0) {
+    // Outlet yang bagan akunnya dibuat sebelum akun ini ada tetap bisa memakai
+    // rekomendasi: pastikan akun tersedia (idempoten, tidak menimpa yang ada).
+    const { data: branchRow } = await admin.from('branches').select('tenant_id').eq('id', branchId).maybeSingle();
+    if (branchRow?.tenant_id) {
+      await admin.from('chart_of_accounts').upsert([{
+        tenant_id: branchRow.tenant_id, branch_id: branchId, code: '6-1100',
+        name: 'Beban Konsumsi Karyawan', type: 'EXPENSE', normal_balance: 'DEBIT',
+        is_system: true, sort_order: 17,
+      }], { onConflict: 'branch_id,code', ignoreDuplicates: true });
+    }
+    const mealOrderIds = staffMealOrders.map((row: any) => row.id);
+    const { data: mealItems } = await admin
+      .from('order_items').select('order_id,menu_item_id,quantity').in('order_id', mealOrderIds);
+    const menuIds = [...new Set((mealItems || []).map((r: any) => r.menu_item_id).filter(Boolean))];
+    const { data: menuRows } = menuIds.length
+      ? await admin.from('menu_items').select('id,hpp_cost').in('id', menuIds)
+      : { data: [] };
+    const hppById = new Map((menuRows || []).map((r: any) => [r.id, Number(r.hpp_cost || 0)]));
+    const dateByOrder = new Map(staffMealOrders.map((row: any) => [row.id, localDateKey(row.created_at, timeZone)]));
+    const costByDay = new Map<string, number>();
+    (mealItems || []).forEach((item: any) => {
+      const dateKey = dateByOrder.get(item.order_id);
+      if (!dateKey || dateKey.slice(0, 7) !== period) return;
+      const cost = (hppById.get(item.menu_item_id) || 0) * Number(item.quantity || 0);
+      if (cost <= 0) return;
+      costByDay.set(dateKey, (costByDay.get(dateKey) || 0) + cost);
+    });
+    [...costByDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([dateKey, cost]) => {
+      const sourceId = `STAFFMEAL:${dateKey}`;
+      if (posted.has(sourceId)) return;
+      const amount = Math.round(cost);
+      if (amount <= 0) return;
+      recommendations.push({
+        id: sourceId, kind: 'STAFF_MEAL', source: 'ADJUSTMENT', sourceId, date: dateKey,
+        title: `Makan staff ${new Date(`${dateKey}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} (senilai HPP)`,
+        amount,
+        lines: [
+          { code: '6-1100', debit: amount, credit: 0 },
+          { code: '5-1000', debit: 0, credit: amount },
+        ],
+      });
+    });
+  }
 
   // 3) Gaji: agregat snapshot payroll periode ini (kredit Kas).
   const snaps = payrollRes.data || [];
