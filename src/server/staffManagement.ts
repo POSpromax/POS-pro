@@ -243,6 +243,17 @@ async function updateStaff(
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].some((role) => managerRoles.has(role))) {
       return fail(403, 'Hanya manajemen yang dapat mengubah hak akses');
     }
+    // PENJAGA KEWENANGAN — jalur ringan ini TIDAK boleh melewati aturan yang
+    // berlaku pada update penuh, kalau tidak MANAGER/ADMIN bisa mengubah hak
+    // akses OWNER (eskalasi hak akses).
+    const targetRank = Math.max(0, ...(existingMemberships || []).map((item: any) => ROLE_RANK[item.role] || 0));
+    const callerMaxRank = Math.max(0, ...Array.from(managerRoles).map((role) => ROLE_RANK[role as string] || 0));
+    // Tidak seorang pun boleh mengubah hak aksesnya SENDIRI (cegah menaikkan
+    // kewenangan diri). Dilewati diam-diam agar simpan matriks massal tetap jalan.
+    if (payload.id === auth.userId) return { status: 200, data: { success: true } };
+    if (!managerRoles.has('SUPER_OWNER') && targetRank >= callerMaxRank) {
+      return fail(403, 'Anda tidak dapat mengubah hak akses akun dengan kewenangan setara atau lebih tinggi');
+    }
     const scopedBranches = (existingMemberships || [])
       .map((item) => item.branch_id)
       .filter((id) => allowedBranches.has(id));

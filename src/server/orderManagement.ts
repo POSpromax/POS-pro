@@ -39,6 +39,9 @@ const mapOrder = (row: any, items: any[] = []) => {
   change: row.change_amount == null ? metadata.change ?? undefined : Number(row.change_amount),
   status: row.status === 'ACCEPTED' ? 'NEW' : row.status,
   createdAt: row.created_at,
+  // Jam SERVER — dipakai klien sebagai kursor sinkron inkremental agar tidak
+  // bergantung jam perangkat (jam tablet yang meleset bisa membuat order terlewat).
+  updatedAt: row.updated_at || row.created_at,
   shiftId: row.shift_id || metadata.shiftId || '',
   createdShiftId: row.created_shift_id || row.shift_id || metadata.shiftId || undefined,
   paidShiftId: row.paid_shift_id || undefined,

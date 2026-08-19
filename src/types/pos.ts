@@ -190,6 +190,7 @@ export interface Order {
   change?: number;
   status: OrderStatus;
   createdAt: string; // ISO String
+  updatedAt?: string; // ISO, jam SERVER (kursor sinkron inkremental)
   shiftId: string;
   createdShiftId?: string;
   paidShiftId?: string;

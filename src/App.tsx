@@ -793,6 +793,15 @@ export default function App() {
     let lastFallbackAt = 0;
     // Waktu sinkron terakhir untuk penyelaras INKREMENTAL (hemat egress).
     let lastSyncAt = '';
+    // Kursor sinkron diambil dari updatedAt milik SERVER, bukan jam perangkat.
+    // Jam tablet yang meleset (atau balapan saat request berlangsung) bisa
+    // membuat order terlewat permanen dari layar kasir.
+    const advanceCursor = (rows: Order[]) => {
+      rows.forEach((order) => {
+        const stamp = order.updatedAt || order.createdAt;
+        if (stamp && stamp > lastSyncAt) lastSyncAt = stamp;
+      });
+    };
     let consecutiveRefreshFailures = 0;
     let initialRetryTimer = 0;
     const refresh = () => {
@@ -855,7 +864,7 @@ export default function App() {
           window.clearTimeout(initialRetryTimer);
 
           setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
-          lastSyncAt = new Date().toISOString();
+          advanceCursor(cloudOrders);
           branchRuntimeGuardRef.current.recordSync(runtimeToken, 'ORDERS');
         })
         .catch((error) => {
@@ -884,7 +893,7 @@ export default function App() {
       void listCloudOrdersSince(branchId, since)
         .then((changed) => {
           if (!isRuntimeActive()) return;
-          lastSyncAt = new Date().toISOString();
+          advanceCursor(changed);
           setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
           branchRuntimeGuardRef.current.recordSync(runtimeToken, 'ORDERS');
           if (changed.length === 0) return;
