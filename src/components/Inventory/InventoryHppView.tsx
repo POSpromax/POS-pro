@@ -1093,6 +1093,70 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       )}
 
       {/* LAPORAN Summary */}
+      {/* ── KESIAPAN HPP: daftar kerja setup (bahan tanpa harga, menu tanpa resep) ── */}
+      {subTab === 'LAPORAN' && canViewCost && (() => {
+        const materialsNoPrice = rawMaterials.filter((m) => !(Number(m.costPerUnit) > 0));
+        const recipeMenus = menuItems.filter((m) => m.trackStock !== false && !m.isManualPrice);
+        const noRecipe = recipeMenus.filter((m) => (m.ingredients?.length || 0) === 0);
+        const withRecipe = recipeMenus.filter((m) => (m.ingredients?.length || 0) > 0);
+        const incomplete = withRecipe
+          .map((m) => ({ menu: m, hpp: calculateMenuHpp(m, rawMaterials) }))
+          .filter((r) => r.hpp.missingCount > 0);
+        const ready = withRecipe.length - incomplete.length;
+        const percent = recipeMenus.length > 0 ? Math.round((ready / recipeMenus.length) * 100) : 0;
+        return (
+          <div className="mb-4 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-4 md:p-6 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm md:text-base font-bold text-[var(--text-primary)]">Kesiapan HPP</h2>
+                <p className="mt-0.5 text-[11px] font-semibold text-[var(--text-tertiary)]">Daftar kerja untuk menyetel HPP: isi harga bahan dulu, lalu lengkapi resep menu.</p>
+              </div>
+              <span className={`rounded-full px-3 py-1.5 text-[11px] font-black ${percent === 100 ? 'bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'bg-[var(--warning-soft)] text-[#b45309]'}`}>
+                {ready}/{recipeMenus.length} menu siap ({percent}%)
+              </span>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-[var(--panel-border)] p-3">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">1. Bahan tanpa harga</p>
+                <p className="mt-1 text-2xl font-black tabular-nums" style={{ color: materialsNoPrice.length ? 'var(--accent-red)' : 'var(--accent-green)' }}>{materialsNoPrice.length}</p>
+                <div className="mt-1 max-h-28 space-y-0.5 overflow-y-auto">
+                  {materialsNoPrice.slice(0, 40).map((m) => (
+                    <button key={m.id} type="button" onClick={() => handleOpenRawModal(m)} className="block w-full truncate text-left text-[11px] font-semibold text-[var(--primary-hover)] hover:underline">{m.name}</button>
+                  ))}
+                  {materialsNoPrice.length === 0 && <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">Semua bahan sudah berharga.</p>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[var(--panel-border)] p-3">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">2. Menu tanpa resep</p>
+                <p className="mt-1 text-2xl font-black tabular-nums" style={{ color: noRecipe.length ? 'var(--accent-amber)' : 'var(--accent-green)' }}>{noRecipe.length}</p>
+                <div className="mt-1 max-h-28 space-y-0.5 overflow-y-auto">
+                  {noRecipe.slice(0, 60).map((m) => (
+                    <button key={m.id} type="button" onClick={() => handleOpenEditMenuModal(m)} className="block w-full truncate text-left text-[11px] font-semibold text-[var(--primary-hover)] hover:underline">{m.name}</button>
+                  ))}
+                  {noRecipe.length === 0 && <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">Semua menu punya resep.</p>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[var(--panel-border)] p-3">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">3. Resep ada, harga belum lengkap</p>
+                <p className="mt-1 text-2xl font-black tabular-nums" style={{ color: incomplete.length ? 'var(--accent-amber)' : 'var(--accent-green)' }}>{incomplete.length}</p>
+                <div className="mt-1 max-h-28 space-y-0.5 overflow-y-auto">
+                  {incomplete.slice(0, 60).map(({ menu, hpp }) => (
+                    <button key={menu.id} type="button" onClick={() => handleOpenEditMenuModal(menu)} className="block w-full truncate text-left text-[11px] font-semibold text-[var(--primary-hover)] hover:underline">
+                      {menu.name} <span className="text-[var(--text-tertiary)]">({hpp.missingCount} bahan)</span>
+                    </button>
+                  ))}
+                  {incomplete.length === 0 && <p className="text-[11px] font-semibold text-[var(--text-tertiary)]">Semua resep sudah berharga.</p>}
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">Klik nama pada daftar untuk langsung membuka formnya. Menu harga manual &amp; item non-stok tidak dihitung.</p>
+          </div>
+        );
+      })()}
+
       {subTab === 'LAPORAN' && (
         <div className="bg-[var(--surface-card)] rounded-2xl p-4 md:p-6 border border-[var(--panel-border)]/90 shadow-sm space-y-4 font-sans">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-[var(--panel-border-light)] pb-3">
