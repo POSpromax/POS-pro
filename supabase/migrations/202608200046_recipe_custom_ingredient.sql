@@ -3,23 +3,20 @@
 -- dsb. tertakar dalam gram/ml. Baris resep custom memungkinkan komponen HPP
 -- yang TIDAK terikat master bahan: cukup nama, jumlah, satuan, dan biaya.
 --
--- Perubahan aman & idempoten:
---   * raw_material_id jadi opsional (baris custom tidak memilikinya)
---   * primary key komposit diganti kolom id, agar satu menu boleh punya banyak
---     baris custom
---   * keunikan bahan master per menu tetap dijaga lewat unique index parsial
+-- URUTAN PENTING: primary key komposit (menu_item_id, raw_material_id) harus
+-- DILEPAS LEBIH DULU sebelum raw_material_id boleh NULL — Postgres menolak
+-- kolom nullable yang masih menjadi bagian primary key (42P16).
+-- Seluruh langkah idempoten sehingga aman dijalankan ulang.
 
 begin;
 
+-- 1) Kolom baru
 alter table public.menu_item_ingredients
   add column if not exists id uuid not null default gen_random_uuid(),
   add column if not exists custom_name text,
   add column if not exists custom_cost numeric(14,2);
 
-alter table public.menu_item_ingredients
-  alter column raw_material_id drop not null;
-
--- Ganti primary key komposit -> id
+-- 2) Lepas primary key lama (komposit) — WAJIB sebelum langkah 4
 do $$
 declare pk_name text;
 begin
@@ -31,22 +28,28 @@ begin
   end if;
 end $$;
 
+-- 3) Primary key baru berbasis id (agar satu menu boleh punya banyak baris custom)
 do $$
 begin
   if not exists (
     select 1 from pg_constraint
     where conrelid = 'public.menu_item_ingredients'::regclass and contype = 'p'
   ) then
-    alter table public.menu_item_ingredients add constraint menu_item_ingredients_id_pkey primary key (id);
+    alter table public.menu_item_ingredients
+      add constraint menu_item_ingredients_id_pkey primary key (id);
   end if;
 end $$;
 
--- Satu bahan master hanya boleh muncul sekali per menu (baris custom dikecualikan).
+-- 4) Baru sekarang raw_material_id boleh kosong (dipakai baris custom)
+alter table public.menu_item_ingredients
+  alter column raw_material_id drop not null;
+
+-- 5) Bahan master tetap unik per menu; baris custom dikecualikan
 create unique index if not exists menu_item_ingredients_material_uniq
   on public.menu_item_ingredients (menu_item_id, raw_material_id)
   where raw_material_id is not null;
 
--- Setiap baris harus punya sumber: bahan master ATAU nama custom.
+-- 6) Setiap baris harus punya sumber: bahan master ATAU nama custom
 do $$
 begin
   if not exists (
