@@ -57,8 +57,12 @@ export default defineConfig(() => {
               options: {
                 cacheName: 'cloudinary-media-v1',
                 expiration: {
-                  maxEntries: 300,
-                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                  // 300 foto (dulu sering resolusi penuh) menumpuk sampai ratusan MB
+                  // di tablet POS. Semua gambar kini diminta versi kecil lewat
+                  // optimizeCloudinaryImage, jadi batas ini cukup dan jauh lebih hemat.
+                  maxEntries: 120,
+                  maxAgeSeconds: 60 * 60 * 24 * 14,
+                  purgeOnQuotaError: true,
                 },
                 cacheableResponse: { statuses: [0, 200] },
               },

@@ -36,6 +36,7 @@ import { uploadImage } from '../../services/cloudinaryMedia';
 import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materialGroup';
 import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
 import { StockOpnamePanel } from './StockOpnamePanel';
+import { optimizeCloudinaryImage } from '../../utils/imageUrl';
 
 type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN' | 'OPNAME';
 
@@ -966,7 +967,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                             <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                               {item.image ? (
                                 <img
-                                  src={item.image}
+                                  src={optimizeCloudinaryImage(item.image, 80)}
                                   alt={item.name}
                                   className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover shrink-0 border border-[var(--panel-border)]"
                                 />
@@ -1151,7 +1152,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 <div className="flex gap-3 items-start">
                   <div className="relative group shrink-0">
                     <img
-                      src={editingMenu.image || 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400'}
+                      src={editingMenu.image ? optimizeCloudinaryImage(editingMenu.image, 160) : 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400'}
                       alt={editingMenu.name || 'Preview'}
                       className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover border border-[var(--panel-border)] shadow-sm"
                     />
