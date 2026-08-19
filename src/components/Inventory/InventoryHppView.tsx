@@ -117,7 +117,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   // KASIR (tanpa akses HPP) hanya boleh di Daftar Menu.
-  const [subTab, setSubTab] = useState<SubTab>(canViewCost ? 'BAHAN' : 'MENU');
+  const [subTab, setSubTab] = useState<SubTab>('BAHAN');
   const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState<string>('');
@@ -515,7 +515,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               { key: 'DAPUR' as const, icon: ChefHat, label: 'STOK DAPUR' },
               { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'KEMASAN' },
               { key: 'LAPORAN' as const, icon: FileText, label: 'LAPORAN' },
-            ].filter((t) => canViewCost || t.key === 'MENU' || t.key === 'OPNAME')).map(({ key, icon: Icon, label }) => (
+            // Tanpa akses biaya (KASIR): tab stok TETAP terbuka supaya bisa memantau
+            // mutasi stok masuk/keluar. Hanya LAPORAN yang disembunyikan karena
+            // memuat nilai aset & margin HPP.
+            ].filter((t) => canViewCost || t.key !== 'LAPORAN')).map(({ key, icon: Icon, label }) => (
               <button
                 key={key}
                 onClick={() => setSubTab(key)}
@@ -611,8 +614,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         )}
       </div>
 
-      {/* Panel kesiapan inventory (bahan/HPP) — hanya untuk yang boleh lihat biaya */}
-      {canViewCost && (
+      {/* Panel kesiapan inventory — hitungan kesiapan, tanpa nilai rupiah, jadi
+          aman ditampilkan untuk kasir yang memantau stok. */}
       <section className={`mb-4 overflow-hidden rounded-2xl border shadow-sm ${isInventoryOperationalReady ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : 'border-[var(--panel-border)] bg-[var(--surface-card)]'}`}>
         <button
           type="button"
@@ -689,7 +692,6 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         )}
       </section>
-      )}
 
       {subTab === 'MENU' && recipeMissingCount > 0 && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 shadow-[0_8px_22px_rgba(180,83,9,0.08)] sm:flex-row sm:items-center sm:justify-between">
@@ -720,7 +722,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         </div>
       )}
 
-      {canViewCost && (
+      {/* Kartu metrik: semuanya HITUNGAN (bukan rupiah) -> aman untuk kasir. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4 mb-4 md:mb-6">
         <div className="ui-card-feature flex items-center justify-between p-3 md:p-5">
           <div>
@@ -766,7 +768,6 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         </div>
       </div>
-      )}
 
       {subTab === 'OPNAME' && (
         <StockOpnamePanel
@@ -848,7 +849,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     </div>
                     <p className="text-[11px] md:text-[11px] font-bold text-[var(--text-tertiary)] uppercase">
                       {raw.unit} <span className="text-[var(--text-tertiary)]">Min: {raw.minStockThreshold}</span>
-                      <span className="text-[var(--text-tertiary)]"> · Rp {raw.costPerUnit.toLocaleString('id-ID')}</span>
+                      {canViewCost && <span className="text-[var(--text-tertiary)]"> · Rp {raw.costPerUnit.toLocaleString('id-ID')}</span>}
                     </p>
                   </div>
 
@@ -1494,6 +1495,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   />
                 </div>
 
+                {canViewCost && (
                 <div>
                   <label className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">BIAYA (RP/SATUAN)</label>
                   <input
@@ -1503,6 +1505,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)]"
                   />
                 </div>
+                )}
               </div>
 
               {editingRaw.group === 'KEMASAN' && (
