@@ -231,7 +231,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const maxAccuracy = Math.max(5, Number(profile.maxGpsAccuracyMeters || 80));
           const accuracyOk = Number.isFinite(position.coords.accuracy) && position.coords.accuracy <= maxAccuracy;
-          const insideRadius = distance <= outletRadius;
+          // Sama dengan server: beri kelonggaran sebesar margin error GPS,
+          // supaya staf yang benar-benar di outlet tidak ditolak karena
+          // pembacaan HP yang wajar-wajar saja.
+          const effectiveDistance = Math.max(0, distance - (Number(position.coords.accuracy) || 0));
+          const insideRadius = effectiveDistance <= outletRadius;
           const allowed = insideRadius && accuracyOk;
           setGpsPosition({
             latitude: position.coords.latitude,
@@ -243,7 +247,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               ? `Akurasi GPS ±${Math.round(position.coords.accuracy)} m — tunggu hingga ≤ ${Math.round(maxAccuracy)} m`
               : insideRadius
                 ? `GPS valid · ${Math.round(distance)} m dari outlet · akurasi ±${Math.round(position.coords.accuracy)} m`
-                : `Di luar radius · ${Math.round(distance)} m dari outlet`,
+                : `Di luar radius · ${Math.round(distance)} m dari outlet (batas ${Math.round(outletRadius)} m) · akurasi ±${Math.round(position.coords.accuracy)} m`,
           );
           setIsGpsValid(allowed);
           resolve(allowed);
@@ -602,9 +606,25 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   </div>
                 </div>
                 {profile.requireGpsActive && (
-                  <button type="button" onClick={() => verifyGps()} className="text-[11px] font-bold text-[var(--primary-text)] hover:text-[var(--primary-text)] underline cursor-pointer">
-                    Verifikasi Lokasi GPS
-                  </button>
+                  <div className="w-full space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => verifyGps()}
+                      className={`w-full rounded-xl px-3 py-2.5 text-[11px] font-bold transition-colors cursor-pointer ${isGpsValid ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-[var(--primary)] text-white"}`}
+                    >
+                      {isGpsValid ? "Lokasi Terkonfirmasi - Cek Ulang" : "Aktifkan & Konfirmasi Titik GPS Saya"}
+                    </button>
+                    {gpsPosition && (
+                      <p className="text-center text-[10px] font-semibold text-[var(--text-tertiary)]">
+                        Titik Anda: {gpsPosition.latitude.toFixed(6)}, {gpsPosition.longitude.toFixed(6)}
+                      </p>
+                    )}
+                    {!isGpsValid && (
+                      <p className="text-center text-[10px] font-semibold leading-snug text-amber-700">
+                        Belum terkonfirmasi. Pastikan izin lokasi aktif, berdiri di area outlet (dekat pintu/luar ruangan lebih akurat), tunggu beberapa detik lalu tekan tombol di atas lagi.
+                      </p>
+                    )}
+                  </div>
                 )}
                 {uploadMessage && <p className="text-[11px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
               </div>

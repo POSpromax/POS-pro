@@ -179,7 +179,15 @@ export async function handleAttendanceRequest(
       return fail(400, `Akurasi GPS belum cukup baik. Tunggu hingga akurasi ≤ ${Math.round(maxAccuracy)} m lalu coba lagi.`);
     }
     distance = distanceMeters(outletLat, outletLon, Number(payload.latitude), Number(payload.longitude));
-    if (distance > radius) return fail(403, `Lokasi berada ${Math.round(distance)} m dari outlet`);
+    // Perhitungkan MARGIN ERROR GPS. Sistem menerima pembacaan yang meleset
+    // sampai maxAccuracy (mis. 80 m), jadi tidak masuk akal menuntut jarak
+    // presisi radius kecil (mis. 20 m): HP yang benar-benar di dalam outlet
+    // akan selalu ditolak. Beri kelonggaran sebesar akurasi yang dilaporkan.
+    const accuracy = Math.max(0, Number(payload.accuracyMeters) || 0);
+    const effectiveDistance = Math.max(0, distance - accuracy);
+    if (effectiveDistance > radius) {
+      return fail(403, `Lokasi berada ${Math.round(distance)} m dari outlet (akurasi ±${Math.round(accuracy)} m, batas ${Math.round(radius)} m). Dekatkan ke area outlet lalu coba lagi.`);
+    }
   }
 
   const { data: lastEvent } = await admin
