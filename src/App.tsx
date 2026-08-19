@@ -1210,7 +1210,12 @@ export default function App() {
           listCloudTables(branchId).then(mergeTables),
         ];
 
-        if (['pos', 'kds', 'settings', 'selforder'].includes(activeTab)) {
+        // Condiment & config sudah punya handler broadcast bertarget sendiri.
+        // Saat realtime SEHAT, menariknya lagi tiap 120 dtk adalah duplikasi
+        // murni (condiment lengkap bisa puluhan KB) -> pemborosan egress besar.
+        // Hanya ditarik ulang saat realtime DEGRADED, ketika broadcast tak tiba.
+        const needFullReconcile = realtimeState !== 'HEALTHY';
+        if (needFullReconcile && ['pos', 'kds', 'settings', 'selforder'].includes(activeTab)) {
           jobs.push(
             listCloudCondiments(branchId).then((groups) => {
               if (isRuntimeCurrent()) setCondimentGroups(groups);
@@ -1218,7 +1223,7 @@ export default function App() {
           );
         }
 
-        if (['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) {
+        if (needFullReconcile && ['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) {
           jobs.push(
             getCloudBranchOperationalConfig(branchId).then(applyOperationalConfig),
           );

@@ -47,7 +47,14 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
   const rawNames = new Map((rawRows || []).map((row) => [row.id, row.name]));
   return {
     menuItems: (menuRows || []).map((row) => {
-      const isManualPrice = row.id === 'menu-custom' || Boolean(row.is_manual_price) || /^(menu tambahan|menu custom|custom|lainya|lainnya)$/i.test(String(row.name).trim());
+      // Menu dianggap HARGA CUSTOM bila: id sistem, flag eksplisit, nama cocok
+      // pola 'lainnya/custom', ATAU harganya 0. Aturan harga 0 penting karena
+      // kolom is_manual_price tidak ada di DB sehingga flag tak pernah tersimpan:
+      // tanpa ini, menu berharga 0 masuk keranjang sebagai Rp 0 tanpa bisa diisi.
+      const isManualPrice = row.id === 'menu-custom'
+        || Boolean(row.is_manual_price)
+        || /^(menu tambahan|menu custom|custom|lainya|lainnya)$/i.test(String(row.name).trim())
+        || Number(row.price || 0) <= 0;
       const isSticky = row.id === 'menu-custom' || Boolean(row.is_sticky) || isManualPrice;
       const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => ({
         rawMaterialId: ingredient.raw_material_id,
