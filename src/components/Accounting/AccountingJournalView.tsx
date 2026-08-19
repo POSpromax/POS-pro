@@ -889,6 +889,21 @@ function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm,
 
 // ── Bagan Akun ─────────────────────────────────────────────────────────────────
 
+// Prefix kode per tipe akun mengikuti bagan akun standar (5 khusus HPP).
+const TYPE_PREFIX: Record<AccountType, string> = {
+  ASSET: '1', LIABILITY: '2', EQUITY: '3', REVENUE: '4', EXPENSE: '6',
+};
+
+/** Usulkan kode akun berikutnya supaya pengguna cukup mengisi NAMA & TIPE. */
+function suggestAccountCode(type: AccountType, accounts: Account[]): string {
+  const prefix = TYPE_PREFIX[type];
+  const used = accounts
+    .map((a) => a.code)
+    .filter((c) => c.startsWith(prefix + '-'))
+    .map((c) => Number(c.split('-')[1]) || 0);
+  const next = (used.length ? Math.max(...used) : 0) + 100;
+  return prefix + '-' + String(Math.min(next, 9999)).padStart(4, '0');
+}
 function CoaTab({ accounts, onSave, onDelete }: {
   accounts: Account[];
   onSave: (account: { id?: string; code: string; name: string; type: AccountType }) => Promise<boolean>;
@@ -904,7 +919,7 @@ function CoaTab({ accounts, onSave, onDelete }: {
 
   const open = (acc: Account | 'NEW') => {
     setEditing(acc);
-    if (acc === 'NEW') { setCode(''); setName(''); setType('EXPENSE'); }
+    if (acc === 'NEW') { setType('EXPENSE'); setName(''); setCode(suggestAccountCode('EXPENSE', accounts)); }
     else { setCode(acc.code); setName(acc.name); setType(acc.type); }
   };
   const save = async () => {
@@ -928,7 +943,7 @@ function CoaTab({ accounts, onSave, onDelete }: {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div>
               <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Kode</label>
-              <input value={code} onChange={(e) => setCode(e.target.value)} disabled={isSystem} placeholder="mis. 6-2100" className="ui-input w-full font-mono text-[12px] disabled:opacity-60" />
+              <input value={code} onChange={(e) => setCode(e.target.value)} disabled={isSystem} placeholder="otomatis" className="ui-input w-full font-mono text-[12px] disabled:opacity-60" />
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Nama Akun</label>
@@ -936,7 +951,7 @@ function CoaTab({ accounts, onSave, onDelete }: {
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Tipe</label>
-              <select value={type} onChange={(e) => setType(e.target.value as AccountType)} disabled={isSystem} className="ui-input w-full text-[12px] disabled:opacity-60">
+              <select value={type} onChange={(e) => { const t = e.target.value as AccountType; setType(t); if (editing === 'NEW') setCode(suggestAccountCode(t, accounts)); }} disabled={isSystem} className="ui-input w-full text-[12px] disabled:opacity-60">
                 {groups.map((g) => <option key={g} value={g}>{TYPE_LABEL[g]}</option>)}
               </select>
             </div>

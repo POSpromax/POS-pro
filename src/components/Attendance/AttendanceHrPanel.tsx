@@ -625,15 +625,26 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                 <p className="ui-form-label mb-2">Potongan telat bertingkat (per kejadian)</p>
                 <div className="space-y-2">
                   {tiersDraft.map((tier, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="w-14 text-[10px] font-black uppercase text-slate-400">{index === tiersDraft.length - 1 ? '≤ (mnt)' : 's/d (mnt)'}</span>
-                      <input type="number" min={1} value={tier.maxMinutes} onChange={(e) => updateTier(index, { maxMinutes: Number(e.target.value) || 0 })} className="ui-input w-20 font-mono text-[12px]" />
-                      <span className="text-slate-400">→</span>
-                      <div className="relative flex-1">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">Rp</span>
-                        <input type="number" min={0} value={tier.amount} onChange={(e) => updateTier(index, { amount: Number(e.target.value) || 0 })} className="ui-input w-full pl-7 font-mono text-[12px]" placeholder="0" />
-                      </div>
-                      <button type="button" onClick={() => removeTier(index)} className="text-slate-400 hover:text-rose-600"><X className="h-4 w-4" /></button>
+                    <div key={index} className="grid grid-cols-1 gap-2 rounded-xl border border-[var(--panel-border)] bg-white p-2.5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                      <label className="block">
+                        <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {index === tiersDraft.length - 1 ? 'Telat lebih dari (menit)' : 'Telat sampai (menit)'}
+                        </span>
+                        <input type="number" min={1} inputMode="numeric" value={tier.maxMinutes}
+                          onChange={(e) => updateTier(index, { maxMinutes: Number(e.target.value) || 0 })}
+                          className="ui-input w-full font-mono text-sm" />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-400">Potongan (Rp)</span>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">Rp</span>
+                          <input type="number" min={0} inputMode="numeric" value={tier.amount}
+                            onChange={(e) => updateTier(index, { amount: Number(e.target.value) || 0 })}
+                            className="ui-input w-full pl-9 font-mono text-sm" placeholder="0" />
+                        </div>
+                      </label>
+                      <button type="button" onClick={() => removeTier(index)} title="Hapus tingkat"
+                        className="h-10 w-10 shrink-0 rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600"><X className="mx-auto h-4 w-4" /></button>
                     </div>
                   ))}
                   <button type="button" onClick={addTier} className="text-[12px] font-bold text-[var(--primary-hover)] hover:underline">+ Tambah tingkat</button>

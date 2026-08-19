@@ -1627,13 +1627,11 @@ export default function App() {
 
   const handleOpenCheckoutModal = (draftOrder: Partial<Order>) => {
     if (!ensureOpenShift('membuka pembayaran')) return;
-    if (cloudReadiness.supabase && isCloudOrderId(draftOrder.id || '')) {
-      const savedOrder = orders.find((order) => order.id === draftOrder.id);
-      if (!savedOrder || hasUnsavedOrderChanges(draftOrder, savedOrder)) {
-        showPushToast('Perubahan Order Belum Disimpan', 'Simpan perubahan order sebelum pembayaran.');
-        return;
-      }
-    }
+    // TIDAK memblokir pembayaran saat ada perubahan belum tersimpan.
+    // handleProcessPayment sudah menyimpan perubahan lebih dulu (submitCloudOrder)
+    // sebelum memanggil payCloudOrder, jadi menambah item lalu langsung Bayar
+    // aman: sistem menyimpan otomatis. Penjaga lama memaksa kasir menekan Simpan
+    // dua kali dan memperlambat antrean.
     setActiveCheckoutOrder(draftOrder);
     setIsPaymentModalOpen(true);
   };
