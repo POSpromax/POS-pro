@@ -37,6 +37,7 @@ import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materi
 import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
 import { StockOpnamePanel } from './StockOpnamePanel';
 import { optimizeCloudinaryImage } from '../../utils/imageUrl';
+import { calculateMenuHpp, marginOf } from '../../utils/hpp';
 
 type SubTab = 'BAHAN' | 'DAPUR' | 'KEMASAN' | 'MENU' | 'LAPORAN' | 'OPNAME';
 
@@ -136,6 +137,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
   const [isRawModalOpen, setIsRawModalOpen] = useState<boolean>(false);
   const [editingRaw, setEditingRaw] = useState<Partial<RawMaterial> | null>(null);
+  // Kalkulator harga kemasan -> harga per satuan (mis. kecap pouch 600 ml).
+  const [packPrice, setPackPrice] = useState<number | ''>('');
+  const [packContent, setPackContent] = useState<number | ''>('');
 
   // Recipe Builder inside Edit Menu Modal
   const [selectedRecipeMaterialId, setSelectedRecipeMaterialId] = useState<string>('');
@@ -332,7 +336,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       name: editingMenu.name.trim(),
       category: editingMenu.category || 'BAKSO',
       price: Number(editingMenu.price) || 0,
-      hppCost: Number(editingMenu.hppCost) || 0,
+      // HPP disimpan dari hasil hitung RESEP (bukan angka manual/default),
+      // supaya laporan margin memakai biaya bahan yang sebenarnya.
+      hppCost: calculateMenuHpp(editingMenu as MenuItem, rawMaterials).total || Number(editingMenu.hppCost) || 0,
       image: editingMenu.image || 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&auto=format&fit=crop&q=80',
       description: editingMenu.description || '',
       isAvailable: editingMenu.isAvailable !== false,
@@ -1310,6 +1316,53 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </div>
             </div>
 
+            {/* Rincian HPP dihitung DARI RESEP (bukan angka manual). */}
+            {(() => {
+              const hpp = calculateMenuHpp(editingMenu as MenuItem, rawMaterials);
+              const m = marginOf(Number(editingMenu.price) || 0, hpp.total);
+              return (
+                <div className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-[var(--primary-text)]">Rincian HPP dari Resep</p>
+                    {canViewCost && (
+                      <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        HPP <b className="text-[var(--text-primary)]">Rp {hpp.total.toLocaleString('id-ID')}</b>
+                        {Number(editingMenu.price) > 0 && (
+                          <> &middot; Margin <b style={{ color: m.margin >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>Rp {m.margin.toLocaleString('id-ID')} ({m.percent}%)</b></>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {hpp.lines.length === 0 ? (
+                    <p className="mt-2 text-[11px] font-semibold text-[var(--text-tertiary)]">Belum ada bahan pada resep. Tambahkan bahan di panel Resep &amp; Komposisi.</p>
+                  ) : (
+                    <div className="mt-2 space-y-1">
+                      {hpp.lines.map((line) => (
+                        <div key={line.rawMaterialId} className="flex items-center justify-between text-[11px]">
+                          <span className="text-[var(--text-primary)]">
+                            {line.name} <span className="text-[var(--text-tertiary)]">{line.amount} {line.unit}</span>
+                            {line.missing && <span className="ml-1 rounded bg-[var(--warning-soft)] px-1.5 py-0.5 text-[9px] font-black text-[#b45309]">harga belum diisi</span>}
+                          </span>
+                          {canViewCost && <span className="font-mono font-bold text-[var(--text-secondary)]">Rp {line.subtotal.toLocaleString('id-ID')}</span>}
+                        </div>
+                      ))}
+                      {canViewCost && (
+                        <div className="flex items-center justify-between border-t border-[var(--panel-border)] pt-1.5 text-[12px] font-black">
+                          <span>TOTAL HPP / PORSI</span>
+                          <span className="font-mono">Rp {hpp.total.toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {hpp.missingCount > 0 && (
+                    <p className="mt-2 text-[10px] font-semibold text-[#b45309]">
+                      {hpp.missingCount} bahan belum punya harga per satuan &mdash; HPP belum akurat. Isi lewat form bahan (ada kalkulator harga kemasan).
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="pt-2">
               <button
                 type="submit"
@@ -1494,6 +1547,40 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)]"
                   />
                 </div>
+
+                {canViewCost && (
+                <div className="sm:col-span-2 rounded-2xl border border-dashed border-[var(--brand-200)] bg-[var(--brand-50)] p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--primary-text)]">Kalkulator Harga Kemasan &rarr; Per Satuan</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-[var(--text-tertiary)]">
+                    Untuk bahan yang dibeli per kemasan tapi dipakai sedikit (kecap pouch, mie pack, saus botol).
+                    Isi harga beli dan isi kemasan dalam satuan <b>{editingRaw.unit || 'satuan'}</b> &mdash; biaya per satuan terisi otomatis.
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold uppercase text-[var(--text-tertiary)]">Harga beli kemasan (Rp)</label>
+                      <input type="number" min={0} value={packPrice} placeholder="mis. 15000"
+                        onChange={(e) => setPackPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full rounded-xl border border-[var(--panel-border)] bg-white p-2 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold uppercase text-[var(--text-tertiary)]">Isi kemasan ({editingRaw.unit || 'satuan'})</label>
+                      <input type="number" min={0} value={packContent} placeholder="mis. 600"
+                        onChange={(e) => setPackContent(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full rounded-xl border border-[var(--panel-border)] bg-white p-2 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                    </div>
+                    <div className="flex items-end">
+                      <button type="button" disabled={!packPrice || !packContent || Number(packContent) <= 0}
+                        onClick={() => setEditingRaw({ ...editingRaw, costPerUnit: Math.round((Number(packPrice) / Number(packContent)) * 100) / 100 })}
+                        className="w-full rounded-xl bg-[var(--primary)] p-2 text-xs font-bold text-white disabled:opacity-50">Hitung &amp; Isi</button>
+                    </div>
+                  </div>
+                  {Boolean(packPrice) && Number(packContent) > 0 && (
+                    <p className="mt-1.5 text-[11px] font-bold text-[var(--primary-text)]">
+                      = Rp {(Math.round((Number(packPrice) / Number(packContent)) * 100) / 100).toLocaleString('id-ID')} per {editingRaw.unit || 'satuan'}
+                    </p>
+                  )}
+                </div>
+                )}
 
                 {canViewCost && (
                 <div>
