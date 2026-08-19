@@ -65,11 +65,21 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
 
 // summary=true melewati pengambilan order_items (payload jauh lebih kecil) —
 // dipakai dashboard owner yang hanya butuh agregat total/status, bukan detail item.
-async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string, summary = false) {
+async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string, summary = false, since?: string) {
   const select = '*, restaurant_tables!orders_table_id_fkey(number)';
   let rows: any[] = [];
   if (orderId) {
     const { data, error } = await admin.from('orders').select(select).eq('branch_id', branchId).eq('id', orderId).limit(1);
+    if (error) throw error;
+    rows = data || [];
+  } else if (since) {
+    // SINKRON INKREMENTAL: hanya order yang berubah sejak sinkron terakhir.
+    // Menghindari mengunduh ulang 150 order + item (~300KB) tiap 120 detik.
+    const { data, error } = await admin.from('orders').select(select)
+      .eq('branch_id', branchId)
+      .gt('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(200);
     if (error) throw error;
     rows = data || [];
   } else {
@@ -115,8 +125,9 @@ export async function handleOrderRequest(
     const orderId = payload.orderId ? String(payload.orderId) : undefined;
     if (!actor && (!orderId || !UUID_PATTERN.test(orderId))) return fail(401, 'Sesi telah berakhir');
     const summary = payload.summary === '1' || payload.summary === true || payload.summary === 'true';
+    const since = typeof payload.since === 'string' && payload.since ? payload.since : undefined;
     try {
-      const orders = await readOrders(branchId, admin, orderId, summary);
+      const orders = await readOrders(branchId, admin, orderId, summary, since);
       return { status: 200, data: orderId ? (orders[0] || null) : orders };
     } catch {
       return fail(500, 'Pesanan tidak dapat dimuat');

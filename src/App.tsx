@@ -52,7 +52,7 @@ import {
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { getCloudOrder, listCloudOrders, listCloudOrdersSummary, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { getCloudOrder, listCloudOrders, listCloudOrdersSummary, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -791,6 +791,8 @@ export default function App() {
     let realtimeState: RealtimeConnectionState = 'CONNECTING';
     const branchMountedAt = Date.now();
     let lastFallbackAt = 0;
+    // Waktu sinkron terakhir untuk penyelaras INKREMENTAL (hemat egress).
+    let lastSyncAt = '';
     let consecutiveRefreshFailures = 0;
     let initialRetryTimer = 0;
     const refresh = () => {
@@ -853,6 +855,7 @@ export default function App() {
           window.clearTimeout(initialRetryTimer);
 
           setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
+          lastSyncAt = new Date().toISOString();
           branchRuntimeGuardRef.current.recordSync(runtimeToken, 'ORDERS');
         })
         .catch((error) => {
@@ -872,6 +875,31 @@ export default function App() {
     // Refetch BERTARGET: ambil hanya order yang berubah lalu merge ke state —
     // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar (~150 order)
     // pada setiap event realtime. Notifikasi suara & auto-cetak tetap dijalankan.
+    // Penyelaras BERKALA: ambil hanya order yang BERUBAH sejak sinkron terakhir,
+    // bukan mengunduh ulang 150 order + item (~300KB) tiap 120 detik. Inilah
+    // sumber egress terbesar yang tersisa (ratusan MB/hari per terminal).
+    const syncIncremental = () => {
+      if (!lastSyncAt) { refresh(); return; }
+      const since = lastSyncAt;
+      void listCloudOrdersSince(branchId, since)
+        .then((changed) => {
+          if (!isRuntimeActive()) return;
+          lastSyncAt = new Date().toISOString();
+          setOrderSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
+          branchRuntimeGuardRef.current.recordSync(runtimeToken, 'ORDERS');
+          if (changed.length === 0) return;
+          const scoped = changed.filter((order) => !order.branchId || order.branchId === branchId);
+          if (scoped.length === 0) return;
+          scoped.forEach((order) => knownItemQuantities.set(order.id, order.items.reduce((sum, item) => sum + item.quantity, 0)));
+          setOrders((current) => {
+            const map = new Map(current.map((order) => [order.id, order] as [string, Order]));
+            scoped.forEach((order) => map.set(order.id, order));
+            return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          });
+        })
+        .catch(() => { /* jaringan sesaat — siklus berikutnya menyusul */ });
+    };
+
     const applyOrderUpdates = (changedIds: string[]) => {
       void Promise.all(
         changedIds.map((id) =>
@@ -926,7 +954,7 @@ export default function App() {
     };
 
     lastFallbackAt = Date.now();
-    refresh();
+    syncIncremental();
     const unsubscribe = subscribeCloudOrders(
       branchId,
       (changedIds) => {
@@ -968,9 +996,9 @@ export default function App() {
         : visibleTab === 'pos' ? 25_000 : visibleTab === 'kds' ? 30_000 : 60_000;
       if (!fallbackDelay || Date.now() - lastFallbackAt < fallbackDelay) return;
       lastFallbackAt = Date.now();
-      refresh();
+      syncIncremental();
     }, 5_000);
-    const reconcileVisible = () => { if (isRuntimeActive() && document.visibilityState === 'visible') refresh(); };
+    const reconcileVisible = () => { if (isRuntimeActive() && document.visibilityState === 'visible') syncIncremental(); };
     window.addEventListener('focus', reconcileVisible);
     window.addEventListener('online', reconcileVisible);
     document.addEventListener('visibilitychange', reconcileVisible);

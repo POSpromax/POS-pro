@@ -25,6 +25,11 @@ export const listCloudOrders = (branchId: string): Promise<Order[]> =>
 export const listCloudOrdersSummary = (branchId: string): Promise<Order[]> =>
   request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}&summary=1`);
 
+// Sinkron INKREMENTAL: hanya order yang berubah sejak waktu tertentu (ISO).
+// Dipakai penyelaras berkala supaya tidak mengunduh ulang seluruh daftar.
+export const listCloudOrdersSince = (branchId: string, since: string): Promise<Order[]> =>
+  request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}&since=${encodeURIComponent(since)}`);
+
 // Ambil SATU order (beserta itemnya) — dipakai refetch bertarget saat realtime,
 // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar order.
 // Mengembalikan null bila order tidak ada (mis. terhapus).
