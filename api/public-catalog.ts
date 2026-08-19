@@ -3,7 +3,7 @@ import { getPublicCatalog } from '../src/server/publicCatalog';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
+  headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=15, s-maxage=30, stale-while-revalidate=120' },
 });
 
 export const config = { runtime: 'edge' };

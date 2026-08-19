@@ -22,7 +22,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   const { data: branch } = await branchQuery.eq('is_active', true).limit(1).maybeSingle();
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
   const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }, { data: activeShift }] = await Promise.all([
-    admin.from('menu_items').select('*').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
+    admin.from('menu_items').select('id,name,category,price,image_url,description,stock_count,sort_order').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
     admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).eq('status', 'READY').order('number'),
     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
@@ -91,7 +91,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
       profile: publicProfile,
       menuItems: availableMenus.filter((row) => !/^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim())).map((row) => ({
         id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '',
-        description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients: [], isAvailable: true,
+        description: row.description || '', hppCost: 0, ingredients: [], isAvailable: true,
       })),
       tables: (tables || []).map((row) => ({
         id: row.id,
