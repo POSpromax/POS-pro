@@ -136,6 +136,7 @@ export interface PayrollSnapshotRecord {
 }
 
 export interface HrData {
+  consolidated?: boolean;
   canManage: boolean;
   leaveRequests: LeaveRequest[];
   payrollProfiles: PayrollProfile[];
@@ -168,8 +169,8 @@ async function requestHr(method: string, body: Record<string, unknown>): Promise
 
 // ── Existing endpoints ────────────────────────────────────────────────────────
 
-export const loadHrData = (branchId: string, period?: string): Promise<HrData> =>
-  requestHr('GET', { branchId, ...(period ? { period } : {}) });
+export const loadHrData = (branchId: string, period?: string, scope?: 'ALL'): Promise<HrData> =>
+  requestHr('GET', { branchId, ...(period ? { period } : {}), ...(scope ? { scope } : {}) });
 
 export const submitLeave = (payload: Record<string, unknown>) =>
   requestHr('POST', { action: 'SUBMIT_LEAVE', ...payload });

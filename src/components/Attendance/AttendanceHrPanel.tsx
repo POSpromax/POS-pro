@@ -89,6 +89,8 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   // ── Payslip state ───────────────────────────────────────────────────────────
   const [slipStaff, setSlipStaff]       = useState<UserAccount | null>(null);
   const [historyStaff, setHistoryStaff] = useState<UserAccount | null>(null);
+  // Konsolidasi kantor pusat: rekap seluruh cabang (BACA saja).
+  const [scopeAll, setScopeAll] = useState(false);
   const [bonusDraft, setBonusDraft]     = useState<number | ''>('');
   const [savingBonus, setSavingBonus]   = useState(false);
   const [slipPeriod, setSlipPeriod]     = useState<string>(() => {
@@ -102,12 +104,12 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     setError('');
     // Tanpa filter periode: memuat SELURUH snapshot payroll agar histori gaji
     // lintas bulan tersedia (jumlahnya kecil: beberapa staff × beberapa bulan).
-    try { setData(await loadHrData(currentBranch.id)); }
+    try { setData(await loadHrData(currentBranch.id, undefined, scopeAll ? 'ALL' : undefined)); }
     catch (err) { setError(err instanceof Error ? err.message : 'Data HR gagal dimuat'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id]);
+  useEffect(() => { void refresh(); }, [currentBranch.id, activeUser.id, scopeAll]);
   useEffect(() => { setHrConfigDraft(data.hrConfig || DEFAULT_HR_CONFIG); }, [data.hrConfig]);
   useEffect(() => {
     if (!slipStaff) return;
@@ -116,6 +118,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   }, [slipStaff, slipPeriod, data.payrollAdjustments]);
 
   const saveBonus = async (staff: UserAccount) => {
+    if (scopeAll) { onShowToast('Mode Konsolidasi', 'Pindah ke OUTLET INI untuk mengatur bonus.'); return; }
     setSavingBonus(true);
     try {
       await savePayrollAdjustment({ branchId: currentBranch.id, userId: staff.id, period: slipPeriod, bonus: Number(bonusDraft) || 0 });
@@ -261,6 +264,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   }), [visibleStaff, matrixDays, attendanceMonth, recordsByStaff, approvedLeaves, data.hrConfig, todayKey]);
 
   const saveHrPolicy = async () => {
+    if (scopeAll) { onShowToast('Mode Konsolidasi', 'Pindah ke OUTLET INI untuk mengubah kebijakan HR.'); return; }
     setLoading(true);
     try {
       await saveHrConfig({ branchId: currentBranch.id, ...hrConfigDraft });
@@ -312,6 +316,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   };
 
   const savePayroll = async () => {
+    if (scopeAll) { onShowToast('Mode Konsolidasi', 'Pindah ke OUTLET INI untuk mengubah komponen payroll.'); return; }
     if (!payrollStaff) return;
     setLoading(true);
     try {
@@ -335,6 +340,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   };
 
   const submitKasbon = async () => {
+    if (scopeAll) { onShowToast('Mode Konsolidasi', 'Pindah ke OUTLET INI untuk mencatat kasbon.'); return; }
     if (!kasbonStaff || !kasbonAmount || Number(kasbonAmount) <= 0) {
       onShowToast('Data Tidak Lengkap', 'Isi nominal kasbon dan alasan.');
       return;
@@ -442,6 +448,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
   const payrollPeriodStatus = payrollPeriod?.status || 'DRAFT';
 
   const finalizePeriod = async () => {
+    if (scopeAll) { onShowToast('Mode Konsolidasi', 'Finalisasi payroll dilakukan per cabang. Pindah ke OUTLET INI.'); return; }
     if (!window.confirm(`Finalisasi payroll ${slipPeriod}? Snapshot gaji akan dihitung dari data absensi dan kasbon saat ini.`)) return;
     setLoading(true);
     try {
@@ -481,6 +488,12 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
     <section className="mt-6 rounded-2xl border border-[var(--panel-border)] bg-white p-4 shadow-sm md:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-bold text-[var(--text-primary)]">Kehadiran & HR</h2><p className="text-xs font-semibold text-slate-500">Riwayat, izin, dan komponen payroll terhubung per outlet.</p></div>
+                {canManage && (
+          <div className="flex rounded-2xl bg-[var(--surface-secondary)] p-1 text-[11px] font-bold">
+            <button type="button" onClick={() => setScopeAll(false)} className={`rounded-xl px-3 py-2 ${!scopeAll ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>OUTLET INI</button>
+            <button type="button" onClick={() => setScopeAll(true)} className={`rounded-xl px-3 py-2 ${scopeAll ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>SEMUA CABANG</button>
+          </div>
+        )}
         <div className="flex rounded-2xl bg-[var(--surface-secondary)] p-1 text-[11px] font-bold">
           <button onClick={() => setTab('HISTORY')} className={`rounded-xl px-3 py-2 ${tab === 'HISTORY' ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>DETAIL ABSEN</button>
           <button onClick={() => setTab('LEAVE')} className={`rounded-xl px-3 py-2 ${tab === 'LEAVE' ? 'bg-[var(--primary)] text-white' : 'text-slate-500'}`}>AJUKAN IZIN</button>

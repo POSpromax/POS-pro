@@ -63,6 +63,8 @@ interface HrPayload {
   deductMonth?: string;
   kasbonId?: string;
   period?: string;
+  // scope=ALL: rekap KONSOLIDASI seluruh cabang yang dikelola aktor (BACA saja).
+  scope?: string;
 }
 
 export interface HrRequestResult { status: number; data: unknown }
@@ -127,6 +129,18 @@ const mapAdvance = (row: any, name: string) => ({
   deducted_at: row.deducted_at || undefined,
 });
 
+
+/** Cabang dalam tenant yang sama tempat aktor berperan manajemen aktif. */
+async function hrManagedBranchIds(actorId: string, tenantId: string, admin: SupabaseClient): Promise<string[]> {
+  const { data: memberships } = await admin
+    .from('branch_members').select('branch_id,role,is_active')
+    .eq('user_id', actorId).eq('is_active', true);
+  const ids = (memberships || []).filter((r: any) => MANAGEMENT_ROLES.has(r.role)).map((r: any) => r.branch_id);
+  if (!ids.length) return [];
+  const { data: branches } = await admin
+    .from('branches').select('id').eq('tenant_id', tenantId).eq('is_active', true).in('id', ids);
+  return (branches || []).map((b: any) => b.id);
+}
 export async function handleHrRequest(
   method: string,
   payload: HrPayload,
@@ -152,17 +166,25 @@ export async function handleHrRequest(
   const timeZone = branch.timezone || 'Asia/Jakarta';
 
   if (method === 'GET') {
-    let leaveQuery = admin.from('leave_requests').select('*').eq('branch_id', payload.branchId).order('created_at', { ascending: false }).limit(250);
-    let payrollQuery = admin.from('payroll_profiles').select('*').eq('branch_id', payload.branchId).order('updated_at', { ascending: false });
-    let advanceQuery = admin.from('staff_advances').select('*').eq('branch_id', payload.branchId).order('created_at', { ascending: false }).limit(500);
+    // KONSOLIDASI (baca saja): manajemen dapat melihat rekap seluruh cabang
+    // yang dikelolanya. Aksi tulis payroll tetap terikat satu cabang.
+    const consolidated = String(payload.scope || '').toUpperCase() === 'ALL' && isManagement;
+    const scopeBranchIds = consolidated
+      ? await hrManagedBranchIds(actorId, profile.tenant_id, admin)
+      : [payload.branchId as string];
+    const branchScope = scopeBranchIds.length ? scopeBranchIds : [payload.branchId as string];
+
+    let leaveQuery = admin.from('leave_requests').select('*').in('branch_id', branchScope).order('created_at', { ascending: false }).limit(250);
+    let payrollQuery = admin.from('payroll_profiles').select('*').in('branch_id', branchScope).order('updated_at', { ascending: false });
+    let advanceQuery = admin.from('staff_advances').select('*').in('branch_id', branchScope).order('created_at', { ascending: false }).limit(500);
     if (!isManagement) {
       leaveQuery = leaveQuery.eq('user_id', actorId);
       payrollQuery = payrollQuery.eq('user_id', actorId);
       advanceQuery = advanceQuery.eq('user_id', actorId);
     }
 
-    const periodQuery = admin.from('payroll_periods').select('*').eq('branch_id', payload.branchId).order('period', { ascending: false }).limit(24);
-    let snapshotQuery = admin.from('payroll_snapshots').select('*').eq('branch_id', payload.branchId).order('period', { ascending: false }).limit(1000);
+    const periodQuery = admin.from('payroll_periods').select('*').in('branch_id', branchScope).order('period', { ascending: false }).limit(24);
+    let snapshotQuery = admin.from('payroll_snapshots').select('*').in('branch_id', branchScope).order('period', { ascending: false }).limit(1000);
     if (safePeriod(payload.period)) snapshotQuery = snapshotQuery.eq('period', payload.period!);
     if (!isManagement) snapshotQuery = snapshotQuery.eq('user_id', actorId);
 
@@ -173,7 +195,7 @@ export async function handleHrRequest(
       advanceQuery,
       periodQuery,
       snapshotQuery,
-      admin.from('payroll_adjustments').select('user_id,period,bonus,note').eq('branch_id', payload.branchId),
+      admin.from('payroll_adjustments').select('user_id,period,bonus,note').in('branch_id', branchScope),
     ]);
     if (leaveResult.error || payrollResult.error) return fail(500, 'Data HR belum siap. Terapkan migrasi HR terbaru di Supabase.');
     if (advanceResult.error && advanceResult.error.code !== '42P01' && advanceResult.error.code !== '42703') return fail(500, 'Data kasbon tidak dapat dimuat');
@@ -206,6 +228,7 @@ export async function handleHrRequest(
       status: 200,
       data: {
         canManage: isManagement,
+        consolidated,
         leaveRequests: leaveRequests.map((row: any) => ({ ...row, staffName: names.get(row.user_id) || 'Staff' })),
         payrollProfiles: payrollProfiles.filter((row: any) => isOperationalPayrollUser(row.user_id)).map((row: any) => ({ ...row, staffName: names.get(row.user_id) || 'Staff' })),
         kasbonRecords: advances.filter((row: any) => isOperationalPayrollUser(row.user_id)).map((row: any) => mapAdvance(row, names.get(row.user_id) || 'Staff')),
