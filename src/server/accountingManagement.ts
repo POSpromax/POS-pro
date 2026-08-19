@@ -54,6 +54,9 @@ interface AccountingPayload {
   branchId?: string;
   action?: 'SEED_COA' | 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'VOID_ENTRY' | 'DELETE_ENTRY' | 'SAVE_ACCOUNT' | 'DELETE_ACCOUNT';
   view?: string;
+  // scope=ALL: laporan KONSOLIDASI seluruh cabang yang boleh diakses aktor
+  // (hanya untuk BACA; pembuatan/edit jurnal tetap per cabang agar aman).
+  scope?: string;
   period?: string;
   entryDate?: string;
   description?: string;
@@ -168,6 +171,26 @@ async function resolveActor(payload: AccountingPayload, accessToken: string, adm
   return { actorId, tenantId: profile.tenant_id as string, timeZone: (branch.timezone as string) || 'Asia/Jakarta' };
 }
 
+
+/** Cabang (dalam tenant yang sama) tempat aktor menjabat peran manajemen aktif. */
+async function managedBranchIds(actorId: string, tenantId: string, admin: SupabaseClient): Promise<Array<{ id: string; name: string }>> {
+  const { data: memberships } = await admin
+    .from('branch_members')
+    .select('branch_id,role,is_active')
+    .eq('user_id', actorId)
+    .eq('is_active', true);
+  const ids = (memberships || [])
+    .filter((row: any) => MANAGEMENT_ROLES.has(row.role))
+    .map((row: any) => row.branch_id);
+  if (!ids.length) return [];
+  const { data: branches } = await admin
+    .from('branches')
+    .select('id,name')
+    .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+    .in('id', ids);
+  return (branches || []).map((b: any) => ({ id: b.id, name: b.name }));
+}
 // Menyusun rekomendasi jurnal dari transaksi yang BELUM dijurnal pada periode:
 // penjualan (agregat per hari), biaya/pemasukan (per catatan), gaji (per periode).
 async function buildRecommendations(
@@ -314,9 +337,18 @@ export async function handleAccountingRequest(
     }
 
     const { start, end, openingTo } = periodBounds(period);
+    // KONSOLIDASI: scope=ALL membaca seluruh cabang yang dikelola aktor.
+    // Hanya untuk BACA; pembuatan/edit jurnal tetap terikat satu cabang.
+    const consolidated = String(payload.scope || '').toUpperCase() === 'ALL';
+    const branchList = consolidated
+      ? await managedBranchIds(actor.actorId, actor.tenantId, admin)
+      : [{ id: branchId, name: '' }];
+    const branchIds = branchList.map((b) => b.id);
+    if (branchIds.length === 0) return fail(403, 'Tidak ada outlet yang dapat Anda akses');
+
 
     const [coaResult, entriesResult, openingResult] = await Promise.all([
-      admin.from('chart_of_accounts').select('*').eq('branch_id', branchId).order('sort_order'),
+      admin.from('chart_of_accounts').select('*').in('branch_id', branchIds).order('sort_order'),
       admin.from('journal_entries')
         .select('id,entry_date,reference,description,source,source_id,status,created_at,journal_lines(id,account_code,debit,credit,memo)')
         .eq('branch_id', branchId)
@@ -325,7 +357,11 @@ export async function handleAccountingRequest(
         .order('entry_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1000),
-      admin.rpc('journal_account_balances', { p_branch_id: branchId, p_to: openingTo }),
+      Promise.all(branchIds.map((id) => admin.rpc('journal_account_balances', { p_branch_id: id, p_to: openingTo })))
+        .then((results) => ({
+          data: results.flatMap((r: any) => r.data || []),
+          error: results.find((r: any) => r.error)?.error || null,
+        })),
     ]);
 
     if (coaResult.error) {
@@ -335,7 +371,14 @@ export async function handleAccountingRequest(
     if (entriesResult.error) return fail(500, 'Jurnal gagal dimuat');
     if (openingResult.error) return fail(500, 'Saldo awal gagal dihitung');
 
-    const coa = (coaResult.data || []).map((row: any) => ({
+    // Konsolidasi: akun berkode sama di beberapa cabang digabung jadi satu baris.
+    const seenCodes = new Set<string>();
+    const coa = (coaResult.data || []).filter((row: any) => {
+      if (!consolidated) return true;
+      if (seenCodes.has(row.code)) return false;
+      seenCodes.add(row.code);
+      return true;
+    }).map((row: any) => ({
       id: row.id,
       code: row.code,
       name: row.name,
@@ -365,13 +408,19 @@ export async function handleAccountingRequest(
       })),
     }));
 
-    const openingBalances = (openingResult.data || []).map((row: any) => ({
-      accountCode: row.account_code,
-      debit: Number(row.total_debit || 0),
-      credit: Number(row.total_credit || 0),
+    // Saldo awal dari beberapa cabang dijumlahkan per kode akun.
+    const openingMap = new Map<string, { debit: number; credit: number }>();
+    (openingResult.data || []).forEach((row: any) => {
+      const bucket = openingMap.get(row.account_code) || { debit: 0, credit: 0 };
+      bucket.debit += Number(row.total_debit || 0);
+      bucket.credit += Number(row.total_credit || 0);
+      openingMap.set(row.account_code, bucket);
+    });
+    const openingBalances = [...openingMap.entries()].map(([accountCode, v]) => ({
+      accountCode, debit: v.debit, credit: v.credit,
     }));
 
-    return { status: 200, data: { canManage: true, period, coa, entries, openingBalances } };
+    return { status: 200, data: { canManage: true, period, coa, entries, openingBalances, consolidated, branches: branchList } };
   }
 
   // POST

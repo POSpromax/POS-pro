@@ -43,6 +43,9 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
   const canManage = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role);
   const [tab, setTab] = useState<Tab>('JOURNAL');
   const [period, setPeriod] = useState(currentMonth());
+  // KONSOLIDASI: lihat seluruh cabang (baca saja). Membuat/mengedit jurnal tetap
+  // pada cabang aktif agar pencatatan tidak salah tempat.
+  const [scopeAll, setScopeAll] = useState(false);
   const [data, setData] = useState<AccountingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -111,7 +114,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     setLoading(true);
     setError('');
     try {
-      const result = await loadAccounting(currentBranch.id, period);
+      const result = await loadAccounting(currentBranch.id, period, scopeAll ? 'ALL' : undefined);
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data akuntansi gagal dimuat');
@@ -123,7 +126,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBranch.id, period]);
+  }, [currentBranch.id, period, scopeAll]);
 
   useEffect(() => {
     if (tab === 'RECOMMEND' && data && data.coa.length > 0) void loadRecs();
@@ -260,6 +263,17 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Lingkup: satu outlet vs konsolidasi kantor pusat (baca saja). */}
+          <div className="flex rounded-xl bg-[var(--surface-secondary)] p-1 text-[11px] font-bold">
+            <button type="button" onClick={() => setScopeAll(false)}
+              className={`rounded-lg px-3 py-1.5 ${!scopeAll ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}>
+              Outlet Ini
+            </button>
+            <button type="button" onClick={() => setScopeAll(true)}
+              className={`rounded-lg px-3 py-1.5 ${scopeAll ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}>
+              Semua Cabang
+            </button>
+          </div>
           <label className="text-[11px] font-bold uppercase text-[var(--text-tertiary)]">Periode</label>
           <input
             type="month"
@@ -355,6 +369,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
               balanced={balanced}
               saving={saving}
               onSubmit={() => void submitEntry()}
+              readOnly={scopeAll}
               onStartEdit={startEditEntry}
               onDelete={(id) => void deleteEntry(id)}
             />
@@ -409,7 +424,7 @@ function JournalTab(props: {
   addLine: () => void; removeLine: (i: number) => void;
   accounts: Account[];
   totalDebit: number; totalCredit: number; balanced: boolean;
-  saving: boolean; onSubmit: () => void;
+  saving: boolean; onSubmit: () => void; readOnly?: boolean;
   onStartEdit: (entry: JournalEntry) => void; onDelete: (id: string) => void;
 }) {
   const { data, accounts } = props;
@@ -419,6 +434,9 @@ function JournalTab(props: {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-[var(--text-primary)]">Ayat Jurnal Periode Ini <span className="text-[var(--text-tertiary)]">({data.entries.length})</span></h3>
+        {props.readOnly ? (
+          <span className="rounded-xl bg-[var(--surface-secondary)] px-3 py-1.5 text-[11px] font-bold text-[var(--text-tertiary)]">Mode konsolidasi — baca saja</span>
+        ) : (
         <button
           type="button"
           onClick={() => (props.showForm ? props.onCancelEdit() : props.setShowForm(true))}
@@ -426,6 +444,7 @@ function JournalTab(props: {
         >
           <Plus className="h-4 w-4" /> {props.showForm ? 'Tutup Form' : 'Buat Jurnal'}
         </button>
+        )}
       </div>
 
       {props.showForm && (
@@ -521,6 +540,7 @@ function JournalTab(props: {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="mr-1 font-mono text-[13px] font-bold text-[var(--text-primary)]">{rp(total)}</span>
+                    {!props.readOnly && (<>
                     <button type="button" onClick={() => props.onStartEdit(entry)} className="rounded-lg p-1 text-[var(--text-tertiary)] hover:bg-[var(--brand-100)] hover:text-[var(--primary-hover)]" title="Edit jurnal">
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -530,6 +550,7 @@ function JournalTab(props: {
                       className="rounded-lg p-1 text-[var(--text-tertiary)] hover:bg-[var(--danger-soft)] hover:text-[var(--accent-red)]" title="Hapus jurnal">
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    </>)}
                   </div>
                 </div>
                 <div className="space-y-1">

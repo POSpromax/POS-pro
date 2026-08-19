@@ -44,6 +44,8 @@ export interface OpeningBalance {
 export interface AccountingData {
   canManage: boolean;
   period: string;
+  consolidated?: boolean;
+  branches?: Array<{ id: string; name: string }>;
   coa: Account[];
   entries: JournalEntry[];
   openingBalances: OpeningBalance[];
@@ -69,8 +71,8 @@ async function requestAccounting(method: string, body: Record<string, unknown>):
   return payload;
 }
 
-export const loadAccounting = (branchId: string, period: string): Promise<AccountingData> =>
-  requestAccounting('GET', { branchId, period });
+export const loadAccounting = (branchId: string, period: string, scope?: 'ALL'): Promise<AccountingData> =>
+  requestAccounting('GET', { branchId, period, ...(scope ? { scope } : {}) });
 
 export interface JournalRecommendation {
   id: string;
