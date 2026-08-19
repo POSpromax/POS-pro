@@ -413,10 +413,16 @@ export async function handleOrderRequest(
         (group.target_categories || []).includes('ALL') ||
         (group.target_categories || []).includes(menu.category)
       );
-      if (!applicable) return fail(400, `${group.name} tidak berlaku untuk menu ini`);
       const names = Array.isArray(selection.options)
         ? selection.options.map((name: unknown) => String(name || '').trim()).filter(Boolean)
         : [];
+      // Grup condiment TANPA pilihan = kasir memang tidak memilih apa pun.
+      // Abaikan seluruhnya supaya tidak ditolak lewat aturan minimum/berlaku;
+      // kewajiban sudah diatur pengecekan "wajib dipilih" di bawah yang
+      // menghormati saklar Topping. Tanpa ini, mematikan saklar Topping membuat
+      // order yang membawa grup kosong gagal disimpan maupun dibayar.
+      if (names.length === 0) continue;
+      if (!applicable) return fail(400, `${group.name} tidak berlaku untuk menu ini`);
       if (names.length > Number(group.max_select || 1)) return fail(400, `Pilihan ${group.name} melebihi batas`);
       if (names.length < Number(group.min_select || 0)) return fail(400, `${group.name} belum memenuhi jumlah pilihan minimum`);
       if (names.length > 0) selectedGroupIds.add(group.id);
