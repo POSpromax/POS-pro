@@ -41,6 +41,9 @@ export interface RecipeIngredient {
   rawMaterialName: string;
   amountNeeded: number; // e.g. 150 (grams) or 1 (pcs)
   unit: string;
+  // Bahan CUSTOM: tidak terikat master bahan/stok (mis. garam 3 gram).
+  isCustom?: boolean;
+  customCost?: number; // biaya per SATUAN bahan custom
 }
 
 export interface MenuItem {

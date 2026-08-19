@@ -25,17 +25,21 @@ export interface HppBreakdown {
 export function calculateMenuHpp(menu: MenuItem, rawMaterials: RawMaterial[]): HppBreakdown {
   const byId = new Map(rawMaterials.map((m) => [m.id, m]));
   const lines: HppLine[] = (menu.ingredients || []).map((ing) => {
+    // Bahan CUSTOM memakai biaya yang diisi manual (tidak punya master harga).
     const material = byId.get(ing.rawMaterialId);
     const amount = Number(ing.amountNeeded) || 0;
-    const costPerUnit = Number(material?.costPerUnit) || 0;
+    const costPerUnit = ing.isCustom
+      ? (Number(ing.customCost) || 0)
+      : (Number(material?.costPerUnit) || 0);
+    const missing = ing.isCustom ? costPerUnit <= 0 : (!material || costPerUnit <= 0);
     return {
-      rawMaterialId: ing.rawMaterialId,
-      name: material?.name || ing.rawMaterialName || 'Bahan tidak ditemukan',
+      rawMaterialId: ing.rawMaterialId || `custom:${ing.rawMaterialName}`,
+      name: ing.isCustom ? ing.rawMaterialName : (material?.name || ing.rawMaterialName || 'Bahan tidak ditemukan'),
       amount,
       unit: ing.unit || material?.unit || '',
       costPerUnit,
       subtotal: Math.round(amount * costPerUnit),
-      missing: !material || costPerUnit <= 0,
+      missing,
     };
   });
   return {

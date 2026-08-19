@@ -144,6 +144,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   // Recipe Builder inside Edit Menu Modal
   const [selectedRecipeMaterialId, setSelectedRecipeMaterialId] = useState<string>('');
   const [selectedRecipeQty, setSelectedRecipeQty] = useState<number>(1);
+  // Bahan CUSTOM: komponen HPP yang tidak terikat master bahan/stok, karena
+  // pemakaian seperti garam/saus tertakar (gram/ml) sedangkan stok dapur
+  // dihitung per pack/karton.
+  const [customIng, setCustomIng] = useState({ name: '', qty: '', unit: 'gram', cost: '' });
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [isSetupPanelOpen, setIsSetupPanelOpen] = useState<boolean>(true);
@@ -1346,6 +1350,49 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   </button>
                 </div>
 
+                {/* Bahan CUSTOM: untuk pemakaian tertakar (garam, saus, bumbu)
+                    yang tidak praktis diikat ke stok pack/karton. */}
+                <div className="rounded-2xl border border-dashed border-[var(--brand-200)] bg-[var(--brand-50)] p-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--primary-text)]">Tambah Bahan Custom</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-[var(--text-tertiary)]">Untuk pemakaian tertakar (garam, saus, bumbu) yang tidak diikat ke stok. Tidak memotong stok, hanya menambah komponen HPP.</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <input type="text" value={customIng.name} placeholder="Nama (mis. Garam)"
+                      onChange={(e) => setCustomIng({ ...customIng, name: e.target.value })}
+                      className="col-span-2 rounded-xl border border-[var(--panel-border)] bg-white p-2 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                    <input type="number" min={0} value={customIng.qty} placeholder="Jumlah"
+                      onChange={(e) => setCustomIng({ ...customIng, qty: e.target.value })}
+                      className="rounded-xl border border-[var(--panel-border)] bg-white p-2 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                    <input type="text" value={customIng.unit} placeholder="Satuan"
+                      onChange={(e) => setCustomIng({ ...customIng, unit: e.target.value })}
+                      className="rounded-xl border border-[var(--panel-border)] bg-white p-2 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                    {canViewCost && (
+                      <div className="relative col-span-2">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[var(--text-tertiary)]">Rp</span>
+                        <input type="number" min={0} value={customIng.cost} placeholder="Biaya per satuan"
+                          onChange={(e) => setCustomIng({ ...customIng, cost: e.target.value })}
+                          className="w-full rounded-xl border border-[var(--panel-border)] bg-white p-2 pl-7 text-xs font-bold text-[var(--text-primary)] outline-none" />
+                      </div>
+                    )}
+                    <button type="button"
+                      disabled={!customIng.name.trim() || !(Number(customIng.qty) > 0)}
+                      onClick={() => {
+                        const line = {
+                          rawMaterialId: '',
+                          rawMaterialName: customIng.name.trim(),
+                          amountNeeded: Number(customIng.qty) || 0,
+                          unit: customIng.unit.trim() || 'gram',
+                          isCustom: true,
+                          customCost: Number(customIng.cost) || 0,
+                        };
+                        setEditingMenu({ ...editingMenu, ingredients: [ ...(editingMenu.ingredients || []), line ] });
+                        setCustomIng({ name: '', qty: '', unit: customIng.unit, cost: '' });
+                      }}
+                      className={`${canViewCost ? 'col-span-2' : 'col-span-4'} rounded-xl bg-[var(--primary)] p-2 text-xs font-bold text-white disabled:opacity-50`}>
+                      Tambah Bahan Custom
+                    </button>
+                  </div>
+                </div>
+
                 <div className="bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 md:p-3 space-y-2 min-h-40 md:min-h-48 max-h-56 overflow-y-auto">
                   {editingMenu.ingredients && editingMenu.ingredients.length > 0 ? (
                     editingMenu.ingredients.map((ing) => (
@@ -1353,7 +1400,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                         key={ing.rawMaterialId}
                         className="bg-[var(--surface-card)] border border-[var(--panel-border)] rounded-xl p-2 md:p-2.5 flex items-center justify-between shadow-sm"
                       >
-                        <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)]">{ing.rawMaterialName}</span>
+                        <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)]">{ing.rawMaterialName}{ing.isCustom && <span className="ml-1.5 rounded bg-[var(--brand-100)] px-1.5 py-0.5 text-[9px] font-black uppercase text-[var(--primary-text)]">custom</span>}</span>
                         <div className="flex items-center gap-2 md:gap-3">
                           <span className="font-bold text-[11px] md:text-xs text-[var(--text-secondary)] font-mono">
                             {ing.amountNeeded} {ing.unit}

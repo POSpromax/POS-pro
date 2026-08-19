@@ -56,12 +56,20 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
         || /^(menu tambahan|menu custom|custom|lainya|lainnya)$/i.test(String(row.name).trim())
         || Number(row.price || 0) <= 0;
       const isSticky = row.id === 'menu-custom' || Boolean(row.is_sticky) || isManualPrice;
-      const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => ({
-        rawMaterialId: ingredient.raw_material_id,
-        rawMaterialName: rawNames.get(ingredient.raw_material_id) || 'Bahan baku',
-        amountNeeded: Number(ingredient.amount_needed),
-        unit: ingredient.unit,
-      }));
+      const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => {
+        // Baris CUSTOM tidak punya raw_material_id: nama & biayanya tersimpan
+        // langsung pada baris resep (mis. garam 3 gram, saus 5 ml).
+        const custom = !ingredient.raw_material_id;
+        return {
+          rawMaterialId: ingredient.raw_material_id || '',
+          rawMaterialName: custom
+            ? (ingredient.custom_name || 'Bahan custom')
+            : (rawNames.get(ingredient.raw_material_id) || 'Bahan baku'),
+          amountNeeded: Number(ingredient.amount_needed),
+          unit: ingredient.unit,
+          ...(custom ? { isCustom: true, customCost: Number(ingredient.custom_cost || 0) } : {}),
+        };
+      });
       return { id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '', description: row.description || '', hppCost: Number(row.hpp_cost || 0), ingredients, isAvailable: row.is_available !== false, stockCount: row.stock_count ?? undefined, isAutoStock: ingredients.length > 0, isManualPrice, isSticky, trackStock: !isManualPrice };
     }),
     rawMaterials: (rawRows || []).map((row) => ({ id: row.id, name: row.name, unit: row.unit, stockQuantity: Number(row.stock_quantity), minStockThreshold: Number(row.min_stock_threshold), costPerUnit: Number(row.cost_per_unit), branchId: row.branch_id, branchName: '', group: row.material_group || undefined, takeAwayUsagePerItem: Number(row.take_away_usage_per_item || 0) || undefined })),
@@ -83,9 +91,11 @@ export async function saveCloudMenuItem(item: MenuItem, branchId: string): Promi
   if (item.ingredients.length) {
     const { error: ingredientError } = await supabase.from('menu_item_ingredients').insert(item.ingredients.map((ingredient) => ({
       menu_item_id: menuItemId,
-      raw_material_id: ingredient.rawMaterialId,
+      raw_material_id: ingredient.isCustom ? null : ingredient.rawMaterialId,
       amount_needed: ingredient.amountNeeded,
       unit: ingredient.unit,
+      custom_name: ingredient.isCustom ? ingredient.rawMaterialName : null,
+      custom_cost: ingredient.isCustom ? (ingredient.customCost || 0) : null,
     })));
     if (ingredientError) throw new Error(ingredientError.message);
   }
