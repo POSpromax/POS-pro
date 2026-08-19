@@ -890,12 +890,33 @@ export default function App() {
           if (changed.length === 0) return;
           const scoped = changed.filter((order) => !order.branchId || order.branchId === branchId);
           if (scoped.length === 0) return;
+          // Deteksi order baru/tambahan item SEBELUM known diperbarui, supaya saat
+          // realtime terputus pesanan self-order tetap berbunyi & tercetak.
+          const changedForNotify = scoped.filter((order) => (
+            order.items.reduce((sum, item) => sum + item.quantity, 0) > (knownItemQuantities.get(order.id) || 0)
+          ));
           scoped.forEach((order) => knownItemQuantities.set(order.id, order.items.reduce((sum, item) => sum + item.quantity, 0)));
           setOrders((current) => {
             const map = new Map(current.map((order) => [order.id, order] as [string, Order]));
             scoped.forEach((order) => map.set(order.id, order));
             return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           });
+          if (!isFirstLoad && changedForNotify.length > 0) {
+            const selfOrders = changedForNotify.filter((order) => order.source === 'SELF_ORDER');
+            if (selfOrders.length > 0) {
+              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profile.soundCustomerOrder);
+              selfOrders.forEach((order) => showPushToast('Pesanan Self-order Masuk', `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`));
+              if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
+                selfOrders.forEach((order) => {
+                  void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
+                    if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
+                  });
+                });
+              }
+            } else if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+              playNewOrderSound(profile.soundPesananMasuk);
+            }
+          }
         })
         .catch(() => { /* jaringan sesaat — siklus berikutnya menyusul */ });
     };
