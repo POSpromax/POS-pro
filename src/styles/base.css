@@ -227,6 +227,7 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent; }
 }
 .theme-self-order .so-product-card:active { transform: scale(.992); }
 .theme-self-order .so-product-image-wrap {
+  position: relative;
   aspect-ratio: 1 / .9;
   overflow: hidden;
   background: #fff;

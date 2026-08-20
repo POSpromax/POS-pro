@@ -54,7 +54,7 @@ import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listClou
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { getCloudOrder, listCloudOrders, listCloudOrdersForReport, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
-import { getPublicCatalogContext } from './services/publicCatalogService';
+import { getPublicCatalogContext, getPublicSelfOrderStatus } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
 import { defaultBranchOperationalConfig, getCloudBranchOperationalConfig, saveCloudBranchOperationalConfig } from './services/branchConfigService';
 import { getCloudAttendanceConfig, getCloudTenantBrand, saveCloudTenantBrand } from './services/tenantConfigService';
@@ -445,9 +445,14 @@ export default function App() {
       return;
     }
     let active = true;
+    let refreshing = false;
+    let lastLoadedAt = 0;
     setSelfOrderCatalogState({ loading: true, error: null });
-    const refreshPublicCatalog = () => getPublicCatalogContext(requestedSelfOrderBranchId || undefined, requestedSelfOrderTenantId || undefined, requestedSelfOrderRouteCode || undefined)
-      .then((context) => {
+    const refreshPublicCatalog = () => {
+      if (refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      void getPublicCatalogContext(requestedSelfOrderBranchId || undefined, requestedSelfOrderTenantId || undefined, requestedSelfOrderRouteCode || undefined)
+        .then((context) => {
         if (!active) return;
         setCurrentBranch((branch) => ({ ...branch, ...context.branch }));
         setMenuItems(context.menuItems);
@@ -457,6 +462,7 @@ export default function App() {
         setIsSelfOrderSystemEnabled(context.operationalConfig?.selfOrderEnabled !== false);
         setPublicSelfOrderShiftActive(context.isShiftActive === true);
         if (context.profile) setProfile((current) => ({ ...current, ...context.profile }));
+        lastLoadedAt = Date.now();
         setSelfOrderCatalogState({ loading: false, error: null });
       })
       .catch((error) => {
@@ -464,13 +470,65 @@ export default function App() {
         const message = error instanceof Error ? error.message : 'Katalog cabang tidak dapat dimuat.';
         setSelfOrderCatalogState({ loading: false, error: message });
         showPushToast('Self-order Belum Siap', message);
-      });
-    void refreshPublicCatalog();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void refreshPublicCatalog();
-    }, 60_000);
-    return () => { active = false; window.clearInterval(timer); };
+      })
+      .finally(() => { refreshing = false; });
+    };
+    refreshPublicCatalog();
+
+    // Profil, gambar, condiment, dan susunan menu adalah snapshot berat. Muat
+    // ulang hanya ketika pelanggan kembali ke tab setelah snapshot berumur
+    // lebih dari lima menit; status cepat ditangani effect ringkas di bawah.
+    const refreshCatalogWhenStale = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastLoadedAt >= 300_000) {
+        refreshPublicCatalog();
+      }
+    };
+    window.addEventListener('focus', refreshCatalogWhenStale);
+    document.addEventListener('visibilitychange', refreshCatalogWhenStale);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refreshCatalogWhenStale);
+      document.removeEventListener('visibilitychange', refreshCatalogWhenStale);
+    };
   }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderTenantId, requestedSelfOrderRouteCode]);
+
+  useEffect(() => {
+    if (!isSelfOrderUrlParam || !cloudReadiness.supabase) return;
+    if (!requestedSelfOrderBranchId && !requestedSelfOrderRouteCode) return;
+    let active = true;
+    let refreshing = false;
+
+    const refreshPublicStatus = () => {
+      if (refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      void getPublicSelfOrderStatus(requestedSelfOrderBranchId || undefined, requestedSelfOrderRouteCode || undefined)
+        .then((status) => {
+          if (!active) return;
+          const availableIds = new Set(status.availableMenuIds || []);
+          setTables(status.tables);
+          setPublicSelfOrderShiftActive(status.isShiftActive === true);
+          setMenuItems((items) => items.map((item) => ({ ...item, isAvailable: availableIds.has(item.id) })));
+        })
+        .catch(() => undefined)
+        .finally(() => { refreshing = false; });
+    };
+
+    // 15 detik cukup responsif untuk indikator UI; klaim meja dan stok tetap
+    // divalidasi atomik pada POST order sehingga tidak bergantung polling ini.
+    refreshPublicStatus();
+    const timer = window.setInterval(refreshPublicStatus, 15_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshPublicStatus();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [isSelfOrderUrlParam, requestedSelfOrderBranchId, requestedSelfOrderRouteCode]);
 
   const handleAddBranch = (newBranch: Branch) => {
     if (!cloudReadiness.supabase) {
@@ -1926,10 +1984,14 @@ export default function App() {
         setOrders((current) => [saved, ...current.filter((order) => order.id !== orderToSave.id && order.id !== saved.id)]);
         
         // CRITICAL FIX: Don't call refreshBranchTables for public self-order URLs (no auth)
-        // Instead, refresh tables using public catalog API
+        // Refresh snapshot RINGKAS; katalog lengkap tidak perlu diunduh ulang
+        // setelah setiap order berhasil.
         if (isSelfOrderUrlParam) {
-          void getPublicCatalogContext(targetBranchId).then((ctx) => {
-            setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
+          void getPublicSelfOrderStatus(targetBranchId).then((status) => {
+            const availableIds = new Set(status.availableMenuIds || []);
+            setTables(status.tables);
+            setPublicSelfOrderShiftActive(status.isShiftActive === true);
+            setMenuItems((items) => items.map((item) => ({ ...item, isAvailable: availableIds.has(item.id) })));
           }).catch(() => undefined);
         } else {
           await refreshBranchTables(targetBranchId);
@@ -1942,7 +2004,9 @@ export default function App() {
         // authenticated branch order list, otherwise the error path creates a 401.
         if (isSelfOrderUrlParam) {
           void getPublicCatalogContext(targetBranchId).then((ctx) => {
-            setTables((existing) => [...existing.filter((t) => t.branchId !== targetBranchId), ...ctx.tables]);
+            setTables(ctx.tables);
+            setMenuItems(ctx.menuItems);
+            setPublicSelfOrderShiftActive(ctx.isShiftActive === true);
           }).catch(() => undefined);
         } else {
           void Promise.all([

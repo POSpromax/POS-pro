@@ -23,7 +23,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   if (!branch?.is_active) return { status: 404, data: { error: 'Outlet tidak tersedia' } };
   const [{ data: menus }, { data: tables }, { data: groups }, { data: config }, { data: branchConfig }, { data: activeShift }] = await Promise.all([
     admin.from('menu_items').select('id,name,category,price,image_url,description,stock_count,sort_order').eq('branch_id', branch.id).eq('is_available', true).order('sort_order'),
-    admin.from('restaurant_tables').select('*').eq('branch_id', branch.id).eq('self_order_enabled', true).eq('status', 'READY').order('number'),
+    admin.from('restaurant_tables').select('id,number,capacity,status,self_order_enabled,active_order_id').eq('branch_id', branch.id).order('number'),
     admin.from('condiment_groups').select('*, condiment_options(*)').eq('branch_id', branch.id).eq('is_active', true).order('sort_order'),
     admin.from('tenant_config').select('*').eq('tenant_id', branch.tenant_id).maybeSingle(),
     admin.from('branch_operational_config').select('self_order_base_url,profile_overrides,condiment_scopes').eq('branch_id', branch.id).maybeSingle(),
@@ -37,6 +37,8 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
     selfOrderDefaultOptions?: string[];
     selfOrderBaksoOnlyOptions?: string[];
     selfOrderCampurOptions?: string[];
+    quickPresets?: Array<{ id: string; name: string; options: string[]; kitchenLabel?: string }>;
+    disabledQuickPresets?: Array<'BAKSO_ONLY' | 'CAMPUR'>;
   }>;
   const tenantProfile = config ? {
     name: config.display_name || branch.name,
@@ -71,10 +73,10 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
       unavailableByInventory.add((ingredient as any).menu_item_id);
     }
   }
-  const availableMenus = (menus || []).filter((row) => (
+  const availableMenuIds = new Set((menus || []).filter((row) => (
     (row.stock_count === null || row.stock_count === undefined || Number(row.stock_count) > 0)
     && !unavailableByInventory.has(row.id)
-  ));
+  )).map((row) => row.id));
   return {
     status: 200,
     data: {
@@ -89,9 +91,9 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
       },
       isShiftActive: Boolean(activeShift?.id),
       profile: publicProfile,
-      menuItems: availableMenus.filter((row) => !/^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim())).map((row) => ({
+      menuItems: (menus || []).filter((row) => !/^(menu tambahan )?lain(ya|nya)$/i.test(String(row.name).trim())).map((row) => ({
         id: row.id, name: row.name, category: row.category, price: Number(row.price), image: row.image_url || '',
-        description: row.description || '', hppCost: 0, ingredients: [], isAvailable: true,
+        description: row.description || '', hppCost: 0, ingredients: [], isAvailable: availableMenuIds.has(row.id),
       })),
       tables: (tables || []).map((row) => ({
         id: row.id,
@@ -112,6 +114,25 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
         selfOrderDefaultOptions: scopes[row.id]?.selfOrderDefaultOptions || [],
         selfOrderBaksoOnlyOptions: scopes[row.id]?.selfOrderBaksoOnlyOptions || [],
         selfOrderCampurOptions: scopes[row.id]?.selfOrderCampurOptions || [],
+        quickPresets: Array.isArray(scopes[row.id]?.quickPresets)
+          ? scopes[row.id]!.quickPresets!.flatMap((preset, index) => {
+              if (!preset || typeof preset !== 'object') return [];
+              const name = String(preset.name || '').trim().toUpperCase();
+              const options = Array.isArray(preset.options)
+                ? preset.options.map((option) => String(option || '').trim()).filter(Boolean)
+                : [];
+              if (!name || !options.length) return [];
+              return [{
+                id: String(preset.id || `preset-${index + 1}`),
+                name,
+                options,
+                kitchenLabel: String(preset.kitchenLabel || '').trim().toUpperCase() || undefined,
+              }];
+            })
+          : [],
+        disabledQuickPresets: Array.isArray(scopes[row.id]?.disabledQuickPresets)
+          ? Array.from(new Set(scopes[row.id]!.disabledQuickPresets!.filter((preset) => preset === 'BAKSO_ONLY' || preset === 'CAMPUR')))
+          : [],
         isActive: row.is_active, options: (row.condiment_options || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((option: any) => ({ id: option.id, name: option.name, price: Number(option.price), isAvailable: option.is_available })),
       })),
     },

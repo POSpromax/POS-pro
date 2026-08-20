@@ -12,6 +12,7 @@ import { handleAccountingRequest } from './src/server/accountingManagement';
 import { handleResolveMaps } from './src/server/resolveMaps';
 import { handleShiftRequest } from './src/server/shiftManagement';
 import { getPublicCatalog } from './src/server/publicCatalog';
+import { getPublicSelfOrderStatus } from './src/server/publicSelfOrderStatus';
 import { handleCloudinarySign } from './src/server/cloudinarySign';
 import { handleTableSessionRequest } from './src/server/tableSession';
 import { handleBranchRequest } from './src/server/branchManagement';
@@ -191,6 +192,19 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Katalog self-order belum tersedia' });
+    }
+  });
+
+  app.get('/api/public-status', async (req, res) => {
+    try {
+      const result = await getPublicSelfOrderStatus(
+        String(req.query.branchId || ''),
+        getSupabaseAdmin(),
+        String(req.query.branchCode || '') || undefined,
+      );
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Status self-order belum tersedia' });
     }
   });
 

@@ -24,7 +24,7 @@ import {
   WandSparkles,
   X,
 } from 'lucide-react';
-import type { CategoryType, CondimentGroup, CondimentOption, MenuItem } from '../../types/pos';
+import type { CategoryType, CondimentGroup, CondimentOption, CondimentQuickPreset, MenuItem } from '../../types/pos';
 import { CondimentPreviewPanel } from './CondimentPreviewPanel';
 
 type SaveResult = CondimentGroup | void;
@@ -116,6 +116,20 @@ const groupIssues = (group: CondimentGroup) => {
     if (rawCampur.length > 0 && !campur.length) errors.push('Racikan Campur tidak memiliki opsi aktif.');
     if (baksoOnly.length && campur.length && baksoOnly.every((name) => campur.map(normalize).includes(normalize(name))) && campur.length === baksoOnly.length) {
       warnings.push('Bakso Saja dan Campur memiliki isi yang sama.');
+    }
+    const presetNames = new Set<string>();
+    for (const preset of group.quickPresets || []) {
+      const presetName = normalize(preset.name);
+      const validOptions = preset.options.filter((name) => activeSet.has(normalize(name)));
+      if (!presetName) errors.push('Ada racikan cepat tambahan tanpa nama.');
+      if (presetNames.has(presetName) || presetName === 'BAKSOSAJA' || presetName === 'CAMPUR') {
+        errors.push(`Nama racikan “${preset.name || '-'}” duplikat.`);
+      }
+      presetNames.add(presetName);
+      if (!validOptions.length) errors.push(`Racikan ${preset.name || 'tambahan'} belum memiliki opsi aktif.`);
+      if (Number(group.maxSelect || 0) > 0 && validOptions.length > Number(group.maxSelect || 0)) {
+        errors.push(`Racikan ${preset.name} melebihi maksimum ${group.maxSelect} pilihan.`);
+      }
     }
   }
 
@@ -219,6 +233,7 @@ const buildBaksoStandard = (currentGroups: CondimentGroup[]) => {
   const campur = [mie, bihun, sawi, tauge, bawang, sledri];
   filling.selfOrderBaksoOnlyOptions = baksoOnly;
   filling.selfOrderCampurOptions = campur;
+  filling.disabledQuickPresets = [];
   filling.allSelectedLabel = 'CAMPUR';
   filling.maxSelect = Math.max(Number(filling.maxSelect || 0), activeOptions(filling).length, campur.length);
 
@@ -260,8 +275,13 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
   const [scopeModes, setScopeModes] = useState<Record<string, ScopeMode>>({});
   // Shortcut racikan adalah fitur opsional per grup. State ini hanya mengatur
   // editor draft yang sedang dibuka. Persisted status tetap sederhana:
-  // array preset berisi opsi = aktif, array kosong = tidak aktif.
+  // array preset berisi opsi = aktif; disabledQuickPresets membedakan preset
+  // yang sengaja dihapus dari konfigurasi lama yang masih memakai fallback.
   const [instantEditors, setInstantEditors] = useState<Record<string, { baksoOnly?: boolean; campur?: boolean }>>({});
+  const [showNewPresetModal, setShowNewPresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+  const [pendingSaveGroup, setPendingSaveGroup] = useState<CondimentGroup | null>(null);
+  const [pendingSaveAll, setPendingSaveAll] = useState(false);
 
   const toast = (title: string, message: string) => onShowToast?.(title, message);
 
@@ -390,6 +410,30 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
       const ok = await saveGroup(group);
       if (!ok) break;
     }
+  };
+
+  const requestSaveGroup = (group: CondimentGroup) => {
+    const issues = groupIssues(group);
+    if (issues.errors.length) {
+      toast('Konfigurasi Belum Lengkap', issues.errors[0]);
+      setSelectedId(group.id);
+      setActiveStep('PREVIEW');
+      return;
+    }
+    setPendingSaveGroup(cloneGroup(group));
+  };
+
+  const requestSaveAll = () => {
+    const invalid = dirtyIds
+      .map((id) => drafts[id] || orderedGroups.find((item) => item.id === id))
+      .find((group): group is CondimentGroup => Boolean(group && groupIssues(group).errors.length));
+    if (invalid) {
+      toast('Simpan Semua Ditahan', `${invalid.name}: ${groupIssues(invalid).errors[0]}`);
+      setSelectedId(invalid.id);
+      setActiveStep('PREVIEW');
+      return;
+    }
+    setPendingSaveAll(true);
   };
 
   const discardCurrent = () => {
@@ -524,14 +568,24 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         group.selfOrderDefaultOptions = [];
         group.selfOrderBaksoOnlyOptions = [];
         group.selfOrderCampurOptions = [];
+        group.quickPresets = [];
       }
       return group;
     });
   };
 
-  const updateOption = (optionId: string, patch: Partial<CondimentOption>) => {
+  const updateOption = (optionId: string, optionPatch: Partial<CondimentOption>) => {
     updateCurrent((group) => {
-      group.options = group.options.map((option) => (option.id === optionId ? { ...option, ...patch } : option));
+      const previous = group.options.find((option) => option.id === optionId);
+      group.options = group.options.map((option) => (option.id === optionId ? { ...option, ...optionPatch } : option));
+      const nextName = String(optionPatch.name || '').trim();
+      if (previous && nextName && normalize(previous.name) !== normalize(nextName)) {
+        const rename = (values?: string[]) => (values || []).map((name) => normalize(name) === normalize(previous.name) ? nextName : name);
+        group.selfOrderDefaultOptions = rename(group.selfOrderDefaultOptions);
+        group.selfOrderBaksoOnlyOptions = rename(group.selfOrderBaksoOnlyOptions);
+        group.selfOrderCampurOptions = rename(group.selfOrderCampurOptions);
+        group.quickPresets = (group.quickPresets || []).map((preset) => ({ ...preset, options: rename(preset.options) }));
+      }
       return group;
     });
   };
@@ -545,6 +599,10 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         group.selfOrderDefaultOptions = removeName(group.selfOrderDefaultOptions);
         group.selfOrderBaksoOnlyOptions = removeName(group.selfOrderBaksoOnlyOptions);
         group.selfOrderCampurOptions = removeName(group.selfOrderCampurOptions);
+        group.quickPresets = (group.quickPresets || []).map((preset) => ({
+          ...preset,
+          options: removeName(preset.options),
+        }));
       }
       return group;
     });
@@ -557,6 +615,9 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     if (has(group.selfOrderDefaultOptions)) usedBy.push('Default pilihan Self Order');
     if (has(group.selfOrderBaksoOnlyOptions)) usedBy.push('Racikan Bakso Saja');
     if (has(group.selfOrderCampurOptions)) usedBy.push('Racikan Campur');
+    for (const preset of group.quickPresets || []) {
+      if (has(preset.options)) usedBy.push(`Racikan ${preset.name}`);
+    }
     return usedBy;
   };
 
@@ -638,6 +699,25 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
     setActiveStep('OPTIONS');
   };
 
+  const addOptionToQuickPreset = (presetId: string) => {
+    updateCurrent((group) => {
+      const existingNames = new Set(group.options.map((option) => normalize(option.name)));
+      let label = 'OPSI BARU';
+      let suffix = 2;
+      while (existingNames.has(normalize(label))) {
+        label = `OPSI BARU ${suffix}`;
+        suffix += 1;
+      }
+      group.options = [...group.options, { id: makeTempId('opt'), name: label, price: 0, isAvailable: true }];
+      group.maxSelect = isSingle(group) ? 1 : Math.max(Number(group.maxSelect || 0), 1);
+      group.quickPresets = (group.quickPresets || []).map((preset) => (
+        preset.id === presetId ? { ...preset, options: [...preset.options, label] } : preset
+      ));
+      return group;
+    });
+    setActiveStep('OPTIONS');
+  };
+
   const moveOption = (optionId: string, direction: -1 | 1) => {
     updateCurrent((group) => {
       const index = group.options.findIndex((option) => option.id === optionId);
@@ -663,6 +743,10 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
 
   const openInstantPreset = (kind: 'BAKSO_ONLY' | 'CAMPUR') => {
     if (!current) return;
+    updateCurrent((group) => ({
+      ...group,
+      disabledQuickPresets: (group.disabledQuickPresets || []).filter((preset) => preset !== kind),
+    }));
     setInstantEditors((editors) => ({
       ...editors,
       [current.id]: {
@@ -681,6 +765,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         group.selfOrderCampurOptions = [];
         group.allSelectedLabel = '';
       }
+      group.disabledQuickPresets = Array.from(new Set([...(group.disabledQuickPresets || []), kind]));
       return group;
     });
     setInstantEditors((editors) => ({
@@ -708,6 +793,59 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
       }
       return group;
     });
+  };
+
+  const createQuickPreset = () => {
+    if (!current) return;
+    const name = newPresetName.trim().toUpperCase();
+    if (!name) {
+      toast('Nama Racikan Diperlukan', 'Contoh: MIE SAYUR atau BIHUN SAYUR.');
+      return;
+    }
+    const reserved = ['BAKSO SAJA', 'CAMPUR'];
+    const exists = reserved.some((item) => normalize(item) === normalize(name))
+      || (current.quickPresets || []).some((preset) => normalize(preset.name) === normalize(name));
+    if (exists) {
+      toast('Nama Racikan Sudah Ada', 'Gunakan nama lain agar tombol racikan tidak membingungkan kasir dan customer.');
+      return;
+    }
+    updateCurrent((group) => ({
+      ...group,
+      quickPresets: [...(group.quickPresets || []), {
+        id: makeTempId('preset'),
+        name,
+        options: [],
+        kitchenLabel: name,
+      }],
+    }));
+    setNewPresetName('');
+    setShowNewPresetModal(false);
+  };
+
+  const updateQuickPreset = (presetId: string, updater: (preset: CondimentQuickPreset) => CondimentQuickPreset) => {
+    updateCurrent((group) => ({
+      ...group,
+      quickPresets: (group.quickPresets || []).map((preset) => preset.id === presetId ? updater({...preset}) : preset),
+    }));
+  };
+
+  const toggleQuickPresetOption = (presetId: string, optionName: string) => {
+    updateQuickPreset(presetId, (preset) => {
+      const exists = preset.options.some((name) => normalize(name) === normalize(optionName));
+      return {
+        ...preset,
+        options: exists
+          ? preset.options.filter((name) => normalize(name) !== normalize(optionName))
+          : [...preset.options, optionName],
+      };
+    });
+  };
+
+  const removeQuickPreset = (presetId: string) => {
+    updateCurrent((group) => ({
+      ...group,
+      quickPresets: (group.quickPresets || []).filter((preset) => preset.id !== presetId),
+    }));
   };
 
   const menuCandidates = useMemo(() => {
@@ -775,7 +913,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         {dirtyIds.length > 0 && (
           <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-[10px] font-black text-amber-900">{dirtyIds.length} grup memiliki draft belum disimpan</p><p className="text-[9px] font-semibold text-amber-700">Draft aman saat berpindah grup pada layar ini, tetapi belum masuk ke cloud.</p></div>
-            <button type="button" onClick={() => void saveAll()} className="min-h-9 rounded-xl bg-amber-600 px-3 text-[10px] font-black text-white hover:bg-amber-700"><Save className="mr-1.5 inline h-3.5 w-3.5" /> Simpan Semua ({dirtyIds.length})</button>
+            <button type="button" onClick={requestSaveAll} className="min-h-9 rounded-xl bg-amber-600 px-3 text-[10px] font-black text-white hover:bg-amber-700"><Save className="mr-1.5 inline h-3.5 w-3.5" /> Simpan Semua ({dirtyIds.length})</button>
           </div>
         )}
       </section>
@@ -839,7 +977,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {isCurrentDirty && <button type="button" onClick={discardCurrent} className="min-h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-black text-slate-600 hover:bg-slate-50">Batalkan Draft</button>}
-                    <button type="button" disabled={!isCurrentDirty || isCurrentSaving} onClick={() => void saveGroup(current)} className="ui-button ui-button-primary min-h-9 px-3 text-[10px] disabled:cursor-not-allowed disabled:opacity-45">{isCurrentSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} {isCurrentSaving ? 'Menyimpan…' : 'Simpan Grup'}</button>
+                    <button type="button" disabled={!isCurrentDirty || isCurrentSaving} onClick={() => requestSaveGroup(current)} className="ui-button ui-button-primary min-h-9 px-3 text-[10px] disabled:cursor-not-allowed disabled:opacity-45">{isCurrentSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} {isCurrentSaving ? 'Menyimpan…' : 'Tinjau & Simpan'}</button>
                   </div>
                 </div>
                 {(currentIssues.errors.length > 0 || currentIssues.warnings.length > 0) && (
@@ -907,7 +1045,7 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                 {activeStep === 'INSTANT' && (
                   <div className="space-y-4">
                     <SectionTitle icon={<Sparkles className="h-4 w-4" />} title="Perilaku di Kasir, Self Order & Kitchen" detail="Pilih peran khusus hanya bila diperlukan. Kuah dan Isian/Racikan Cepat mempunyai perilaku tambahan di Self Order dan ringkasan KDS." />
-                    <div className="grid gap-2 md:grid-cols-3">{[{ id: 'NONE' as Role, title: 'Normal', detail: 'Untuk topping, suhu minuman, level pedas, dll.' }, { id: 'BROTH' as Role, title: 'Kuah', detail: 'Pilih 1, wajib, punya default Self Order.' }, { id: 'FILLING' as Role, title: 'Isian / Racikan Cepat', detail: 'Memunculkan tombol Bakso Saja dan Campur.' }].map((item) => <button key={item.id} type="button" onClick={() => setRole(item.id)} className={`rounded-xl border p-3 text-left ${inferRole(current) === item.id ? 'border-orange-300 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}><strong className="text-[10px]">{item.title}</strong><span className="mt-1 block text-[9px] font-semibold opacity-70">{item.detail}</span></button>)}</div>
+                    <div className="grid gap-2 md:grid-cols-3">{[{ id: 'NONE' as Role, title: 'Normal', detail: 'Untuk topping, suhu minuman, level pedas, dll.' }, { id: 'BROTH' as Role, title: 'Kuah', detail: 'Pilih 1, wajib, punya default Self Order.' }, { id: 'FILLING' as Role, title: 'Isian / Racikan Cepat', detail: 'Shortcut Bakso Saja, Campur, dan racikan custom.' }].map((item) => <button key={item.id} type="button" onClick={() => setRole(item.id)} className={`rounded-xl border p-3 text-left ${inferRole(current) === item.id ? 'border-orange-300 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}><strong className="text-[10px]">{item.title}</strong><span className="mt-1 block text-[9px] font-semibold opacity-70">{item.detail}</span></button>)}</div>
 
                     {inferRole(current) === 'BROTH' && <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3.5"><p className="text-[10px] font-black text-orange-900">Default Kuah Self Order</p><p className="mt-1 text-[9px] font-semibold text-orange-700">Pelanggan tetap bisa mengganti pilihan. Default hanya mempercepat order.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{activeOptions(current).map((option) => { const selected = (current.selfOrderDefaultOptions || []).some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => updateCurrent((group) => ({ ...group, selfOrderDefaultOptions: [option.name] }))} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[9px] font-black ${selected ? 'border-orange-400 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-600'}`}><span className={`h-4 w-4 rounded-full border ${selected ? 'border-orange-500 bg-orange-500 ring-2 ring-white' : 'border-slate-300'}`} />{option.name}</button>; })}</div></div>}
 
@@ -917,7 +1055,8 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                       const editorState = instantEditors[current.id] || {};
                       const showBakso = Boolean(editorState.baksoOnly || baksoSelected.length > 0);
                       const showCampur = Boolean(editorState.campur || campurSelected.length > 0);
-                      const activePresetCount = Number(baksoSelected.length > 0) + Number(campurSelected.length > 0);
+                      const quickPresets = current.quickPresets || [];
+                      const activePresetCount = Number(baksoSelected.length > 0) + Number(campurSelected.length > 0) + quickPresets.filter((preset) => preset.options.length > 0).length;
 
                       return (
                         <div className="space-y-3">
@@ -935,14 +1074,15 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                             <div className="mt-3 flex flex-wrap gap-2">
                               {!showBakso && <button type="button" onClick={() => openInstantPreset('BAKSO_ONLY')} className="rounded-lg border border-orange-200 bg-white px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Bakso Saja</button>}
                               {!showCampur && <button type="button" onClick={() => openInstantPreset('CAMPUR')} className="rounded-lg border border-orange-200 bg-white px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Campur</button>}
+                              <button type="button" onClick={() => { setNewPresetName(''); setShowNewPresetModal(true); }} className="rounded-lg bg-orange-600 px-2.5 py-2 text-[8px] font-black text-white hover:bg-orange-700"><Plus className="mr-1 inline h-3 w-3" /> Racikan Baru</button>
                             </div>
                           </div>
 
-                          {!showBakso && !showCampur && (
+                          {!showBakso && !showCampur && quickPresets.length === 0 && (
                             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
                               <Sparkles className="mx-auto h-5 w-5 text-slate-300" />
                               <p className="mt-2 text-[10px] font-black text-slate-700">Belum ada racikan instan</p>
-                              <p className="mx-auto mt-1 max-w-lg text-[9px] font-semibold leading-relaxed text-slate-500">Grup tetap berfungsi sebagai Isian biasa. Bakso Saja atau Campur hanya akan muncul setelah Anda menambahkan racikan dan memilih minimal satu opsi.</p>
+                              <p className="mx-auto mt-1 max-w-lg text-[9px] font-semibold leading-relaxed text-slate-500">Grup tetap berfungsi sebagai Isian biasa. Tambahkan racikan seperti Mie Sayur atau Bihun Sayur, lalu pilih komposisinya.</p>
                             </div>
                           )}
 
@@ -980,6 +1120,26 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
                               </div>
                             </>
                           )}
+
+                          {quickPresets.map((preset) => (
+                            <PresetEditor
+                              key={preset.id}
+                              title={preset.name}
+                              detail="Racikan custom cabang. Pilih komposisi yang akan diterapkan sekali sentuh."
+                              options={activeOptions(current)}
+                              selected={preset.options}
+                              onToggle={(name) => toggleQuickPresetOption(preset.id, name)}
+                              onRemove={() => removeQuickPreset(preset.id)}
+                              onTitleChange={(name) => updateQuickPreset(preset.id, (item) => {
+                                const nextName = name.toUpperCase();
+                                const labelFollowsName = !item.kitchenLabel || normalize(item.kitchenLabel) === normalize(item.name);
+                                return { ...item, name: nextName, kitchenLabel: labelFollowsName ? nextName : item.kitchenLabel };
+                              })}
+                              kitchenLabel={preset.kitchenLabel || preset.name}
+                              onKitchenLabelChange={(kitchenLabel) => updateQuickPreset(preset.id, (item) => ({ ...item, kitchenLabel: kitchenLabel.toUpperCase() }))}
+                              onAddOption={() => addOptionToQuickPreset(preset.id)}
+                            />
+                          ))}
                         </div>
                       );
                     })()}
@@ -1024,6 +1184,40 @@ export const CondimentBuilderPanel: React.FC<Props> = ({ condimentGroups, menuIt
         </ModalShell>
       )}
 
+      {showNewPresetModal && current && (
+        <ModalShell onClose={() => setShowNewPresetModal(false)} title="Tambah Racikan Cepat" subtitle="Buat nama shortcut dahulu, lalu pilih komposisi dari opsi ISIAN yang sudah tersedia.">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-[9px] font-black uppercase tracking-wide text-slate-500">Nama racikan</span>
+              <input autoFocus value={newPresetName} onChange={(event) => setNewPresetName(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === 'Enter') createQuickPreset(); }} placeholder="Contoh: MIE SAYUR" className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-black text-slate-900 outline-none focus:border-orange-400" />
+            </label>
+            <div className="flex flex-wrap gap-2"><span className="py-2 text-[9px] font-bold text-slate-400">Saran cepat:</span>{['MIE SAYUR', 'BIHUN SAYUR'].map((name) => <button key={name} type="button" onClick={() => setNewPresetName(name)} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[9px] font-black text-orange-700 hover:bg-orange-100">{name}</button>)}</div>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-[9px] font-semibold leading-relaxed text-blue-800">Racikan baru dibuat sebagai draft. Setelah dibuat, pilih bahan seperti MIE + SAWI, lalu gunakan <strong>Tinjau & Simpan</strong>.</div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setShowNewPresetModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-600">Batal</button><button type="button" onClick={createQuickPreset} className="rounded-xl bg-orange-600 px-4 py-2.5 text-[10px] font-black text-white hover:bg-orange-700"><Plus className="mr-1.5 inline h-4 w-4" /> Buat Racikan</button></div>
+          </div>
+        </ModalShell>
+      )}
+
+      {pendingSaveGroup && (
+        <ModalShell onClose={() => setPendingSaveGroup(null)} title={`Terapkan perubahan “${pendingSaveGroup.name}”?`} subtitle="Konfirmasi diperlukan karena grup ini sudah dipakai operasional.">
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Target</span><strong className="mt-1 block text-[10px] text-slate-900">{scopeLabel(pendingSaveGroup)}</strong></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Opsi aktif</span><strong className="mt-1 block text-[10px] text-slate-900">{activeOptions(pendingSaveGroup).length}</strong></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><span className="text-[8px] font-black uppercase text-slate-400">Racikan cepat</span><strong className="mt-1 block text-[10px] text-slate-900">{Number(Boolean(pendingSaveGroup.selfOrderBaksoOnlyOptions?.length)) + Number(Boolean(pendingSaveGroup.selfOrderCampurOptions?.length)) + (pendingSaveGroup.quickPresets || []).length}</strong></div>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-[10px] font-black text-amber-900">Dampak setelah disimpan</p><div className="mt-2 space-y-1 text-[9px] font-semibold text-amber-800"><p>• Berlaku untuk transaksi baru di Kasir dan Self Order cabang ini.</p><p>• Ringkasan Kitchen mengikuti racikan baru secara otomatis.</p><p>• Order lama tetap memakai snapshot condiment sebelumnya dan tidak berubah.</p></div></div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setPendingSaveGroup(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-600">Periksa Lagi</button><button type="button" onClick={() => { const group = pendingSaveGroup; setPendingSaveGroup(null); void saveGroup(group); }} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-[10px] font-black text-white hover:bg-emerald-800"><Save className="mr-1.5 inline h-4 w-4" /> Ya, Terapkan</button></div>
+          </div>
+        </ModalShell>
+      )}
+
+      {pendingSaveAll && (
+        <ModalShell onClose={() => setPendingSaveAll(false)} title={`Terapkan ${dirtyIds.length} grup sekaligus?`} subtitle="Pastikan semua draft sudah ditinjau karena perubahan akan langsung digunakan operasional.">
+          <div className="space-y-4"><div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[9px] font-semibold leading-relaxed text-amber-800">Kasir, Self Order, dan Kitchen cabang ini akan membaca konfigurasi terbaru. Order yang sudah dibuat tetap aman karena menyimpan snapshot pilihan.</div><div className="flex justify-end gap-2"><button type="button" onClick={() => setPendingSaveAll(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-600">Batal</button><button type="button" onClick={() => { setPendingSaveAll(false); void saveAll(); }} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-[10px] font-black text-white hover:bg-emerald-800"><Save className="mr-1.5 inline h-4 w-4" /> Terapkan Semua</button></div></div>
+        </ModalShell>
+      )}
+
       {showTemplateModal && (
         <ModalShell onClose={() => setShowTemplateModal(false)} title="Buat / Perbaiki Konfigurasi" subtitle="Pilih pola yang paling dekat. Semua hasil masuk sebagai draft dan bisa diperiksa sebelum disimpan.">
           <div className="grid gap-3 md:grid-cols-2">
@@ -1063,23 +1257,26 @@ const PresetEditor: React.FC<{
   options: CondimentOption[];
   selected: string[];
   onToggle: (name: string) => void;
-  onApplyStandard: () => void;
+  onApplyStandard?: () => void;
   onRemove: () => void;
-  standardLabel: string;
+  standardLabel?: string;
   onAddOption?: () => void;
-}> = ({ title, detail, options, selected, onToggle, onApplyStandard, onRemove, standardLabel, onAddOption }) => (
+  onTitleChange?: (value: string) => void;
+  kitchenLabel?: string;
+  onKitchenLabelChange?: (value: string) => void;
+}> = ({ title, detail, options, selected, onToggle, onApplyStandard, onRemove, standardLabel, onAddOption, onTitleChange, kitchenLabel, onKitchenLabelChange }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-3.5">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[10px] font-black text-slate-900">{title}</p>
+          {onTitleChange ? <input value={title} onChange={(event) => onTitleChange(event.target.value)} className="h-8 min-w-[180px] rounded-lg border border-slate-200 px-2.5 text-[10px] font-black text-slate-900 outline-none focus:border-orange-400" aria-label="Nama racikan" /> : <p className="text-[10px] font-black text-slate-900">{title}</p>}
           <span className={`rounded-full px-2 py-1 text-[8px] font-black ${selected.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{selected.length > 0 ? `AKTIF · ${selected.length} isian` : 'DRAFT · belum aktif'}</span>
         </div>
         <p className="mt-1 text-[9px] font-semibold text-slate-500">{detail}</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {onAddOption && <button type="button" onClick={onAddOption} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[8px] font-black text-slate-600 hover:bg-slate-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Isian Baru</button>}
-        <button type="button" onClick={onApplyStandard} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100">{standardLabel}</button>
+        {onAddOption && <button type="button" onClick={onAddOption} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[8px] font-black text-slate-600 hover:bg-slate-100"><Plus className="mr-1 inline h-3 w-3" /> Tambah Opsi Bahan</button>}
+        {onApplyStandard && standardLabel && <button type="button" onClick={onApplyStandard} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2 text-[8px] font-black text-orange-700 hover:bg-orange-100">{standardLabel}</button>}
         <button type="button" onClick={onRemove} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[8px] font-black text-rose-600 hover:bg-rose-100"><Trash2 className="mr-1 inline h-3 w-3" /> Hapus Racikan</button>
       </div>
     </div>
@@ -1089,6 +1286,7 @@ const PresetEditor: React.FC<{
       <div className="mt-3 flex flex-wrap gap-2">{options.map((option) => { const active = selected.some((name) => normalize(name) === normalize(option.name)); return <button key={option.id} type="button" onClick={() => onToggle(option.name)} className={`rounded-lg border px-2.5 py-2 text-[9px] font-black ${active ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{active ? '✓ ' : ''}{option.name}</button>; })}</div>
     )}
     {selected.length === 0 && options.length > 0 && <p className="mt-2 text-[8px] font-bold text-amber-600">Pilih minimal 1 isian untuk mengaktifkan racikan ini. Jika dibiarkan kosong, shortcut tidak akan aktif setelah disimpan.</p>}
+    {onKitchenLabelChange && <label className="mt-3 block"><span className="text-[8px] font-black uppercase tracking-wide text-slate-400">Label ringkas Kitchen</span><input value={kitchenLabel || ''} onChange={(event) => onKitchenLabelChange(event.target.value)} placeholder={title} className="mt-1.5 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-[9px] font-black outline-none focus:border-orange-400" /></label>}
   </div>
 );
 

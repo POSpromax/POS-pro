@@ -93,16 +93,28 @@ export const summarizeCondimentOptions = (
   const isFilling = group.selfOrderRole === 'FILLING' || normalizedGroupName.includes('ISIAN');
 
   if (isFilling) {
-    const baksoOnly = configuredAvailableNames(group, group.selfOrderBaksoOnlyOptions);
-    const baksoOnlyTarget = baksoOnly.length ? baksoOnly : fallbackBaksoOnly(group);
-    if (sameNormalizedSelection(selected.options, baksoOnlyTarget)) {
-      return 'BAKSO SAJA';
+    if (!group.disabledQuickPresets?.includes('BAKSO_ONLY')) {
+      const baksoOnly = configuredAvailableNames(group, group.selfOrderBaksoOnlyOptions);
+      const baksoOnlyTarget = baksoOnly.length ? baksoOnly : fallbackBaksoOnly(group);
+      if (sameNormalizedSelection(selected.options, baksoOnlyTarget)) {
+        return 'BAKSO SAJA';
+      }
     }
 
-    const campur = configuredAvailableNames(group, group.selfOrderCampurOptions);
-    const campurTarget = campur.length ? campur : fallbackCampur(group);
-    if (sameNormalizedSelection(selected.options, campurTarget)) {
-      return group.allSelectedLabel || 'CAMPUR';
+    if (!group.disabledQuickPresets?.includes('CAMPUR')) {
+      const campur = configuredAvailableNames(group, group.selfOrderCampurOptions);
+      const campurTarget = campur.length ? campur : fallbackCampur(group);
+      if (sameNormalizedSelection(selected.options, campurTarget)) {
+        return group.allSelectedLabel || 'CAMPUR';
+      }
+    }
+
+    const matchedCustomPreset = (group.quickPresets || []).find((preset) => {
+      const target = configuredAvailableNames(group, preset.options);
+      return target.length > 0 && sameNormalizedSelection(selected.options, target);
+    });
+    if (matchedCustomPreset) {
+      return matchedCustomPreset.kitchenLabel || matchedCustomPreset.name;
     }
 
     return orderConfiguredSelections(group, selected.options).join(', ');

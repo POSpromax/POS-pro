@@ -123,6 +123,15 @@ export interface CondimentOption {
   isAvailable: boolean; // Toggle Aktif / Non-Aktif
 }
 
+export interface CondimentQuickPreset {
+  id: string;
+  name: string;
+  options: string[];
+  kitchenLabel?: string;
+}
+
+export type CondimentLegacyQuickPreset = 'BAKSO_ONLY' | 'CAMPUR';
+
 export interface CondimentGroup {
   id: string;
   name: string; // e.g., "Kuah", "ISIAN", "TEH MANIS", "AIR MINERAL", "Tambahan"
@@ -148,6 +157,12 @@ export interface CondimentGroup {
   selfOrderDefaultOptions?: string[];
   selfOrderBaksoOnlyOptions?: string[];
   selfOrderCampurOptions?: string[];
+  // Racikan cepat tambahan per cabang, mis. MIE SAYUR atau BIHUN SAYUR.
+  // Disimpan sebagai metadata konfigurasi agar dua preset legacy tetap stabil.
+  quickPresets?: CondimentQuickPreset[];
+  // Hanya diisi bila owner sengaja menonaktifkan preset legacy. Jika field
+  // belum ada, fallback Bakso Saja/Campur lama tetap dipertahankan.
+  disabledQuickPresets?: CondimentLegacyQuickPreset[];
 }
 
 export interface SelectedCondimentGroup {

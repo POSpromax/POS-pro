@@ -110,6 +110,11 @@ export const updateCloudOrderStatus = (branchId: string, orderId: string, status
 export const getPublicOrder = (branchId: string, orderId: string): Promise<Order | null> =>
   request<Order | null>(`/api/orders?branchId=${encodeURIComponent(branchId)}&orderId=${encodeURIComponent(orderId)}`, undefined, false);
 
+// Halaman sukses hanya membutuhkan perubahan status. `summary=1` menghindari
+// pengunduhan ulang seluruh order_items setiap interval pelanggan.
+export const getPublicOrderStatus = (branchId: string, orderId: string): Promise<Order | null> =>
+  request<Order | null>(`/api/orders?branchId=${encodeURIComponent(branchId)}&orderId=${encodeURIComponent(orderId)}&summary=1`, undefined, false);
+
 export type RealtimeConnectionState = 'CONNECTING' | 'HEALTHY' | 'DEGRADED';
 
 export function subscribeCloudOrders(

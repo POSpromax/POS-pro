@@ -43,7 +43,7 @@ import {
   RestaurantTable,
   SelectedCondimentGroup,
 } from '../../types/pos';
-import {getPublicOrder} from '../../services/orderService';
+import {getPublicOrderStatus} from '../../services/orderService';
 import {CondimentSelectionModal} from '../POS/CondimentSelectionModal';
 
 export type SelfOrderStep = 'LANDING' | 'TABLE_INPUT' | 'MENU' | 'CART' | 'SENDING' | 'ORDER_SUCCESS';
@@ -177,6 +177,16 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     (table) => (!table.branchId || table.branchId === currentBranch.id)
       && normalizeTableNum(table.number) === normalizeTableNum(selectedTable),
   );
+  const tableInputStatus = !selectedTable.trim()
+    ? { label: 'Belum diisi', className: 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]' }
+    : !selectedTableState
+      ? { label: 'Tidak ditemukan', className: 'bg-rose-50 text-rose-700' }
+      : selectedTableState.status === 'OCCUPIED' || Boolean(selectedTableState.activeOrderId)
+        ? { label: 'Terpakai', className: 'bg-rose-50 text-rose-700' }
+        : selectedTableState.status === 'READY' && selectedTableState.isSelfOrderEnabled
+          ? { label: 'Siap', className: 'bg-emerald-50 text-emerald-700' }
+          : { label: 'Belum aktif', className: 'bg-slate-100 text-slate-600' };
+  const canProceedToMenu = Boolean(customerName.trim() && selectedTableObj && isShiftActive);
 
   const liveSubmittedOrder = orders.find((order) => order.id === submittedOrderId) || submittedOrderSnapshot;
 
@@ -189,16 +199,23 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     const refreshSubmittedOrder = () => {
       if (refreshing || document.visibilityState === 'hidden') return;
       refreshing = true;
-      void getPublicOrder(currentBranch.id, submittedOrderId)
+      void getPublicOrderStatus(currentBranch.id, submittedOrderId)
         .then((order) => {
-          if (active && order) setSubmittedOrderSnapshot(order);
+          if (active && order) {
+            setSubmittedOrderSnapshot((current) => current ? {
+              ...current,
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              updatedAt: order.updatedAt,
+            } : order);
+          }
         })
         .catch(() => undefined)
         .finally(() => { refreshing = false; });
     };
 
     refreshSubmittedOrder();
-    const timer = window.setInterval(refreshSubmittedOrder, 12_000);
+    const timer = window.setInterval(refreshSubmittedOrder, 15_000);
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshSubmittedOrder();
     };
@@ -221,6 +238,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
       || item.name.toLowerCase().includes(keyword)
       || item.category.toLowerCase().includes(keyword));
   }), [menuItems, searchQuery, selectedCategory]);
+  const filteredAvailableCount = filteredMenu.filter((item) => item.isAvailable !== false).length;
 
   const totalCartQty = cartItems.reduce((total, item) => total + item.quantity, 0);
   const totalAmount = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -398,6 +416,15 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     }
     if (!customerName.trim() || !selectedTableObj || cartItems.length === 0) {
       toast('Periksa Pesanan', 'Nama, nomor meja, dan isi keranjang wajib tersedia sebelum pesanan dikirim.');
+      return;
+    }
+
+    const unavailableCartItem = cartItems.find((cartItem) => (
+      menuItems.find((menu) => menu.id === cartItem.menuId)?.isAvailable === false
+    ));
+    if (unavailableCartItem) {
+      toast('Menu Baru Saja Habis', `${unavailableCartItem.menuName} tidak lagi tersedia. Hapus item tersebut atau pilih menu lain.`);
+      setActiveStep('MENU');
       return;
     }
 
@@ -739,7 +766,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate text-[13px] font-black">{currentBranch.name}</h2>
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[7px] font-black uppercase text-emerald-600">Open now</span>
+                      <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase ${serviceOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{serviceOpen ? 'Menerima order' : 'Shift tutup'}</span>
                     </div>
                     <p className="mt-1 flex items-start gap-1.5 text-[9px] font-semibold leading-relaxed text-[var(--so-text-muted)]">
                       <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-[var(--so-brand)]" />
@@ -778,7 +805,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <div className="so-card p-4 text-center">
                   <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--so-brand-soft)] text-[var(--so-brand)]"><Wifi className="h-4 w-4" /></span>
                   <p className="mt-3 text-[8px] font-black uppercase tracking-wider text-[var(--so-text-faint)]">Status outlet</p>
-                  <p className="mt-1 text-[10px] font-black">Menerima Order</p>
+                  <p className={`mt-1 text-[10px] font-black ${serviceOpen ? '' : 'text-rose-600'}`}>{serviceOpen ? `${availableTables.length} meja siap` : 'Belum menerima order'}</p>
                 </div>
                 <a href={whatsappOrderUrl || undefined} onClick={(event) => {if (!whatsappOrderUrl) event.preventDefault();}} target="_blank" rel="noreferrer" className={`so-card p-4 text-center ${whatsappOrderUrl ? '' : 'pointer-events-none opacity-50'}`}>
                   <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600"><MessageCircle className="h-4 w-4" /></span>
@@ -796,7 +823,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
               <div className="flex items-center justify-center gap-3 pb-2 pt-1">
                 {profile.instagram && <a href={`https://instagram.com/${profile.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="so-icon-button"><Instagram className="h-4 w-4" /></a>}
                 {profile.tiktok && <a href={`https://www.tiktok.com/@${profile.tiktok.replace('@', '')}`} target="_blank" rel="noreferrer" className="so-icon-button min-w-11 px-3 text-[9px] font-black">TikTok</a>}
-                <button type="button" onClick={() => void handleShare()} className="so-icon-button"><Share2 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => void handleShare()} aria-label="Bagikan tautan self-order" className="so-icon-button"><Share2 className="h-4 w-4" /></button>
               </div>
             </section>
           </main>
@@ -805,7 +832,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
         {activeStep === 'TABLE_INPUT' && (
           <main className="min-h-[100dvh] bg-[var(--so-canvas)] px-[18px] pb-8 pt-5 sm:px-5 animate-fadeIn">
             <header className="flex items-center justify-between">
-              <button type="button" onClick={() => setActiveStep('LANDING')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setActiveStep('LANDING')} aria-label="Kembali ke halaman awal" className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
               <span className="text-[9px] font-black uppercase tracking-[.2em] text-[var(--so-brand)]">Identitas Pesanan</span>
               <span className="rounded-full border border-[var(--so-border)] bg-white px-3 py-1.5 text-[8px] font-black text-[var(--so-brand)]">1 / 3</span>
             </header>
@@ -832,12 +859,12 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                 <div className="so-field-shell p-2 pl-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand-soft)] text-sm font-black text-[var(--so-brand)]">#</span>
                   <input inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={selectedTable} onChange={(event) => {setSelectedTable(event.target.value.replace(/[^0-9]/g, '').slice(0, 4)); setTableErrorMsg('');}} placeholder="Nomor meja" className="so-native-input min-w-0 flex-1 border-0 bg-transparent px-1 py-2 text-[16px] font-black outline-none ring-0 placeholder:text-[12px] placeholder:font-semibold placeholder:text-[var(--so-text-faint)]" />
-                  <span className={`mr-1 rounded-full px-2.5 py-1.5 text-[7px] font-black uppercase ${selectedTableState?.status === 'READY' && selectedTableState.isSelfOrderEnabled ? 'bg-emerald-50 text-emerald-700' : selectedTable ? 'bg-[#f3f1ee] text-[var(--so-text-muted)]' : 'bg-[var(--so-brand-soft)] text-[var(--so-brand)]'}`}>{selectedTableState?.status === 'READY' && selectedTableState.isSelfOrderEnabled ? 'Siap' : selectedTable ? 'Validasi' : 'Isi'}</span>
+                  <span className={`mr-1 rounded-full px-2.5 py-1.5 text-[7px] font-black uppercase ${tableInputStatus.className}`}>{tableInputStatus.label}</span>
                 </div>
                 <p className="mt-2 flex items-start gap-1.5 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" /> Ketersediaan meja diperiksa lagi saat pesanan dikirim.</p>
               </label>
 
-              <button type="button" onClick={handleProceedToMenu} className="so-primary-button group">Mulai pilih menu <ArrowRight className="h-4 w-4 transition group-active:translate-x-0.5" /></button>
+              <button type="button" onClick={handleProceedToMenu} disabled={!canProceedToMenu} className="so-primary-button group disabled:cursor-not-allowed disabled:opacity-45">Mulai pilih menu <ArrowRight className="h-4 w-4 transition group-active:translate-x-0.5" /></button>
             </section>
             <p className="mt-5 text-center text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Khusus dine-in. Untuk item yang ingin dibungkus, tulis pada <span className="font-black text-[var(--so-brand)]">catatan item</span>.</p>
           </main>
@@ -847,14 +874,14 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
           <main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--so-canvas)] animate-fadeIn">
             <header className="z-20 shrink-0 border-b border-[var(--so-border)] bg-white/[.96] px-4 pb-3 pt-4 backdrop-blur-xl">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setActiveStep('TABLE_INPUT')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setActiveStep('TABLE_INPUT')} aria-label="Kembali ke identitas pesanan" className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
                 <div className="min-w-0 flex-1"><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">{profile.name}</p><h2 className="truncate text-[14px] font-black">Hai {customerName}, mau makan apa?</h2></div>
                 <span className="rounded-full bg-[var(--so-brand-soft)] px-3 py-2 text-[8px] font-black text-[var(--so-brand)]">Meja {selectedTable}</span>
               </div>
               <div className="relative mt-3">
                 <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--so-text-faint)]" />
                 <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari menu favorit..." className="so-native-input w-full rounded-2xl border border-[var(--so-border)] bg-[var(--so-surface-soft)] py-3 pl-10 pr-10 text-[11px] font-bold outline-none transition focus:border-[var(--so-brand-weak)] focus:bg-white" />
-                {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--so-text-muted)]"><X className="h-4 w-4" /></button>}
+                {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian menu" className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--so-text-muted)]"><X className="h-4 w-4" /></button>}
               </div>
               <SelfOrderStepProgress step={2} />
             </header>
@@ -864,20 +891,21 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
-              <div className="mb-3 flex items-end justify-between"><div className="so-section-accent"><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">Menu</p><p className="mt-0.5 text-[10px] font-bold text-[var(--so-text-muted)]">{categoryOptions.find((category) => category.key === selectedCategory)?.label || 'Semua'} · {filteredMenu.length} tersedia</p></div></div>
+              <div className="mb-3 flex items-end justify-between"><div className="so-section-accent"><p className="text-[8px] font-black uppercase tracking-[.16em] text-[var(--so-brand)]">Menu</p><p className="mt-0.5 text-[10px] font-bold text-[var(--so-text-muted)]">{categoryOptions.find((category) => category.key === selectedCategory)?.label || 'Semua'} · {filteredAvailableCount} tersedia</p></div></div>
 
               <div className="grid grid-cols-2 gap-3">
                 {filteredMenu.map((item) => {
                   const qty = getItemCartQty(item.id);
                   return (
-                    <article key={item.id} className="so-product-card group">
-                      <button type="button" onClick={() => handleItemClick(item)} className="block w-full text-left">
+                    <article key={item.id} className={`so-product-card group ${item.isAvailable === false ? 'opacity-65' : ''}`}>
+                      <button type="button" onClick={() => handleItemClick(item)} disabled={item.isAvailable === false} className="block w-full text-left disabled:cursor-not-allowed">
                         <div className="so-product-image-wrap">
                           {item.image ? <img src={optimizeCloudinaryImage(item.image, 520)} alt={item.name} loading="lazy" decoding="async" className="so-menu-photo h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center"><Utensils className="h-8 w-8 text-[var(--so-text-faint)]" /></div>}
+                          {item.isAvailable === false && <span className="absolute inset-x-3 bottom-3 rounded-full bg-slate-950/85 px-2 py-1.5 text-center text-[8px] font-black uppercase tracking-wider text-white backdrop-blur">Habis</span>}
                         </div>
                         <div className="p-3 pt-2.5">
                           <h3 className="min-h-[40px] line-clamp-2 text-[15px] font-black leading-[1.26] tracking-[-.018em] text-[var(--so-text)]">{item.name}</h3>
-                          <div className="mt-3 flex items-center justify-between gap-2"><span className="text-[13px] font-black tracking-[-.01em] text-[var(--so-brand)]">{formatMoney(item.price)}</span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--so-brand)] text-white shadow-[0_7px_18px_rgba(237,95,30,.18)]"><Plus className="h-4 w-4" /></span></div>
+                          <div className="mt-3 flex items-center justify-between gap-2"><span className={`text-[13px] font-black tracking-[-.01em] ${item.isAvailable === false ? 'text-slate-400' : 'text-[var(--so-brand)]'}`}>{formatMoney(item.price)}</span><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.isAvailable === false ? 'bg-slate-200 text-slate-400' : 'bg-[var(--so-brand)] text-white shadow-[0_7px_18px_rgba(237,95,30,.18)]'}`}>{item.isAvailable === false ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}</span></div>
                         </div>
                       </button>
                       {qty > 0 && <span className="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-[var(--so-brand)] px-1.5 text-[9px] font-black text-white shadow-sm so-cart-pop">{qty}</span>}
@@ -897,7 +925,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
           <main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--so-canvas)] animate-fadeIn">
             <header className="z-20 shrink-0 border-b border-[var(--so-border)] bg-white/[.96] px-4 py-3.5 backdrop-blur-xl">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setActiveStep('MENU')} className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setActiveStep('MENU')} aria-label="Kembali ke daftar menu" className="so-icon-button"><ArrowLeft className="h-4 w-4" /></button>
                 <div className="min-w-0 flex-1"><p className="text-[8px] font-black uppercase tracking-[.18em] text-[var(--so-brand)]">Konfirmasi Pesanan</p><h2 className="text-[17px] font-black tracking-[-.02em]">Cek sekali lagi</h2></div>
                 <span className="rounded-full bg-[var(--so-brand-soft)] px-3 py-2 text-[8px] font-black text-[var(--so-brand)]">Meja {selectedTable}</span>
               </div>
@@ -918,7 +946,7 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
                       <div className="flex items-start gap-3">
                         <div className="h-[60px] w-15 shrink-0 overflow-hidden rounded-2xl bg-[var(--so-surface-soft)]">{menu?.image ? <img src={optimizeCloudinaryImage(menu.image, 220)} alt="" loading="lazy" className="h-full w-full object-contain p-1" /> : <div className="flex h-full items-center justify-center"><Utensils className="h-5 w-5 text-[var(--so-text-faint)]" /></div>}</div>
                         <div className="min-w-0 flex-1"><p className="text-[12px] font-black leading-snug">{item.menuName}</p><p className="mt-1 text-[11px] font-black text-[var(--so-brand)]">{formatMoney(item.price * item.quantity)}</p></div>
-                        <div className="flex items-center gap-1 rounded-xl bg-[var(--so-surface-soft)] p-1"><button type="button" onClick={() => handleUpdateQty(item.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[var(--so-text-soft)]"><Minus className="h-3 w-3" /></button><span className="w-6 text-center text-[10px] font-black">{item.quantity}</span><button type="button" onClick={() => handleUpdateQty(item.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--so-brand)] text-white"><Plus className="h-3 w-3" /></button></div>
+                        <div className="flex items-center gap-1 rounded-xl bg-[var(--so-surface-soft)] p-1"><button type="button" onClick={() => handleUpdateQty(item.id, -1)} aria-label={`Kurangi ${item.menuName}`} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[var(--so-text-soft)]"><Minus className="h-3 w-3" /></button><span className="w-6 text-center text-[10px] font-black">{item.quantity}</span><button type="button" onClick={() => handleUpdateQty(item.id, 1)} aria-label={`Tambah ${item.menuName}`} className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--so-brand)] text-white"><Plus className="h-3 w-3" /></button></div>
                       </div>
 
                       {item.selectedCondiments?.length ? <div className="mt-3 flex flex-wrap gap-1.5">{item.selectedCondiments.map((group) => <span key={`${item.id}-${group.groupName}`} className="rounded-lg bg-[var(--so-surface-soft)] px-2.5 py-1.5 text-[8px] font-bold text-[var(--so-text-soft)]"><strong className="font-black text-[var(--so-text)]">{group.groupName}:</strong> {group.options.join(', ')}</span>)}</div> : null}

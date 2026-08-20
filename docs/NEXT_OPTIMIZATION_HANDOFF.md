@@ -254,3 +254,41 @@ Sebelum deployment, lakukan smoke test dua cabang dan pastikan localhost/Vercel 
 Kategori diskon baru disimpan eksplisit di metadata order yang sudah tersedia,
 sehingga tidak memerlukan migration schema. Transaksi lama tanpa metadata tetap
 diinferensikan dari diskon 100% untuk kompatibilitas histori.
+
+## Racikan cepat condiment dinamis
+
+- Grup berperan `FILLING` tetap mempertahankan preset legacy `Bakso Saja` dan
+  `Campur`, tetapi kini dapat memiliki racikan custom per cabang seperti
+  `MIE SAYUR` atau `BIHUN SAYUR`.
+- Racikan custom disimpan pada `branch_operational_config.condiment_scopes`
+  sebagai metadata `quickPresets`; tidak ada migration schema dan tidak ada
+  perubahan pada snapshot condiment order lama.
+- Satu konfigurasi dipakai bersama oleh POS, Self Order, serta ringkasan KDS dan
+  cetak Kitchen. Label Kitchen hanya dipakai ketika komposisi persis sama.
+- Menyimpan perubahan grup stabil wajib melalui modal tinjau dampak. Draft yang
+  belum valid ditahan sebelum modal konfirmasi ditampilkan.
+- Penghapusan preset legacy dicatat eksplisit melalui `disabledQuickPresets`.
+  Konfigurasi lama tanpa metadata ini tetap memperoleh fallback lama, tetapi
+  preset yang sengaja dihapus tidak muncul kembali di POS, Self Order, atau KDS.
+
+## Update 20 Agustus 2026 — audit Self Order dan egress
+
+- Katalog publik berat tidak lagi di-poll setiap menit. Profil, gambar, menu,
+  condiment, dan konfigurasi dimuat saat masuk lalu hanya direfresh ketika tab
+  kembali aktif dan snapshot telah berumur lima menit.
+- Endpoint publik ringkas `/api/public-status` menjadi sumber indikator shift,
+  meja, dan ketersediaan menu setiap 15 detik. Poll berhenti saat tab tersembunyi
+  dan respons memakai cache edge singkat untuk mengurangi query berulang dari
+  beberapa pelanggan pada cabang yang sama.
+- Katalog mengirim seluruh menu bisnis dengan flag `isAvailable`, sehingga item
+  yang habis dapat berubah menjadi nonaktif tanpa memuat ulang gambar. Meja juga
+  dikirim dengan status lengkap agar input nomor menunjukkan `Siap`, `Terpakai`,
+  `Belum aktif`, atau `Tidak ditemukan` secara akurat.
+- Setelah checkout berhasil, aplikasi hanya mengambil status ringkas. Katalog
+  penuh baru diambil pada jalur pemulihan error konfigurasi/menu.
+- Pelacakan pesanan memakai `summary=1`; polling status tidak lagi mengunduh
+  detail item yang tidak berubah. Snapshot item pada halaman sukses tetap berasal
+  dari respons checkout awal.
+- Keamanan tetap berada di server: branch/shift/stok/condiment divalidasi ulang,
+  request self-order idempotent, dan RPC `checkout_self_order` mengunci meja
+  secara atomik agar dua pelanggan tidak dapat mengklaim meja yang sama.

@@ -1,4 +1,4 @@
-import type { CondimentGroup } from '../types/pos';
+import type { CondimentGroup, CondimentLegacyQuickPreset, CondimentQuickPreset } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -22,6 +22,8 @@ type ScopeConfigItem = {
   selfOrderDefaultOptions?: string[];
   selfOrderBaksoOnlyOptions?: string[];
   selfOrderCampurOptions?: string[];
+  quickPresets?: CondimentQuickPreset[];
+  disabledQuickPresets?: CondimentLegacyQuickPreset[];
 };
 
 type ScopeConfig = Record<string, ScopeConfigItem>;
@@ -37,6 +39,30 @@ function normalizeRole(value: unknown): SelfOrderRole | undefined {
   return value === 'BROTH' || value === 'FILLING' || value === 'NONE' ? value : undefined;
 }
 
+function normalizeQuickPresets(value: unknown): CondimentQuickPreset[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as Record<string, unknown>;
+    const name = String(row.name || '').trim().toUpperCase();
+    const options = normalizeStringArray(row.options);
+    if (!name || !options.length) return [];
+    return [{
+      id: String(row.id || `preset-${index + 1}`),
+      name,
+      options,
+      kitchenLabel: String(row.kitchenLabel || '').trim().toUpperCase() || undefined,
+    }];
+  });
+}
+
+function normalizeDisabledQuickPresets(value: unknown): CondimentLegacyQuickPreset[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.filter((item): item is CondimentLegacyQuickPreset => (
+    item === 'BAKSO_ONLY' || item === 'CAMPUR'
+  ))));
+}
+
 function scopeToGroup(scope: ScopeConfigItem | undefined): Partial<CondimentGroup> {
   return {
     targetProductIds: normalizeStringArray(scope?.targetProductIds),
@@ -46,6 +72,8 @@ function scopeToGroup(scope: ScopeConfigItem | undefined): Partial<CondimentGrou
     selfOrderDefaultOptions: normalizeStringArray(scope?.selfOrderDefaultOptions),
     selfOrderBaksoOnlyOptions: normalizeStringArray(scope?.selfOrderBaksoOnlyOptions),
     selfOrderCampurOptions: normalizeStringArray(scope?.selfOrderCampurOptions),
+    quickPresets: normalizeQuickPresets(scope?.quickPresets),
+    disabledQuickPresets: normalizeDisabledQuickPresets(scope?.disabledQuickPresets),
   };
 }
 
@@ -178,6 +206,8 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
       selfOrderDefaultOptions: group.selfOrderDefaultOptions || [],
       selfOrderBaksoOnlyOptions: group.selfOrderBaksoOnlyOptions || [],
       selfOrderCampurOptions: group.selfOrderCampurOptions || [],
+      quickPresets: normalizeQuickPresets(group.quickPresets),
+      disabledQuickPresets: normalizeDisabledQuickPresets(group.disabledQuickPresets),
     },
   };
 

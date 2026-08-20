@@ -59,6 +59,7 @@ const defaultBrothOptions = (group: CondimentGroup) => {
 };
 
 const defaultBaksoOnlyOptions = (group: CondimentGroup) => {
+  if (group.disabledQuickPresets?.includes('BAKSO_ONLY')) return [];
   const configured = configuredNames(group, group.selfOrderBaksoOnlyOptions);
   if (configured.length) return configured;
 
@@ -72,6 +73,7 @@ const defaultBaksoOnlyOptions = (group: CondimentGroup) => {
 };
 
 const defaultCampurOptions = (group: CondimentGroup) => {
+  if (group.disabledQuickPresets?.includes('CAMPUR')) return [];
   const configured = configuredNames(group, group.selfOrderCampurOptions);
   if (configured.length) return configured;
 
@@ -247,6 +249,12 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
   const campurPreset = fillingGroup
     ? limitPreset(fillingGroup, defaultCampurOptions(fillingGroup))
     : [];
+  const customPresets = fillingGroup
+    ? (fillingGroup.quickPresets || []).flatMap((preset) => {
+        const names = limitPreset(fillingGroup, configuredNames(fillingGroup, preset.options));
+        return names.length ? [{...preset, options: names}] : [];
+      })
+    : [];
 
   const toggleOption = (group: CondimentGroup, optionName: string) => {
     setSelections((current) => {
@@ -289,6 +297,11 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
     }
 
     setSelections((current) => ({...current, [fillingGroup.id]: names}));
+  };
+
+  const applyCustomPreset = (options: string[]) => {
+    if (!fillingGroup || !options.length) return;
+    setSelections((current) => ({...current, [fillingGroup.id]: options}));
   };
 
   const extraPriceTotal = applicableGroups.reduce((groupTotal, group) => {
@@ -407,7 +420,7 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
           <p className="mt-1 text-[8px] font-semibold leading-relaxed text-[var(--so-text-muted)]">Pilih racikan standar lalu ubah detail isian bila perlu.</p>
         </div>
       </div>
-      <div className="mt-2.5 grid grid-cols-2 gap-2">
+      <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {([
           {key: 'BAKSO_ONLY' as const, title: 'Bakso Saja', detail: baksoOnlyPreset.join(' + ') || 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], baksoOnlyPreset)},
           {key: 'CAMPUR' as const, title: 'Campur', detail: campurPreset.length ? `${campurPreset.length} isian` : 'Atur preset di Pengaturan', active: sameSelection(selections[fillingGroup.id] || [], campurPreset)},
@@ -420,6 +433,18 @@ export const CondimentSelectionModal: React.FC<CondimentSelectionModalProps> = (
             <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${preset.active ? 'text-[var(--so-brand-strong)]' : 'text-[var(--so-text-muted)]'}`}>{preset.detail}</span>
           </button>
         ))}
+        {customPresets.map((preset) => {
+          const active = sameSelection(selections[fillingGroup.id] || [], preset.options);
+          return (
+            <button key={preset.id} type="button" onClick={() => applyCustomPreset(preset.options)} className={`min-h-[68px] rounded-[1.05rem] border p-3 text-left transition active:scale-[.985] ${active ? 'border-[var(--so-brand)] bg-[var(--so-brand-soft)] text-[var(--so-text)] shadow-[0_8px_20px_rgba(15,23,42,.04)]' : 'border-[var(--so-border)] bg-[var(--so-surface-soft)] text-[var(--so-text)]'}`}>
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-black">{preset.name}</span>
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full ${active ? 'bg-[var(--so-brand)] text-white' : 'border border-[var(--so-border)] bg-white text-[var(--so-text-faint)]'}`}>{active ? <Check className="h-3 w-3 stroke-[3]" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}</span>
+              </span>
+              <span className={`mt-2 block line-clamp-2 text-[8px] font-bold leading-relaxed ${active ? 'text-[var(--so-brand-strong)]' : 'text-[var(--so-text-muted)]'}`}>{preset.options.join(' + ')}</span>
+            </button>
+          );
+        })}
       </div>
     </section>
   ) : null;

@@ -99,10 +99,18 @@ dan shift per 10 menit sebagai safety net. Saat channel terganggu, POS fallback
 5 detik, KDS 10 detik, dan shift 60 detik. Tab tersembunyi tidak melakukan polling.
 
 Katalog publik Self-order tidak bergantung pada state shift dari terminal kasir.
-Endpoint katalog membaca shift `OPEN/HANDOVER` cabang langsung dari database,
-kemudian halaman publik menyegarkannya saat kembali visible dan setiap 60 detik.
-Endpoint submit mengulang validasi shift serta meja, sehingga polling ini hanya
-untuk respons UI dan bukan batas keamanan transaksi.
+Endpoint katalog lengkap membaca profil, menu, condiment, meja, dan shift cabang
+langsung dari database satu kali saat halaman dibuka. Snapshot berat tersebut
+hanya dimuat ulang ketika tab kembali aktif dan usianya sudah lebih dari lima
+menit. Status operasional memakai `/api/public-status`: payload ringkas berisi
+shift, meja, dan ID menu tersedia, diperbarui setiap 15 detik hanya saat tab
+terlihat. Respons ringkas dapat dibagi oleh cache edge selama lima detik.
+
+Endpoint submit selalu mengulang validasi branch, shift, stok, condiment, dan
+status meja. Klaim meja dilakukan oleh RPC `checkout_self_order` yang mengunci
+row meja; polling publik hanya mempercepat umpan balik UI dan bukan batas
+keamanan transaksi. Halaman pelacakan juga memakai `summary=1`, sehingga tidak
+mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
 
 ## Verifikasi minimum
 
@@ -116,13 +124,14 @@ untuk respons UI dan bukan batas keamanan transaksi.
 
 ## QR permanen dan kontrol meja
 
-- Label operasional memakai rute pendek cabang (`/01`, `/02`) tanpa nomor meja.
+- Label operasional memakai rute pendek cabang (`/pesan/01`, `/pesan/02`) tanpa nomor meja.
   Server menerjemahkan rute ke UUID cabang; bentuk query UUID lama tetap
   didukung dan memvalidasi pasangan tenant/cabang.
 - Semua label meja dalam satu cabang boleh memiliki QR identik. Label fisiknya
   tetap menampilkan nomor meja agar pelanggan memilih nomor yang benar.
-- Daftar pelanggan hanya berisi meja cabang tersebut yang
-  `self_order_enabled=true` dan statusnya bukan `DISABLED`.
+- Input pelanggan membaca seluruh status meja cabang agar dapat membedakan
+  `Siap`, `Terpakai`, `Belum aktif`, dan nomor yang tidak ditemukan. Pelanggan
+  hanya dapat melanjutkan bila meja `self_order_enabled=true` dan `READY`.
 - Kasir mengendalikan ON/OFF meja dari panel operasional cepat. Meja dengan bill
   aktif tidak boleh dimatikan sebelum transaksi diselesaikan atau dikosongkan.
 - API order memvalidasi ulang cabang, shift, dan status meja ketika order masuk.
@@ -160,3 +169,14 @@ untuk respons UI dan bukan batas keamanan transaksi.
   (`PROMO`, `VOUCHER`, `SERVICE_RECOVERY`, `OWNER_COMPLIMENTARY`, `OTHER`)
   disimpan eksplisit pada metadata order; data lama tanpa kategori tetap memakai
   inferensi diskon 100% hanya sebagai kompatibilitas baca.
+
+### Metadata racikan cepat
+
+Preset racikan tambahan condiment disimpan per cabang pada
+`branch_operational_config.condiment_scopes[groupId].quickPresets`. Metadata
+tersebut dibaca katalog internal dan katalog publik Self Order, sedangkan order
+tetap menyimpan pilihan aktual sebagai snapshot. Dengan demikian perubahan nama
+atau komposisi preset hanya memengaruhi transaksi baru dan tidak mengubah histori.
+Preset legacy yang sengaja dinonaktifkan dicatat pada `disabledQuickPresets`;
+ketiadaan field tersebut berarti konfigurasi lama dan tetap memakai fallback
+kompatibilitas. Tidak ada data racikan operasional yang dipindah ke browser.

@@ -25,6 +25,13 @@ export const CondimentPreviewPanel: React.FC<{ group: CondimentGroup }> = ({ gro
   const kitchenLabel = role === 'FILLING' && group.allSelectedLabel
     ? group.allSelectedLabel
     : customerDefault || activeOptions.slice(0, 4).map((option) => option.name).join(', ');
+  const quickPresetSummary = role === 'FILLING'
+    ? [
+        !group.disabledQuickPresets?.includes('BAKSO_ONLY') && (group.selfOrderBaksoOnlyOptions || []).length ? 'Bakso Saja' : '',
+        !group.disabledQuickPresets?.includes('CAMPUR') && (group.selfOrderCampurOptions || []).length ? 'Campur' : '',
+        ...(group.quickPresets || []).filter((preset) => preset.options.length > 0).map((preset) => preset.name),
+      ].filter(Boolean)
+    : [];
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -37,6 +44,7 @@ export const CondimentPreviewPanel: React.FC<{ group: CondimentGroup }> = ({ gro
           <span className="rounded-full bg-white px-2 py-1 text-[8px] font-black text-orange-600">{role === 'BROTH' ? 'KUAH' : role === 'FILLING' ? 'ISIAN' : 'NORMAL'}</span>
         </div>
         <div className="mt-3 space-y-1.5">
+          {quickPresetSummary.length > 0 && <div className="mb-2 flex flex-wrap gap-1.5">{quickPresetSummary.map((label) => <span key={label} className="rounded-lg border border-orange-200 bg-white px-2 py-1 text-[8px] font-black text-orange-700">{label}</span>)}</div>}
           {activeOptions.slice(0, 6).map((option, index) => {
             const selected = customerDefault.split(',').map(normalize).includes(normalize(option.name)) || (!customerDefault && index === 0 && required && isSingle);
             return (
