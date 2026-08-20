@@ -43,9 +43,12 @@ export async function getCloudActiveShift(branchId: string): Promise<Shift | nul
   return res.shift || null;
 }
 
-export async function listCloudShiftHistory(branchId: string): Promise<Shift[]> {
+export async function listCloudShiftHistory(branchId: string, from?: string, to?: string): Promise<Shift[]> {
   if (!branchId) return [];
-  const res = await request<{ shifts: Shift[] }>(`/api/shifts?branchId=${encodeURIComponent(branchId)}&history=true`);
+  const params = new URLSearchParams({ branchId, history: 'true' });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const res = await request<{ shifts: Shift[] }>(`/api/shifts?${params.toString()}`);
   return res.shifts || [];
 }
 

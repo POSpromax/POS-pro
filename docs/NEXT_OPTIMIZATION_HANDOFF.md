@@ -231,3 +231,26 @@ git diff --check
 ```
 
 Sebelum deployment, lakukan smoke test dua cabang dan pastikan localhost/Vercel menggunakan Supabase environment yang sama.
+
+## Update 20 Agustus 2026 — analytics berbasis snapshot
+
+- Laporan tidak lagi ikut subscription dan polling dashboard owner.
+- Filter cabang mengontrol target query cloud; memilih satu outlet tidak lagi
+  mengambil order lengkap semua outlet.
+- Histori kas dan shift dibatasi periode pada query, lalu dimuat bersamaan dengan
+  snapshot laporan.
+- Ringkasan memakai satu grafik adaptif saja. Grafik jam terpisah dan grafik
+  rata-rata hari dihapus karena mengulang informasi dan membingungkan periode.
+- Overview sekarang berfokus pada omzet, struk lunas, AOV, order belum bayar,
+  void, staff eating, produk terjual, metode bayar, serta lima menu utama.
+- Tooltip absolut yang mudah terpotong diganti dengan label ringkas, atribut
+  judul, dan ringkasan titik tertinggi di atas grafik.
+- Staff eating (diskon 100%) tidak ikut KPI penjualan atau peringkat menu.
+- Audit diskon dan export CSV memberi klasifikasi eksplisit `STAFF EATING`,
+  `PROMO / DISKON`, atau `NORMAL`; status `Sesuai/Lebih` pada tabel staff tetap
+  khusus untuk kontrol batas jatah harian.
+
+Catatan lanjutan: klasifikasi staff eating saat ini mengikuti aturan operasional
+diskon 100%. Jika jenis diskon gratis lain akan ditambahkan, buat kolom kategori
+diskon eksplisit melalui migration baru agar klasifikasi tidak bergantung pada
+heuristik nilai diskon.

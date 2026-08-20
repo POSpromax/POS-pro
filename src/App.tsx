@@ -503,13 +503,6 @@ export default function App() {
     rawMaterials: RawMaterial[];
   }>({ branchIds: [], orders: [], tables: [], rawMaterials: [] });
   const ownerReportRequestRef = useRef(0);
-  const ownerReportRangeRef = useRef((() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { from: start.toISOString(), to: end.toISOString() };
-  })());
   const [currentShift, setCurrentShift] = useState<Shift>(() => cloudReadiness.supabase ? createInactiveShift(currentBranch.id) : DBStorage.getCurrentShift(currentBranch.id));
   const [isShiftStatusLoading, setIsShiftStatusLoading] = useState<boolean>(cloudReadiness.supabase);
   const [shiftHistory, setShiftHistory] = useState<Shift[]>(() => cloudReadiness.supabase ? [] : DBStorage.getShiftHistory());
@@ -698,21 +691,22 @@ export default function App() {
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || !['superowner', 'analytics'].includes(activeTab)) return;
+    // Monitoring pusat tetap realtime. Halaman laporan sengaja dikecualikan:
+    // laporan memuat snapshot hanya ketika dibuka/filter berubah agar tidak
+    // mempertahankan subscription dan polling lintas cabang yang boros egress.
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || activeTab !== 'superowner') return;
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     let cancelled = false;
     let running = false;
     // Cegah refetch beruntun: fokus jendela yang bolak-balik tidak boleh memicu
     // pembacaan ulang seluruh cabang (orders+tables+katalog) berkali-kali.
     let lastOwnerRefreshAt = 0;
-    const needsOrderItems = activeTab === 'analytics';
     const loadOwnerOrders = (branchId: string) => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const end = new Date(start);
       end.setDate(end.getDate() + 1);
-      const range = needsOrderItems ? ownerReportRangeRef.current : { from: start.toISOString(), to: end.toISOString() };
-      return listCloudOrdersForReport(branchId, range.from, range.to, !needsOrderItems);
+      return listCloudOrdersForReport(branchId, start.toISOString(), end.toISOString(), true);
     };
     const replaceBranchSnapshot = (snapshot: { branchId: string; orders?: Order[]; tables?: RestaurantTable[]; rawMaterials?: RawMaterial[] }) => {
       if (cancelled) return;
@@ -735,7 +729,6 @@ export default function App() {
       if (running) return;
       running = true;
       lastOwnerRefreshAt = Date.now();
-      const requestedReportRange = needsOrderItems ? { ...ownerReportRangeRef.current } : null;
       try {
         const results = await Promise.allSettled(branches.map(async (branch) => {
           // Dashboard owner hanya butuh agregat: order tanpa item (summary) & bahan
@@ -756,10 +749,6 @@ export default function App() {
           .filter((result): result is PromiseFulfilledResult<{ branchId: string; orders: Order[]; tables: RestaurantTable[]; rawMaterials: RawMaterial[] }> => result.status === 'fulfilled')
           .map((result) => result.value);
         if (snapshots.length === 0) throw new Error('Tidak ada cabang yang dapat dibaca oleh akun ini');
-        if (requestedReportRange && (
-          requestedReportRange.from !== ownerReportRangeRef.current.from
-          || requestedReportRange.to !== ownerReportRangeRef.current.to
-        )) return;
         if (!cancelled) setOwnerMonitorData({
           branchIds: snapshots.map((snapshot) => snapshot.branchId),
           orders: snapshots.flatMap((snapshot) => snapshot.orders),
@@ -774,7 +763,7 @@ export default function App() {
     };
     void refreshOwnerMonitor();
 
-    // Dashboard pusat dan laporan ikut satu channel per cabang. Event order
+    // Dashboard pusat memakai satu channel per cabang. Event order
     // mengambil satu row yang berubah saja; tabel/stok hanya memuat ulang bagian
     // yang terdampak. Ini membuat KPI terasa realtime tanpa polling agresif.
     const realtimeUnsubscribers = branches.flatMap((branch) => {
@@ -838,20 +827,35 @@ export default function App() {
     };
   }, [isAttendanceTerminal, isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
 
-  const refreshOwnerReportRange = useCallback(async (from: string, to: string) => {
+  const refreshOwnerReportRange = useCallback(async (from: string, to: string, targetBranchId = 'ALL') => {
     if (!cloudReadiness.supabase || systemPortal !== 'OWNER') return;
-    ownerReportRangeRef.current = { from, to };
     const requestId = ++ownerReportRequestRef.current;
     const allowedBranches = activeUser.branchIds?.length
       ? branches.filter((branch) => activeUser.branchIds?.includes(branch.id))
       : branches;
-    const results = await Promise.allSettled(allowedBranches.map(async (branch) => ({
-      branchId: branch.id,
-      orders: await listCloudOrdersForReport(branch.id, from, to),
-    })));
+    const requestedBranches = targetBranchId === 'ALL'
+      ? allowedBranches
+      : allowedBranches.filter((branch) => branch.id === targetBranchId);
+    if (requestedBranches.length === 0) {
+      showPushToast('Cabang Tidak Dapat Dibaca', 'Akun ini tidak memiliki akses ke cabang laporan yang dipilih.');
+      return;
+    }
+    const results = await Promise.allSettled(requestedBranches.map(async (branch) => {
+      const [branchOrders, branchExpenses, branchShifts] = await Promise.all([
+        listCloudOrdersForReport(branch.id, from, to),
+        listCloudExpenseRecords(branch.id, undefined, from, to),
+        listCloudShiftHistory(branch.id, from, to),
+      ]);
+      return { branchId: branch.id, orders: branchOrders, expenses: branchExpenses, shifts: branchShifts };
+    }));
     if (requestId !== ownerReportRequestRef.current) return;
     const snapshots = results
-      .filter((result): result is PromiseFulfilledResult<{ branchId: string; orders: Order[] }> => result.status === 'fulfilled')
+      .filter((result): result is PromiseFulfilledResult<{
+        branchId: string;
+        orders: Order[];
+        expenses: ExpenseIncomeRecord[];
+        shifts: Shift[];
+      }> => result.status === 'fulfilled')
       .map((result) => result.value);
     if (snapshots.length === 0) {
       showPushToast('Laporan Belum Termuat', 'Data periode terpilih gagal dibaca dari seluruh cabang.');
@@ -859,9 +863,14 @@ export default function App() {
     }
     setOwnerMonitorData((current) => ({
       ...current,
-      branchIds: snapshots.map((snapshot) => snapshot.branchId),
-      orders: snapshots.flatMap((snapshot) => snapshot.orders),
+      branchIds: Array.from(new Set([...current.branchIds, ...snapshots.map((snapshot) => snapshot.branchId)])),
+      orders: [
+        ...current.orders.filter((order) => !snapshots.some((snapshot) => snapshot.branchId === order.branchId)),
+        ...snapshots.flatMap((snapshot) => snapshot.orders),
+      ],
     }));
+    setExpenseRecords(snapshots.flatMap((snapshot) => snapshot.expenses));
+    setShiftHistory(snapshots.flatMap((snapshot) => snapshot.shifts));
   }, [activeUser.branchIds, branches, systemPortal]);
 
   useEffect(() => {
@@ -1265,7 +1274,9 @@ export default function App() {
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    const needsFinance = activeTab === 'shift' || activeTab === 'analytics';
+    // Laporan memuat data kas dan histori shift di callback snapshot sesuai
+    // cabang terpilih. Effect ini khusus layar operasional shift.
+    const needsFinance = activeTab === 'shift';
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !needsFinance) return;
     let cancelled = false;
     const branchId = currentBranch.id;

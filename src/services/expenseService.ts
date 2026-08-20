@@ -21,7 +21,12 @@ const mapExpense = (row: ExpenseRow): ExpenseIncomeRecord => ({
   recordedBy: row.recorded_by || '',
 });
 
-export async function listCloudExpenseRecords(branchId: string, shiftId?: string): Promise<ExpenseIncomeRecord[]> {
+export async function listCloudExpenseRecords(
+  branchId: string,
+  shiftId?: string,
+  from?: string,
+  to?: string,
+): Promise<ExpenseIncomeRecord[]> {
   let query = getSupabase()
     .from('expense_income_records')
     .select('id,shift_id,record_type,amount,description,recorded_by,created_at')
@@ -29,6 +34,8 @@ export async function listCloudExpenseRecords(branchId: string, shiftId?: string
     .order('created_at', { ascending: false })
     .limit(500);
   if (shiftId) query = query.eq('shift_id', shiftId);
+  if (from) query = query.gte('created_at', from);
+  if (to) query = query.lt('created_at', to);
   const { data, error } = await query;
   if (error) throw error;
   return ((data || []) as ExpenseRow[]).map(mapExpense);

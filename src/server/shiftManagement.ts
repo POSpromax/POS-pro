@@ -247,13 +247,18 @@ export async function handleShiftRequest(
   if (method === 'GET') {
     try {
       if (String(payload.history || '').toLowerCase() === 'true') {
-        const { data: rows, error } = await admin
+        let historyQuery = admin
           .from('cashier_shifts')
           .select('*')
           .eq('branch_id', branchId)
           .eq('status', 'CLOSED')
           .order('closed_at', { ascending: false })
           .limit(100);
+        const from = typeof payload.from === 'string' ? payload.from : '';
+        const to = typeof payload.to === 'string' ? payload.to : '';
+        if (from) historyQuery = historyQuery.gte('opened_at', from);
+        if (to) historyQuery = historyQuery.lt('opened_at', to);
+        const { data: rows, error } = await historyQuery;
         if (error) throw error;
         // Batch: 4 query total, bukan ~4 query per shift (100 shift = ~400 query).
         return { status: 200, data: { shifts: await mapShiftsBatch(rows || [], branchId, admin) } };

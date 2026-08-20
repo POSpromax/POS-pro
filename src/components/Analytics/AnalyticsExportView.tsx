@@ -3,8 +3,6 @@ import {
   TrendingUp,
   Download,
   Printer,
-  DollarSign,
-  CreditCard,
   PieChart,
   BarChart3,
   ArrowUpRight,
@@ -12,21 +10,18 @@ import {
   Receipt,
   History,
   UserCheck,
-  Clock,
   Flame,
-  Filter,
-  CheckCircle2,
   AlertTriangle,
   Layers,
   Search,
   Calendar,
-  Sparkles,
   Percent,
-  FileText,
-  MapPin,
   Utensils,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw,
+  ShoppingBag,
+  WalletCards
 } from 'lucide-react';
 import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, RestaurantProfile, Branch, RawMaterial } from '../../types/pos';
 import { DBStorage } from '../../services/dbStorage';
@@ -44,7 +39,7 @@ interface AnalyticsExportViewProps {
   profile?: RestaurantProfile;
   branches?: Branch[];
   currentBranchId?: string;
-  onPeriodRangeChange?: (from: string, to: string) => void | Promise<void>;
+  onPeriodRangeChange?: (from: string, to: string, branchId?: string) => void | Promise<void>;
 }
 
 type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY' | 'INVENTORY';
@@ -90,6 +85,11 @@ const toLocalDateInput = (date: Date): string => [
   String(date.getMonth() + 1).padStart(2, '0'),
   String(date.getDate()).padStart(2, '0'),
 ].join('-');
+
+const isStaffEatingOrder = (order: Order): boolean => {
+  const subtotal = Number(order.subtotal || 0);
+  return subtotal > 0 && Number(order.discount || 0) >= subtotal;
+};
 
 const usePaginatedList = <T,>(items: T[], resetKey: string): PaginatedResult<T> => {
   const [page, setPage] = useState(1);
@@ -211,6 +211,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [inventoryMovementLoading, setInventoryMovementLoading] = useState(false);
   const [inventoryMovementError, setInventoryMovementError] = useState('');
   const [reportRangeLoading, setReportRangeLoading] = useState(false);
+  const [reportRefreshNonce, setReportRefreshNonce] = useState(0);
+  const [lastReportLoadedAt, setLastReportLoadedAt] = useState<Date | null>(null);
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
   const todayInput = toLocalDateInput(new Date());
@@ -245,10 +247,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     if (!onPeriodRangeChange) return;
     let active = true;
     setReportRangeLoading(true);
-    void Promise.resolve(onPeriodRangeChange(periodRange.start.toISOString(), periodRange.end.toISOString()))
-      .finally(() => { if (active) setReportRangeLoading(false); });
+    void Promise.resolve(onPeriodRangeChange(periodRange.start.toISOString(), periodRange.end.toISOString(), branchFilter))
+      .finally(() => {
+        if (!active) return;
+        setReportRangeLoading(false);
+        setLastReportLoadedAt(new Date());
+      });
     return () => { active = false; };
-  }, [onPeriodRangeChange, periodRange.end, periodRange.start]);
+  }, [branchFilter, onPeriodRangeChange, periodRange.end, periodRange.start, reportRefreshNonce]);
   const scopedOrders = useMemo(() => branchScopedOrders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [branchScopedOrders, periodRange]);
   const shifts = useMemo(() => allShifts.filter((shift) => (
     isWithinPeriod(shift.startTime, periodRange)
@@ -266,7 +272,12 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     ));
   }, [allExpenses, allShifts, branchFilter, currentBranchId, periodRange]);
 
-  const paidOrders = useMemo(() => scopedOrders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'), [scopedOrders]);
+  const settledOrders = useMemo(() => scopedOrders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED'), [scopedOrders]);
+  const staffMealOrders = useMemo(() => settledOrders.filter(isStaffEatingOrder), [settledOrders]);
+  // Staff eating adalah konsumsi internal, bukan transaksi penjualan. Pisahkan
+  // agar struk, AOV, metode bayar, tren, dan peringkat menu tidak bias.
+  const paidOrders = useMemo(() => settledOrders.filter((o) => !isStaffEatingOrder(o)), [settledOrders]);
+  const unpaidOrders = useMemo(() => scopedOrders.filter((o) => o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED'), [scopedOrders]);
   const voidOrders = useMemo(() => scopedOrders.filter((o) => o.status === 'CANCELLED'), [scopedOrders]);
 
   const grossOmset = useMemo(() => paidOrders.reduce((acc, o) => acc + o.total, 0), [paidOrders]);
@@ -280,12 +291,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const STAFF_MEAL_FOOD_LIMIT = 1;
   const STAFF_MEAL_DRINK_LIMIT = 1;
   const staffMeals = useMemo(() => {
-    const freeOrders = paidOrders.filter((o) => {
-      const sub = Number(o.subtotal || 0);
-      return sub > 0 && Number(o.discount || 0) >= sub;
-    });
     const map = new Map<string, { name: string; date: string; food: number; drink: number; value: number; count: number }>();
-    freeOrders.forEach((o) => {
+    staffMealOrders.forEach((o) => {
       const date = new Date(o.createdAt).toISOString().slice(0, 10);
       const name = (o.customerName || 'Tanpa Nama').trim() || 'Tanpa Nama';
       const key = `${date}::${name.toLowerCase()}`;
@@ -300,7 +307,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
       map.set(key, bucket);
     });
     return [...map.values()].sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
-  }, [paidOrders]);
+  }, [staffMealOrders]);
   const staffMealTotalValue = useMemo(() => staffMeals.reduce((sum, r) => sum + r.value, 0), [staffMeals]);
   const staffMealOverLimit = useMemo(
     () => staffMeals.filter((r) => r.food > STAFF_MEAL_FOOD_LIMIT || r.drink > STAFF_MEAL_DRINK_LIMIT).length,
@@ -310,6 +317,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   const totalTransactions = paidOrders.length;
   const avgOrderValue = totalTransactions > 0 ? Math.round(grossOmset / totalTransactions) : 0;
+  const totalItemsSold = useMemo(() => paidOrders.reduce(
+    (total, order) => total + (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    0,
+  ), [paidOrders]);
+  const unpaidNominal = useMemo(() => unpaidOrders.reduce((total, order) => total + Number(order.total || 0), 0), [unpaidOrders]);
 
   const cashTotal = useMemo(() => paidOrders.filter((o) => o.paymentMethod === 'CASH').reduce((acc, o) => acc + o.total, 0), [paidOrders]);
   const qrisTotal = useMemo(() => paidOrders.filter((o) => o.paymentMethod === 'QRIS').reduce((acc, o) => acc + o.total, 0), [paidOrders]);
@@ -364,8 +376,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   );
 
   const taxPagination = usePaginatedList(
-    paidOrders,
-    JSON.stringify([activeTab, period, branchFilter, paidOrders.length]),
+    settledOrders,
+    JSON.stringify([activeTab, period, branchFilter, settledOrders.length]),
   );
 
   const shiftPagination = usePaginatedList(
@@ -391,8 +403,6 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     }
     return hours;
   }, [paidOrders]);
-
-  const maxHourlyRevenue = useMemo(() => Math.max(...hourlyPeakData.map((h) => h.revenue), 1), [hourlyPeakData]);
 
   // Grafik tren utama MENYESUAIKAN periode dan selalu mengisi seluruh bucket
   // periode, termasuk hari/bulan tanpa penjualan.
@@ -519,36 +529,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     };
   }, [hourlyPeakData, paidOrders, period, periodRange]);
   const maxTrendRevenue = useMemo(() => Math.max(...trendChart.data.map((d) => d.revenue), 1), [trendChart]);
-
-  // Hari apa yang paling laris — dirata-rata supaya periode yang memuat lebih
-  // banyak hari Senin daripada Minggu tidak otomatis memenangkan Senin.
-  const weekdayPerformance = useMemo(() => {
-    const names = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const rows = names.map((name) => ({ name, revenue: 0, count: 0, days: new Set<string>() }));
-    paidOrders.forEach((order) => {
-      const date = new Date(order.createdAt);
-      if (Number.isNaN(date.getTime())) return;
-      const row = rows[date.getDay()];
-      row.revenue += order.total;
-      row.count += 1;
-      row.days.add(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
-    });
-    // Urutan tampil Senin dulu, sesuai kebiasaan minggu kerja.
-    const ordered = [...rows.slice(1), rows[0]];
-    return ordered.map((row) => ({
-      name: row.name,
-      revenue: row.revenue,
-      count: row.count,
-      activeDays: row.days.size,
-      avgRevenue: row.days.size > 0 ? Math.round(row.revenue / row.days.size) : 0
-    }));
-  }, [paidOrders]);
-
-  const maxWeekdayAvg = useMemo(() => Math.max(...weekdayPerformance.map((d) => d.avgRevenue), 1), [weekdayPerformance]);
-  const bestWeekday = useMemo(
-    () => weekdayPerformance.reduce((best, row) => (row.avgRevenue > best.avgRevenue ? row : best), weekdayPerformance[0]),
-    [weekdayPerformance]
+  const bestTrendPoint = useMemo(
+    () => trendChart.data.reduce<(typeof trendChart.data)[number] | null>(
+      (best, point) => (!best || point.revenue > best.revenue ? point : best),
+      null,
+    ),
+    [trendChart],
   );
+  const overviewTopItems = useMemo(() => topSellingList.slice(0, 5), [topSellingList]);
 
   const shiftPreviewMap = useMemo(() => {
     const paidOrdersByShift = new Map<string, Order[]>();
@@ -767,10 +755,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Pajak,Total,Status\n';
+    csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Klasifikasi Diskon,Pajak,Total,Status\n';
 
     scopedOrders.forEach((o) => {
-      const row = `"${o.orderNumber}","${new Date(o.createdAt).toLocaleString('id-ID')}","${o.customerName}","${o.tableNumber}","${o.type}","${o.paymentMethod || 'CASH'}",${o.subtotal || 0},${o.discount || 0},${o.tax || 0},${o.total},"${o.status}"`;
+      const discountLabel = isStaffEatingOrder(o) ? 'STAFF EATING' : o.discount > 0 ? 'PROMO / DISKON' : 'NORMAL';
+      const row = `"${o.orderNumber}","${new Date(o.createdAt).toLocaleString('id-ID')}","${o.customerName}","${o.tableNumber}","${o.type}","${o.paymentMethod || 'CASH'}",${o.subtotal || 0},${o.discount || 0},"${discountLabel}",${o.tax || 0},${o.total},"${o.status}"`;
       csvContent += row + '\n';
     });
 
@@ -812,11 +801,21 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             Dashboard Monitoring & Analitik Laporan
           </h1>
           <p className="mt-1 text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Pantau real-time grafik omset, menu terlaris, riwayat void, pajak PB1, histori shift, &amp; presensi karyawan.
+            Snapshot keputusan sesuai periode. Data hanya dimuat saat laporan dibuka, filter berubah, atau dimuat ulang.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setReportRefreshNonce((value) => value + 1)}
+            disabled={reportRangeLoading}
+            className="ui-button ui-button-secondary gap-1.5 disabled:cursor-wait disabled:opacity-60"
+            title="Ambil snapshot terbaru dari cloud"
+          >
+            <RefreshCw className={`h-4 w-4 ${reportRangeLoading ? 'animate-spin' : ''}`} />
+            {reportRangeLoading ? 'Memuat' : 'Muat Ulang'}
+          </button>
           <button
             type="button"
             onClick={handleExportCSV}
@@ -864,7 +863,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
           <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
             {formatPeriodRange(period, periodRange)}
-            <span style={{ color: 'var(--text-tertiary)' }}> · {reportRangeLoading ? 'Memuat data…' : `${scopedOrders.length} order`}</span>
+            <span style={{ color: 'var(--text-tertiary)' }}>
+              {' · '}{reportRangeLoading
+                ? 'Memuat snapshot…'
+                : `${totalTransactions} penjualan · ${unpaidOrders.length} belum bayar · ${staffMealOrders.length} staff eating`}
+            </span>
           </span>
         </div>
 
@@ -934,6 +937,11 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
           </div>
         )}
+        <p className="text-[10px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+          {lastReportLoadedAt
+            ? `Snapshot terakhir ${lastReportLoadedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}. Tidak ada polling atau subscription saat halaman laporan terbuka.`
+            : 'Snapshot akan dimuat sesuai filter. Tidak ada polling atau subscription laporan.'}
+        </p>
       </div>
 
       <div className="ui-tabs ui-tabs-orange border-b border-[var(--panel-border)] pb-2">
@@ -1003,31 +1011,37 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="ui-card ui-card-feature p-5 space-y-1">
-              <p className="ui-stat-label text-[var(--primary-soft)] opacity-90">TOTAL OMSET HARI INI</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="ui-card ui-card-feature p-5 space-y-1 sm:col-span-2 xl:col-span-1">
+              <p className="ui-stat-label text-[var(--primary-soft)] opacity-90">OMSET PENJUALAN</p>
               <p className="ui-stat-value text-white">Rp {grossOmset.toLocaleString('id-ID')}</p>
               <span className="text-[11px] font-bold text-white/80 flex items-center gap-0.5">
-                <ArrowUpRight className="w-3 h-3" /> Bersih (ex. tax): Rp {netOmset.toLocaleString('id-ID')}
+                <ArrowUpRight className="w-3 h-3" /> Ex. pajak Rp {netOmset.toLocaleString('id-ID')}
               </span>
             </div>
 
             <div className="ui-card p-5 space-y-1">
-              <p className="ui-stat-label">STRUK TRANSAKSI LUNAS</p>
-              <p className="ui-stat-value text-[var(--text-primary)]">{totalTransactions} <span className="text-xs font-bold text-[var(--text-tertiary)]">Order</span></p>
-              <span className="text-[11px] font-bold text-[var(--primary-text)] block">Rata-rata Rp {avgOrderValue.toLocaleString('id-ID')} / Order</span>
+              <p className="ui-stat-label">PENJUALAN LUNAS</p>
+              <p className="ui-stat-value text-[var(--text-primary)]">{totalTransactions} <span className="text-xs font-bold text-[var(--text-tertiary)]">struk</span></p>
+              <span className="text-[11px] font-bold text-[var(--primary-text)] block">{totalItemsSold} porsi / item terjual</span>
             </div>
 
             <div className="ui-card p-5 space-y-1">
-              <p className="ui-stat-label">METODE TUNAI (CASH)</p>
-              <p className="ui-stat-value text-[var(--accent-green)]">Rp {cashTotal.toLocaleString('id-ID')}</p>
-              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">{grossOmset > 0 ? Math.round((cashTotal / grossOmset) * 100) : 0}% dari Total Omset</span>
+              <p className="ui-stat-label">RATA-RATA STRUK</p>
+              <p className="ui-stat-value text-[var(--accent-green)]">Rp {avgOrderValue.toLocaleString('id-ID')}</p>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">Hanya transaksi penjualan</span>
             </div>
 
             <div className="ui-card p-5 space-y-1">
-              <p className="ui-stat-label">METODE NON-TUNAI (QRIS/DEBIT)</p>
-              <p className="ui-stat-value text-[var(--primary-text)]">Rp {(qrisTotal + debitTotal).toLocaleString('id-ID')}</p>
-              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">QRIS: Rp {qrisTotal.toLocaleString('id-ID')} • Debit: Rp {debitTotal.toLocaleString('id-ID')}</span>
+              <p className="ui-stat-label">BELUM DIBAYAR</p>
+              <p className="ui-stat-value text-[var(--accent-amber)]">{unpaidOrders.length} <span className="text-xs font-bold text-[var(--text-tertiary)]">order</span></p>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">Potensi Rp {unpaidNominal.toLocaleString('id-ID')}</span>
+            </div>
+
+            <div className="ui-card p-5 space-y-1">
+              <p className="ui-stat-label">PENGECUALIAN</p>
+              <p className="ui-stat-value text-[var(--text-primary)]">{voidCount + staffMealOrders.length}</p>
+              <span className="text-[11px] font-bold text-[var(--text-tertiary)] block">{voidCount} void · {staffMealOrders.length} staff eating</span>
             </div>
           </div>
 
@@ -1039,7 +1053,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   Distribusi Metode Pembayaran
                 </h2>
                 <span className="text-[11px] font-bold uppercase"
-                  style={{ color: 'var(--text-tertiary)' }}>Real-time</span>
+                  style={{ color: 'var(--text-tertiary)' }}>Snapshot</span>
               </div>
 
               <div className="space-y-3 pt-2">
@@ -1096,46 +1110,35 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             <div className="ui-card p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[var(--primary-text)]" />
-                  Grafik Analisis Jam Sibuk Penjualan (Peak Hours)
+                  <Flame className="w-4 h-4 text-[var(--primary-text)]" />
+                  Lima Menu Utama
                 </h2>
-                <span className="text-[11px] font-bold"
-                  style={{ color: 'var(--text-tertiary)' }}>07:00 - 22:00</span>
+                <button type="button" onClick={() => setActiveTab('TOP_ITEMS')}
+                  className="text-[11px] font-bold text-[var(--primary-text)] hover:underline">
+                  Lihat rincian
+                </button>
               </div>
 
-              <div className="flex items-end gap-1.5 h-36 pt-4 px-2 border-b"
-                style={{ borderColor: 'var(--panel-border-light)' }}>
-                {hourlyPeakData.map((item) => {
-                  const pct = Math.round((item.revenue / maxHourlyRevenue) * 100);
-                  return (
-                    <div key={item.hourLabel} className="relative flex flex-1 flex-col items-center gap-1 group">
-                      <div className="absolute -top-10 pointer-events-none z-10 whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-                        style={{ background: 'var(--primary)' }}>
-                        {item.hourLabel}: Rp {item.revenue.toLocaleString('id-ID')} ({item.count} order)
+              {overviewTopItems.length === 0 ? (
+                <p className="py-8 text-center text-[12px] font-medium text-[var(--text-tertiary)]">Belum ada menu terjual.</p>
+              ) : (
+                <div className="space-y-2">
+                  {overviewTopItems.map((item, index) => (
+                    <div key={item.name} className="flex items-center gap-3 rounded-xl border border-[var(--panel-border-light)] bg-[var(--surface-secondary)] px-3 py-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--brand-100)] text-[11px] font-black text-[var(--primary-text)]">{index + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-bold" title={item.name}>{item.name}</p>
+                        <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">{item.qty} porsi</p>
                       </div>
-                      <div className="flex h-28 w-full items-end overflow-hidden rounded-t-md"
-                        style={{ background: 'var(--surface-secondary)' }}>
-                        <div
-                          className="w-full rounded-t-md transition-all duration-500"
-                          style={{
-                            height: `${pct > 0 ? pct : 4}%`,
-                            background: 'linear-gradient(to top, var(--primary-solid), var(--primary-light))'
-                          }}
-                        />
-                      </div>
-                      <span className="mt-1 origin-top-left -rotate-45 transform text-[10px] font-bold"
-                        style={{ color: 'var(--text-tertiary)' }}>{item.hourLabel.slice(0, 2)}h</span>
+                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-[var(--primary-text)]">Rp {item.revenue.toLocaleString('id-ID')}</span>
                     </div>
-                  );
-                })}
-              </div>
-              <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                Tinggi grafik menunjukkan omset penjualan pada setiap jam operasional.
-              </p>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tren omset adaptif: per jam / tanggal / bulan mengikuti periode */}
-            <div className="ui-card p-6 space-y-4">
+            <div className="ui-card p-6 space-y-4 lg:col-span-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
@@ -1145,23 +1148,36 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   style={{ color: 'var(--text-tertiary)' }}>{formatPeriodRange(period, periodRange)}</span>
               </div>
 
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl bg-[var(--surface-secondary)] px-3 py-2">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Titik tertinggi</p>
+                  <p className="truncate text-[12px] font-bold" title={bestTrendPoint?.label || '-'}>{bestTrendPoint?.label || '-'}</p>
+                </div>
+                <div className="rounded-xl bg-[var(--surface-secondary)] px-3 py-2">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Omset titik tertinggi</p>
+                  <p className="text-[12px] font-bold text-[var(--primary-text)]">Rp {(bestTrendPoint?.revenue || 0).toLocaleString('id-ID')}</p>
+                </div>
+                <div className="rounded-xl bg-[var(--surface-secondary)] px-3 py-2">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Volume</p>
+                  <p className="text-[12px] font-bold">{bestTrendPoint?.count || 0} transaksi</p>
+                </div>
+              </div>
+
               {trendChart.data.length === 0 ? (
                 <p className="py-8 text-center text-[12px] font-medium"
                   style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas pada periode ini.</p>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <div className="flex items-end gap-1.5 h-40 pt-4 px-1 border-b min-w-full"
-                      style={{ borderColor: 'var(--panel-border-light)', minWidth: `${trendChart.data.length * 34}px` }}>
+                  <div className="overflow-x-auto pb-1">
+                    <div className="flex items-end gap-2 h-44 pt-3 px-1 border-b min-w-full"
+                      style={{ borderColor: 'var(--panel-border-light)', minWidth: `${trendChart.data.length * 46}px` }}>
                       {trendChart.data.map((point, idx) => {
                         const pct = Math.round((point.revenue / maxTrendRevenue) * 100);
                         const isBest = point.revenue === maxTrendRevenue && point.revenue > 0;
                         return (
-                          <div key={`${point.label}-${idx}`} className="relative flex min-w-[28px] flex-1 flex-col items-center gap-1 group">
-                            <div className="absolute -top-10 pointer-events-none z-10 whitespace-nowrap rounded-lg px-2 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-                              style={{ background: 'var(--primary)' }}>
-                              {point.label}: Rp {point.revenue.toLocaleString('id-ID')} ({point.count} order)
-                            </div>
+                          <div key={`${point.label}-${idx}`} className="flex min-w-[38px] flex-1 flex-col items-center gap-1"
+                            title={`${point.label}: Rp ${point.revenue.toLocaleString('id-ID')} (${point.count} transaksi)`}
+                            aria-label={`${point.label}, omzet Rp ${point.revenue.toLocaleString('id-ID')}, ${point.count} transaksi`}>
                             <div className="flex h-32 w-full items-end overflow-hidden rounded-t-md"
                               style={{ background: 'var(--surface-secondary)' }}>
                               <div
@@ -1172,7 +1188,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                                 }}
                               />
                             </div>
-                            <span className="whitespace-nowrap text-[10px] font-bold"
+                            <span className="max-w-[64px] truncate whitespace-nowrap text-[10px] font-bold"
+                              title={point.label}
                               style={{ color: 'var(--text-tertiary)' }}>{point.axisLabel}</span>
                           </div>
                         );
@@ -1180,64 +1197,55 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     </div>
                   </div>
                   <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    Batang oranye adalah titik dengan omset tertinggi pada periode ini.
+                    Satu grafik adaptif: per jam untuk harian, per tanggal untuk mingguan/bulanan, dan per bulan untuk periode panjang.
                   </p>
                 </>
               )}
             </div>
 
-            {/* Hari paling laris dalam seminggu */}
-            <div className="ui-card p-6 space-y-4">
+            <div className="ui-card p-6 space-y-4 lg:col-span-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-[var(--primary-text)]" />
-                  Hari Paling Laris
+                <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+                  <AlertTriangle className="h-4 w-4 text-[var(--accent-amber)]" />
+                  Monitor Operasional
                 </h2>
-                {bestWeekday && bestWeekday.avgRevenue > 0 && (
-                  <span className="text-[11px] font-bold text-[var(--primary-text)] bg-[var(--brand-50)] border border-[var(--brand-200)] px-2.5 py-1 rounded-full">
-                    Tertinggi: {bestWeekday.name}
-                  </span>
-                )}
+                <span className="rounded-full bg-[var(--surface-secondary)] px-2.5 py-1 text-[10px] font-bold text-[var(--text-tertiary)]">
+                  Perlu tindakan, bukan grafik tambahan
+                </span>
               </div>
-
-              {paidOrders.length === 0 ? (
-                <p className="py-8 text-center text-[12px] font-medium"
-                  style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas pada periode ini.</p>
-              ) : (
-                <div className="space-y-2">
-                  {weekdayPerformance.map((row) => {
-                    const pct = Math.round((row.avgRevenue / maxWeekdayAvg) * 100);
-                    const isBest = bestWeekday && row.name === bestWeekday.name && row.avgRevenue > 0;
-                    return (
-                      <div key={row.name} className="flex items-center gap-3">
-                        <span className="w-14 shrink-0 text-[11px] font-bold uppercase"
-                          style={{ color: 'var(--text-secondary)' }}>{row.name.slice(0, 3)}</span>
-                        <div className="flex-1 h-6 overflow-hidden rounded-full"
-                          style={{ background: 'var(--surface-secondary)' }}>
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${pct > 0 ? Math.max(pct, 2) : 0}%`,
-                              background: isBest ? 'var(--primary-solid)' : 'var(--primary-hover)'
-                            }}
-                          />
-                        </div>
-                        <span className="w-32 shrink-0 text-right text-[11px] font-bold tabular-nums"
-                          style={{ color: 'var(--text-primary)' }}>
-                          Rp {row.avgRevenue.toLocaleString('id-ID')}
-                        </span>
-                        <span className="w-16 shrink-0 text-right text-[11px] font-medium tabular-nums"
-                          style={{ color: 'var(--text-tertiary)' }}>
-                          {row.count} order
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <p className="pt-1 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    Angka adalah rata-rata omset per hari buka, bukan total — supaya hari yang lebih sering muncul dalam periode tidak otomatis terlihat paling laris.
-                  </p>
-                </div>
-              )}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <button type="button" onClick={() => setActiveTab('TAX_DISCOUNT')}
+                  className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4 text-left transition hover:border-[var(--brand-300)]">
+                  <WalletCards className="mb-3 h-5 w-5 text-[var(--accent-amber)]" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Belum dibayar</p>
+                  <p className="mt-1 text-lg font-black">{unpaidOrders.length} order</p>
+                  <p className="truncate text-[11px] font-semibold text-[var(--text-secondary)]" title={`Rp ${unpaidNominal.toLocaleString('id-ID')}`}>Rp {unpaidNominal.toLocaleString('id-ID')}</p>
+                </button>
+                <button type="button" onClick={() => setActiveTab('VOID')}
+                  className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4 text-left transition hover:border-red-300">
+                  <Ban className="mb-3 h-5 w-5 text-red-500" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Void / batal</p>
+                  <p className="mt-1 text-lg font-black">{voidCount} order</p>
+                  <p className="truncate text-[11px] font-semibold text-[var(--text-secondary)]" title={`Rp ${totalVoidNominal.toLocaleString('id-ID')}`}>Rp {totalVoidNominal.toLocaleString('id-ID')}</p>
+                </button>
+                <button type="button" onClick={() => setActiveTab('TAX_DISCOUNT')}
+                  className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4 text-left transition hover:border-[var(--brand-300)]">
+                  <Utensils className="mb-3 h-5 w-5 text-[var(--primary-text)]" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Staff eating</p>
+                  <p className="mt-1 text-lg font-black">{staffMealOrders.length} order</p>
+                  <p className="truncate text-[11px] font-semibold text-[var(--text-secondary)]" title={`Nilai menu Rp ${staffMealTotalValue.toLocaleString('id-ID')}`}>Nilai Rp {staffMealTotalValue.toLocaleString('id-ID')}</p>
+                </button>
+                <button type="button" onClick={() => setActiveTab('TOP_ITEMS')}
+                  className="rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)] p-4 text-left transition hover:border-[var(--brand-300)]">
+                  <ShoppingBag className="mb-3 h-5 w-5 text-[var(--accent-green)]" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Produk terjual</p>
+                  <p className="mt-1 text-lg font-black">{totalItemsSold} item</p>
+                  <p className="truncate text-[11px] font-semibold text-[var(--text-secondary)]" title={overviewTopItems[0]?.name || 'Belum ada penjualan'}>{overviewTopItems[0]?.name || 'Belum ada penjualan'}</p>
+                </button>
+              </div>
+              <p className="text-[10px] font-semibold text-[var(--text-tertiary)]">
+                Staff eating terpisah dari omzet, jumlah struk, rata-rata transaksi, metode pembayaran, tren, dan peringkat menu.
+              </p>
             </div>
           </div>
         </div>
@@ -1439,9 +1447,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <p className="text-[11px] font-bold text-[var(--primary-text)] opacity-80">Pajak restoran yang terkumpul</p>
             </div>
             <div className="ui-card bg-[var(--warning-soft)] border-amber-200 p-5 space-y-1">
-              <p className="ui-stat-label text-amber-700">TOTAL DISKON DIBERIKAN</p>
+              <p className="ui-stat-label text-amber-700">DISKON PELANGGAN / PROMO</p>
               <p className="ui-stat-value text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-amber-700 opacity-80">Potongan harga promo & voucher</p>
+              <p className="text-[11px] font-bold text-amber-700 opacity-80">Tidak termasuk konsumsi staff</p>
             </div>
             <div className="ui-card p-5 space-y-1">
               <p className="ui-stat-label">SUBTOTAL KOTOR (GROSS)</p>
@@ -1456,11 +1464,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <div>
                 <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
                   <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
-                  Makan Staff (Diskon 100%)
+                  Staff Eating
+                  <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--primary-text)]">
+                    Diskon 100%
+                  </span>
                 </h2>
                 <p className="mt-1 text-[11px] font-semibold text-[var(--text-tertiary)]">
                   Jatah harian: {STAFF_MEAL_FOOD_LIMIT} makanan + {STAFF_MEAL_DRINK_LIMIT} minuman per orang.
-                  Baris merah = melebihi jatah. Nama diambil dari kolom pelanggan saat input.
+                  Status transaksi dilabeli STAFF EATING. Baris merah = melebihi jatah. Nama diambil dari kolom pelanggan saat input.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -1534,6 +1545,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                     style={{ borderColor: 'var(--panel-border)', background: 'var(--surface-secondary)', color: 'var(--text-tertiary)' }}>
                     <th className="py-3 px-3">No Order</th>
                     <th className="py-3 px-3">Waktu</th>
+                    <th className="py-3 px-3">Klasifikasi</th>
                     <th className="py-3 px-3 text-right">Subtotal</th>
                     <th className="py-3 px-3 text-right">Diskon</th>
                     <th className="py-3 px-3 text-right">Pajak (PB1)</th>
@@ -1543,7 +1555,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                 <tbody className="divide-y" style={{ borderColor: 'var(--panel-border-light)' }}>
                   {paidOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas</td>
+                      <td colSpan={7} className="py-8 text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>Belum ada transaksi lunas</td>
                     </tr>
                   ) : (
                     taxPagination.visibleItems.map((o) => (
@@ -1552,6 +1564,21 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = ''}>
                         <td className="py-3 px-3 font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{o.orderNumber}</td>
                         <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
+                        <td className="py-3 px-3">
+                          {isStaffEatingOrder(o) ? (
+                            <span className="whitespace-nowrap rounded-full bg-[var(--primary-soft)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--primary-text)]">
+                              Staff Eating
+                            </span>
+                          ) : o.discount > 0 ? (
+                            <span className="whitespace-nowrap rounded-full bg-[var(--warning-soft)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-700">
+                              Promo / Diskon
+                            </span>
+                          ) : (
+                            <span className="whitespace-nowrap rounded-full bg-[var(--surface-secondary)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">
+                              Normal
+                            </span>
+                          )}
+                        </td>
                         <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--text-primary)' }}>Rp {(o.subtotal || o.total).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--accent-red)' }}>-Rp {(o.discount || 0).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-3 text-right font-bold" style={{ color: 'var(--primary-hover)' }}>+Rp {(o.tax || 0).toLocaleString('id-ID')}</td>

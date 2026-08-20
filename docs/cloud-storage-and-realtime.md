@@ -90,8 +90,9 @@ sebagai nilai unik global.
 | Monitor shift | Ya | Ya | Ya, untuk kas |
 | Inventory | Tidak | Tidak | Ya |
 | Meja/settings/self-order admin | Tidak | Tidak | Ya |
-| Dashboard Owner | Tidak | Tidak | Tidak; snapshot 120 detik/focus |
-| Attendance/payroll/analytics | Tidak | Tidak | Sesuai fetch halaman |
+| Dashboard Owner | Ya, satu channel/cabang | Tidak | Ya, refresh ter-debounce + rekonsiliasi 120 detik |
+| Laporan analytics | Tidak | Tidak | Snapshot saat buka/filter/manual refresh |
+| Attendance/payroll | Tidak | Tidak | Sesuai fetch halaman |
 
 Saat Realtime sehat, rekonsiliasi order berjalan maksimal sekali per 5 menit
 dan shift per 10 menit sebagai safety net. Saat channel terganggu, POS fallback
@@ -139,3 +140,20 @@ untuk respons UI dan bukan batas keamanan transaksi.
 - Purchase, waste, adjustment, transfer, dan stock opname harus disimpan sebagai
   movement terpisah agar saldo dapat diaudit; `stock_quantity` adalah saldo hasil,
   bukan satu-satunya histori.
+
+## Snapshot laporan dan efisiensi egress
+
+- Halaman analytics tidak membuka subscription realtime dan tidak memiliki polling.
+- Snapshot dimuat hanya ketika halaman dibuka, periode berubah, cabang berubah,
+  atau pengguna menekan **Muat Ulang**.
+- Bila satu cabang dipilih, hanya order, kas, dan histori shift cabang tersebut
+  yang dibaca. Gabungan lintas cabang baru dibaca saat filter **Semua Cabang**.
+- Query kas dan histori shift menerima batas waktu laporan sehingga histori di
+  luar periode tidak ikut dikirim dari Supabase.
+- Dashboard owner tetap realtime untuk kebutuhan monitoring operasional, tetapi
+  analytics adalah snapshot historis. Keduanya tidak boleh berbagi polling atau
+  subscription karena tujuan dan frekuensi aksesnya berbeda.
+- Transaksi diskon 100% diklasifikasikan sebagai staff eating pada laporan dan
+  dikeluarkan dari omzet penjualan, jumlah struk, average order value, distribusi
+  pembayaran, tren, serta menu terlaris. Nilainya tetap terlihat pada panel
+  pengecualian dan laporan pajak/diskon untuk audit internal.
