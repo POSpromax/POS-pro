@@ -1,4 +1,4 @@
-export type ReportPeriod = 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'ALL';
+export type ReportPeriod = 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM' | 'ALL';
 
 export interface PeriodRange {
   start: Date;
@@ -11,6 +11,7 @@ export const REPORT_PERIODS: { key: ReportPeriod; label: string; hint: string }[
   { key: 'WEEK', label: 'Minggu Ini', hint: 'Senin sampai hari ini' },
   { key: 'MONTH', label: 'Bulan Ini', hint: 'Tanggal 1 sampai hari ini' },
   { key: 'YEAR', label: 'Tahun Ini', hint: 'Januari sampai hari ini' },
+  { key: 'CUSTOM', label: 'Pilih Tanggal', hint: 'Tentukan tanggal awal dan akhir' },
   { key: 'ALL', label: 'Semua', hint: 'Seluruh riwayat tersimpan' }
 ];
 
@@ -39,6 +40,8 @@ export const getPeriodRange = (period: ReportPeriod, now: Date = new Date()): Pe
       return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: addDays(today, 1) };
     case 'YEAR':
       return { start: new Date(now.getFullYear(), 0, 1), end: addDays(today, 1) };
+    case 'CUSTOM':
+      return { start: today, end: addDays(today, 1) };
     case 'ALL':
     default:
       return { start: new Date(0), end: new Date(8640000000000000) };

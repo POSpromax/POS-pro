@@ -37,3 +37,11 @@ Migrasi operasional terbaru harus dijalankan berurutan setelah `021` dan `022`:
 2. `202608140024_branch_hr_configuration.sql` menyimpan kebijakan HR per cabang:
    alasan izin yang tampil, status dibayar, hari kerja, dan toleransi penalti
    keterlambatan.
+
+Urutan setelah `024` berlanjut sampai `202608200046_recipe_custom_ingredient.sql`.
+Jangan menganggap daftar singkat di atas sebagai daftar migration lengkap; sumber
+kebenaran adalah urutan nama file di `supabase/migrations/`. Migration `046`
+harus diterapkan setelah `045` dan diperlukan hanya untuk resep yang memakai
+bahan custom (`custom_name`/`custom_cost`). Resep yang seluruhnya memakai bahan
+master tetap kompatibel sebelum `046`, tetapi jangan mengaktifkan bahan custom
+di produksi sampai migration tersebut terverifikasi.

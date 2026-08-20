@@ -44,6 +44,7 @@ interface AnalyticsExportViewProps {
   profile?: RestaurantProfile;
   branches?: Branch[];
   currentBranchId?: string;
+  onPeriodRangeChange?: (from: string, to: string) => void | Promise<void>;
 }
 
 type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY' | 'INVENTORY';
@@ -83,6 +84,12 @@ const addCalendarDays = (date: Date, days: number): Date => {
 const addCalendarMonths = (date: Date, months: number): Date => new Date(date.getFullYear(), date.getMonth() + months, 1);
 
 const startOfLocalDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const toLocalDateInput = (date: Date): string => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-');
 
 const usePaginatedList = <T,>(items: T[], resetKey: string): PaginatedResult<T> => {
   const [page, setPage] = useState(1);
@@ -189,7 +196,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   expenseRecords: propExpenses,
   profile: propProfile,
   branches = [],
-  currentBranchId
+  currentBranchId,
+  onPeriodRangeChange,
 }) => {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,8 +210,12 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [inventoryMovementTotal, setInventoryMovementTotal] = useState(0);
   const [inventoryMovementLoading, setInventoryMovementLoading] = useState(false);
   const [inventoryMovementError, setInventoryMovementError] = useState('');
+  const [reportRangeLoading, setReportRangeLoading] = useState(false);
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
+  const todayInput = toLocalDateInput(new Date());
+  const [customStartDate, setCustomStartDate] = useState(todayInput);
+  const [customEndDate, setCustomEndDate] = useState(todayInput);
   // Filter cabang: default cabang aktif; 'ALL' = gabungan semua cabang.
   const [branchFilter, setBranchFilter] = useState<string>(currentBranchId || 'ALL');
 
@@ -214,11 +226,29 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
   // Semua metrik di bawah membaca data yang sudah dipotong rentang waktu terpilih
   // dan cabang terpilih (atau gabungan semua cabang bila 'ALL').
-  const periodRange = useMemo(() => getPeriodRange(period), [period]);
+  const periodRange = useMemo(() => {
+    if (period !== 'CUSTOM') return getPeriodRange(period);
+    const start = new Date(`${customStartDate}T00:00:00`);
+    const endBase = new Date(`${customEndDate || customStartDate}T00:00:00`);
+    const safeStart = Number.isNaN(start.getTime()) ? new Date() : start;
+    const safeEnd = Number.isNaN(endBase.getTime()) ? safeStart : endBase;
+    const orderedStart = safeStart <= safeEnd ? safeStart : safeEnd;
+    const orderedEnd = safeStart <= safeEnd ? safeEnd : safeStart;
+    return { start: orderedStart, end: addCalendarDays(orderedEnd, 1) };
+  }, [customEndDate, customStartDate, period]);
   const branchScopedOrders = useMemo(
     () => (branchFilter === 'ALL' ? orders : orders.filter((o) => (o.branchId || currentBranchId) === branchFilter)),
     [orders, branchFilter, currentBranchId],
   );
+
+  useEffect(() => {
+    if (!onPeriodRangeChange) return;
+    let active = true;
+    setReportRangeLoading(true);
+    void Promise.resolve(onPeriodRangeChange(periodRange.start.toISOString(), periodRange.end.toISOString()))
+      .finally(() => { if (active) setReportRangeLoading(false); });
+    return () => { active = false; };
+  }, [onPeriodRangeChange, periodRange.end, periodRange.start]);
   const scopedOrders = useMemo(() => branchScopedOrders.filter((o) => isWithinPeriod(o.createdAt, periodRange)), [branchScopedOrders, periodRange]);
   const shifts = useMemo(() => allShifts.filter((shift) => (
     isWithinPeriod(shift.startTime, periodRange)
@@ -367,12 +397,14 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   // Grafik tren utama MENYESUAIKAN periode dan selalu mengisi seluruh bucket
   // periode, termasuk hari/bulan tanpa penjualan.
   const trendChart = useMemo(() => {
+    const customRangeDays = Math.max(1, Math.ceil((periodRange.end.getTime() - periodRange.start.getTime()) / 86400000));
+    const useMonthlyBuckets = period === 'YEAR' || period === 'ALL' || (period === 'CUSTOM' && customRangeDays > 62);
     const aggregate = <T extends { key: string; label: string; axisLabel: string }>(seed: T[]) => {
       const bucketMap = new Map(seed.map((item) => [item.key, { ...item, revenue: 0, count: 0 }]));
       paidOrders.forEach((order) => {
         const orderDate = new Date(order.createdAt);
         if (Number.isNaN(orderDate.getTime())) return;
-        const key = period === 'YEAR' || period === 'ALL'
+        const key = useMonthlyBuckets
           ? `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`
           : `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')}`;
         const bucket = bucketMap.get(key);
@@ -447,6 +479,33 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
         };
       });
       return { title: period === 'YEAR' ? 'Tren Omset 12 Bulan Tahun Ini' : 'Tren Omset per Bulan', data: aggregate(monthSeed) };
+    }
+
+    if (period === 'CUSTOM') {
+      if (useMonthlyBuckets) {
+        const firstMonth = new Date(periodRange.start.getFullYear(), periodRange.start.getMonth(), 1);
+        const lastIncluded = new Date(periodRange.end.getTime() - 1);
+        const monthCount = ((lastIncluded.getFullYear() - firstMonth.getFullYear()) * 12)
+          + (lastIncluded.getMonth() - firstMonth.getMonth()) + 1;
+        const seed = Array.from({ length: monthCount }, (_, index) => {
+          const bucketDate = addCalendarMonths(firstMonth, index);
+          return {
+            key: `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, '0')}`,
+            label: bucketDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+            axisLabel: bucketDate.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+          };
+        });
+        return { title: 'Tren Omset Bulanan Periode Pilihan', data: aggregate(seed) };
+      }
+      const seed = Array.from({ length: customRangeDays }, (_, index) => {
+        const bucketDate = addCalendarDays(periodRange.start, index);
+        return {
+          key: `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, '0')}-${String(bucketDate.getDate()).padStart(2, '0')}`,
+          label: bucketDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+          axisLabel: bucketDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        };
+      });
+      return { title: 'Tren Omset Harian Periode Pilihan', data: aggregate(seed) };
     }
 
     const fallbackDate = startOfLocalDay(periodRange.start);
@@ -805,9 +864,37 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
           <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
             {formatPeriodRange(period, periodRange)}
-            <span style={{ color: 'var(--text-tertiary)' }}> · {scopedOrders.length} order</span>
+            <span style={{ color: 'var(--text-tertiary)' }}> · {reportRangeLoading ? 'Memuat data…' : `${scopedOrders.length} order`}</span>
           </span>
         </div>
+
+        {period === 'CUSTOM' && (
+          <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-card)] p-3 shadow-sm">
+            <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Dari tanggal
+              <input
+                type="date"
+                value={customStartDate}
+                max={customEndDate || undefined}
+                onChange={(event) => setCustomStartDate(event.target.value)}
+                className="ui-input min-h-10 px-3 text-[12px] normal-case tracking-normal"
+              />
+            </label>
+            <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              Sampai tanggal
+              <input
+                type="date"
+                value={customEndDate}
+                min={customStartDate || undefined}
+                onChange={(event) => setCustomEndDate(event.target.value)}
+                className="ui-input min-h-10 px-3 text-[12px] normal-case tracking-normal"
+              />
+            </label>
+            <p className="pb-2 text-[11px] font-semibold text-[var(--text-secondary)]">
+              Seluruh kartu, grafik, tabel, CSV, dan PDF mengikuti rentang ini.
+            </p>
+          </div>
+        )}
 
         {/* Filter cabang — memotong seluruh metrik & tabel di halaman ini */}
         {branches.length > 1 && (

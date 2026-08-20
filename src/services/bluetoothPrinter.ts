@@ -1,4 +1,4 @@
-import { Order, RestaurantProfile, PrinterConfig, Shift, CondimentGroup } from '../types/pos';
+import { Order, RestaurantProfile, PrinterConfig, Shift, CondimentGroup, MenuItem } from '../types/pos';
 import {
   connectAndroidPrinter,
   disconnectAndroidPrinter,
@@ -336,8 +336,8 @@ export class BluetoothPrinterService {
     return this.enqueuePrint(() => this.performPrint(this.generateReceiptBytes(order, profile, config), config));
   }
 
-  static async printKitchenTicket(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = []): Promise<{ success: boolean; error?: string }> {
-    return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config, condimentGroups), config));
+  static async printKitchenTicket(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = [], menuItems: MenuItem[] = []): Promise<{ success: boolean; error?: string }> {
+    return this.enqueuePrint(() => this.performPrint(this.generateKitchenTicketBytes(order, profile, config, condimentGroups, menuItems), config));
   }
 
   static async printZReport(report: ZReportData, profile: RestaurantProfile, config: PrinterConfig): Promise<{ success: boolean; error?: string }> {
@@ -515,7 +515,7 @@ export class BluetoothPrinterService {
    * Kertas dapur hanya memuat informasi yang diperlukan untuk memasak dan
    * mengantar, dengan kuantitas/item dibuat lebih besar agar cepat dipindai.
    */
-  static generateKitchenTicketBytes(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = []): Uint8Array {
+  static generateKitchenTicketBytes(order: Order, profile: RestaurantProfile, config: PrinterConfig, condimentGroups: CondimentGroup[] = [], menuItems: MenuItem[] = []): Uint8Array {
     const encoder = new TextEncoder();
     const lineWidth = config.paperSize === '80mm' ? 48 : 32;
     const separator = '-'.repeat(lineWidth) + '\n';
@@ -555,7 +555,13 @@ export class BluetoothPrinterService {
     // Urutkan item mengikuti kategori seperti tampilan Kitchen Monitor
     // (BAKSO → MIE AYAM → MAKANAN → TAMBAHAN → KRIUK → BUNDLING → MINUMAN;
     // kategori tak dikenal tepat sebelum MINUMAN). Item asli tidak diubah.
-    const CATEGORY_ORDER = ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'BUNDLING', 'MINUMAN'];
+    const DEFAULT_CATEGORY_ORDER = ['BAKSO', 'MIE AYAM', 'MAKANAN', 'TAMBAHAN', 'KRIUK', 'BUNDLING', 'MINUMAN'];
+    const CATEGORY_ORDER = [
+      ...(profile.kdsCategoryOrder || []).map((category) => String(category).trim().toUpperCase()),
+      ...DEFAULT_CATEGORY_ORDER,
+    ].filter((category, index, list) => category && list.indexOf(category) === index);
+    const menuCategoryById = new Map(menuItems.map((item) => [item.id, String(item.category || '').trim().toUpperCase()]));
+    const menuRankById = new Map(menuItems.map((item, index) => [item.id, index]));
     const categoryRank = (category?: string): number => {
       const normalized = String(category || '').trim().toUpperCase();
       const index = CATEGORY_ORDER.indexOf(normalized);
@@ -564,8 +570,13 @@ export class BluetoothPrinterService {
       return drinkIndex >= 0 ? drinkIndex - 0.5 : CATEGORY_ORDER.length;
     };
     const sortedItems = order.items
-      .map((item, index) => ({ item, index }))
-      .sort((a, b) => (categoryRank(a.item.category) - categoryRank(b.item.category)) || (a.index - b.index))
+      .map((item, index) => ({
+        item,
+        index,
+        category: menuCategoryById.get(item.menuId) || item.category,
+        menuRank: menuRankById.get(item.menuId) ?? Number.MAX_SAFE_INTEGER,
+      }))
+      .sort((a, b) => (categoryRank(a.category) - categoryRank(b.category)) || (a.menuRank - b.menuRank) || (a.index - b.index))
       .map((entry) => entry.item);
 
     sortedItems.forEach((item) => {

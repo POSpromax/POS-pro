@@ -52,7 +52,7 @@ import {
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { getCloudOrder, listCloudOrders, listCloudOrdersSummary, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { getCloudOrder, listCloudOrders, listCloudOrdersForReport, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -493,6 +493,8 @@ export default function App() {
   const [condimentGroups, setCondimentGroups] = useState<CondimentGroup[]>(() => cloudReadiness.supabase ? [] : DBStorage.getCondimentGroups());
   const condimentGroupsRef = useRef(condimentGroups);
   useEffect(() => { condimentGroupsRef.current = condimentGroups; }, [condimentGroups]);
+  const menuItemsRef = useRef(menuItems);
+  useEffect(() => { menuItemsRef.current = menuItems; }, [menuItems]);
   const [orders, setOrders] = useState<Order[]>(() => cloudReadiness.supabase ? [] : DBStorage.getOrders());
   const [ownerMonitorData, setOwnerMonitorData] = useState<{
     branchIds: string[];
@@ -500,6 +502,14 @@ export default function App() {
     tables: RestaurantTable[];
     rawMaterials: RawMaterial[];
   }>({ branchIds: [], orders: [], tables: [], rawMaterials: [] });
+  const ownerReportRequestRef = useRef(0);
+  const ownerReportRangeRef = useRef((() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { from: start.toISOString(), to: end.toISOString() };
+  })());
   const [currentShift, setCurrentShift] = useState<Shift>(() => cloudReadiness.supabase ? createInactiveShift(currentBranch.id) : DBStorage.getCurrentShift(currentBranch.id));
   const [isShiftStatusLoading, setIsShiftStatusLoading] = useState<boolean>(cloudReadiness.supabase);
   const [shiftHistory, setShiftHistory] = useState<Shift[]>(() => cloudReadiness.supabase ? [] : DBStorage.getShiftHistory());
@@ -688,23 +698,50 @@ export default function App() {
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || activeTab !== 'superowner') return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || !['superowner', 'analytics'].includes(activeTab)) return;
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     let cancelled = false;
     let running = false;
     // Cegah refetch beruntun: fokus jendela yang bolak-balik tidak boleh memicu
     // pembacaan ulang seluruh cabang (orders+tables+katalog) berkali-kali.
     let lastOwnerRefreshAt = 0;
+    const needsOrderItems = activeTab === 'analytics';
+    const loadOwnerOrders = (branchId: string) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      const range = needsOrderItems ? ownerReportRangeRef.current : { from: start.toISOString(), to: end.toISOString() };
+      return listCloudOrdersForReport(branchId, range.from, range.to, !needsOrderItems);
+    };
+    const replaceBranchSnapshot = (snapshot: { branchId: string; orders?: Order[]; tables?: RestaurantTable[]; rawMaterials?: RawMaterial[] }) => {
+      if (cancelled) return;
+      setOwnerMonitorData((current) => ({
+        branchIds: current.branchIds.includes(snapshot.branchId)
+          ? current.branchIds
+          : [...current.branchIds, snapshot.branchId],
+        orders: snapshot.orders
+          ? [...current.orders.filter((order) => order.branchId !== snapshot.branchId), ...snapshot.orders]
+          : current.orders,
+        tables: snapshot.tables
+          ? [...current.tables.filter((table) => table.branchId !== snapshot.branchId), ...snapshot.tables]
+          : current.tables,
+        rawMaterials: snapshot.rawMaterials
+          ? [...current.rawMaterials.filter((material) => material.branchId !== snapshot.branchId), ...snapshot.rawMaterials]
+          : current.rawMaterials,
+      }));
+    };
     const refreshOwnerMonitor = async () => {
       if (running) return;
       running = true;
       lastOwnerRefreshAt = Date.now();
+      const requestedReportRange = needsOrderItems ? { ...ownerReportRangeRef.current } : null;
       try {
         const results = await Promise.allSettled(branches.map(async (branch) => {
           // Dashboard owner hanya butuh agregat: order tanpa item (summary) & bahan
           // baku saja (tanpa menu/resep). Jauh lebih hemat egress daripada fetch penuh.
           const [branchOrders, branchTables, branchRawMaterials] = await Promise.all([
-            listCloudOrdersSummary(branch.id),
+            loadOwnerOrders(branch.id),
             listCloudTables(branch.id),
             listCloudRawMaterials(branch.id),
           ]);
@@ -719,6 +756,10 @@ export default function App() {
           .filter((result): result is PromiseFulfilledResult<{ branchId: string; orders: Order[]; tables: RestaurantTable[]; rawMaterials: RawMaterial[] }> => result.status === 'fulfilled')
           .map((result) => result.value);
         if (snapshots.length === 0) throw new Error('Tidak ada cabang yang dapat dibaca oleh akun ini');
+        if (requestedReportRange && (
+          requestedReportRange.from !== ownerReportRangeRef.current.from
+          || requestedReportRange.to !== ownerReportRangeRef.current.to
+        )) return;
         if (!cancelled) setOwnerMonitorData({
           branchIds: snapshots.map((snapshot) => snapshot.branchId),
           orders: snapshots.flatMap((snapshot) => snapshot.orders),
@@ -732,6 +773,54 @@ export default function App() {
       }
     };
     void refreshOwnerMonitor();
+
+    // Dashboard pusat dan laporan ikut satu channel per cabang. Event order
+    // mengambil satu row yang berubah saja; tabel/stok hanya memuat ulang bagian
+    // yang terdampak. Ini membuat KPI terasa realtime tanpa polling agresif.
+    const realtimeUnsubscribers = branches.flatMap((branch) => {
+      let operationTimer = 0;
+      const unsubscribeOrders = subscribeCloudOrders(branch.id, (changedOrderIds) => {
+        if (cancelled) return;
+        if (!changedOrderIds || changedOrderIds.length === 0) {
+          void loadOwnerOrders(branch.id)
+            .then((branchOrders) => replaceBranchSnapshot({ branchId: branch.id, orders: branchOrders }))
+            .catch(() => undefined);
+          return;
+        }
+        void Promise.all(changedOrderIds.map((orderId) => getCloudOrder(branch.id, orderId)))
+          .then((changedOrders) => {
+            if (cancelled) return;
+            const changedIds = new Set(changedOrderIds);
+            setOwnerMonitorData((current) => ({
+              ...current,
+              orders: [
+                ...current.orders.filter((order) => !changedIds.has(order.id)),
+                ...changedOrders.filter((order): order is Order => Boolean(order)),
+              ],
+            }));
+          })
+          .catch(() => undefined);
+      });
+      const unsubscribeOperations = subscribeBranchOperations(branch.id, (table) => {
+        if (cancelled || !['restaurant_tables', 'raw_materials'].includes(table)) return;
+        window.clearTimeout(operationTimer);
+        operationTimer = window.setTimeout(() => {
+          if (table === 'restaurant_tables') {
+            void listCloudTables(branch.id)
+              .then((branchTables) => replaceBranchSnapshot({ branchId: branch.id, tables: branchTables }))
+              .catch(() => undefined);
+          } else {
+            void listCloudRawMaterials(branch.id)
+              .then((materials) => replaceBranchSnapshot({
+                branchId: branch.id,
+                rawMaterials: materials.map((material) => ({ ...material, branchName: branch.name })),
+              }))
+              .catch(() => undefined);
+          }
+        }, 350);
+      });
+      return [unsubscribeOrders, unsubscribeOperations, () => window.clearTimeout(operationTimer)];
+    });
     const refreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return;
       // Throttle fokus: abaikan bila baru saja refresh (<30 dtk). Interval 120s
@@ -745,8 +834,35 @@ export default function App() {
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener('focus', refreshWhenVisible);
+      realtimeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [isAttendanceTerminal, isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
+
+  const refreshOwnerReportRange = useCallback(async (from: string, to: string) => {
+    if (!cloudReadiness.supabase || systemPortal !== 'OWNER') return;
+    ownerReportRangeRef.current = { from, to };
+    const requestId = ++ownerReportRequestRef.current;
+    const allowedBranches = activeUser.branchIds?.length
+      ? branches.filter((branch) => activeUser.branchIds?.includes(branch.id))
+      : branches;
+    const results = await Promise.allSettled(allowedBranches.map(async (branch) => ({
+      branchId: branch.id,
+      orders: await listCloudOrdersForReport(branch.id, from, to),
+    })));
+    if (requestId !== ownerReportRequestRef.current) return;
+    const snapshots = results
+      .filter((result): result is PromiseFulfilledResult<{ branchId: string; orders: Order[] }> => result.status === 'fulfilled')
+      .map((result) => result.value);
+    if (snapshots.length === 0) {
+      showPushToast('Laporan Belum Termuat', 'Data periode terpilih gagal dibaca dari seluruh cabang.');
+      return;
+    }
+    setOwnerMonitorData((current) => ({
+      ...current,
+      branchIds: snapshots.map((snapshot) => snapshot.branchId),
+      orders: snapshots.flatMap((snapshot) => snapshot.orders),
+    }));
+  }, [activeUser.branchIds, branches, systemPortal]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) return;
@@ -844,7 +960,7 @@ export default function App() {
             // perlu) supaya menyimpan input pesanan tidak memicu resi tak diinginkan.
             if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
               selfOrders.forEach((order) => {
-                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
+                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                   if (!result.success) {
                     showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
                   }
@@ -917,7 +1033,7 @@ export default function App() {
               selfOrders.forEach((order) => showPushToast('Pesanan Self-order Masuk', `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`));
               if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
                 selfOrders.forEach((order) => {
-                  void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
+                  void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                     if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
                   });
                 });
@@ -971,7 +1087,7 @@ export default function App() {
           // Auto-cetak dapur HANYA untuk self-order (bukan order input kasir).
           if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
             selfOrders.forEach((order) => {
-              void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current).then((result) => {
+              void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                 if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
               });
             });
@@ -1744,7 +1860,7 @@ export default function App() {
   };
 
   const printKitchenTicket = async (order: Order) => {
-    const result = await BluetoothPrinterService.printKitchenTicket(order, profile, printerConfig, condimentGroups);
+    const result = await BluetoothPrinterService.printKitchenTicket(order, profile, printerConfig, condimentGroups, menuItems);
     if (result.success) {
       showPushToast('Tiket Dapur Tercetak', `${formatOrderLabel(order)} dikirim tanpa harga ke printer kitchen.`);
     } else {
@@ -2909,7 +3025,7 @@ export default function App() {
 
           {activeTab === 'analytics' && (
             <AnalyticsExportView
-              orders={orders}
+              orders={systemPortal === 'OWNER' && ownerMonitorData.branchIds.length > 0 ? ownerMonitorData.orders : orders}
               menuItems={menuItems}
               rawMaterials={ownerMonitorData.rawMaterials.length > 0 ? ownerMonitorData.rawMaterials : rawMaterials}
               currentShift={currentShift}
@@ -2919,6 +3035,7 @@ export default function App() {
               profile={profile}
               branches={accessibleBranches}
               currentBranchId={currentBranch.id}
+              onPeriodRangeChange={refreshOwnerReportRange}
             />
           )}
 

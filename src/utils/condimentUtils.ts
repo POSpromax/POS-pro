@@ -44,6 +44,14 @@ const configuredAvailableNames = (group: CondimentGroup, names?: string[]) => {
     .filter((name): name is string => Boolean(name));
 };
 
+const orderConfiguredSelections = (group: CondimentGroup, selectedNames: string[]) => {
+  const rank = new Map(group.options.map((option, index) => [normalizeName(option.name), index]));
+  return [...selectedNames].sort((left, right) =>
+    (rank.get(normalizeName(left)) ?? Number.MAX_SAFE_INTEGER)
+      - (rank.get(normalizeName(right)) ?? Number.MAX_SAFE_INTEGER),
+  );
+};
+
 const fallbackBaksoOnly = (group: CondimentGroup) =>
   group.options
     .filter((option) => {
@@ -97,10 +105,10 @@ export const summarizeCondimentOptions = (
       return group.allSelectedLabel || 'CAMPUR';
     }
 
-    return selected.options.join(', ');
+    return orderConfiguredSelections(group, selected.options).join(', ');
   }
 
-  if (!group.allSelectedLabel) return selected.options.join(', ');
+  if (!group.allSelectedLabel) return orderConfiguredSelections(group, selected.options).join(', ');
 
   const availableNames = group.options
     .filter((option) => option.isAvailable !== false)
@@ -108,5 +116,5 @@ export const summarizeCondimentOptions = (
 
   return sameNormalizedSelection(selected.options, availableNames)
     ? group.allSelectedLabel
-    : selected.options.join(', ');
+    : orderConfiguredSelections(group, selected.options).join(', ');
 };

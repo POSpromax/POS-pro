@@ -89,15 +89,29 @@ export async function saveCloudMenuItem(item: MenuItem, branchId: string): Promi
   const { error: clearError } = await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', menuItemId);
   if (clearError) throw new Error(clearError.message);
   if (item.ingredients.length) {
-    const { error: ingredientError } = await supabase.from('menu_item_ingredients').insert(item.ingredients.map((ingredient) => ({
+    // KOMPATIBEL MUNDUR: kolom custom_name/custom_cost baru ada setelah migrasi
+    // 046. Kolomnya hanya dikirim bila resep memang memuat bahan CUSTOM, supaya
+    // penyimpanan menu biasa tetap berhasil walau migrasi belum diterapkan.
+    const hasCustom = item.ingredients.some((ingredient) => ingredient.isCustom);
+    const rows = item.ingredients.map((ingredient) => ({
       menu_item_id: menuItemId,
       raw_material_id: ingredient.isCustom ? null : ingredient.rawMaterialId,
       amount_needed: ingredient.amountNeeded,
       unit: ingredient.unit,
-      custom_name: ingredient.isCustom ? ingredient.rawMaterialName : null,
-      custom_cost: ingredient.isCustom ? (ingredient.customCost || 0) : null,
-    })));
-    if (ingredientError) throw new Error(ingredientError.message);
+      ...(hasCustom ? {
+        custom_name: ingredient.isCustom ? ingredient.rawMaterialName : null,
+        custom_cost: ingredient.isCustom ? (ingredient.customCost || 0) : null,
+      } : {}),
+    }));
+    const { error: ingredientError } = await supabase.from('menu_item_ingredients').insert(rows);
+    if (ingredientError) {
+      // Pesan jelas bila migrasi bahan custom belum dijalankan.
+      const msg = ingredientError.message || '';
+      if (/custom_name|custom_cost/i.test(msg)) {
+        throw new Error('Bahan custom belum aktif: terapkan migrasi 202608200046 di Supabase lebih dulu.');
+      }
+      throw new Error(msg);
+    }
   }
 }
 

@@ -68,8 +68,14 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
   );
 
   const getOrdersForScope = (branchId?: string) => {
-    if (!branchId) return orders;
-    return orders.filter((order) => order.branchId === branchId);
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endToday = startToday + 24 * 60 * 60 * 1000;
+    return orders.filter((order) => {
+      if (branchId && order.branchId !== branchId) return false;
+      const createdAt = new Date(order.createdAt).getTime();
+      return Number.isFinite(createdAt) && createdAt >= startToday && createdAt < endToday;
+    });
   };
 
   const getTablesForScope = (branchId?: string) => {
@@ -158,7 +164,7 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
         {/* Hero: Total Omset */}
         <div className="ui-card-feature sm:col-span-2 xl:col-span-1 flex flex-col justify-between gap-3" style={{ padding: '20px 22px', minHeight: '130px' }}>
           <div className="flex items-center justify-between">
-            <p className="ui-stat-label">Total Omset</p>
+            <p className="ui-stat-label">Omset Hari Ini</p>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20">
               <DollarSign className="h-4 w-4 text-white" />
             </div>

@@ -802,14 +802,14 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             </button>
           </div>
         ) : viewMode === 'GRID' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3.5">
+          <div className="grid grid-cols-1 min-[390px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 md:gap-3.5">
             {filteredRawList.map((raw) => {
               const isLow = raw.stockQuantity <= raw.minStockThreshold;
 
               return (
                 <div
                   key={raw.id}
-                  className="bg-[var(--surface-card)] rounded-2xl p-2.5 md:p-3.5 border border-[var(--panel-border)]/90 shadow-sm flex flex-col justify-between relative hover:shadow-sm transition-shadow"
+                  className="relative flex min-h-32 flex-col justify-between rounded-2xl border border-[var(--panel-border)]/90 bg-[var(--surface-card)] p-3 shadow-[0_8px_22px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:border-[var(--panel-border-strong)] hover:shadow-[0_14px_30px_rgba(15,23,42,0.10)] md:p-3.5"
                 >
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <div className="flex-1 min-w-0">

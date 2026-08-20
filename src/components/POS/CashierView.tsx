@@ -991,13 +991,13 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
               {/* Bottom Action Buttons */}
               <div className="grid grid-cols-2 gap-2 pt-0.5 pb-[max(12px,env(safe-area-inset-bottom))] sm:grid-cols-3 lg:flex">
-                {currentEditingOrder && !isLoadedClosed && onVoidOrder && ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && (
+                {currentEditingOrder && currentEditingOrder.status !== 'CANCELLED' && onVoidOrder && ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role) && (
                   <button
                     type="button"
                     onClick={() => setIsVoidModalOpen(true)}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                    title="Void pesanan dengan persetujuan"
-                    aria-label="Void pesanan"
+                    title={isLoadedClosed ? 'Void transaksi selesai/lunas' : 'Void pesanan dengan persetujuan'}
+                    aria-label={isLoadedClosed ? 'Void transaksi selesai/lunas' : 'Void pesanan'}
                   >
                     <Ban className="h-4 w-4" />
                   </button>
@@ -1099,7 +1099,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
           <div className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-5 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700"><Ban className="h-5 w-5" /></div>
-              <div><h3 className="font-extrabold text-slate-900">Void {formatOrderLabel(currentEditingOrder, orders)}</h3><p className="mt-1 text-xs text-slate-500">Stok akan dikembalikan dan tindakan dicatat atas akun approver.</p></div>
+              <div><h3 className="font-extrabold text-slate-900">Void {formatOrderLabel(currentEditingOrder, orders)}</h3><p className="mt-1 text-xs text-slate-500">{currentEditingOrder.paymentStatus === 'PAID' ? 'Pembayaran ditandai refund, stok dikembalikan, dan ' : 'Stok dikembalikan dan '}tindakan dicatat atas akun approver.</p></div>
             </div>
             <textarea autoFocus value={voidReason} onChange={(event) => setVoidReason(event.target.value)} className="ui-input mt-4 min-h-24 resize-none" placeholder="Alasan void wajib diisi…" />
             <div className="mt-4 flex justify-end gap-2">

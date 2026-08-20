@@ -1,6 +1,6 @@
 # HANDOFF — POS-PRO (Bakso Ujo)
 
-**Disusun:** 19–20 Agustus 2026 · **Commit terakhir:** `88762f1`  
+**Disusun:** 19–20 Agustus 2026 · **Baseline remote saat audit:** `864a20d`
 **Konteks:** sistem LIVE dipakai 2 outlet (Pasirmulya & Pasar Anyar), Supabase **Free plan**.
 
 > **Aturan utama:** ini sistem produksi yang dipakai berjualan tiap hari (buka 10:00–22:00).
@@ -18,7 +18,7 @@ Semua kode sudah di-push ke `main`. Vercel auto-deploy dari `main`.
 
 | # | Tugas | Kenapa |
 |---|---|---|
-| 1 | **Terapkan migrasi `202608200046_recipe_custom_ingredient.sql`** di Supabase SQL Editor | Belum berhasil diterapkan (versi pertama salah urutan, sudah diperbaiki). Tanpa ini fitur **Bahan Custom pada resep** error saat menyimpan menu. |
+| 1 | **Terapkan migrasi `202608200046_recipe_custom_ingredient.sql`** di Supabase SQL Editor | Belum berhasil diterapkan (versi pertama salah urutan, sudah diperbaiki). Menu dengan resep biasa sudah kompatibel-mundur; hanya **Bahan Custom** yang tetap wajib menunggu migrasi. |
 | 2 | **Buka-ulang TOTAL semua terminal** (tutup aplikasi, buka lagi) | Perbaikan sinkronisasi & egress ada di sisi klien. Terminal versi lama tetap boros dan tetap punya bug pesanan hilang. |
 | 3 | **Sisakan 1 tab POS per terminal** | Tiap tab = klien polling terpisah. Ini pengali egress terbesar. |
 
@@ -98,7 +98,7 @@ memverifikasi seluruh konsekuensinya.** Jangan diulangi.
 | B1 | **Kolom `is_manual_price` & `is_sticky` tidak ada di DB** | Flag tidak pernah tersimpan. Saat ini di-workaround dengan heuristik harga 0 = harga custom (`catalogService.ts`). Solusi benar: migrasi tambah kolom + simpan di `saveCloudMenuItem`. |
 | B2 | **Dua sumber jadwal kerja** | Payroll memakai `staff_schedules`; layar absensi memakai `profile.shiftScheduleX`. Timezone & toleransi sudah disamakan, tapi sumbernya masih dua → berisiko beda angka telat. Satukan. |
 | B3 | **`/api/hr` memuat berlebih** | Tiap buka halaman absen/payroll: 250 izin + 500 kasbon + 1000 snapshot, semuanya `select(*)`. Persempit kolom + paginasi. |
-| B4 | **Laporan Analytics memuat order penuh + item** | Periode Tahun Ini / Semua bisa berat. Perlu agregasi sisi server. |
+| B4 | **Laporan Analytics historis** | Pembacaan sudah dipaginasi per 500 order dan item dipecah per 150 ID. Untuk volume besar berikutnya, pindahkan agregasi grafik ke RPC/server agar egress tetap rendah. |
 | B5 | **Login masih O(N) bcrypt** | Aman untuk 11 staf (~1-2 dtk). Di atas ~30 staf melambat lagi. Solusi permanen: kolom lookup ter-index (HMAC dengan kunci rahasia di env server) → 1 bcrypt saja. **Ada trade-off keamanan, butuh keputusan owner.** |
 | B6 | **reconcileOperations masih menarik daftar meja tiap 120 dtk** | Condiment & config sudah dibatasi ke kondisi realtime degraded; tabel meja masih periodik. Bisa diikat penuh ke broadcast. |
 
@@ -149,3 +149,17 @@ Uji saat operasional nyata, bukan sekadar dilihat:
 npx tsc --noEmit
 npm run build
 ```
+
+---
+
+## 7. BATCH AUDIT CODEX — WORKTREE SETELAH BASELINE `864a20d`
+
+Perubahan berikut sedang berada di worktree dan harus diuji sebelum commit/deploy:
+
+- dashboard pusat memakai realtime bertarget per cabang; KPI order/omset dibatasi hari berjalan;
+- laporan owner memakai sumber lintas cabang yang sama, pembacaan periode dipaginasi, dan memiliki rentang kalender khusus;
+- transaksi selesai/lunas dapat divoid kembali dari riwayat POS hanya oleh Owner/Manager/Admin; refund, stok, dan audit tetap melalui RPC `void_order`;
+- tiket kitchen mengikuti urutan kategori KDS dari konfigurasi, urutan menu master, dan urutan opsi condiment master;
+- `catalogService.ts` memuat kompatibilitas mundur untuk resep biasa sebelum migrasi 046 diterapkan.
+
+Validasi manual yang masih wajib: dua cabang, perubahan KPI setelah order baru dan pembayaran, rentang laporan >150 order, void order lunas, serta cetak tiket 58/80 mm dengan condiment.

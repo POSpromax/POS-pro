@@ -68,11 +68,27 @@ async function getActor(accessToken: string, branchId: string, admin: SupabaseCl
 
 // summary=true melewati pengambilan order_items (payload jauh lebih kecil) —
 // dipakai dashboard owner yang hanya butuh agregat total/status, bukan detail item.
-async function readOrders(branchId: string, admin: SupabaseClient, orderId?: string, summary = false, since?: string) {
+async function readOrders(
+  branchId: string,
+  admin: SupabaseClient,
+  orderId?: string,
+  summary = false,
+  since?: string,
+  reportRange?: { from: string; to: string; offset: number; limit: number },
+) {
   const select = '*, restaurant_tables!orders_table_id_fkey(number)';
   let rows: any[] = [];
   if (orderId) {
     const { data, error } = await admin.from('orders').select(select).eq('branch_id', branchId).eq('id', orderId).limit(1);
+    if (error) throw error;
+    rows = data || [];
+  } else if (reportRange) {
+    const { data, error } = await admin.from('orders').select(select)
+      .eq('branch_id', branchId)
+      .gte('created_at', reportRange.from)
+      .lt('created_at', reportRange.to)
+      .order('created_at', { ascending: false })
+      .range(reportRange.offset, reportRange.offset + reportRange.limit - 1);
     if (error) throw error;
     rows = data || [];
   } else if (since) {
@@ -100,10 +116,16 @@ async function readOrders(branchId: string, admin: SupabaseClient, orderId?: str
     rows = [...unique.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
   const ids = rows.map((row) => row.id);
-  const { data: items, error: itemsError } = (ids.length && !summary)
-    ? await admin.from('order_items').select('*').in('order_id', ids).order('created_at')
-    : { data: [], error: null };
-  if (itemsError) throw itemsError;
+  let items: any[] = [];
+  if (ids.length && !summary) {
+    // Batasi panjang URL PostgREST. Laporan dapat membawa ratusan order dan
+    // `.in()` tunggal yang terlalu panjang rawan ditolak proxy/browser.
+    for (let index = 0; index < ids.length; index += 150) {
+      const { data, error } = await admin.from('order_items').select('*').in('order_id', ids.slice(index, index + 150)).order('created_at');
+      if (error) throw error;
+      items.push(...(data || []));
+    }
+  }
   const itemsByOrder = new Map<string, any[]>();
   (items || []).forEach((item) => {
     const bucket = itemsByOrder.get(item.order_id);
@@ -129,8 +151,23 @@ export async function handleOrderRequest(
     if (!actor && (!orderId || !UUID_PATTERN.test(orderId))) return fail(401, 'Sesi telah berakhir');
     const summary = payload.summary === '1' || payload.summary === true || payload.summary === 'true';
     const since = typeof payload.since === 'string' && payload.since ? payload.since : undefined;
+    const reportRangeRequested = typeof payload.from === 'string' || typeof payload.to === 'string';
+    const from = typeof payload.from === 'string' ? new Date(payload.from) : null;
+    const to = typeof payload.to === 'string' ? new Date(payload.to) : null;
+    const hasReportRange = Boolean(from && to && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && from < to);
+    if (reportRangeRequested && !hasReportRange) return fail(400, 'Rentang tanggal laporan tidak valid');
+    if (hasReportRange && !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(actor?.role || '')) {
+      return fail(403, 'Role tidak memiliki akses laporan historis');
+    }
+    const reportPage = Math.max(0, Math.min(100, Number.parseInt(String(payload.page || '0'), 10) || 0));
+    const reportPageSize = Math.max(1, Math.min(500, Number.parseInt(String(payload.pageSize || '500'), 10) || 500));
     try {
-      const orders = await readOrders(branchId, admin, orderId, summary, since);
+      const orders = await readOrders(branchId, admin, orderId, summary, since, hasReportRange ? {
+        from: from!.toISOString(),
+        to: to!.toISOString(),
+        offset: reportPage * reportPageSize,
+        limit: reportPageSize,
+      } : undefined);
       return { status: 200, data: orderId ? (orders[0] || null) : orders };
     } catch {
       return fail(500, 'Pesanan tidak dapat dimuat');

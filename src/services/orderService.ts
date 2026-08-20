@@ -30,6 +30,30 @@ export const listCloudOrdersSummary = (branchId: string): Promise<Order[]> =>
 export const listCloudOrdersSince = (branchId: string, since: string): Promise<Order[]> =>
   request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}&since=${encodeURIComponent(since)}`);
 
+// Laporan tidak boleh bergantung pada jendela 150 order operasional. Endpoint
+// dibaca per halaman supaya histori periode yang dipilih lengkap tanpa respons
+// tunggal berukuran besar.
+export async function listCloudOrdersForReport(branchId: string, from: string, to: string, summary = false): Promise<Order[]> {
+  const pageSize = 500;
+  const rows: Order[] = [];
+  const safeFrom = new Date(from);
+  const safeTo = new Date(to);
+  const normalizedFrom = Number.isNaN(safeFrom.getTime()) || safeFrom.getUTCFullYear() < 1970
+    ? new Date('1970-01-01T00:00:00.000Z').toISOString()
+    : safeFrom.toISOString();
+  const normalizedTo = Number.isNaN(safeTo.getTime()) || safeTo.getUTCFullYear() > 9999
+    ? new Date(Date.now() + 86400000).toISOString()
+    : safeTo.toISOString();
+  for (let page = 0; page < 100; page += 1) {
+    const batch = await request<Order[]>(
+      `/api/orders?branchId=${encodeURIComponent(branchId)}&from=${encodeURIComponent(normalizedFrom)}&to=${encodeURIComponent(normalizedTo)}&page=${page}&pageSize=${pageSize}${summary ? '&summary=1' : ''}`,
+    );
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+  return rows;
+}
+
 // Ambil SATU order (beserta itemnya) — dipakai refetch bertarget saat realtime,
 // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar order.
 // Mengembalikan null bila order tidak ada (mis. terhapus).
