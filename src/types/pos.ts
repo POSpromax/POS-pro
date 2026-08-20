@@ -170,6 +170,7 @@ export interface OrderItem {
 export type OrderType = 'DINE_IN' | 'TAKE_AWAY';
 export type PaymentMethod = 'CASH' | 'QRIS' | 'DEBIT';
 export type OrderStatus = 'NEW' | 'COOKING' | 'READY' | 'COMPLETED' | 'CANCELLED';
+export type DiscountType = 'NONE' | 'STAFF_EATING' | 'PROMO' | 'VOUCHER' | 'SERVICE_RECOVERY' | 'OWNER_COMPLIMENTARY' | 'OTHER';
 
 export interface Order {
   id: string;
@@ -183,6 +184,7 @@ export interface Order {
   subtotal: number;
   tax: number;
   discount: number;
+  discountType?: DiscountType;
   total: number;
   paymentMethod?: PaymentMethod;
   paymentStatus: 'UNPAID' | 'PAID';

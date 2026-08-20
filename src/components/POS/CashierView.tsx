@@ -4,6 +4,7 @@ import { formatOrderLabel } from '../../utils/orderNumber';
 import { buildFifoRankMap, formatFifoRank, sortOrdersFifo, sortOrdersNewestFirst } from '../../utils/orderQueue';
 import { optimizeCloudinaryImage } from '../../utils/imageUrl';
 import { consolidateEquivalentOrderItems } from '../../utils/orderItemIdentity';
+import { DISCOUNT_TYPE_LABELS, resolveDiscountType, SELECTABLE_DISCOUNT_TYPES } from '../../utils/discountType';
 import {
   Plus,
   Minus,
@@ -42,7 +43,8 @@ import {
   UserAccount,
   CondimentGroup,
   Branch,
-  Shift
+  Shift,
+  DiscountType
 } from '../../types/pos';
 import { CondimentSelectionModal } from './CondimentSelectionModal';
 
@@ -260,8 +262,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [discountValue, setDiscountValue] = useState<number>(0);
-  // Diskon bisa PERSEN (%) atau NOMINAL rupiah. Mode nominal dipakai mis. untuk
-  // potongan tetap; 100% dipakai untuk makan staff (gratis).
+  const [discountType, setDiscountType] = useState<DiscountType>('NONE');
+  // Diskon bisa PERSEN (%) atau NOMINAL rupiah. Alasan diskon disimpan eksplisit
+  // agar laporan tidak menebak kategori berdasarkan besar potongannya.
   const [discountMode, setDiscountMode] = useState<'PERCENT' | 'AMOUNT'>('PERCENT');
   const configuredTaxPercent = taxEnabled ? Math.max(0, Math.min(100, Number(taxRatePercent) || 0)) : 0;
   const [taxValue, setTaxValue] = useState<number>(configuredTaxPercent);
@@ -300,7 +303,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
   }, [configuredTaxPercent, currentEditingOrderId]);
 
   useEffect(() => {
-    if (!manualDiscountEnabled) setDiscountValue(0);
+    if (!manualDiscountEnabled) {
+      setDiscountValue(0);
+      setDiscountType('NONE');
+    }
   }, [manualDiscountEnabled]);
 
   // Gerbang "shift terkunci" DIPINDAH ke bawah (sebelum return utama) supaya
@@ -373,6 +379,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     setCustomerName('Guest');
     setSelectedTable('-');
     setDiscountValue(0);
+    setDiscountType('NONE');
     setTaxValue(configuredTaxPercent);
     setCurrentEditingOrderId(null);
   };
@@ -401,6 +408,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     // AMOUNT (sebelumnya dibaca sebagai persen -> nilai diskon jadi salah).
     setDiscountMode('AMOUNT');
     setDiscountValue(order.discount || 0);
+    setDiscountType(resolveDiscountType(order));
     const taxableBase = Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0));
     setTaxValue(taxableBase > 0 && Number(order.tax || 0) > 0 ? Math.round((Number(order.tax || 0) / taxableBase) * 10000) / 100 : configuredTaxPercent);
     // Saklar Topping TIDAK diubah saat memuat order lama — ini preferensi kasir,
@@ -503,6 +511,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
     items: cartItems,
     subtotal,
     discount: discountAmount,
+    discountType: discountAmount > 0 ? (discountType === 'NONE' ? 'PROMO' : discountType) : 'NONE',
     tax: taxAmount,
     total,
     createdAt: currentEditingOrder?.createdAt || new Date().toISOString(),
@@ -935,7 +944,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <button
                     type="button"
                     disabled={isPaidOrder}
-                    onClick={() => { setDiscountMode((m) => (m === 'PERCENT' ? 'AMOUNT' : 'PERCENT')); setDiscountValue(0); }}
+                    onClick={() => {
+                      setDiscountMode((m) => (m === 'PERCENT' ? 'AMOUNT' : 'PERCENT'));
+                      setDiscountValue(0);
+                      setDiscountType('NONE');
+                    }}
                     className="shrink-0 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Ganti satuan diskon (persen / rupiah)"
                   >
@@ -951,6 +964,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onChange={(e) => {
                       const raw = Math.max(0, Number(e.target.value));
                       setDiscountValue(discountMode === 'PERCENT' ? Math.min(100, raw) : raw);
+                      setDiscountType((current) => raw > 0 ? (current === 'NONE' ? 'PROMO' : current) : 'NONE');
                     }}
                     className="w-full bg-transparent font-extrabold outline-none text-[#111827] text-xs disabled:cursor-not-allowed disabled:text-slate-400"
                     title="Diskon manual aktif dari Pengaturan Operasional"
@@ -969,6 +983,23 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 </div>
                 )}
               </div>
+              )}
+
+              {manualDiscountEnabled && discountAmount > 0 && (
+                <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5">
+                  <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-amber-700">Alasan</span>
+                  <select
+                    value={discountType === 'NONE' ? 'PROMO' : discountType}
+                    disabled={isPaidOrder}
+                    onChange={(event) => setDiscountType(event.target.value as DiscountType)}
+                    className="min-w-0 flex-1 bg-transparent text-xs font-extrabold text-[#111827] outline-none disabled:cursor-not-allowed disabled:text-slate-400"
+                    aria-label="Kategori diskon"
+                  >
+                    {SELECTABLE_DISCOUNT_TYPES.map((type) => (
+                      <option key={type} value={type}>{DISCOUNT_TYPE_LABELS[type]}</option>
+                    ))}
+                  </select>
+                </label>
               )}
 
               {/* Subtotal row ONLY rendered if discount or tax > 0 */}

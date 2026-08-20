@@ -133,6 +133,7 @@ const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean =>
     items: normalizeOrderItemsForComparison(draft.items),
     subtotal: draft.subtotal || 0,
     discount: draft.discount || 0,
+    discountType: draft.discountType || 'NONE',
     tax: draft.tax || 0,
     total: draft.total || 0,
   };
@@ -143,6 +144,7 @@ const hasUnsavedOrderChanges = (draft: Partial<Order>, saved: Order): boolean =>
     items: normalizeOrderItemsForComparison(saved.items),
     subtotal: saved.subtotal || 0,
     discount: saved.discount || 0,
+    discountType: saved.discountType || 'NONE',
     tax: saved.tax || 0,
     total: saved.total || 0,
   };

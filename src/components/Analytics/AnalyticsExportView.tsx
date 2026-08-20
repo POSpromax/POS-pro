@@ -27,6 +27,7 @@ import { Order, MenuItem, Shift, AttendanceRecord, ExpenseIncomeRecord, Restaura
 import { DBStorage } from '../../services/dbStorage';
 import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
 import { ReportPeriod, REPORT_PERIODS, formatPeriodRange, getPeriodRange, isWithinPeriod } from '../../utils/reportPeriod';
+import { getDiscountTypeLabel, isStaffEatingOrder, resolveDiscountType } from '../../utils/discountType';
 
 interface AnalyticsExportViewProps {
   orders: Order[];
@@ -85,11 +86,6 @@ const toLocalDateInput = (date: Date): string => [
   String(date.getMonth() + 1).padStart(2, '0'),
   String(date.getDate()).padStart(2, '0'),
 ].join('-');
-
-const isStaffEatingOrder = (order: Order): boolean => {
-  const subtotal = Number(order.subtotal || 0);
-  return subtotal > 0 && Number(order.discount || 0) >= subtotal;
-};
 
 const usePaginatedList = <T,>(items: T[], resetKey: string): PaginatedResult<T> => {
   const [page, setPage] = useState(1);
@@ -285,7 +281,8 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const totalTax = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.tax || 0), 0), [paidOrders]);
   const totalDiscount = useMemo(() => paidOrders.reduce((acc, o) => acc + (o.discount || 0), 0), [paidOrders]);
 
-  // MAKAN STAFF: transaksi berdiskon 100% (potongan menutup seluruh subtotal).
+  // MAKAN STAFF: kategori eksplisit dari POS; transaksi lama tetap dibaca lewat
+  // inferensi 100% agar histori sebelum metadata kategori tidak berubah.
   // Dikelompokkan per nama & per hari agar jatah harian (1 makanan + 1 minuman)
   // bisa dikontrol dari histori, sesuai cara kerja outlet.
   const STAFF_MEAL_FOOD_LIMIT = 1;
@@ -758,7 +755,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     csvContent += 'No Order,Tanggal,Customer,Meja,Tipe,Metode,Subtotal,Diskon,Klasifikasi Diskon,Pajak,Total,Status\n';
 
     scopedOrders.forEach((o) => {
-      const discountLabel = isStaffEatingOrder(o) ? 'STAFF EATING' : o.discount > 0 ? 'PROMO / DISKON' : 'NORMAL';
+      const discountLabel = getDiscountTypeLabel(o).toUpperCase();
       const row = `"${o.orderNumber}","${new Date(o.createdAt).toLocaleString('id-ID')}","${o.customerName}","${o.tableNumber}","${o.type}","${o.paymentMethod || 'CASH'}",${o.subtotal || 0},${o.discount || 0},"${discountLabel}",${o.tax || 0},${o.total},"${o.status}"`;
       csvContent += row + '\n';
     });
@@ -1447,9 +1444,9 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
               <p className="text-[11px] font-bold text-[var(--primary-text)] opacity-80">Pajak restoran yang terkumpul</p>
             </div>
             <div className="ui-card bg-[var(--warning-soft)] border-amber-200 p-5 space-y-1">
-              <p className="ui-stat-label text-amber-700">DISKON PELANGGAN / PROMO</p>
+              <p className="ui-stat-label text-amber-700">DISKON NON-STAFF</p>
               <p className="ui-stat-value text-amber-700">Rp {totalDiscount.toLocaleString('id-ID')}</p>
-              <p className="text-[11px] font-bold text-amber-700 opacity-80">Tidak termasuk konsumsi staff</p>
+              <p className="text-[11px] font-bold text-amber-700 opacity-80">Promo, voucher, kompensasi & complimentary</p>
             </div>
             <div className="ui-card p-5 space-y-1">
               <p className="ui-stat-label">SUBTOTAL KOTOR (GROSS)</p>
@@ -1458,7 +1455,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
             </div>
           </div>
 
-          {/* ── MAKAN STAFF (diskon 100%) — kontrol jatah harian ── */}
+          {/* ── MAKAN STAFF — kontrol jatah harian ── */}
           <div className="ui-card p-6 space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -1466,12 +1463,12 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                   <Receipt className="w-5 h-5 text-[var(--primary-hover)]" />
                   Staff Eating
                   <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--primary-text)]">
-                    Diskon 100%
+                    Kategori eksplisit
                   </span>
                 </h2>
                 <p className="mt-1 text-[11px] font-semibold text-[var(--text-tertiary)]">
                   Jatah harian: {STAFF_MEAL_FOOD_LIMIT} makanan + {STAFF_MEAL_DRINK_LIMIT} minuman per orang.
-                  Status transaksi dilabeli STAFF EATING. Baris merah = melebihi jatah. Nama diambil dari kolom pelanggan saat input.
+                  Pilih alasan Staff Eating saat memberi diskon di POS. Baris merah = melebihi jatah. Nama diambil dari kolom pelanggan saat input.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -1488,7 +1485,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
 
             {staffMeals.length === 0 ? (
               <p className="py-8 text-center text-xs font-bold text-[var(--text-tertiary)]">
-                Belum ada transaksi diskon 100% pada periode ini.
+                Belum ada transaksi berlabel Staff Eating pada periode ini.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -1565,13 +1562,13 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
                         <td className="py-3 px-3 font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{o.orderNumber}</td>
                         <td className="py-3 px-3" style={{ color: 'var(--text-secondary)' }}>{new Date(o.createdAt).toLocaleTimeString('id-ID')}</td>
                         <td className="py-3 px-3">
-                          {isStaffEatingOrder(o) ? (
+                          {resolveDiscountType(o) === 'STAFF_EATING' ? (
                             <span className="whitespace-nowrap rounded-full bg-[var(--primary-soft)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--primary-text)]">
                               Staff Eating
                             </span>
                           ) : o.discount > 0 ? (
                             <span className="whitespace-nowrap rounded-full bg-[var(--warning-soft)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-700">
-                              Promo / Diskon
+                              {getDiscountTypeLabel(o)}
                             </span>
                           ) : (
                             <span className="whitespace-nowrap rounded-full bg-[var(--surface-secondary)] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">

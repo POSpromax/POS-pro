@@ -153,7 +153,10 @@ untuk respons UI dan bukan batas keamanan transaksi.
 - Dashboard owner tetap realtime untuk kebutuhan monitoring operasional, tetapi
   analytics adalah snapshot historis. Keduanya tidak boleh berbagi polling atau
   subscription karena tujuan dan frekuensi aksesnya berbeda.
-- Transaksi diskon 100% diklasifikasikan sebagai staff eating pada laporan dan
+- Transaksi dengan metadata kategori `STAFF_EATING` diklasifikasikan sebagai staff eating pada laporan dan
   dikeluarkan dari omzet penjualan, jumlah struk, average order value, distribusi
   pembayaran, tren, serta menu terlaris. Nilainya tetap terlihat pada panel
-  pengecualian dan laporan pajak/diskon untuk audit internal.
+  pengecualian dan laporan pajak/diskon untuk audit internal. Alasan diskon lain
+  (`PROMO`, `VOUCHER`, `SERVICE_RECOVERY`, `OWNER_COMPLIMENTARY`, `OTHER`)
+  disimpan eksplisit pada metadata order; data lama tanpa kategori tetap memakai
+  inferensi diskon 100% hanya sebagai kompatibilitas baca.

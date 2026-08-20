@@ -245,12 +245,12 @@ Sebelum deployment, lakukan smoke test dua cabang dan pastikan localhost/Vercel 
   void, staff eating, produk terjual, metode bayar, serta lima menu utama.
 - Tooltip absolut yang mudah terpotong diganti dengan label ringkas, atribut
   judul, dan ringkasan titik tertinggi di atas grafik.
-- Staff eating (diskon 100%) tidak ikut KPI penjualan atau peringkat menu.
+- Staff eating memakai kategori diskon eksplisit dan tidak ikut KPI penjualan atau peringkat menu.
 - Audit diskon dan export CSV memberi klasifikasi eksplisit `STAFF EATING`,
-  `PROMO / DISKON`, atau `NORMAL`; status `Sesuai/Lebih` pada tabel staff tetap
+  `PROMO`, `VOUCHER`, `KOMPENSASI / KOMPLAIN`, `OWNER COMPLIMENTARY`,
+  `LAINNYA`, atau `NORMAL`; status `Sesuai/Lebih` pada tabel staff tetap
   khusus untuk kontrol batas jatah harian.
 
-Catatan lanjutan: klasifikasi staff eating saat ini mengikuti aturan operasional
-diskon 100%. Jika jenis diskon gratis lain akan ditambahkan, buat kolom kategori
-diskon eksplisit melalui migration baru agar klasifikasi tidak bergantung pada
-heuristik nilai diskon.
+Kategori diskon baru disimpan eksplisit di metadata order yang sudah tersedia,
+sehingga tidak memerlukan migration schema. Transaksi lama tanpa metadata tetap
+diinferensikan dari diskon 100% untuk kompatibilitas histori.

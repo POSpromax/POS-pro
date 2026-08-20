@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
 const PAYMENT_METHODS = new Set(['CASH', 'QRIS', 'DEBIT', 'TRANSFER']);
+const DISCOUNT_TYPES = new Set(['NONE', 'STAFF_EATING', 'PROMO', 'VOUCHER', 'SERVICE_RECOVERY', 'OWNER_COMPLIMENTARY', 'OTHER']);
 
 export interface OrderRequestResult { status: number; data: unknown }
 const fail = (status: number, error: string): OrderRequestResult => ({ status, data: { error } });
@@ -10,6 +11,16 @@ const fail = (status: number, error: string): OrderRequestResult => ({ status, d
 const mapOrder = (row: any, items: any[] = []) => {
   let metadata: any = {};
   try { metadata = typeof row.notes === 'string' ? JSON.parse(row.notes) : {}; } catch { metadata = {}; }
+  const subtotal = Number(row.subtotal_amount || 0);
+  const discount = Number(row.discount_amount || 0);
+  const storedDiscountType = String(metadata.discountType || '').toUpperCase();
+  const discountType = DISCOUNT_TYPES.has(storedDiscountType)
+    ? storedDiscountType
+    : discount <= 0
+      ? 'NONE'
+      : subtotal > 0 && discount >= subtotal
+        ? 'STAFF_EATING'
+        : 'PROMO';
   return ({
   id: row.id,
   orderNumber: row.order_number,
@@ -29,9 +40,10 @@ const mapOrder = (row: any, items: any[] = []) => {
     selectedCondiments: Array.isArray(item.modifiers) ? item.modifiers : [],
     status: item.kitchen_status || 'PENDING',
   })),
-  subtotal: Number(row.subtotal_amount || 0),
+  subtotal,
   tax: Number(row.tax_amount || 0),
-  discount: Number(row.discount_amount || 0),
+  discount,
+  discountType,
   total: Number(row.total_amount || 0),
   paymentMethod: row.payment_method || metadata.paymentMethod || undefined,
   paymentStatus: row.payment_status === 'PAID' ? 'PAID' : 'UNPAID',
@@ -517,6 +529,12 @@ export async function handleOrderRequest(
 
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.total_price, 0);
   const discount = Math.max(0, Math.min(subtotal, Math.floor(Number(input.discount) || 0)));
+  const requestedDiscountType = String(input.discountType || '').toUpperCase();
+  const discountType = discount <= 0
+    ? 'NONE'
+    : DISCOUNT_TYPES.has(requestedDiscountType) && requestedDiscountType !== 'NONE'
+      ? requestedDiscountType
+      : 'PROMO';
   const tax = Math.max(0, Math.floor(Number(input.tax) || 0));
   const total = Math.max(0, subtotal - discount + tax);
   const orderNumber = `${source === 'SELF_ORDER' ? 'SO' : 'POS'}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
@@ -561,6 +579,7 @@ export async function handleOrderRequest(
       change,
       tableNumber: tableNumStr,
       customerNotes: input.notes ? String(input.notes).trim().slice(0, 500) : undefined,
+      discountType,
       condimentsEnabled,
     }),
     payment_method: paymentMethod,
