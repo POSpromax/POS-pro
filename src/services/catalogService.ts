@@ -125,7 +125,7 @@ export async function saveCloudRawMaterial(
     });
     if (error) {
       if (/tidak berhak membuat bahan/i.test(error.message || '')) {
-        throw new Error('Sesi aktif tidak memiliki izin membuat master bahan di cabang ini. Keluar lalu login ulang sebagai Owner/Admin cabang.');
+        throw new Error('Sesi aktif tidak memiliki izin katalog pada cabang ini. Pastikan akun terdaftar sebagai kepala outlet pada cabang aktif, lalu login ulang.');
       }
       throw new Error(error.message);
     }

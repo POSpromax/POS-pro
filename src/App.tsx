@@ -3175,7 +3175,8 @@ export default function App() {
                 setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name })));
               }}
               canViewCost={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)}
-              canDeleteCatalog={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)}
+              canDeleteCatalog={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR'].includes(activeUser.role)}
+              canResetCatalog={['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)}
               onShowToast={showPushToast}
             />
           )}
