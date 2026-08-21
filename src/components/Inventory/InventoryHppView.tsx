@@ -29,7 +29,9 @@ import {
   ClipboardCheck,
   ArrowRight,
   ShieldCheck,
-  Circle
+  Circle,
+  MoreHorizontal,
+  TrendingDown
 } from 'lucide-react';
 import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
@@ -155,7 +157,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [customIng, setCustomIng] = useState({ name: '', qty: '', unit: 'gram', cost: '' });
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
-  const [isSetupPanelOpen, setIsSetupPanelOpen] = useState<boolean>(true);
+  const [isSetupPanelOpen, setIsSetupPanelOpen] = useState<boolean>(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
+  const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
   const [showOnlyMissingRecipes, setShowOnlyMissingRecipes] = useState<boolean>(false);
 
   // Riwayat pergerakan stok per bahan
@@ -215,7 +219,6 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   ) && (!showOnlyMissingRecipes || (!m.isManualPrice && (m.ingredients?.length || 0) === 0)));
 
   // Quantities & Restock calculation
-  const totalAssetsCount = rawMaterials.length;
   const restockNeedCount = rawMaterials.filter((m) => m.stockQuantity <= m.minStockThreshold).length;
   const recipeEligibleItems = menuItems.filter((menu) => !menu.isManualPrice);
   const recipeLinkedCount = recipeEligibleItems.filter((menu) => (menu.ingredients?.length || 0) > 0).length;
@@ -294,42 +297,47 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   const renderRawActions = (raw: RawMaterial) => (
-    <div className="flex items-center gap-0.5 md:gap-1">
+    <div className="relative shrink-0">
       <button
-        onClick={() => handleOpenLedger(raw)}
-        className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-lg cursor-pointer transition-colors"
-        title="Riwayat keluar-masuk stok"
+        type="button"
+        onClick={() => setExpandedStockId((current) => current === raw.id ? null : raw.id)}
+        aria-label={`Tindakan untuk ${raw.name}`}
+        aria-expanded={expandedStockId === raw.id}
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-800"
       >
-        <History className="w-3 h-3 md:w-3.5 md:h-3.5" />
+        <MoreHorizontal className="h-4 w-4" />
       </button>
-      {canDeleteCatalog && (
-        <>
-          <button
-            onClick={() => handleOpenRawModal(raw)}
-            className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-lg cursor-pointer transition-colors"
-            title="Ubah master item"
-          >
-            <Edit2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+      {expandedStockId === raw.id && (
+        <div className="absolute right-0 top-10 z-40 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+          <button type="button" onClick={() => { handleOpenLedger(raw); setExpandedStockId(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-100">
+            <History className="h-3.5 w-3.5" /> Riwayat stok
           </button>
-          <button
-            onClick={() => {
-              if (confirmingDeleteId === raw.id) {
-                onDeleteRawMaterial(raw.id);
-                setConfirmingDeleteId(null);
-                toast('Dihapus', `${raw.name} berhasil dihapus.`);
-              } else {
-                setConfirmingDeleteId(raw.id);
-                setTimeout(() => setConfirmingDeleteId(null), 3000);
-              }
-            }}
-            className={`p-1 rounded-lg cursor-pointer transition-colors ${
-              confirmingDeleteId === raw.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
-            }`}
-            title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus item'}
-          >
-            {confirmingDeleteId === raw.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />}
-          </button>
-        </>
+          {canDeleteCatalog && (
+            <>
+              <button type="button" onClick={() => { handleOpenRawModal(raw); setExpandedStockId(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-100">
+                <Edit2 className="h-3.5 w-3.5" /> Ubah master item
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmingDeleteId === raw.id) {
+                    onDeleteRawMaterial(raw.id);
+                    setConfirmingDeleteId(null);
+                    setExpandedStockId(null);
+                    toast('Dihapus', `${raw.name} berhasil dihapus.`);
+                  } else {
+                    setConfirmingDeleteId(raw.id);
+                    setTimeout(() => setConfirmingDeleteId(null), 3000);
+                  }
+                }}
+                className={`flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-bold transition ${confirmingDeleteId === raw.id ? 'bg-rose-600 text-white' : 'text-rose-600 hover:bg-rose-50'}`}
+              >
+                {confirmingDeleteId === raw.id ? <Check className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                {confirmingDeleteId === raw.id ? 'Konfirmasi hapus' : 'Hapus item'}
+              </button>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
@@ -338,11 +346,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     const amount = quickStockAmount(raw.id);
     const isAdjusting = adjustingStockIds.has(raw.id);
     return (
-    <div className="flex items-center gap-1" aria-label={`Mutasi cepat stok ${raw.name}`}>
+    <div className="flex items-center gap-1.5" aria-label={`Mutasi cepat stok ${raw.name}`}>
       <button
         onClick={() => handleAdjustStock(raw, -1)}
         disabled={isAdjusting}
-        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border transition-colors hover:bg-[var(--panel-border-strong)] disabled:cursor-wait disabled:opacity-50"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition-colors hover:bg-slate-200 disabled:cursor-wait disabled:opacity-50"
           style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)', color: 'var(--text-secondary)' }}
         title={`Stok keluar ${amount || 0} ${raw.unit}`}
         aria-label={`Keluarkan ${amount || 0} ${raw.unit} ${raw.name}`}
@@ -364,16 +372,16 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               setQuickStockAmounts((current) => ({ ...current, [raw.id]: '1' }));
             }
           }}
-          className="h-7 w-14 rounded-lg border border-[var(--panel-border)] bg-[var(--surface-card)] px-1 text-center text-[11px] font-extrabold tabular-nums text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-wait disabled:opacity-60"
+          className="h-9 w-16 rounded-xl border border-slate-200 bg-white px-1 text-center text-[12px] font-extrabold tabular-nums text-slate-950 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:cursor-wait disabled:opacity-60"
           aria-label={`Jumlah mutasi stok ${raw.name}`}
           title={`Masukkan jumlah dalam ${raw.unit}`}
         />
-        {isAdjusting && <RefreshCw className="pointer-events-none absolute right-1 top-2 h-3 w-3 animate-spin text-[var(--primary)]" />}
+        {isAdjusting && <RefreshCw className="pointer-events-none absolute right-1 top-3 h-3 w-3 animate-spin text-[var(--primary)]" />}
       </div>
       <button
         onClick={() => handleAdjustStock(raw, 1)}
         disabled={isAdjusting}
-        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-[var(--brand-200)] bg-[var(--brand-50)] text-[var(--primary-text)] transition-colors hover:bg-[var(--brand-100)] disabled:cursor-wait disabled:opacity-50"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50"
         title={`Stok masuk ${amount || 0} ${raw.unit}`}
         aria-label={`Masukkan ${amount || 0} ${raw.unit} ${raw.name}`}
       >
@@ -599,135 +607,109 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     toast('Kategori Dihapus', `Kategori ${catToDelete} dihapus.${affected.length > 0 ? ` ${affected.length} item dipindahkan ke TAMBAHAN.` : ''}`);
   };
 
+  const isStockWorkspace = subTab === 'BAHAN' || subTab === 'DAPUR' || subTab === 'KEMASAN';
+  const activeWorkspace = isStockWorkspace ? 'STOCK' : subTab;
+  const activeLowStockCount = activeRawList.filter((material) => material.stockQuantity <= material.minStockThreshold).length;
+  const activeStockTotal = activeRawList.reduce((sum, material) => sum + material.stockQuantity, 0);
+
   return (
-    <div className="ui-surface flex-1 overflow-y-auto p-3 font-sans text-[var(--text-primary)] select-none md:p-6">
-      {/* Top Header Bar — stacks vertically on mobile */}
-      <div className="flex flex-col gap-3 mb-4 md:mb-5">
-        {/* Title row */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-[0_10px_24px_rgba(4,120,87,0.24)] md:h-12 md:w-12">
-            <Boxes className="w-4 h-4 md:w-5 md:h-5" />
+    <div className="ui-surface flex-1 overflow-y-auto font-sans text-[var(--text-primary)] select-none">
+      <div className="mx-auto w-full max-w-[1680px] p-3 md:p-5 lg:p-6">
+      {/* Workspace header: satu tujuan, satu aksi utama, tanpa deretan kontrol setara. */}
+      <header className="mb-4 rounded-3xl border border-slate-200/90 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] md:p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-[0_8px_18px_rgba(4,120,87,0.22)]">
+              <Boxes className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700">Inventory cabang</p>
+              <h1 className="text-xl font-black tracking-tight text-slate-950 md:text-2xl">Kontrol persediaan</h1>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{currentBranch?.name || 'Outlet aktif'} · data cloud per cabang</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-700">Kontrol stok cabang</p>
-            <h1 className="text-lg font-extrabold tracking-tight text-slate-950 md:text-xl">Inventory</h1>
-            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-              {currentBranch?.name || 'Outlet aktif'} · master menu, bahan, kemasan, dan histori pergerakan.
-            </p>
-          </div>
+
+          <nav className="-mx-1 overflow-x-auto px-1 scrollbar-none" aria-label="Area kerja inventory">
+            <div className="flex w-max items-center gap-1 rounded-2xl bg-slate-100 p-1">
+              {([
+                { key: 'MENU', icon: Utensils, label: 'Master menu', target: 'MENU' as SubTab },
+                { key: 'STOCK', icon: Boxes, label: 'Persediaan', target: (isStockWorkspace ? subTab : 'BAHAN') as SubTab },
+                { key: 'OPNAME', icon: ClipboardCheck, label: 'Opname', target: 'OPNAME' as SubTab },
+                ...(canViewCost ? [{ key: 'LAPORAN', icon: FileText, label: 'Laporan', target: 'LAPORAN' as SubTab }] : []),
+              ]).map(({ key, icon: Icon, label, target }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSubTab(target)}
+                  className={`flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-[11px] font-extrabold transition md:px-4 ${activeWorkspace === key ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  aria-current={activeWorkspace === key ? 'page' : undefined}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+          </nav>
         </div>
 
-        {/* Sub-tab Navigation — scrollable on mobile */}
-        <div className="overflow-x-auto scrollbar-none -mx-3 px-3 md:mx-0 md:px-0">
-          <div className="flex w-max items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+        {isStockWorkspace && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+            <span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Kelompok</span>
             {([
-              { key: 'MENU' as const, icon: Utensils, label: 'DAFTAR MENU' },
-              { key: 'OPNAME' as const, icon: ClipboardCheck, label: 'STOK OPNAME' },
-              { key: 'BAHAN' as const, icon: Package, label: 'BAHAN MENU' },
-              { key: 'DAPUR' as const, icon: ChefHat, label: 'STOK DAPUR' },
-              { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'KEMASAN' },
-              { key: 'LAPORAN' as const, icon: FileText, label: 'LAPORAN' },
-            // Tanpa akses biaya (KASIR): tab stok TETAP terbuka supaya bisa memantau
-            // mutasi stok masuk/keluar. Hanya LAPORAN yang disembunyikan karena
-            // memuat nilai aset & margin HPP.
-            ].filter((t) => canViewCost || t.key !== 'LAPORAN')).map(({ key, icon: Icon, label }) => (
-              <button
-                key={key}
-                onClick={() => setSubTab(key)}
-                className={`flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-[11px] font-bold transition-all md:px-4 md:text-xs ${
-                  subTab === key
-                    ? 'text-white shadow-sm'
-                    : 'hover:bg-[var(--surface-secondary)]'
-                }`}
-                style={subTab === key
-                  ? { background: 'var(--primary)', boxShadow: '0 4px 12px rgb(234 88 12 / 22%)' }
-                  : { color: 'var(--text-secondary)' }}
-              >
-                <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" /> {label}
+              { key: 'BAHAN' as const, icon: Package, label: 'Bahan menu' },
+              { key: 'DAPUR' as const, icon: ChefHat, label: 'Dapur' },
+              { key: 'KEMASAN' as const, icon: ShoppingBag, label: 'Kemasan' },
+            ]).map(({ key, icon: Icon, label }) => (
+              <button key={key} type="button" onClick={() => setSubTab(key)} className={`flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[10px] font-extrabold transition ${subTab === key ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'}`}>
+                <Icon className="h-3 w-3" /> {label}
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Search + Actions row — stacks on mobile. Disembunyikan di tab Opname
-            karena panel opname punya pencarian & aksi sendiri. */}
-        {subTab !== 'OPNAME' && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari Item..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="ui-input pl-9 text-[12px]"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {activeGroup && (
-              <div className="bg-[var(--surface-secondary)] border border-[var(--panel-border)]/80 p-0.5 rounded-full flex items-center gap-0.5 shrink-0">
-                {([
-                  { key: 'GRID' as const, icon: LayoutGrid, label: 'Tampilan kotak' },
-                  { key: 'LIST' as const, icon: List, label: 'Tampilan daftar' }
-                ]).map(({ key, icon: Icon, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setViewMode(key)}
-                    title={label}
-                    aria-label={label}
-                    aria-pressed={viewMode === key}
-                    className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                      viewMode === key ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {canViewCost && (
-              <button
-                onClick={handleExportCSV}
-                className="ui-button ui-button-secondary gap-1 text-[11px]"
-              >
-                <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
-              </button>
-            )}
-
-            {subTab === 'MENU' ? (
-              <button
-                onClick={() => handleOpenEditMenuModal()}
-                className="ui-button ui-button-primary flex-1 gap-1 text-[11px] sm:flex-initial"
-              >
-                <Plus className="w-3.5 h-3.5" /> TAMBAH MENU
-              </button>
-            ) : (
-              <button
-                onClick={() => handleOpenRawModal()}
-                className="ui-button ui-button-primary flex-1 gap-1 text-[11px] sm:flex-initial"
-              >
-                <Plus className="w-3.5 h-3.5" /> TAMBAH {subTab === 'KEMASAN' ? 'KEMASAN' : subTab === 'DAPUR' ? 'STOK DAPUR' : 'BAHAN'}
-              </button>
-            )}
-
-            {canDeleteCatalog && (
-              <button
-                onClick={onResetCatalogDefaults}
-                className="p-2 bg-[var(--surface-card)] border border-[var(--panel-border)] text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] rounded-full cursor-pointer transition-colors shrink-0"
-                title="Reset & Muat Data Standar Resto"
-              >
-                <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              </button>
-            )}
-          </div>
-        </div>
         )}
-      </div>
+      </header>
+
+      {subTab !== 'OPNAME' && (
+        <section className="relative z-20 mb-4 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input type="search" placeholder={subTab === 'MENU' ? 'Cari menu atau kategori…' : 'Cari nama item…'} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="ui-input min-h-10 pl-9 text-[12px]" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {activeGroup && (
+                <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+                  {([{ key: 'GRID' as const, icon: LayoutGrid, label: 'Kotak' }, { key: 'LIST' as const, icon: List, label: 'Daftar' }]).map(({ key, icon: Icon, label }) => (
+                    <button key={key} type="button" onClick={() => setViewMode(key)} aria-label={`Tampilan ${label.toLowerCase()}`} aria-pressed={viewMode === key} className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition ${viewMode === key ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button type="button" onClick={subTab === 'MENU' ? () => handleOpenEditMenuModal() : () => handleOpenRawModal()} className="ui-button ui-button-primary min-h-10 flex-1 gap-1.5 whitespace-nowrap px-3 text-[11px] sm:flex-none">
+                <Plus className="h-3.5 w-3.5" /> {subTab === 'MENU' ? 'Tambah menu' : 'Tambah item'}
+              </button>
+
+              <div className="relative">
+                <button type="button" onClick={() => setIsMoreMenuOpen((open) => !open)} aria-label="Tindakan lainnya" aria-expanded={isMoreMenuOpen} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900">
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+                {isMoreMenuOpen && (
+                  <div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+                    {canViewCost && <button type="button" onClick={() => { handleExportCSV(); setIsMoreMenuOpen(false); }} className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-100"><Download className="h-3.5 w-3.5" /> Export CSV</button>}
+                    {canDeleteCatalog && <button type="button" onClick={() => { onResetCatalogDefaults(); setIsMoreMenuOpen(false); }} className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-bold text-rose-600 hover:bg-rose-50"><RotateCcw className="h-3.5 w-3.5" /> Muat data standar</button>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          {activeGroup && <p className="mt-2 px-1 text-[10px] font-semibold text-slate-400">Mutasi cepat: masukkan jumlah, lalu pilih keluar atau masuk. Setiap aksi membuat satu catatan ledger.</p>}
+        </section>
+      )}
 
       {/* Panel kesiapan inventory — hitungan kesiapan, tanpa nilai rupiah, jadi
           aman ditampilkan untuk kasir yang memantau stok. */}
+      {(subTab === 'MENU' || activeGroup) && (
       <section className={`mb-4 overflow-hidden rounded-2xl border shadow-sm ${isInventoryOperationalReady ? 'border-[var(--primary-border)] bg-[var(--primary-soft)]' : 'border-[var(--panel-border)] bg-[var(--surface-card)]'}`}>
         <button
           type="button"
@@ -804,6 +786,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </div>
         )}
       </section>
+      )}
 
       {subTab === 'MENU' && recipeMissingCount > 0 && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 shadow-[0_8px_22px_rgba(180,83,9,0.08)] sm:flex-row sm:items-center sm:justify-between">
@@ -834,52 +817,29 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         </div>
       )}
 
-      {/* Kartu metrik: semuanya HITUNGAN (bukan rupiah) -> aman untuk kasir. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4 mb-4 md:mb-6">
-        <div className="ui-card-feature flex items-center justify-between p-3 md:p-5">
-          <div>
-            <p className="ui-stat-label">MENU</p>
-            <p className="ui-stat-value text-white" style={{ fontSize: '28px' }}>{menuItems.length}</p>
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/20 md:h-12 md:w-12">
-            <Utensils className="h-4 w-4 text-white md:h-6 md:w-6" />
-          </div>
-        </div>
-
-        <div className="ui-card flex items-center justify-between p-3 md:p-5">
-          <div>
-            <p className="ui-stat-label">TOTAL BAHAN</p>
-            <p className="ui-stat-value" style={{ fontSize: '28px' }}>{totalAssetsCount}</p>
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl md:h-12 md:w-12"
-            style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
-            <Boxes className="h-4 w-4 md:h-6 md:w-6" />
-          </div>
-        </div>
-
-        <div className="ui-card flex items-center justify-between p-3 md:p-5"
-          style={restockNeedCount > 0 ? { borderColor: '#fde68a', background: 'var(--warning-soft)' } : undefined}>
-          <div>
-            <p className="ui-stat-label">PERLU BELANJA</p>
-            <p className="ui-stat-value" style={{ fontSize: '28px', color: restockNeedCount > 0 ? '#b45309' : undefined }}>{restockNeedCount}</p>
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl text-white md:h-12 md:w-12"
-            style={{ background: restockNeedCount > 0 ? 'var(--accent-amber)' : 'var(--surface-secondary)', color: restockNeedCount > 0 ? '#fff' : 'var(--text-tertiary)' }}>
-            <AlertTriangle className="h-4 w-4 md:h-6 md:w-6" />
-          </div>
-        </div>
-
-        <div className="ui-card flex items-center justify-between p-3 md:p-5">
-          <div>
-            <p className="ui-stat-label">KATEGORI</p>
-            <p className="ui-stat-value" style={{ fontSize: '28px' }}>{categoriesList.length}</p>
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl md:h-12 md:w-12"
-            style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}>
-            <Layers className="h-4 w-4 md:h-6 md:w-6" />
-          </div>
-        </div>
-      </div>
+      {/* Ringkasan kontekstual. Hanya metrik yang relevan dengan area kerja aktif. */}
+      {(subTab === 'MENU' || activeGroup) && (
+        <section className="mb-4 grid grid-cols-3 gap-2 md:gap-3" aria-label="Ringkasan inventory">
+          {(subTab === 'MENU' ? [
+            { label: 'Menu aktif', value: menuItems.length, helper: `${categoriesList.length} kategori`, icon: Utensils, tone: 'emerald' },
+            { label: 'Resep siap', value: recipeLinkedCount, helper: `dari ${recipeEligibleItems.length} menu`, icon: ShieldCheck, tone: 'slate' },
+            { label: 'Perlu dilengkapi', value: recipeMissingCount, helper: 'resep belum terhubung', icon: AlertTriangle, tone: recipeMissingCount > 0 ? 'amber' : 'slate' },
+          ] : [
+            { label: 'Jumlah item', value: activeRawList.length, helper: GROUP_TAB_LABEL[activeGroup!], icon: Boxes, tone: 'emerald' },
+            { label: 'Stok menipis', value: activeLowStockCount, helper: 'di bawah batas minimum', icon: TrendingDown, tone: activeLowStockCount > 0 ? 'amber' : 'slate' },
+            { label: 'Total unit', value: activeStockTotal.toLocaleString('id-ID'), helper: 'akumulasi kelompok aktif', icon: Layers, tone: 'slate' },
+          ]).map(({ label, value, helper, icon: Icon, tone }) => (
+            <div key={label} className={`min-w-0 rounded-2xl border p-3 md:flex md:items-center md:gap-3 md:p-4 ${tone === 'emerald' ? 'border-emerald-200 bg-emerald-50/70' : tone === 'amber' ? 'border-amber-200 bg-amber-50/80' : 'border-slate-200 bg-white'}`}>
+              <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-xl md:mb-0 md:h-9 md:w-9 ${tone === 'emerald' ? 'bg-emerald-700 text-white' : tone === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}><Icon className="h-4 w-4" /></div>
+              <div className="min-w-0">
+                <p className="truncate text-[9px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+                <p className="mt-0.5 text-lg font-black tabular-nums text-slate-950 md:text-xl">{value}</p>
+                <p className="hidden truncate text-[9px] font-semibold text-slate-400 sm:block">{helper}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {subTab === 'OPNAME' && (
         <StockOpnamePanel
@@ -888,19 +848,6 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           onRefresh={() => onRefreshCatalog?.()}
           onShowToast={(t, m) => toast(t, m)}
         />
-      )}
-
-      {activeGroup && filteredRawList.length > 0 && (
-        <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 text-emerald-950 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-2">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-            <div>
-              <p className="text-[11px] font-extrabold">Mutasi cepat tercatat per jumlah</p>
-              <p className="text-[10px] font-semibold text-emerald-800/80">Isi angka, lalu tekan − untuk stok keluar atau + untuk stok masuk. Gunakan Stok Opname untuk koreksi fisik dan alasan khusus.</p>
-            </div>
-          </div>
-          <span className="shrink-0 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">SATU AKSI = SATU LEDGER</span>
-        </div>
       )}
 
       {/* Stock list — grid or list mode */}
@@ -917,38 +864,36 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             </button>
           </div>
         ) : viewMode === 'GRID' ? (
-          <div className="grid grid-cols-1 min-[390px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 md:gap-3.5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {filteredRawList.map((raw) => {
               const isLow = raw.stockQuantity <= raw.minStockThreshold;
 
               return (
                 <div
                   key={raw.id}
-                  className="relative flex min-h-32 flex-col justify-between rounded-2xl border border-[var(--panel-border)]/90 bg-[var(--surface-card)] p-3 shadow-[0_8px_22px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:border-[var(--panel-border-strong)] hover:shadow-[0_14px_30px_rgba(15,23,42,0.10)] md:p-3.5"
+                  className={`relative flex min-h-40 flex-col rounded-2xl border bg-white p-3.5 shadow-[0_8px_22px_rgba(15,23,42,0.05)] transition hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)] ${isLow ? 'border-amber-200' : 'border-slate-200'}`}
                 >
-                  <div className="flex items-start justify-between gap-1 mb-1">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{raw.name}</h3>
-                      <p className="text-[11px] md:text-[11px] font-bold text-[var(--text-tertiary)] uppercase">
-                        {raw.unit} <span className="text-[var(--text-tertiary)]">Min: {raw.minStockThreshold}</span>
-                      </p>
+                      <h3 className="truncate text-[12px] font-extrabold text-slate-950">{raw.name}</h3>
+                      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">Batas minimum {raw.minStockThreshold.toLocaleString('id-ID')} {raw.unit}</p>
                     </div>
-
-                    {isLow && (
-                      <span className="ui-badge ui-badge-danger flex items-center gap-0.5">
-                        MENIPIS
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="my-1.5 md:my-2 text-right">
-                    <span className="text-lg md:text-xl font-bold text-[var(--text-primary)] tracking-tight">
-                      {raw.stockQuantity.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-[var(--panel-border-light)] pt-1.5 md:pt-2">
                     {renderRawActions(raw)}
+                  </div>
+
+                  <div className="my-4 flex items-end justify-between gap-2">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Stok tersedia</p>
+                      <div className="mt-0.5 flex items-baseline gap-1.5">
+                        <span className="text-2xl font-black tracking-tight text-slate-950">{raw.stockQuantity.toLocaleString('id-ID')}</span>
+                        <span className="text-[10px] font-extrabold uppercase text-slate-400">{raw.unit}</span>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${isLow ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{isLow ? 'Perlu belanja' : 'Aman'}</span>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
+                    <span className="text-[9px] font-bold text-slate-400">Keluar · jumlah · masuk</span>
                     {renderRawStepper(raw)}
                   </div>
                 </div>
@@ -962,27 +907,23 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               const isLow = raw.stockQuantity <= raw.minStockThreshold;
 
               return (
-                <div key={raw.id} className="p-2.5 md:p-3.5 flex items-center gap-2 md:gap-4 hover:bg-[var(--surface-secondary)]/80 transition-colors">
+                <div key={raw.id} className="flex flex-col gap-3 p-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center md:p-3.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-[11px] md:text-xs text-[var(--text-primary)] truncate">{raw.name}</span>
+                      <span className="truncate text-[12px] font-extrabold text-slate-950">{raw.name}</span>
                       {isLow && (
-                        <span className="ui-badge ui-badge-danger">
-                          MENIPIS
-                        </span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Perlu belanja</span>
                       )}
                     </div>
-                    <p className="text-[11px] md:text-[11px] font-bold text-[var(--text-tertiary)] uppercase">
+                    <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
                       {raw.unit} <span className="text-[var(--text-tertiary)]">Min: {raw.minStockThreshold}</span>
                       {canViewCost && <span className="text-[var(--text-tertiary)]"> · Rp {raw.costPerUnit.toLocaleString('id-ID')}</span>}
                     </p>
                   </div>
 
-                  <span className="text-base md:text-lg font-bold text-[var(--text-primary)] tracking-tight tabular-nums shrink-0">
-                    {raw.stockQuantity.toLocaleString('id-ID')}
-                  </span>
+                  <div className="flex items-baseline gap-1 sm:w-24 sm:justify-end"><span className="text-lg font-black tabular-nums text-slate-950">{raw.stockQuantity.toLocaleString('id-ID')}</span><span className="text-[9px] font-bold uppercase text-slate-400">{raw.unit}</span></div>
 
-                  <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+                  <div className="flex items-center justify-between gap-2 sm:justify-end">
                     {renderRawStepper(raw)}
                     {renderRawActions(raw)}
                   </div>
@@ -1857,6 +1798,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           </form>
         </div>
       )}
+      </div>
     </div>
   );
 };
