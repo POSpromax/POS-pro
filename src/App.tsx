@@ -3056,11 +3056,22 @@ export default function App() {
               menuItems={menuItems}
               branches={accessibleBranches}
               currentBranch={currentBranch}
-              onUpdateRawMaterial={async (mat, stockMovementType, stockReason) => {
+              onUpdateRawMaterial={async (mat, stockMovementType, stockReason, stockDelta) => {
                 if (cloudReadiness.supabase) {
                   try {
-                    await saveCloudRawMaterial(mat, currentBranch.id, stockMovementType, stockReason);
-                    await refreshCloudCatalog(currentBranch.id, currentBranch.name);
+                    const persistedStock = await saveCloudRawMaterial(mat, currentBranch.id, stockMovementType, stockReason, stockDelta);
+                    // RPC mengembalikan saldo kanonik. Pakai langsung agar UI
+                    // responsif tanpa query tambahan; broadcast cabang tetap
+                    // menjadi rekonsiliasi untuk terminal lain.
+                    if (Number.isFinite(stockDelta) && stockDelta !== 0) {
+                      setRawMaterials((current) => current.map((item) => (
+                        item.id === mat.id && item.branchId === currentBranch.id
+                          ? { ...item, stockQuantity: persistedStock ?? mat.stockQuantity }
+                          : item
+                      )));
+                    } else {
+                      await refreshCloudCatalog(currentBranch.id, currentBranch.name);
+                    }
                     showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} tersimpan ke cloud.`);
                   } catch (error) {
                     showPushToast('Stok Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan stok gagal.');

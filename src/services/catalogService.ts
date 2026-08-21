@@ -1,6 +1,6 @@
 import type { MenuItem, RawMaterial } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
-import { adjustStockManual, type StockMovementType } from './stockLedgerService';
+import { adjustStockByDelta, adjustStockManual, type StockMovementType } from './stockLedgerService';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -124,8 +124,9 @@ export async function saveCloudRawMaterial(
   material: RawMaterial,
   branchId: string,
   stockMovementType: StockMovementType = 'ADJUSTMENT',
-  stockReason?: string
-): Promise<void> {
+  stockReason?: string,
+  stockDelta?: number
+): Promise<number | undefined> {
   const tenantId = await currentTenantId();
   const attributes = {
     tenant_id: tenantId,
@@ -143,7 +144,21 @@ export async function saveCloudRawMaterial(
     // Bahan baru: stok awal ditulis langsung, belum ada pergerakan untuk dicatat.
     const { error } = await supabase.from('raw_materials').insert({ ...attributes, stock_quantity: material.stockQuantity });
     if (error) throw new Error(error.message);
-    return;
+    return undefined;
+  }
+
+
+  // Mutasi cepat hanya menyentuh saldo lewat satu RPC atomik. Jangan kirim
+  // UPDATE master lebih dulu: itu membuat dua event realtime dan membuka
+  // peluang saldo layar lama menimpa mutasi dari terminal lain.
+  if (Number.isFinite(stockDelta) && stockDelta !== 0) {
+    return adjustStockByDelta(
+      material.id,
+      branchId,
+      Number(stockDelta),
+      stockMovementType,
+      stockReason
+    );
   }
 
   const { error } = await supabase.from('raw_materials').update(attributes).eq('id', material.id).eq('branch_id', branchId);
@@ -151,7 +166,7 @@ export async function saveCloudRawMaterial(
 
   // Stok sengaja tidak ikut di-update di atas: perubahannya harus lewat ledger
   // supaya setiap penambahan dan pengurangan punya riwayat yang bisa ditelusuri.
-  await adjustStockManual(material.id, material.stockQuantity, stockMovementType, stockReason);
+  return adjustStockManual(material.id, material.stockQuantity, stockMovementType, stockReason);
 }
 
 export async function deleteCloudRawMaterial(id: string, branchId: string): Promise<void> {

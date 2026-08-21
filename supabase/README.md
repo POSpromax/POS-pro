@@ -55,3 +55,7 @@ meja ketika perbaikan tersebut dijalankan.
 Migration `048` wajib diterapkan setelah `047` dan menyelaraskan pilihan satuan
 Inventory dengan constraint database (`porsi`, `pouch`, `bungkus`, dan `box`).
 Migration ini idempoten terhadap constraint dan tidak mengubah saldo stok.
+
+Migration `049` wajib diterapkan setelah `048`. Migration ini menambahkan RPC
+mutasi cepat Inventory berbasis delta. Satu aksi tambah/kurang menghasilkan satu
+transaksi atomik, satu baris ledger, dan tetap memvalidasi cabang serta role.

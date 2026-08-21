@@ -63,7 +63,8 @@ interface InventoryHppViewProps {
   onUpdateRawMaterial: (
     material: RawMaterial,
     stockMovementType?: StockMovementType,
-    stockReason?: string
+    stockReason?: string,
+    stockDelta?: number
   ) => Promise<void> | void;
   onDeleteRawMaterial: (id: string) => void;
   onSaveMenuItem: (menu: MenuItem) => void;
@@ -281,7 +282,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       await onUpdateRawMaterial(
         { ...material, stockQuantity: updatedQty },
         movementType,
-        `${movementLabel}: ${amount} ${material.unit}`
+        `${movementLabel}: ${amount} ${material.unit}`,
+        direction * amount
       );
       setQuickStockAmounts((current) => ({ ...current, [material.id]: '1' }));
     } catch {

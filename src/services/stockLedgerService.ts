@@ -124,3 +124,26 @@ export async function adjustStockManual(
   if (error) throw new Error(error.message);
   return Number(data);
 }
+
+/**
+ * Menambah/mengurangi stok secara atomik dari saldo database terbaru.
+ * Dipakai kontrol cepat Inventory agar dua terminal tidak saling menimpa
+ * ketika keduanya membaca saldo lama lalu melakukan mutasi bersamaan.
+ */
+export async function adjustStockByDelta(
+  rawMaterialId: string,
+  branchId: string,
+  quantityDelta: number,
+  movementType: StockMovementType,
+  reason?: string
+): Promise<number> {
+  const { data, error } = await getSupabase().rpc('adjust_stock_by_delta', {
+    p_raw_material_id: rawMaterialId,
+    p_branch_id: branchId,
+    p_quantity_delta: quantityDelta,
+    p_movement_type: movementType,
+    p_reason: reason || null
+  });
+  if (error) throw new Error(error.message);
+  return Number(data);
+}
