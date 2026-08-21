@@ -59,3 +59,8 @@ Migration ini idempoten terhadap constraint dan tidak mengubah saldo stok.
 Migration `049` wajib diterapkan setelah `048`. Migration ini menambahkan RPC
 mutasi cepat Inventory berbasis delta. Satu aksi tambah/kurang menghasilkan satu
 transaksi atomik, satu baris ledger, dan tetap memvalidasi cabang serta role.
+
+Migration `050` wajib diterapkan setelah `049`. Migration ini memindahkan proses
+pembuatan bahan dan menu baru ke RPC terproteksi yang menentukan tenant dari
+cabang tervalidasi. RLS tetap aktif; RPC hanya dapat dipanggil session dengan
+membership dan role cabang yang sesuai.

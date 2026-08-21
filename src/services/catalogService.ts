@@ -77,13 +77,34 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
 }
 
 export async function saveCloudMenuItem(item: MenuItem, branchId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!UUID_PATTERN.test(item.id)) {
+    const { error } = await supabase.rpc('create_menu_item_with_ingredients', {
+      p_branch_id: branchId,
+      p_name: item.name,
+      p_category: item.category,
+      p_price: item.price,
+      p_image_url: item.image || null,
+      p_description: item.description || null,
+      p_hpp_cost: item.hppCost || 0,
+      p_is_available: item.isAvailable !== false,
+      p_stock_count: item.stockCount ?? null,
+      p_ingredients: (item.ingredients || []).map((ingredient) => ({
+        rawMaterialId: ingredient.isCustom ? null : ingredient.rawMaterialId,
+        rawMaterialName: ingredient.rawMaterialName,
+        amountNeeded: ingredient.amountNeeded,
+        unit: ingredient.unit,
+        isCustom: Boolean(ingredient.isCustom),
+        customCost: ingredient.customCost || 0,
+      })),
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
   const tenantId = await currentTenantId();
   const payload = { tenant_id: tenantId, branch_id: branchId, name: item.name, category: item.category, price: item.price, image_url: item.image || null, description: item.description || null, hpp_cost: item.hppCost || 0, is_available: item.isAvailable !== false, stock_count: item.stockCount ?? null };
-  const supabase = getSupabase();
-  const operation = UUID_PATTERN.test(item.id)
-    ? supabase.from('menu_items').update(payload).eq('id', item.id).eq('branch_id', branchId).select('id').single()
-    : supabase.from('menu_items').insert(payload).select('id').single();
-  const { data, error } = await operation;
+  const { data, error } = await supabase.from('menu_items').update(payload).eq('id', item.id).eq('branch_id', branchId).select('id').single();
   if (error) throw new Error(error.message);
   const menuItemId = data.id;
   const { error: clearError } = await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', menuItemId);
@@ -127,22 +148,22 @@ export async function saveCloudRawMaterial(
   stockReason?: string,
   stockDelta?: number
 ): Promise<number | undefined> {
-  const tenantId = await currentTenantId();
-  const attributes = {
-    tenant_id: tenantId,
-    branch_id: branchId,
-    name: material.name,
-    unit: material.unit,
-    min_stock_threshold: material.minStockThreshold,
-    cost_per_unit: material.costPerUnit,
-    material_group: material.group || 'DAPUR',
-    take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
-  };
   const supabase = getSupabase();
 
   if (!UUID_PATTERN.test(material.id)) {
-    // Bahan baru: stok awal ditulis langsung, belum ada pergerakan untuk dicatat.
-    const { error } = await supabase.from('raw_materials').insert({ ...attributes, stock_quantity: material.stockQuantity });
+    // Pembuatan master lewat RPC terproteksi. RPC menentukan tenant dari cabang
+    // yang telah diverifikasi sehingga INSERT tidak bergantung pada payload
+    // tenant browser dan tidak membuka akses lintas cabang.
+    const { error } = await supabase.rpc('create_raw_material', {
+      p_branch_id: branchId,
+      p_name: material.name,
+      p_unit: material.unit,
+      p_stock_quantity: material.stockQuantity,
+      p_min_stock_threshold: material.minStockThreshold,
+      p_cost_per_unit: material.costPerUnit,
+      p_material_group: material.group || 'DAPUR',
+      p_take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
+    });
     if (error) throw new Error(error.message);
     return undefined;
   }
@@ -160,6 +181,18 @@ export async function saveCloudRawMaterial(
       stockReason
     );
   }
+
+  const tenantId = await currentTenantId();
+  const attributes = {
+    tenant_id: tenantId,
+    branch_id: branchId,
+    name: material.name,
+    unit: material.unit,
+    min_stock_threshold: material.minStockThreshold,
+    cost_per_unit: material.costPerUnit,
+    material_group: material.group || 'DAPUR',
+    take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
+  };
 
   const { error } = await supabase.from('raw_materials').update(attributes).eq('id', material.id).eq('branch_id', branchId);
   if (error) throw new Error(error.message);
