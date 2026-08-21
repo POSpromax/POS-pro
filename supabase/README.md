@@ -64,3 +64,8 @@ Migration `050` wajib diterapkan setelah `049`. Migration ini memindahkan proses
 pembuatan bahan dan menu baru ke RPC terproteksi yang menentukan tenant dari
 cabang tervalidasi. RLS tetap aktif; RPC hanya dapat dipanggil session dengan
 membership dan role cabang yang sesuai.
+
+Migration `051` wajib diterapkan setelah `050`. Migration ini membuat simpan
+menu beserta resep serta simpan/hapus grup isian dan topping menjadi transaksi
+atomik. Kegagalan salah satu langkah membatalkan seluruh perubahan sehingga
+tidak ada menu tanpa resep atau konfigurasi condiment yang tersimpan separuh.
