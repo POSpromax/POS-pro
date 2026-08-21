@@ -78,16 +78,28 @@ function scopeToGroup(scope: ScopeConfigItem | undefined): Partial<CondimentGrou
 }
 
 export async function listCloudCondiments(branchId: string): Promise<CondimentGroup[]> {
-  const { supabase, tenantId } = await tenantContext();
-  const [{ data: groups, error: groupError }, { data: branchConfig }, { data: config }] = await Promise.all([
+  const supabase = getSupabase();
+  const [{ data: groups, error: groupError }, { data: branchConfig, error: branchConfigError }] = await Promise.all([
     supabase.from('condiment_groups').select('*,condiment_options(*)').eq('branch_id', branchId).order('sort_order'),
     supabase.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
-    supabase.from('tenant_config').select('kds_config').eq('tenant_id', tenantId).maybeSingle(),
   ]);
   if (groupError) throw new Error(groupError.message);
+  if (branchConfigError && branchConfigError.code !== '42P01' && branchConfigError.code !== 'PGRST205') {
+    throw new Error(branchConfigError.message);
+  }
 
-  const scopes = (branchConfig?.condiment_scopes as ScopeConfig | null)
-    || (((config?.kds_config as { condimentScopes?: ScopeConfig } | null)?.condimentScopes) || {});
+  let scopes = (branchConfig?.condiment_scopes as ScopeConfig | null) || {};
+  // Hanya instalasi legacy sebelum migration 017 yang membutuhkan fallback
+  // tenant. Jalur normal cukup dua query paralel tanpa auth/profile tambahan.
+  if (!branchConfig) {
+    const { tenantId } = await tenantContext();
+    const { data: config } = await supabase
+      .from('tenant_config')
+      .select('kds_config')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    scopes = ((config?.kds_config as { condimentScopes?: ScopeConfig } | null)?.condimentScopes) || {};
+  }
 
   return (groups || []).map((group) => ({
     id: group.id,
@@ -112,93 +124,25 @@ export async function listCloudCondiments(branchId: string): Promise<CondimentGr
 }
 
 export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: string): Promise<CondimentGroup> {
-  const { supabase, tenantId } = await tenantContext();
-  const groupPayload = {
-    tenant_id: tenantId,
-    branch_id: branchId,
-    name: group.name.trim(),
-    mode: group.mode,
-    required: group.isRequired ?? group.required ?? false,
-    min_select: group.minSelect ?? 0,
-    max_select: Math.max(1, group.maxSelect ?? (group.mode === 'PAKET' ? 1 : group.options.length || 1)),
-    target_categories: group.targetCategories?.length ? group.targetCategories : group.targetCategory ? [group.targetCategory] : [],
-    is_active: group.isActive,
-  };
-
-  let groupId = group.id;
-  if (UUID_PATTERN.test(group.id)) {
-    const { error } = await supabase
-      .from('condiment_groups')
-      .update(groupPayload)
-      .eq('id', group.id)
-      .eq('branch_id', branchId);
-    if (error) throw new Error(error.message);
-  } else {
-    const { data, error } = await supabase.from('condiment_groups').insert(groupPayload).select('id').single();
-    if (error || !data) throw new Error(error?.message || 'Grup condiment gagal dibuat');
-    groupId = data.id;
-  }
-
-  // Preserve option identity. The previous implementation deleted and re-created
-  // every option on each edit, which changed UUID keys, reset focused controls,
-  // and caused the Settings editor to visibly jump after cloud reconciliation.
-  // Existing UUID options are updated in place; only genuinely new options are inserted.
-  const { data: existingRows, error: existingError } = await supabase
-    .from('condiment_options')
-    .select('id')
-    .eq('group_id', groupId);
-  if (existingError) throw new Error(existingError.message);
-
-  const existingIds = new Set((existingRows || []).map((row: any) => String(row.id)));
-  const incomingPersistentIds = new Set(
-    group.options
-      .filter((option) => UUID_PATTERN.test(option.id) && existingIds.has(option.id))
-      .map((option) => option.id),
-  );
-  const removedIds = [...existingIds].filter((id) => !incomingPersistentIds.has(id));
-
-  if (removedIds.length) {
-    const { error } = await supabase
-      .from('condiment_options')
-      .delete()
-      .eq('group_id', groupId)
-      .in('id', removedIds);
-    if (error) throw new Error(error.message);
-  }
-
-  for (const [index, option] of group.options.entries()) {
-    const payload = {
-      group_id: groupId,
+  const supabase = getSupabase();
+  const { data: groupId, error } = await supabase.rpc('save_condiment_group_atomic', {
+    p_group_id: UUID_PATTERN.test(group.id) ? group.id : null,
+    p_branch_id: branchId,
+    p_name: group.name.trim(),
+    p_mode: group.mode,
+    p_required: group.isRequired ?? group.required ?? false,
+    p_min_select: group.minSelect ?? 0,
+    p_max_select: Math.max(1, group.maxSelect ?? (group.mode === 'PAKET' ? 1 : group.options.length || 1)),
+    p_target_categories: group.targetCategories?.length ? group.targetCategories : group.targetCategory ? [group.targetCategory] : [],
+    p_is_active: group.isActive,
+    p_options: group.options.map((option, index) => ({
+      id: option.id,
       name: option.name.trim(),
       price: Number(option.price || 0),
-      is_available: option.isAvailable !== false,
-      sort_order: index,
-    };
-
-    if (UUID_PATTERN.test(option.id) && existingIds.has(option.id)) {
-      const { error } = await supabase
-        .from('condiment_options')
-        .update(payload)
-        .eq('id', option.id)
-        .eq('group_id', groupId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabase.from('condiment_options').insert(payload);
-      if (error) throw new Error(error.message);
-    }
-  }
-
-  const { data: config } = await supabase
-    .from('branch_operational_config')
-    .select('condiment_scopes')
-    .eq('branch_id', branchId)
-    .maybeSingle();
-
-  const existingScopes = ((config?.condiment_scopes || {}) as ScopeConfig);
-  const scopes: ScopeConfig = {
-    ...existingScopes,
-    [groupId]: {
-      ...(existingScopes[groupId] || {}),
+      isAvailable: option.isAvailable !== false,
+      sortOrder: index,
+    })),
+    p_scope: {
       targetProductIds: group.targetProductIds || [],
       targetProductNames: group.targetProductNames || [],
       allSelectedLabel: String(group.allSelectedLabel || '').trim().toUpperCase(),
@@ -209,17 +153,8 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
       quickPresets: normalizeQuickPresets(group.quickPresets),
       disabledQuickPresets: normalizeDisabledQuickPresets(group.disabledQuickPresets),
     },
-  };
-
-  const { error: configError } = await supabase.from('branch_operational_config').upsert(
-    {
-      branch_id: branchId,
-      tenant_id: tenantId,
-      condiment_scopes: scopes,
-    },
-    { onConflict: 'branch_id' },
-  );
-  if (configError) throw new Error(configError.message);
+  });
+  if (error || !groupId) throw new Error(error?.message || 'Grup condiment gagal disimpan');
 
   const refreshed = await listCloudCondiments(branchId);
   const saved = refreshed.find((item) => item.id === groupId);
@@ -230,59 +165,9 @@ export async function saveCloudCondimentGroup(group: CondimentGroup, branchId: s
 
 export async function deleteCloudCondimentGroup(groupId: string, branchId: string): Promise<void> {
   if (!UUID_PATTERN.test(groupId)) return;
-  const { supabase, tenantId } = await tenantContext();
-
-  // There is no multi-table client transaction in supabase-js. We therefore use
-  // a compensating workflow: snapshot metadata + options, remove scope metadata,
-  // try deleting the group (works directly when FK is CASCADE), and only fall back
-  // to deleting child rows when the FK requires it. If the final delete fails, the
-  // previous scope/options are restored as best effort so a half-deleted group is
-  // not silently left behind.
-  const [{ data: config, error: configReadError }, { data: optionSnapshot, error: optionReadError }] = await Promise.all([
-    supabase.from('branch_operational_config').select('condiment_scopes').eq('branch_id', branchId).maybeSingle(),
-    supabase.from('condiment_options').select('id,group_id,name,price,is_available,sort_order').eq('group_id', groupId),
-  ]);
-  if (configReadError) throw new Error(configReadError.message);
-  if (optionReadError) throw new Error(optionReadError.message);
-
-  const previousScopes = { ...(((config?.condiment_scopes || {}) as ScopeConfig)) };
-  const nextScopes = { ...previousScopes };
-  delete nextScopes[groupId];
-
-  const writeScopes = async (scopes: ScopeConfig) => {
-    const { error } = await supabase.from('branch_operational_config').upsert(
-      { branch_id: branchId, tenant_id: tenantId, condiment_scopes: scopes },
-      { onConflict: 'branch_id' },
-    );
-    if (error) throw new Error(error.message);
-  };
-
-  await writeScopes(nextScopes);
-
-  const deleteGroup = async () => supabase
-    .from('condiment_groups')
-    .delete()
-    .eq('id', groupId)
-    .eq('branch_id', branchId);
-
-  const firstAttempt = await deleteGroup();
-  if (!firstAttempt.error) return;
-
-  // FK without cascade: delete children then retry parent.
-  const { error: optionDeleteError } = await supabase.from('condiment_options').delete().eq('group_id', groupId);
-  if (optionDeleteError) {
-    await writeScopes(previousScopes).catch(() => undefined);
-    throw new Error(optionDeleteError.message);
-  }
-
-  const secondAttempt = await deleteGroup();
-  if (!secondAttempt.error) return;
-
-  // Best-effort compensation. Preserve UUIDs and sort order so the editor can
-  // recover to the same logical configuration if the parent delete ultimately fails.
-  if ((optionSnapshot || []).length) {
-    try { await supabase.from('condiment_options').insert(optionSnapshot as any[]); } catch { /* best effort compensation */ }
-  }
-  await writeScopes(previousScopes).catch(() => undefined);
-  throw new Error(secondAttempt.error.message || firstAttempt.error.message);
+  const { error } = await getSupabase().rpc('delete_condiment_group_atomic', {
+    p_group_id: groupId,
+    p_branch_id: branchId,
+  });
+  if (error) throw new Error(error.message);
 }

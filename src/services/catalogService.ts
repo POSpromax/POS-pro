@@ -4,15 +4,6 @@ import { adjustStockByDelta, adjustStockManual, type StockMovementType } from '.
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function currentTenantId(): Promise<string> {
-  const supabase = getSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Sesi telah berakhir');
-  const { data, error } = await supabase.from('user_profiles').select('tenant_id').eq('user_id', user.id).single();
-  if (error || !data?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
-  return data.tenant_id;
-}
-
 // Hanya bahan baku (tanpa menu & resep) — untuk dashboard owner yang cuma butuh
 // hitung stok kritis. Jauh lebih ringan daripada listCloudCatalog penuh.
 export async function listCloudRawMaterials(branchId: string): Promise<RawMaterial[]> {
@@ -78,66 +69,34 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
 
 export async function saveCloudMenuItem(item: MenuItem, branchId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!UUID_PATTERN.test(item.id)) {
-    const { error } = await supabase.rpc('create_menu_item_with_ingredients', {
-      p_branch_id: branchId,
-      p_name: item.name,
-      p_category: item.category,
-      p_price: item.price,
-      p_image_url: item.image || null,
-      p_description: item.description || null,
-      p_hpp_cost: item.hppCost || 0,
-      p_is_available: item.isAvailable !== false,
-      p_stock_count: item.stockCount ?? null,
-      p_ingredients: (item.ingredients || []).map((ingredient) => ({
-        rawMaterialId: ingredient.isCustom ? null : ingredient.rawMaterialId,
-        rawMaterialName: ingredient.rawMaterialName,
-        amountNeeded: ingredient.amountNeeded,
-        unit: ingredient.unit,
-        isCustom: Boolean(ingredient.isCustom),
-        customCost: ingredient.customCost || 0,
-      })),
-    });
-    if (error) throw new Error(error.message);
-    return;
-  }
-
-  const tenantId = await currentTenantId();
-  const payload = { tenant_id: tenantId, branch_id: branchId, name: item.name, category: item.category, price: item.price, image_url: item.image || null, description: item.description || null, hpp_cost: item.hppCost || 0, is_available: item.isAvailable !== false, stock_count: item.stockCount ?? null };
-  const { data, error } = await supabase.from('menu_items').update(payload).eq('id', item.id).eq('branch_id', branchId).select('id').single();
-  if (error) throw new Error(error.message);
-  const menuItemId = data.id;
-  const { error: clearError } = await supabase.from('menu_item_ingredients').delete().eq('menu_item_id', menuItemId);
-  if (clearError) throw new Error(clearError.message);
-  if (item.ingredients.length) {
-    // KOMPATIBEL MUNDUR: kolom custom_name/custom_cost baru ada setelah migrasi
-    // 046. Kolomnya hanya dikirim bila resep memang memuat bahan CUSTOM, supaya
-    // penyimpanan menu biasa tetap berhasil walau migrasi belum diterapkan.
-    const hasCustom = item.ingredients.some((ingredient) => ingredient.isCustom);
-    const rows = item.ingredients.map((ingredient) => ({
-      menu_item_id: menuItemId,
-      raw_material_id: ingredient.isCustom ? null : ingredient.rawMaterialId,
-      amount_needed: ingredient.amountNeeded,
+  const { error } = await supabase.rpc('save_menu_item_with_ingredients', {
+    p_menu_item_id: UUID_PATTERN.test(item.id) ? item.id : null,
+    p_branch_id: branchId,
+    p_name: item.name,
+    p_category: item.category,
+    p_price: item.price,
+    p_image_url: item.image || null,
+    p_description: item.description || null,
+    p_hpp_cost: item.hppCost || 0,
+    p_is_available: item.isAvailable !== false,
+    p_stock_count: item.stockCount ?? null,
+    p_ingredients: (item.ingredients || []).map((ingredient) => ({
+      rawMaterialId: ingredient.isCustom ? null : ingredient.rawMaterialId,
+      rawMaterialName: ingredient.rawMaterialName,
+      amountNeeded: ingredient.amountNeeded,
       unit: ingredient.unit,
-      ...(hasCustom ? {
-        custom_name: ingredient.isCustom ? ingredient.rawMaterialName : null,
-        custom_cost: ingredient.isCustom ? (ingredient.customCost || 0) : null,
-      } : {}),
-    }));
-    const { error: ingredientError } = await supabase.from('menu_item_ingredients').insert(rows);
-    if (ingredientError) {
-      // Pesan jelas bila migrasi bahan custom belum dijalankan.
-      const msg = ingredientError.message || '';
-      if (/custom_name|custom_cost/i.test(msg)) {
-        throw new Error('Bahan custom belum aktif: terapkan migrasi 202608200046 di Supabase lebih dulu.');
-      }
-      throw new Error(msg);
-    }
-  }
+      isCustom: Boolean(ingredient.isCustom),
+      customCost: ingredient.customCost || 0,
+    })),
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteCloudMenuItem(id: string, branchId: string): Promise<void> {
-  const { error } = await getSupabase().from('menu_items').delete().eq('id', id).eq('branch_id', branchId);
+  const { error } = await getSupabase().rpc('delete_menu_item_secure', {
+    p_menu_item_id: id,
+    p_branch_id: branchId,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -182,19 +141,16 @@ export async function saveCloudRawMaterial(
     );
   }
 
-  const tenantId = await currentTenantId();
-  const attributes = {
-    tenant_id: tenantId,
-    branch_id: branchId,
-    name: material.name,
-    unit: material.unit,
-    min_stock_threshold: material.minStockThreshold,
-    cost_per_unit: material.costPerUnit,
-    material_group: material.group || 'DAPUR',
-    take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
-  };
-
-  const { error } = await supabase.from('raw_materials').update(attributes).eq('id', material.id).eq('branch_id', branchId);
+  const { error } = await supabase.rpc('update_raw_material_master', {
+    p_raw_material_id: material.id,
+    p_branch_id: branchId,
+    p_name: material.name,
+    p_unit: material.unit,
+    p_min_stock_threshold: material.minStockThreshold,
+    p_cost_per_unit: material.costPerUnit,
+    p_material_group: material.group || 'DAPUR',
+    p_take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
+  });
   if (error) throw new Error(error.message);
 
   // Stok sengaja tidak ikut di-update di atas: perubahannya harus lewat ledger
@@ -203,6 +159,9 @@ export async function saveCloudRawMaterial(
 }
 
 export async function deleteCloudRawMaterial(id: string, branchId: string): Promise<void> {
-  const { error } = await getSupabase().from('raw_materials').delete().eq('id', id).eq('branch_id', branchId);
+  const { error } = await getSupabase().rpc('delete_raw_material_secure', {
+    p_raw_material_id: id,
+    p_branch_id: branchId,
+  });
   if (error) throw new Error(error.message);
 }

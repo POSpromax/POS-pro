@@ -549,8 +549,14 @@ export default function App() {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(() => cloudReadiness.supabase ? [] : DBStorage.getMenuItems());
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => cloudReadiness.supabase ? [] : DBStorage.getRawMaterials());
+  const catalogLoadedBranchRef = useRef('');
+  const catalogLoadingBranchRef = useRef('');
   const [tables, setTables] = useState<RestaurantTable[]>(() => cloudReadiness.supabase ? [] : DBStorage.getTables());
+  const branchContextLoadedRef = useRef('');
+  const branchContextLoadingRef = useRef('');
   const [condimentGroups, setCondimentGroups] = useState<CondimentGroup[]>(() => cloudReadiness.supabase ? [] : DBStorage.getCondimentGroups());
+  const condimentLoadedBranchRef = useRef('');
+  const condimentLoadingBranchRef = useRef('');
   const condimentGroupsRef = useRef(condimentGroups);
   useEffect(() => { condimentGroupsRef.current = condimentGroups; }, [condimentGroups]);
   const menuItemsRef = useRef(menuItems);
@@ -730,6 +736,7 @@ export default function App() {
     if (!branchRuntimeGuardRef.current.isCurrent(runtimeToken)) return;
     setMenuItems(catalog.menuItems);
     setRawMaterials(catalog.rawMaterials.map((material) => ({ ...material, branchName })));
+    catalogLoadedBranchRef.current = branchId;
   };
 
   useEffect(() => {
@@ -737,15 +744,26 @@ export default function App() {
     let cancelled = false;
     const branchId = currentBranch.id;
     const branchName = currentBranch.name;
+    // Perpindahan tab dalam cabang yang sama tidak boleh mengunduh ulang seluruh
+    // menu+bahan+resep. Broadcast cabang menjaga snapshot ini tetap mutakhir.
+    if (catalogLoadedBranchRef.current === branchId || catalogLoadingBranchRef.current === branchId) return;
+    catalogLoadingBranchRef.current = branchId;
+    // Jangan tampilkan katalog cabang sebelumnya selama request cabang baru.
+    setMenuItems([]);
+    setRawMaterials([]);
     const runtimeToken = branchRuntimeGuardRef.current.snapshot(branchId);
     void listCloudCatalog(branchId)
       .then((catalog) => {
         if (cancelled || !branchRuntimeGuardRef.current.isCurrent(runtimeToken)) return;
         setMenuItems(catalog.menuItems);
         setRawMaterials(catalog.rawMaterials.map((material) => ({ ...material, branchName })));
+        catalogLoadedBranchRef.current = branchId;
       })
       .catch((error) => {
         if (!cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken)) showPushToast('Katalog Belum Tersinkron', error instanceof Error ? error.message : 'Master data cloud gagal dibaca.');
+      })
+      .finally(() => {
+        if (catalogLoadingBranchRef.current === branchId) catalogLoadingBranchRef.current = '';
       });
     return () => { cancelled = true; };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
@@ -937,6 +955,8 @@ export default function App() {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     const branchId = currentBranch.id;
+    if (branchContextLoadedRef.current === branchId || branchContextLoadingRef.current === branchId) return;
+    branchContextLoadingRef.current = branchId;
     const runtimeToken = branchRuntimeGuardRef.current.snapshot(branchId);
     const isCurrent = () => !cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken);
     const mergeCloudTables = (cloudTables: RestaurantTable[]) => {
@@ -953,8 +973,11 @@ export default function App() {
       setBranchOperationalConfig(config);
       setIsSelfOrderSystemEnabled(config.selfOrderEnabled);
       setProfile({ ...DBStorage.getProfile(), ...tenantBrand, ...(config.profileOverrides || {}), isSelfOrderEnabled: config.selfOrderEnabled });
+      branchContextLoadedRef.current = branchId;
     }).catch((error) => {
       if (isCurrent()) showPushToast('Konfigurasi Cabang Belum Tersinkron', error instanceof Error ? error.message : 'Meja dan self-order cabang gagal dibaca.');
+    }).finally(() => {
+      if (branchContextLoadingRef.current === branchId) branchContextLoadingRef.current = '';
     });
     return () => { cancelled = true; };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
@@ -1323,12 +1346,24 @@ export default function App() {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'kds', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     const branchId = currentBranch.id;
+    // Sama seperti katalog: tab POS/KDS/Settings berbagi snapshot condiment
+    // cabang. Muat sekali per cabang lalu rekonsiliasi lewat broadcast.
+    if (condimentLoadedBranchRef.current === branchId || condimentLoadingBranchRef.current === branchId) return;
+    condimentLoadingBranchRef.current = branchId;
+    setCondimentGroups([]);
     const runtimeToken = branchRuntimeGuardRef.current.snapshot(branchId);
     const isCurrent = () => !cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken);
     void listCloudCondiments(branchId).then((groups) => {
-      if (isCurrent() && groups.length) setCondimentGroups(groups);
+      if (isCurrent()) {
+        // Array kosong adalah snapshot valid. Menahannya akan membocorkan
+        // condiment cabang sebelumnya ke cabang yang belum punya konfigurasi.
+        setCondimentGroups(groups);
+        condimentLoadedBranchRef.current = branchId;
+      }
     }).catch((error) => {
       if (isCurrent()) showPushToast('Condiment Belum Tersinkron', error instanceof Error ? error.message : 'Konfigurasi condiment cloud gagal dibaca.');
+    }).finally(() => {
+      if (condimentLoadingBranchRef.current === branchId) condimentLoadingBranchRef.current = '';
     });
     return () => { cancelled = true; };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
@@ -1369,7 +1404,9 @@ export default function App() {
     const isRuntimeCurrent = () => !cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken);
     let realtimeState: RealtimeConnectionState = 'CONNECTING';
     const branchMountedAt = Date.now();
-    let lastReconcileAt = 0;
+    // Domain effects di atas sedang memuat snapshot awal. Mulai watchdog dari
+    // waktu mount agar ia tidak langsung mengulang request pada tick pertama.
+    let lastReconcileAt = branchMountedAt;
     let reconciling = false;
     const timers = new Map<string, number>();
 
@@ -1402,9 +1439,12 @@ export default function App() {
       if (!isRuntimeCurrent() || reconciling || document.visibilityState === 'hidden') return;
       reconciling = true;
       try {
-        const jobs: Promise<unknown>[] = [
-          listCloudTables(branchId).then(mergeTables),
-        ];
+        const jobs: Promise<unknown>[] = [];
+        // Inventory dan layar shift tidak memakai meja. Jangan menarik daftar
+        // meja hanya karena channel operasi baru tersambung pada tab tersebut.
+        if (['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) {
+          jobs.push(listCloudTables(branchId).then(mergeTables));
+        }
 
         // Condiment & config sudah punya handler broadcast bertarget sendiri.
         // Saat realtime SEHAT, menariknya lagi tiap 120 dtk adalah duplikasi
@@ -1498,10 +1538,11 @@ export default function App() {
       (state) => {
         if (!isRuntimeCurrent()) return;
         const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
-        const firstHealthy = realtimeState !== 'HEALTHY' && state === 'HEALTHY' && lastReconcileAt === 0;
         realtimeState = state;
         branchRuntimeGuardRef.current.recordConnection(runtimeToken, 'OPERATIONS', state);
-        if (recovered || firstHealthy) void reconcileOperations();
+        // Initial snapshots dimuat oleh effect per domain. Rekonsiliasi penuh
+        // hanya perlu ketika koneksi benar-benar pulih dari kondisi terputus.
+        if (recovered) void reconcileOperations();
       },
     );
 

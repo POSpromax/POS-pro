@@ -292,3 +292,22 @@ diinferensikan dari diskon 100% untuk kompatibilitas histori.
 - Keamanan tetap berada di server: branch/shift/stok/condiment divalidasi ulang,
   request self-order idempotent, dan RPC `checkout_self_order` mengunci meja
   secara atomik agar dua pelanggan tidak dapat mengklaim meja yang sama.
+
+## Update 21 Agustus 2026 — audit matriks mutation katalog
+
+- Audit mutation sekarang memakai matriks create/read/update/delete × role ×
+  cabang × RLS, bukan hanya menelusuri tombol UI yang sedang dilaporkan.
+- Migration `049` membuat tambah/kurang stok berbasis delta dan ledger atomik.
+- Migration `050` membuat bahan dan menu baru lewat RPC tervalidasi sehingga
+  insert tidak bergantung pada policy browser yang mungkin tertinggal.
+- Migration `051` (wajib diterapkan sebelum kode pemanggilnya dideploy) membuat
+  simpan menu+resep serta simpan/hapus grup condiment+opsi+scope atomik. Ia juga
+  mengamankan edit/hapus master katalog dengan validasi role dan cabang.
+- Snapshot katalog, condiment, dan konteks cabang dimuat sekali per cabang.
+  Perpindahan tab tidak lagi mengulang unduhan besar; broadcast dan fallback
+  terarah tetap menjaga konsistensi.
+- Array condiment kosong diperlakukan sebagai snapshot valid. Ini mencegah
+  condiment cabang sebelumnya terlihat sesaat pada cabang tanpa konfigurasi.
+- Pembuatan cabang baru sekarang wajib membuat membership Owner dan
+  `branch_operational_config` beserta slug Self-order global. Kegagalan langkah
+  turunan membatalkan cabang agar tidak ada outlet setengah terkonfigurasi.

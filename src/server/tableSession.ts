@@ -94,8 +94,9 @@ export async function handleTableSessionRequest(
       if (disableError) return { status: 500, data: { error: 'Struktur meja belum lengkap. Jalankan migrasi meja terbaru.' } };
     }
     // Repair any row that owns a bill but carries a stale visual status.
-    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
+    const { error: repairError } = await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
       .eq('branch_id', branchId).not('active_order_id', 'is', null);
+    if (repairError) return { status: 500, data: { error: 'Bill aktif tersimpan tetapi status meja gagal direkonsiliasi' } };
     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Pengaturan self-order semua meja gagal disimpan' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
@@ -105,14 +106,17 @@ export async function handleTableSessionRequest(
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(member.role)) {
       return { status: 403, data: { error: 'Akun tidak memiliki izin mereset status meja' } };
     }
-    await admin.from('restaurant_tables').update({
+    const { error: readyResetError } = await admin.from('restaurant_tables').update({
       status: 'READY', active_order_id: null,
     }).eq('branch_id', branchId).eq('self_order_enabled', true).is('active_order_id', null);
-    await admin.from('restaurant_tables').update({
+    if (readyResetError) return { status: 500, data: { error: 'Meja aktif gagal direkonsiliasi' } };
+    const { error: disabledResetError } = await admin.from('restaurant_tables').update({
       status: 'DISABLED', active_order_id: null,
     }).eq('branch_id', branchId).eq('self_order_enabled', false).is('active_order_id', null);
-    await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
+    if (disabledResetError) return { status: 500, data: { error: 'Meja nonaktif gagal direkonsiliasi' } };
+    const { error: occupiedResetError } = await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
       .eq('branch_id', branchId).not('active_order_id', 'is', null);
+    if (occupiedResetError) return { status: 500, data: { error: 'Meja dengan bill aktif gagal direkonsiliasi' } };
     const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Status meja gagal direkonsiliasi' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
