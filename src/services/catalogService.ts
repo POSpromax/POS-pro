@@ -123,7 +123,12 @@ export async function saveCloudRawMaterial(
       p_material_group: material.group || 'DAPUR',
       p_take_away_usage_per_item: material.group === 'KEMASAN' ? (material.takeAwayUsagePerItem ?? 1) : 0,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (/tidak berhak membuat bahan/i.test(error.message || '')) {
+        throw new Error('Sesi aktif tidak memiliki izin membuat master bahan di cabang ini. Keluar lalu login ulang sebagai Owner/Admin cabang.');
+      }
+      throw new Error(error.message);
+    }
     return undefined;
   }
 

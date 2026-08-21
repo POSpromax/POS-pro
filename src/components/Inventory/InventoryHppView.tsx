@@ -145,6 +145,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [isRawModalOpen, setIsRawModalOpen] = useState<boolean>(false);
   const [editingRaw, setEditingRaw] = useState<Partial<RawMaterial> | null>(null);
   const [isSavingRaw, setIsSavingRaw] = useState<boolean>(false);
+  // Draft numerik tetap berupa teks selama operator mengetik. Mengubah string
+  // kosong langsung menjadi Number('') membuat field kembali ke 0, sehingga
+  // input 225 tampil sebagai 0225 dan tombol Backspace terasa tidak bekerja.
+  const [rawStockInput, setRawStockInput] = useState<string>('0');
+  const [rawMinStockInput, setRawMinStockInput] = useState<string>('5');
   // Kalkulator harga kemasan -> harga per satuan (mis. kecap pouch 600 ml).
   const [packPrice, setPackPrice] = useState<number | ''>('');
   const [packContent, setPackContent] = useState<number | ''>('');
@@ -480,6 +485,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const handleOpenRawModal = (raw?: RawMaterial) => {
     if (raw) {
       setEditingRaw({ ...raw });
+      setRawStockInput(String(raw.stockQuantity ?? 0));
+      setRawMinStockInput(String(raw.minStockThreshold ?? 0));
     } else {
       setEditingRaw({
         id: 'raw-' + Date.now().toString().slice(-4),
@@ -493,6 +500,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         group: activeGroup || 'DAPUR',
         takeAwayUsagePerItem: activeGroup === 'KEMASAN' ? 1 : undefined
       });
+      setRawStockInput('0');
+      setRawMinStockInput('5');
     }
     setIsRawModalOpen(true);
   };
@@ -504,7 +513,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       toast('Validasi', 'Nama bahan baku wajib diisi!');
       return;
     }
-    if ((Number(editingRaw.stockQuantity) || 0) < 0 || (Number(editingRaw.minStockThreshold) || 0) < 0 || (Number(editingRaw.costPerUnit) || 0) < 0) {
+    const stockQuantity = rawStockInput.trim() === '' ? 0 : Number(rawStockInput);
+    const minStockThreshold = rawMinStockInput.trim() === '' ? 0 : Number(rawMinStockInput);
+    if (!Number.isFinite(stockQuantity) || !Number.isFinite(minStockThreshold)) {
+      toast('Validasi', 'Stok dan batas minimum harus berupa angka yang valid.');
+      return;
+    }
+    if (stockQuantity < 0 || minStockThreshold < 0 || (Number(editingRaw.costPerUnit) || 0) < 0) {
       toast('Validasi', 'Stok, batas minimum, dan biaya tidak boleh bernilai negatif.');
       return;
     }
@@ -523,8 +538,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       unit: (editingRaw.unit as any) || 'pcs',
       // Saldo item lama hanya boleh berubah melalui mutasi beralasan agar
       // ledger tidak tercampur dengan perubahan master data.
-      stockQuantity: existingEditingRaw?.stockQuantity ?? (Number(editingRaw.stockQuantity) || 0),
-      minStockThreshold: Number(editingRaw.minStockThreshold) || 0,
+      stockQuantity: existingEditingRaw?.stockQuantity ?? stockQuantity,
+      minStockThreshold,
       costPerUnit: Number(editingRaw.costPerUnit) || 0,
       branchId: editingRaw.branchId || targetBranch?.id || '00000000-0000-4000-a000-000000000010',
       branchName: targetBranch?.name || 'Pasirmulya Bogor',
@@ -1700,9 +1715,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                     type="number"
                     step="any"
                     min={0}
-                    value={editingRaw.stockQuantity ?? 0}
+                    value={rawStockInput}
                     disabled={Boolean(existingEditingRaw)}
-                    onChange={(e) => setEditingRaw({ ...editingRaw, stockQuantity: Number(e.target.value) })}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setRawStockInput(e.target.value)}
                     className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   />
                   {existingEditingRaw && (
@@ -1717,8 +1733,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   <input
                     type="number"
                     step="any"
-                    value={editingRaw.minStockThreshold ?? 5}
-                    onChange={(e) => setEditingRaw({ ...editingRaw, minStockThreshold: Number(e.target.value) })}
+                    min={0}
+                    value={rawMinStockInput}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setRawMinStockInput(e.target.value)}
                     className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)]"
                   />
                 </div>

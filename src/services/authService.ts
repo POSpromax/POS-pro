@@ -42,13 +42,26 @@ export async function cloudPinLogin(branchId: string, pin: string, signal?: Abor
   if (signal?.aborted) throw new DOMException('Login dibatalkan', 'AbortError');
 
   const supabase = getSupabase();
-  const { error: otpError } = await supabase.auth.verifyOtp({
+  // PIN menentukan identitas terminal. Jangan biarkan session tab lama milik
+  // staf lain bertahan ketika terminal berganti operator: UI dan JWT dapat
+  // terbelah sehingga UI menampilkan OWNER tetapi RPC membaca role lama.
+  const { data: existingSession } = await supabase.auth.getSession();
+  if (existingSession.session?.user.id && existingSession.session.user.id !== data.user?.id) {
+    await supabase.auth.signOut({ scope: 'local' });
+  }
+
+  const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
     token_hash: data.tokenHash,
     type: 'magiclink',
   });
 
   if (otpError) {
     return { success: false, error: 'Sesi tidak dapat dibuat' };
+  }
+
+  if (!otpData.user?.id || otpData.user.id !== data.user?.id) {
+    await supabase.auth.signOut({ scope: 'local' });
+    return { success: false, error: 'Identitas sesi tidak cocok. Silakan login ulang.' };
   }
 
   // Private Realtime Broadcast memakai JWT pada socket. Sinkronkan token
