@@ -1796,6 +1796,11 @@ export default function App() {
 
   const handleSaveHoldOrder = async (draftOrder: Order) => {
     if (!ensureOpenShift('menyimpan transaksi')) return;
+    const persistedOrder = orders.find((order) => order.id === draftOrder.id);
+    if (persistedOrder?.paymentStatus === 'PAID' || persistedOrder?.status === 'CANCELLED') {
+      showPushToast('Pesanan Terkunci', 'Pesanan lunas atau dibatalkan tidak dapat diubah. Buat order baru untuk transaksi berikutnya.');
+      return;
+    }
     let saved = draftOrder;
     if (cloudReadiness.supabase) {
       if (!isOnline) {
@@ -1823,6 +1828,11 @@ export default function App() {
 
   const handleOpenCheckoutModal = (draftOrder: Partial<Order>) => {
     if (!ensureOpenShift('membuka pembayaran')) return;
+    const persistedOrder = orders.find((order) => order.id === draftOrder.id);
+    if (persistedOrder?.paymentStatus === 'PAID' || persistedOrder?.status === 'CANCELLED') {
+      showPushToast('Pesanan Terkunci', 'Pesanan ini sudah lunas atau dibatalkan dan tidak dapat dibayar ulang.');
+      return;
+    }
     // TIDAK memblokir pembayaran saat ada perubahan belum tersimpan.
     // handleProcessPayment sudah menyimpan perubahan lebih dulu (submitCloudOrder)
     // sebelum memanggil payCloudOrder, jadi menambah item lalu langsung Bayar
@@ -1949,6 +1959,17 @@ export default function App() {
       // realtime ke semua terminal lewat trigger database.
       void updateCloudOrderStatus(currentBranch.id, orderId, newStatus, currentShift.id)
         .then(async () => {
+          // Jangan hanya menunggu event realtime: ambil ulang satu order yang
+          // baru diubah agar status pembayaran, status dapur, dan atribusi shift
+          // langsung konsisten di POS. Payload ini kecil dan mencegah order
+          // PAID + COMPLETED tertahan di antrean aktif karena state optimistis.
+          const authoritative = await getCloudOrder(currentBranch.id, orderId);
+          if (authoritative) {
+            setOrders((current) => [
+              authoritative,
+              ...current.filter((order) => order.id !== authoritative.id),
+            ]);
+          }
           await refreshBranchTables(currentBranch.id);
           showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`);
         })
@@ -3035,9 +3056,16 @@ export default function App() {
               menuItems={menuItems}
               branches={accessibleBranches}
               currentBranch={currentBranch}
-              onUpdateRawMaterial={(mat) => {
+              onUpdateRawMaterial={async (mat, stockMovementType, stockReason) => {
                 if (cloudReadiness.supabase) {
-                  void saveCloudRawMaterial(mat, currentBranch.id).then(() => refreshCloudCatalog(currentBranch.id, currentBranch.name)).then(() => showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} tersimpan ke cloud.`)).catch((error) => showPushToast('Stok Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan stok gagal.'));
+                  try {
+                    await saveCloudRawMaterial(mat, currentBranch.id, stockMovementType, stockReason);
+                    await refreshCloudCatalog(currentBranch.id, currentBranch.name);
+                    showPushToast('Stok Diperbarui', `Bahan baku ${mat.name} tersimpan ke cloud.`);
+                  } catch (error) {
+                    showPushToast('Stok Gagal Disimpan', error instanceof Error ? error.message : 'Perubahan stok gagal.');
+                    throw error;
+                  }
                 } else {
                   DBStorage.updateRawMaterial(mat);
                   setRawMaterials(DBStorage.getRawMaterials());

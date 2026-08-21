@@ -34,7 +34,7 @@ import {
 import { RawMaterial, MenuItem, Branch, CategoryType, MaterialGroup } from '../../types/pos';
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { filterMaterialsByGroup, resolveMaterialGroup } from '../../utils/materialGroup';
-import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement } from '../../services/stockLedgerService';
+import { listStockMovements, STOCK_MOVEMENT_LABELS, type StockMovement, type StockMovementType } from '../../services/stockLedgerService';
 import { StockOpnamePanel } from './StockOpnamePanel';
 import { optimizeCloudinaryImage } from '../../utils/imageUrl';
 import { calculateMenuHpp, marginOf } from '../../utils/hpp';
@@ -58,7 +58,11 @@ interface InventoryHppViewProps {
   menuItems: MenuItem[];
   branches: Branch[];
   currentBranch?: Branch;
-  onUpdateRawMaterial: (material: RawMaterial) => void;
+  onUpdateRawMaterial: (
+    material: RawMaterial,
+    stockMovementType?: StockMovementType,
+    stockReason?: string
+  ) => Promise<void> | void;
   onDeleteRawMaterial: (id: string) => void;
   onSaveMenuItem: (menu: MenuItem) => void;
   onDeleteMenuItem: (id: string) => void;
@@ -137,6 +141,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
 
   const [isRawModalOpen, setIsRawModalOpen] = useState<boolean>(false);
   const [editingRaw, setEditingRaw] = useState<Partial<RawMaterial> | null>(null);
+  const [isSavingRaw, setIsSavingRaw] = useState<boolean>(false);
   // Kalkulator harga kemasan -> harga per satuan (mis. kecap pouch 600 ml).
   const [packPrice, setPackPrice] = useState<number | ''>('');
   const [packContent, setPackContent] = useState<number | ''>('');
@@ -158,6 +163,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const [ledgerRows, setLedgerRows] = useState<StockMovement[]>([]);
   const [ledgerState, setLedgerState] = useState<'IDLE' | 'LOADING' | 'ERROR'>('IDLE');
   const [ledgerError, setLedgerError] = useState<string>('');
+  // Jumlah mutasi cepat disimpan per bahan agar operator dapat memasukkan
+  // 100 unit sekali jalan tanpa menghasilkan 100 request/ledger terpisah.
+  const [quickStockAmounts, setQuickStockAmounts] = useState<Record<string, string>>({});
+  const [adjustingStockIds, setAdjustingStockIds] = useState<Set<string>>(new Set());
 
   const handleOpenLedger = async (raw: RawMaterial) => {
     setLedgerMaterial(raw);
@@ -196,6 +205,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   const filteredRawList = activeRawList.filter((m) =>
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const existingEditingRaw = editingRaw?.id
+    ? rawMaterials.find((material) => material.id === editingRaw.id)
+    : undefined;
 
   const filteredMenuItems = menuItems.filter((m) => (
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -242,9 +254,43 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     toast('Lengkapi HPP', 'Periksa harga satuan dan batas minimum setiap bahan menu.');
   };
 
-  const handleAdjustStock = (material: RawMaterial, delta: number) => {
-    const updatedQty = Math.max(0, material.stockQuantity + delta);
-    onUpdateRawMaterial({ ...material, stockQuantity: updatedQty });
+  const quickStockAmount = (materialId: string) => quickStockAmounts[materialId] ?? '1';
+
+  const handleAdjustStock = async (material: RawMaterial, direction: -1 | 1) => {
+    if (adjustingStockIds.has(material.id)) return;
+
+    const amount = Number(quickStockAmount(material.id));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast('Jumlah Tidak Valid', 'Masukkan jumlah stok lebih dari 0.');
+      return;
+    }
+    if (direction < 0 && amount > material.stockQuantity) {
+      toast('Stok Tidak Cukup', `Stok ${material.name} hanya ${material.stockQuantity.toLocaleString('id-ID')} ${material.unit}.`);
+      return;
+    }
+
+    const updatedQty = material.stockQuantity + (direction * amount);
+    const movementType: StockMovementType = direction > 0 ? 'PURCHASE' : 'WASTE';
+    const movementLabel = direction > 0 ? 'Stok masuk cepat' : 'Stok keluar cepat';
+
+    setAdjustingStockIds((current) => new Set(current).add(material.id));
+    try {
+      await onUpdateRawMaterial(
+        { ...material, stockQuantity: updatedQty },
+        movementType,
+        `${movementLabel}: ${amount} ${material.unit}`
+      );
+      setQuickStockAmounts((current) => ({ ...current, [material.id]: '1' }));
+    } catch {
+      // Pemilik mutation menampilkan pesan cloud yang spesifik. Nilai input
+      // dipertahankan agar operator dapat mencoba ulang tanpa mengetik lagi.
+    } finally {
+      setAdjustingStockIds((current) => {
+        const next = new Set(current);
+        next.delete(material.id);
+        return next;
+      });
+    }
   };
 
   const renderRawActions = (raw: RawMaterial) => (
@@ -256,53 +302,86 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       >
         <History className="w-3 h-3 md:w-3.5 md:h-3.5" />
       </button>
-      <button
-        onClick={() => handleOpenRawModal(raw)}
-        className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-lg cursor-pointer transition-colors"
-        title="Ubah item"
-      >
-        <Edit2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
-      </button>
-      <button
-        onClick={() => {
-          if (confirmingDeleteId === raw.id) {
-            onDeleteRawMaterial(raw.id);
-            setConfirmingDeleteId(null);
-            toast('Dihapus', `${raw.name} berhasil dihapus.`);
-          } else {
-            setConfirmingDeleteId(raw.id);
-            setTimeout(() => setConfirmingDeleteId(null), 3000);
-          }
-        }}
-        className={`p-1 rounded-lg cursor-pointer transition-colors ${
-          confirmingDeleteId === raw.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
-        }`}
-        title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus item'}
-      >
-        {confirmingDeleteId === raw.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />}
-      </button>
+      {canDeleteCatalog && (
+        <>
+          <button
+            onClick={() => handleOpenRawModal(raw)}
+            className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-secondary)] rounded-lg cursor-pointer transition-colors"
+            title="Ubah master item"
+          >
+            <Edit2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+          </button>
+          <button
+            onClick={() => {
+              if (confirmingDeleteId === raw.id) {
+                onDeleteRawMaterial(raw.id);
+                setConfirmingDeleteId(null);
+                toast('Dihapus', `${raw.name} berhasil dihapus.`);
+              } else {
+                setConfirmingDeleteId(raw.id);
+                setTimeout(() => setConfirmingDeleteId(null), 3000);
+              }
+            }}
+            className={`p-1 rounded-lg cursor-pointer transition-colors ${
+              confirmingDeleteId === raw.id ? 'bg-[var(--accent-red)] text-white' : 'text-[var(--accent-red)] hover:bg-[var(--danger-soft)]'
+            }`}
+            title={confirmingDeleteId === raw.id ? 'Klik lagi untuk hapus' : 'Hapus item'}
+          >
+            {confirmingDeleteId === raw.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />}
+          </button>
+        </>
+      )}
     </div>
   );
 
-  const renderRawStepper = (raw: RawMaterial) => (
-    <div className="flex items-center gap-0.5 md:gap-1">
+  const renderRawStepper = (raw: RawMaterial) => {
+    const amount = quickStockAmount(raw.id);
+    const isAdjusting = adjustingStockIds.has(raw.id);
+    return (
+    <div className="flex items-center gap-1" aria-label={`Mutasi cepat stok ${raw.name}`}>
       <button
         onClick={() => handleAdjustStock(raw, -1)}
-        className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border transition-colors hover:bg-[var(--panel-border-strong)] md:h-6 md:w-6"
+        disabled={isAdjusting}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border transition-colors hover:bg-[var(--panel-border-strong)] disabled:cursor-wait disabled:opacity-50"
           style={{ background: 'var(--surface-secondary)', borderColor: 'var(--panel-border)', color: 'var(--text-secondary)' }}
-        title="Kurangi stok"
+        title={`Stok keluar ${amount || 0} ${raw.unit}`}
+        aria-label={`Keluarkan ${amount || 0} ${raw.unit} ${raw.name}`}
       >
-        <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
+        <Minus className="h-3 w-3" />
       </button>
+      <div className="relative">
+        <input
+          type="number"
+          min="0"
+          step="any"
+          inputMode="decimal"
+          value={amount}
+          disabled={isAdjusting}
+          onChange={(event) => setQuickStockAmounts((current) => ({ ...current, [raw.id]: event.target.value }))}
+          onBlur={() => {
+            const value = Number(quickStockAmount(raw.id));
+            if (!Number.isFinite(value) || value <= 0) {
+              setQuickStockAmounts((current) => ({ ...current, [raw.id]: '1' }));
+            }
+          }}
+          className="h-7 w-14 rounded-lg border border-[var(--panel-border)] bg-[var(--surface-card)] px-1 text-center text-[11px] font-extrabold tabular-nums text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-wait disabled:opacity-60"
+          aria-label={`Jumlah mutasi stok ${raw.name}`}
+          title={`Masukkan jumlah dalam ${raw.unit}`}
+        />
+        {isAdjusting && <RefreshCw className="pointer-events-none absolute right-1 top-2 h-3 w-3 animate-spin text-[var(--primary)]" />}
+      </div>
       <button
         onClick={() => handleAdjustStock(raw, 1)}
-        className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[var(--brand-50)] border border-[var(--brand-200)] text-[var(--primary-text)] hover:bg-[var(--brand-100)] flex items-center justify-center cursor-pointer transition-colors"
-        title="Tambah stok"
+        disabled={isAdjusting}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-[var(--brand-200)] bg-[var(--brand-50)] text-[var(--primary-text)] transition-colors hover:bg-[var(--brand-100)] disabled:cursor-wait disabled:opacity-50"
+        title={`Stok masuk ${amount || 0} ${raw.unit}`}
+        aria-label={`Masukkan ${amount || 0} ${raw.unit} ${raw.name}`}
       >
-        <Plus className="w-2.5 h-2.5 md:w-3 md:h-3" />
+        <Plus className="h-3 w-3" />
       </button>
     </div>
-  );
+    );
+  };
 
   const handleOpenEditMenuModal = (menu?: MenuItem) => {
     if (menu) {
@@ -396,7 +475,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         id: 'raw-' + Date.now().toString().slice(-4),
         name: '',
         unit: 'pcs',
-        stockQuantity: 10,
+        stockQuantity: 0,
         minStockThreshold: 5,
         costPerUnit: 10000,
         branchId: currentBranch?.id || branches[0]?.id || '00000000-0000-4000-a000-000000000010',
@@ -408,10 +487,23 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     setIsRawModalOpen(true);
   };
 
-  const handleSaveRawForm = (e: React.FormEvent) => {
+  const handleSaveRawForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRaw) return;
     if (!editingRaw?.name?.trim()) {
       toast('Validasi', 'Nama bahan baku wajib diisi!');
+      return;
+    }
+    if ((Number(editingRaw.stockQuantity) || 0) < 0 || (Number(editingRaw.minStockThreshold) || 0) < 0 || (Number(editingRaw.costPerUnit) || 0) < 0) {
+      toast('Validasi', 'Stok, batas minimum, dan biaya tidak boleh bernilai negatif.');
+      return;
+    }
+    const duplicate = rawMaterials.some((material) => (
+      material.id !== editingRaw.id
+      && material.name.trim().toLocaleLowerCase('id-ID') === editingRaw.name?.trim().toLocaleLowerCase('id-ID')
+    ));
+    if (duplicate) {
+      toast('Nama Sudah Digunakan', 'Gunakan nama bahan yang berbeda dalam cabang ini.');
       return;
     }
     const targetBranch = branches.find((b) => b.id === editingRaw.branchId) || currentBranch;
@@ -419,7 +511,9 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       id: editingRaw.id || 'raw-' + Date.now().toString().slice(-4),
       name: editingRaw.name.trim(),
       unit: (editingRaw.unit as any) || 'pcs',
-      stockQuantity: Number(editingRaw.stockQuantity) || 0,
+      // Saldo item lama hanya boleh berubah melalui mutasi beralasan agar
+      // ledger tidak tercampur dengan perubahan master data.
+      stockQuantity: existingEditingRaw?.stockQuantity ?? (Number(editingRaw.stockQuantity) || 0),
       minStockThreshold: Number(editingRaw.minStockThreshold) || 0,
       costPerUnit: Number(editingRaw.costPerUnit) || 0,
       branchId: editingRaw.branchId || targetBranch?.id || '00000000-0000-4000-a000-000000000010',
@@ -427,9 +521,17 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
       group: editingRaw.group || 'DAPUR',
       takeAwayUsagePerItem: editingRaw.group === 'KEMASAN' ? Number(editingRaw.takeAwayUsagePerItem) || 1 : undefined
     };
-    onUpdateRawMaterial(finalMaterial);
-    setIsRawModalOpen(false);
-    setEditingRaw(null);
+    setIsSavingRaw(true);
+    try {
+      await onUpdateRawMaterial(finalMaterial);
+      setIsRawModalOpen(false);
+      setEditingRaw(null);
+    } catch {
+      // Toast kegagalan ditampilkan oleh pemilik mutation. Modal tetap dibuka
+      // agar input operator tidak hilang dan dapat dicoba kembali.
+    } finally {
+      setIsSavingRaw(false);
+    }
   };
 
   const handleAddCategory = () => {
@@ -786,6 +888,19 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           onRefresh={() => onRefreshCatalog?.()}
           onShowToast={(t, m) => toast(t, m)}
         />
+      )}
+
+      {activeGroup && filteredRawList.length > 0 && (
+        <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 text-emerald-950 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+            <div>
+              <p className="text-[11px] font-extrabold">Mutasi cepat tercatat per jumlah</p>
+              <p className="text-[10px] font-semibold text-emerald-800/80">Isi angka, lalu tekan − untuk stok keluar atau + untuk stok masuk. Gunakan Stok Opname untuk koreksi fisik dan alasan khusus.</p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">SATU AKSI = SATU LEDGER</span>
+        </div>
       )}
 
       {/* Stock list — grid or list mode */}
@@ -1568,12 +1683,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
           >
             <div className="flex items-center justify-between border-b border-[var(--panel-border-light)] pb-3">
               <h2 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">
-                {editingRaw.id ? 'EDIT BAHAN BAKU' : 'TAMBAH BAHAN BAKU'}
+                {existingEditingRaw ? 'EDIT BAHAN BAKU' : 'TAMBAH BAHAN BAKU'}
               </h2>
               <button
                 type="button"
+                disabled={isSavingRaw}
                 onClick={() => setIsRawModalOpen(false)}
-                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
+                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer disabled:cursor-wait disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1640,10 +1756,15 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                   <input
                     type="number"
                     step="any"
-                    value={editingRaw.stockQuantity ?? 10}
+                    min={0}
+                    value={editingRaw.stockQuantity ?? 0}
+                    disabled={Boolean(existingEditingRaw)}
                     onChange={(e) => setEditingRaw({ ...editingRaw, stockQuantity: Number(e.target.value) })}
-                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)]"
+                    className="w-full bg-[var(--surface-secondary)] border border-[var(--panel-border)] rounded-2xl p-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--primary)] focus:bg-[var(--surface-card)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   />
+                  {existingEditingRaw && (
+                    <p className="mt-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Ubah saldo melalui kontrol cepat atau Stok Opname agar tercatat di ledger.</p>
+                  )}
                 </div>
               </div>
 
@@ -1727,9 +1848,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full py-3 md:py-3.5 bg-[var(--primary-solid)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs rounded-2xl shadow-sm uppercase tracking-wider transition-all cursor-pointer"
+                disabled={isSavingRaw}
+                className="w-full py-3 md:py-3.5 bg-[var(--primary-solid)] hover:bg-[var(--primary-hover)] text-white font-bold text-xs rounded-2xl shadow-sm uppercase tracking-wider transition-all cursor-pointer disabled:cursor-wait disabled:opacity-60"
               >
-                Simpan Bahan Baku
+                {isSavingRaw ? 'Menyimpan ke Cloud...' : 'Simpan Bahan Baku'}
               </button>
             </div>
           </form>

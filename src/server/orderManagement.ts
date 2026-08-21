@@ -292,6 +292,30 @@ export async function handleOrderRequest(
       return { status: 200, data: { success: true } };
     }
 
+    const { data: currentOrder, error: currentOrderError } = await admin.from('orders')
+      .select('status,payment_status')
+      .eq('id', payload.orderId)
+      .eq('branch_id', branchId)
+      .maybeSingle();
+    if (currentOrderError || !currentOrder) return fail(404, 'Pesanan tidak ditemukan');
+
+    // Pembayaran tidak boleh membekukan proses dapur: order yang dibayar di
+    // awal masih boleh maju NEW -> COOKING -> READY -> COMPLETED. Namun order
+    // lunas yang sudah COMPLETED adalah final dan tidak boleh dibuka kembali.
+    if (currentOrder.payment_status === 'PAID' && currentOrder.status === 'COMPLETED') {
+      if (payload.status === 'COMPLETED') return { status: 200, data: { success: true } };
+      return fail(409, 'Pesanan lunas yang sudah selesai tidak dapat dibuka atau diubah kembali');
+    }
+    if (currentOrder.status === 'CANCELLED') {
+      return fail(409, 'Pesanan yang dibatalkan tidak dapat diubah');
+    }
+    if (currentOrder.payment_status === 'PAID') {
+      const progressRank: Record<string, number> = { NEW: 0, COOKING: 1, READY: 2, COMPLETED: 3 };
+      if ((progressRank[payload.status] ?? -1) < (progressRank[currentOrder.status] ?? -1)) {
+        return fail(409, 'Status pesanan lunas hanya dapat bergerak maju sampai selesai');
+      }
+    }
+
     const completedShiftId = UUID_PATTERN.test(String(payload.shiftId || '')) ? String(payload.shiftId) : null;
     let updateResult = await admin.from('orders').update({
       status: payload.status,
@@ -343,10 +367,20 @@ export async function handleOrderRequest(
   let existingOrderId = '';
   if (UUID_PATTERN.test(String(input.id || ''))) {
     const [{ data: byId }, { data: byRequest }] = await Promise.all([
-      admin.from('orders').select('id').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
-      admin.from('orders').select('id').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', input.id).maybeSingle(),
+      admin.from('orders').select('id,status,payment_status').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
+      admin.from('orders').select('id,status,payment_status').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', input.id).maybeSingle(),
     ]);
     existingOrderId = byId?.id || byRequest?.id || '';
+    const existingOrder = byId || byRequest;
+    // Konten order yang sudah lunas merupakan snapshot transaksi. UI kasir
+    // menguncinya, dan API juga wajib menolak klien lama/stale yang mencoba
+    // mengganti item, meja, diskon, atau catatan melalui checkout_order.
+    if (source === 'POS' && existingOrder?.payment_status === 'PAID') {
+      return fail(409, 'Pesanan lunas sudah dikunci dan tidak dapat diubah');
+    }
+    if (source === 'POS' && existingOrder?.status === 'CANCELLED') {
+      return fail(409, 'Pesanan yang dibatalkan tidak dapat diubah');
+    }
   }
   if (source === 'SELF_ORDER' && existingOrderId) {
     const orders = await readOrders(branchId, admin, existingOrderId);

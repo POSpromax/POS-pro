@@ -59,7 +59,6 @@ const POSMenuItemCard: React.FC<{
   onOpenCondiments?: (item: MenuItem) => void;
   hasCondiments?: boolean;
   isPaidOrder?: boolean;
-  onUnlockNewOrder?: () => void;
 }> = ({
   item,
   isSelectedInCart = false,
@@ -67,7 +66,6 @@ const POSMenuItemCard: React.FC<{
   onOpenCondiments,
   hasCondiments = false,
   isPaidOrder = false,
-  onUnlockNewOrder,
 }) => {
   const [imgError, setImgError] = useState(false);
 
@@ -97,9 +95,7 @@ const POSMenuItemCard: React.FC<{
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isPaidOrder && onUnlockNewOrder) {
-      onUnlockNewOrder();
-    }
+    if (isPaidOrder) return;
     if (shouldTriggerCondiments && onOpenCondiments) {
       onOpenCondiments(item);
     } else {
@@ -110,13 +106,19 @@ const POSMenuItemCard: React.FC<{
   return (
     <div
       onClick={handleClick}
-      className={`group relative flex flex-col overflow-hidden rounded-2xl border p-2.5 transition-all duration-200 select-none cursor-pointer ${
-        isSelectedInCart
+      aria-disabled={isPaidOrder}
+      title={isPaidOrder ? 'Pesanan lunas terkunci. Buat order baru untuk menambah menu.' : undefined}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border p-2.5 transition-all duration-200 select-none ${
+        isPaidOrder
+          ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-55 grayscale'
+          : isSelectedInCart
           ? 'shadow-md border-[#059669]'
-          : 'border-slate-200 bg-white hover:border-[#059669] hover:shadow-sm'
+          : 'cursor-pointer border-slate-200 bg-white hover:border-[#059669] hover:shadow-sm'
       }`}
       style={
-        isSelectedInCart
+        isPaidOrder
+          ? { background: '#F1F5F9', borderColor: '#E2E8F0' }
+          : isSelectedInCart
           ? { background: '#F0FDF4', borderColor: '#059669' }
           : { background: '#ffffff', borderColor: '#E5E7EB' }
       }
@@ -159,14 +161,17 @@ const POSMenuItemCard: React.FC<{
 
           <button
             type="button"
+            disabled={isPaidOrder}
             onClick={handleClick}
-            className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full transition-all cursor-pointer"
+            className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full transition-all cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             style={
-              isSelectedInCart
+              isPaidOrder
+                ? { background: '#E2E8F0', color: '#94A3B8' }
+                : isSelectedInCart
                 ? { background: '#047857', color: '#ffffff' }
                 : { background: '#F0FDF4', color: '#047857' }
             }
-            title={shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
+            title={isPaidOrder ? 'Pesanan lunas terkunci' : shouldTriggerCondiments ? 'Pilih Isian & Topping' : 'Tambah ke Keranjang'}
           >
             <Plus className="h-3.5 w-3.5 stroke-[3]" style={{ color: isSelectedInCart ? '#ffffff' : '#047857' }} />
           </button>
@@ -320,22 +325,20 @@ export const CashierView: React.FC<CashierViewProps> = ({
     return matchesCat && matchesSearch;
   });
 
-  const handleUnlockNewOrder = () => {
-    setCurrentEditingOrderId(null);
-  };
-
   // Handlers for Table Selection & Customer Name
   const handleCustomerNameChange = (name: string) => {
+    if (isPaidOrder) return;
     setCustomerName(name);
   };
 
   const handleSelectTable = (tblNum: string) => {
+    if (isPaidOrder) return;
     setSelectedTable(tblNum);
   };
 
   // Cart Handlers — Consolidates identical items into a single row with combined quantity (2x, 3x)
   const handleAddToCart = (item: MenuItem, selectedCondiments?: { groupName: string; options: string[] }[]) => {
-    if (isPaidOrder) handleUnlockNewOrder();
+    if (isPaidOrder) return;
 
     setCartItems((prevItems) => {
       const newItem: OrderItem = {
@@ -352,7 +355,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   };
 
   const handleUpdateQuantity = (itemId: string, delta: number) => {
-    if (isPaidOrder) handleUnlockNewOrder();
+    if (isPaidOrder) return;
 
     setCartItems((prevItems) => {
       return prevItems
@@ -368,7 +371,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   };
 
   const handleUpdateNotes = (itemId: string, notes: string) => {
-    if (isPaidOrder) handleUnlockNewOrder();
+    if (isPaidOrder) return;
     setCartItems((prevItems) =>
       prevItems.map((item) => (item.id === itemId ? { ...item, notes } : item))
     );
@@ -438,18 +441,19 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   // Condiments Trigger Modal Handler
   const handleOpenCondimentModal = (item: MenuItem) => {
-    if (isPaidOrder) handleUnlockNewOrder();
+    if (isPaidOrder) return;
     setActiveItemForCondiment(item);
     setIsCondimentModalOpen(true);
   };
 
   const handleOpenManualItem = (item: MenuItem) => {
-    if (isPaidOrder) handleUnlockNewOrder();
+    if (isPaidOrder) return;
     setManualItemSource(item);
     setManualItemDraft({ name: item.name, price: item.price ? String(item.price) : '', notes: '' });
   };
 
   const handleConfirmManualItem = () => {
+    if (isPaidOrder) return;
     if (!manualItemDraft.name.trim() || Number(manualItemDraft.price) <= 0) return;
     setCartItems((prev) => consolidateCartItems([
       ...prev,
@@ -544,10 +548,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
       {React.isValidElement(headerElement)
         ? React.cloneElement(headerElement as React.ReactElement<any>, {
             orderType,
-            onSelectOrderType: setOrderType,
+            onSelectOrderType: isPaidOrder ? () => undefined : setOrderType,
             onClearCart: handleClearCart,
             isCondimentsEnabled,
-            onToggleCondiments: toggleCondiments
+            onToggleCondiments: isPaidOrder ? () => undefined : toggleCondiments
           })
         : headerElement}
 
@@ -799,7 +803,6 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       onOpenCondiments={item.isManualPrice ? undefined : handleOpenCondimentModal}
                       hasCondiments={!item.isManualPrice && hasCondiments}
                       isPaidOrder={isPaidOrder}
-                      onUnlockNewOrder={handleUnlockNewOrder}
                     />
                   );
                 })
@@ -833,16 +836,24 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 </span>
               </div>
 
+              {isPaidOrder && (
+                <div className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-600" role="status">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Lunas · Pesanan terkunci
+                </div>
+              )}
+
               {/* Bottom Row: Customer Name & Table Number Inputs (Matching Pill Aesthetic, Smooth Emerald Focus) */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 transition-all focus-within:bg-white focus-within:border-[#047857] focus-within:ring-2 focus-within:ring-[#047857]/20">
                   <User className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
                   <input
                     type="text"
+                    disabled={isPaidOrder}
                     placeholder="Nama..."
                     value={customerName}
                     onChange={(e) => handleCustomerNameChange(e.target.value)}
-                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0"
+                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0 disabled:cursor-not-allowed disabled:text-slate-400"
                     style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                     title="Nama Pelanggan"
                   />
@@ -852,10 +863,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   <span className="text-[11px] font-extrabold text-[#047857] mr-1.5 shrink-0 select-none">Meja</span>
                   <input
                     type="text"
+                    disabled={isPaidOrder}
                     placeholder="-"
                     value={selectedTable === '-' ? '' : selectedTable}
                     onChange={(e) => handleSelectTable(e.target.value)}
-                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0"
+                    className="w-full text-xs font-extrabold text-[#111827] bg-transparent placeholder:text-slate-400 outline-none border-none ring-0 shadow-none focus:outline-none focus:border-none focus:ring-0 disabled:cursor-not-allowed disabled:text-slate-400"
                     style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                     title="Ketik nomor meja (misal: 1, 2, 5, 12B)"
                   />
@@ -886,8 +898,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                         <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-0.5">
                           <button
                             type="button"
+                            disabled={isPaidOrder}
                             onClick={() => handleUpdateQuantity(item.id, -1)}
-                            className="w-5 h-5 rounded-md bg-white border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 cursor-pointer"
+                            className="w-5 h-5 rounded-md bg-white border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"
                           >
                             <Minus className="w-2.5 h-2.5 stroke-[2.5]" />
                           </button>
@@ -896,8 +909,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                           </span>
                           <button
                             type="button"
+                            disabled={isPaidOrder}
                             onClick={() => handleUpdateQuantity(item.id, 1)}
-                            className="w-5 h-5 rounded-md text-white flex items-center justify-center cursor-pointer"
+                            className="w-5 h-5 rounded-md text-white flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-35"
                             style={{ background: '#047857', color: '#ffffff' }}
                           >
                             <Plus className="w-2.5 h-2.5 stroke-[2.5] text-white" />
@@ -905,8 +919,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
                         </div>
                         <button
                           type="button"
+                          disabled={isPaidOrder}
                           onClick={() => handleUpdateQuantity(item.id, -item.quantity)}
-                          className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
+                          className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5 disabled:cursor-not-allowed disabled:text-slate-300"
                           title="Hapus item"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -921,10 +936,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
                       </p>
                       <input
                         type="text"
+                        disabled={isPaidOrder}
                         placeholder="+ Catatan item..."
                         value={item.notes || ''}
                         onChange={(e) => handleUpdateNotes(item.id, e.target.value)}
-                        className="flex-1 bg-slate-50/80 border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold text-[#111827] placeholder:text-slate-400 outline-none focus:bg-white focus:border-[#047857] transition-all"
+                        className="flex-1 bg-slate-50/80 border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold text-[#111827] placeholder:text-slate-400 outline-none focus:bg-white focus:border-[#047857] transition-all disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                         title="Catatan pesanan"
                       />
                     </div>
@@ -1107,6 +1123,11 @@ export const CashierView: React.FC<CashierViewProps> = ({
         menuItem={activeItemForCondiment}
         condimentGroups={condimentGroups || []}
         onConfirm={(menuItem, selectedCondiments, notes, extraPrice) => {
+          if (isPaidOrder) {
+            setIsCondimentModalOpen(false);
+            setActiveItemForCondiment(null);
+            return;
+          }
           setCartItems((prev) => consolidateCartItems([
             ...prev,
             {

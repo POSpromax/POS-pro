@@ -38,10 +38,20 @@ Migrasi operasional terbaru harus dijalankan berurutan setelah `021` dan `022`:
    alasan izin yang tampil, status dibayar, hari kerja, dan toleransi penalti
    keterlambatan.
 
-Urutan setelah `024` berlanjut sampai `202608200046_recipe_custom_ingredient.sql`.
+Urutan setelah `024` berlanjut sampai `202608210048_expand_raw_material_units.sql`.
 Jangan menganggap daftar singkat di atas sebagai daftar migration lengkap; sumber
 kebenaran adalah urutan nama file di `supabase/migrations/`. Migration `046`
 harus diterapkan setelah `045` dan diperlukan hanya untuk resep yang memakai
 bahan custom (`custom_name`/`custom_cost`). Resep yang seluruhnya memakai bahan
 master tetap kompatibel sebelum `046`, tetapi jangan mengaktifkan bahan custom
 di produksi sampai migration tersebut terverifikasi.
+
+Migration `047` wajib diterapkan setelah `046`. Migration ini mengunci progres
+status order lunas agar tidak dapat mundur dari `COMPLETED` ke `COOKING`, serta
+memperbaiki data lama yang seluruh item dapurnya sudah `DONE` tetapi status order
+induknya masih terbuka. Trigger lifecycle meja yang sudah ada akan melepaskan
+meja ketika perbaikan tersebut dijalankan.
+
+Migration `048` wajib diterapkan setelah `047` dan menyelaraskan pilihan satuan
+Inventory dengan constraint database (`porsi`, `pouch`, `bungkus`, dan `box`).
+Migration ini idempoten terhadap constraint dan tidak mengubah saldo stok.

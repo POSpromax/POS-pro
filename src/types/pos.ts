@@ -68,7 +68,7 @@ export type MaterialGroup = 'MENU' | 'DAPUR' | 'KEMASAN';
 export interface RawMaterial {
   id: string;
   name: string;
-  unit: 'kg' | 'gram' | 'pcs' | 'liter' | 'pack';
+  unit: 'kg' | 'gram' | 'pcs' | 'liter' | 'pack' | 'porsi' | 'pouch' | 'bungkus' | 'box';
   stockQuantity: number;
   minStockThreshold: number;
   costPerUnit: number; // In IDR
