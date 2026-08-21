@@ -483,6 +483,10 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
   };
 
   const handleOpenRawModal = (raw?: RawMaterial) => {
+    if (!canDeleteCatalog) {
+      toast('Akses Master Terbatas', 'Pembuatan dan perubahan master bahan hanya tersedia untuk Owner, Manager, atau Admin cabang.');
+      return;
+    }
     if (raw) {
       setEditingRaw({ ...raw });
       setRawStockInput(String(raw.stockQuantity ?? 0));
@@ -703,9 +707,11 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                 </div>
               )}
 
-              <button type="button" onClick={subTab === 'MENU' ? () => handleOpenEditMenuModal() : () => handleOpenRawModal()} className="ui-button ui-button-primary min-h-10 flex-1 gap-1.5 whitespace-nowrap px-3 text-[11px] sm:flex-none">
-                <Plus className="h-3.5 w-3.5" /> {subTab === 'MENU' ? 'Tambah menu' : 'Tambah item'}
-              </button>
+              {(subTab === 'MENU' || canDeleteCatalog) && (
+                <button type="button" onClick={subTab === 'MENU' ? () => handleOpenEditMenuModal() : () => handleOpenRawModal()} className="ui-button ui-button-primary min-h-10 flex-1 gap-1.5 whitespace-nowrap px-3 text-[11px] sm:flex-none">
+                  <Plus className="h-3.5 w-3.5" /> {subTab === 'MENU' ? 'Tambah menu' : 'Tambah item'}
+                </button>
+              )}
 
               <div className="relative">
                 <button type="button" onClick={() => setIsMoreMenuOpen((open) => !open)} aria-label="Tindakan lainnya" aria-expanded={isMoreMenuOpen} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900">
@@ -720,7 +726,12 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
               </div>
             </div>
           </div>
-          {activeGroup && <p className="mt-2 px-1 text-[10px] font-semibold text-slate-400">Mutasi cepat: masukkan jumlah, lalu pilih keluar atau masuk. Setiap aksi membuat satu catatan ledger.</p>}
+          {activeGroup && (
+            <p className="mt-2 px-1 text-[10px] font-semibold text-slate-400">
+              Mutasi cepat: masukkan jumlah, lalu pilih keluar atau masuk. Setiap aksi membuat satu catatan ledger.
+              {!canDeleteCatalog && ' Master bahan dikelola Owner/Manager/Admin.'}
+            </p>
+          )}
         </section>
       )}
 
@@ -876,9 +887,13 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
             </div>
             <p className="mt-3 text-sm font-extrabold text-slate-800">Belum ada {GROUP_TAB_LABEL[activeGroup]}</p>
             <p className="mx-auto mt-1 max-w-md text-xs font-medium text-slate-500">Tambahkan master bahan khusus {currentBranch?.code || 'outlet ini'} agar stok, HPP, dan peringatan belanja dapat dihitung.</p>
-            <button type="button" onClick={() => handleOpenRawModal()} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold shadow-md hover:bg-emerald-700" style={{ color: '#ffffff' }}>
-              <Plus className="h-4 w-4" /> Tambah item pertama
-            </button>
+            {canDeleteCatalog ? (
+              <button type="button" onClick={() => handleOpenRawModal()} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold shadow-md hover:bg-emerald-700" style={{ color: '#ffffff' }}>
+                <Plus className="h-4 w-4" /> Tambah item pertama
+              </button>
+            ) : (
+              <p className="mt-4 text-[11px] font-bold text-slate-500">Hubungi Owner/Manager/Admin untuk membuat master bahan pertama.</p>
+            )}
           </div>
         ) : viewMode === 'GRID' ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
