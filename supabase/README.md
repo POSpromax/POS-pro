@@ -69,3 +69,8 @@ Migration `051` wajib diterapkan setelah `050`. Migration ini membuat simpan
 menu beserta resep serta simpan/hapus grup isian dan topping menjadi transaksi
 atomik. Kegagalan salah satu langkah membatalkan seluruh perubahan sehingga
 tidak ada menu tanpa resep atau konfigurasi condiment yang tersimpan separuh.
+
+Migration `052` wajib diterapkan setelah `051` untuk model operasional tempat
+Kasir juga bertindak sebagai kepala outlet. KASIR mendapat CRUD master bahan dan
+menu hanya pada cabang membership aktifnya. Hak reset massal katalog tetap tidak
+diberikan kepada KASIR dari UI.
