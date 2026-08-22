@@ -5,7 +5,9 @@
 - Satu kanal order privat per cabang aktif: `branch:{branchId}:orders`.
 - Satu kanal perubahan master operasional: `branch:{branchId}:operations`.
 - Database hanya menyiarkan event kecil `INSERT`, `UPDATE`, atau `DELETE`; aplikasi tidak lagi menyiarkan seluruh array order.
-- Event diringkas dengan debounce 250 ms lalu mengambil maksimal 150 order terbaru beserta itemnya.
+- Event diringkas dengan debounce lalu mengambil hanya order ID yang berubah.
+  Snapshot maksimal 150 order beserta item hanya dipakai pada bootstrap; safety
+  net berikutnya memakai kursor `updated_at`.
 - Koneksi dilepas saat pengguna logout atau berpindah cabang, sehingga tab tidak meninggalkan kanal yatim.
 - Self-order menulis melalui endpoint server yang memvalidasi cabang, meja, menu, harga, condiment, dan batas maksimal lima order per meja per menit.
 - Harga menu dan condiment dihitung ulang di server. Browser tidak menjadi sumber kebenaran harga.
@@ -14,8 +16,9 @@
 - Event operations hanya membawa metadata perubahan. Setelah event diterima,
   aplikasi membaca ulang row resmi dari database; event tidak membawa array
   state dan tidak pernah ditulis ke `localStorage`.
-- Subscription hanya hidup pada layar yang membutuhkan. KDS tidak membuka
-  channel master data, sedangkan dashboard Owner memakai snapshot berkala.
+- Subscription hanya hidup pada layar yang membutuhkan. Kanal operasi bersama
+  boleh hidup di POS/KDS, tetapi event stok tidak memicu unduhan bahan baku di
+  luar layar Inventory. Dashboard Owner memakai snapshot ringkas berkala.
 - Perubahan order mengirim satu invalidation per row order; event per item
   dihapus karena item selalu disimpan bersama perubahan row order.
 

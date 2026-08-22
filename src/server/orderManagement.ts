@@ -5,6 +5,13 @@ const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELL
 const PAYMENT_METHODS = new Set(['CASH', 'QRIS', 'DEBIT', 'TRANSFER']);
 const DISCOUNT_TYPES = new Set(['NONE', 'STAFF_EATING', 'PROMO', 'VOUCHER', 'SERVICE_RECOVERY', 'OWNER_COMPLIMENTARY', 'OTHER']);
 
+// Endpoint order adalah jalur baca tersibuk. Ambil hanya kolom yang dipetakan
+// ke model klien; select('*') ikut mengirim tenant_id, terminal_id,
+// client_request_id, version, inventory_deducted_at, dan kolom internal lain
+// pada setiap snapshot/fallback tanpa pernah dipakai browser.
+const ORDER_READ_FIELDS = 'id,order_number,daily_number,customer_name,table_id,order_type,subtotal_amount,discount_amount,tax_amount,total_amount,payment_method,payment_status,paid_amount,change_amount,status,created_at,updated_at,shift_id,created_shift_id,paid_shift_id,completed_shift_id,branch_id,cashier_name,source,notes,restaurant_tables!orders_table_id_fkey(number)';
+const ORDER_ITEM_READ_FIELDS = 'id,order_id,menu_item_id,item_name,unit_price,quantity,notes,modifiers,kitchen_status,created_at';
+
 export interface OrderRequestResult { status: number; data: unknown }
 const fail = (status: number, error: string): OrderRequestResult => ({ status, data: { error } });
 
@@ -88,7 +95,7 @@ async function readOrders(
   since?: string,
   reportRange?: { from: string; to: string; offset: number; limit: number },
 ) {
-  const select = '*, restaurant_tables!orders_table_id_fkey(number)';
+  const select = ORDER_READ_FIELDS;
   let rows: any[] = [];
   if (orderId) {
     const { data, error } = await admin.from('orders').select(select).eq('branch_id', branchId).eq('id', orderId).limit(1);
@@ -133,7 +140,7 @@ async function readOrders(
     // Batasi panjang URL PostgREST. Laporan dapat membawa ratusan order dan
     // `.in()` tunggal yang terlalu panjang rawan ditolak proxy/browser.
     for (let index = 0; index < ids.length; index += 150) {
-      const { data, error } = await admin.from('order_items').select('*').in('order_id', ids.slice(index, index + 150)).order('created_at');
+      const { data, error } = await admin.from('order_items').select(ORDER_ITEM_READ_FIELDS).in('order_id', ids.slice(index, index + 150)).order('created_at');
       if (error) throw error;
       items.push(...(data || []));
     }
@@ -669,8 +676,8 @@ export async function handleOrderRequest(
   }
 
   const [{ data: savedRow }, { data: savedItems }] = await Promise.all([
-    admin.from('orders').select('*, restaurant_tables!orders_table_id_fkey(number)').eq('id', savedOrderId).single(),
-    admin.from('order_items').select('*').eq('order_id', savedOrderId).order('created_at'),
+    admin.from('orders').select(ORDER_READ_FIELDS).eq('id', savedOrderId).single(),
+    admin.from('order_items').select(ORDER_ITEM_READ_FIELDS).eq('order_id', savedOrderId).order('created_at'),
   ]);
   if (!savedRow) return fail(500, 'Pesanan gagal dibaca setelah disimpan');
 

@@ -4,6 +4,14 @@ import { adjustStockByDelta, adjustStockManual, type StockMovementType } from '.
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Jangan memakai select('*') untuk snapshot katalog. Kolom audit/internal
+// (tenant, timestamps, dan metadata lain) tidak pernah dipakai UI, tetapi ikut
+// dihitung sebagai PostgREST egress pada setiap terminal yang memuat katalog.
+const MENU_ITEM_FIELDS = 'id,name,category,price,image_url,description,hpp_cost,is_available,stock_count,sort_order';
+const RAW_MATERIAL_FIELDS = 'id,name,unit,stock_quantity,min_stock_threshold,cost_per_unit,branch_id,material_group,take_away_usage_per_item';
+const INGREDIENT_FIELDS = 'menu_item_id,raw_material_id,amount_needed,unit,custom_name,custom_cost';
+const LEGACY_INGREDIENT_FIELDS = 'menu_item_id,raw_material_id,amount_needed,unit';
+
 // Hanya bahan baku (tanpa menu & resep) — untuk dashboard owner yang cuma butuh
 // hitung stok kritis. Jauh lebih ringan daripada listCloudCatalog penuh.
 export async function listCloudRawMaterials(branchId: string): Promise<RawMaterial[]> {
@@ -26,14 +34,23 @@ export async function listCloudRawMaterials(branchId: string): Promise<RawMateri
 export async function listCloudCatalog(branchId: string): Promise<{ menuItems: MenuItem[]; rawMaterials: RawMaterial[] }> {
   const supabase = getSupabase();
   const [{ data: menuRows, error: menuError }, { data: rawRows, error: rawError }] = await Promise.all([
-    supabase.from('menu_items').select('*').eq('branch_id', branchId).order('sort_order'),
-    supabase.from('raw_materials').select('*').eq('branch_id', branchId).order('name'),
+    supabase.from('menu_items').select(MENU_ITEM_FIELDS).eq('branch_id', branchId).order('sort_order'),
+    supabase.from('raw_materials').select(RAW_MATERIAL_FIELDS).eq('branch_id', branchId).order('name'),
   ]);
   if (menuError || rawError) throw new Error(menuError?.message || rawError?.message || 'Master data cloud gagal dibaca');
   const menuIds = (menuRows || []).map((row) => row.id);
-  const { data: ingredientRows, error: ingredientError } = menuIds.length
-    ? await supabase.from('menu_item_ingredients').select('*').in('menu_item_id', menuIds)
+  let { data: ingredientRows, error: ingredientError } = menuIds.length
+    ? await supabase.from('menu_item_ingredients').select(INGREDIENT_FIELDS).in('menu_item_id', menuIds)
     : { data: [], error: null };
+  // Deployment lama yang belum menerima migrasi bahan custom tetap dapat
+  // membaca katalog normal. Setelah migrasi 046 ada, jalur pertama otomatis
+  // membawa custom_name/custom_cost tanpa request tambahan.
+  if (ingredientError && /custom_name|custom_cost/i.test(ingredientError.message || '')) {
+    ({ data: ingredientRows, error: ingredientError } = await supabase
+      .from('menu_item_ingredients')
+      .select(LEGACY_INGREDIENT_FIELDS)
+      .in('menu_item_id', menuIds));
+  }
   if (ingredientError) throw new Error(ingredientError.message);
   const rawNames = new Map((rawRows || []).map((row) => [row.id, row.name]));
   return {
@@ -43,10 +60,9 @@ export async function listCloudCatalog(branchId: string): Promise<{ menuItems: M
       // kolom is_manual_price tidak ada di DB sehingga flag tak pernah tersimpan:
       // tanpa ini, menu berharga 0 masuk keranjang sebagai Rp 0 tanpa bisa diisi.
       const isManualPrice = row.id === 'menu-custom'
-        || Boolean(row.is_manual_price)
         || /^(menu tambahan|menu custom|custom|lainya|lainnya)$/i.test(String(row.name).trim())
         || Number(row.price || 0) <= 0;
-      const isSticky = row.id === 'menu-custom' || Boolean(row.is_sticky) || isManualPrice;
+      const isSticky = row.id === 'menu-custom' || isManualPrice;
       const ingredients = (ingredientRows || []).filter((ingredient) => ingredient.menu_item_id === row.id).map((ingredient) => {
         // Baris CUSTOM tidak punya raw_material_id: nama & biayanya tersimpan
         // langsung pada baris resep (mis. garam 3 gram, saus 5 ml).

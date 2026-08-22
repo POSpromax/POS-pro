@@ -1506,8 +1506,11 @@ export default function App() {
             }
           });
         } else if (table === 'raw_materials') {
-          // Deduksi stok terjadi TIAP order dibayar. Refetch bahan saja (~10KB),
-          // bukan seluruh katalog (menu+resep+bahan ~50KB) — hemat egress.
+          // Deduksi stok terjadi TIAP order dibayar, tetapi POS/KDS/shift/meja
+          // tidak pernah merender rawMaterials. Mengunduh daftar bahan pada
+          // setiap pembayaran di layar-layar tersebut adalah egress murni.
+          // Inventory tetap menerima pembaruan realtime tanpa polling tambahan.
+          if (activeTab !== 'inventory') return;
           debounce('rawmaterials', () => {
             void listCloudRawMaterials(branchId)
               .then((mats) => { if (isRuntimeCurrent()) setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name }))); })

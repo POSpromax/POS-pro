@@ -94,9 +94,11 @@ sebagai nilai unik global.
 | Laporan analytics | Tidak | Tidak | Snapshot saat buka/filter/manual refresh |
 | Attendance/payroll | Tidak | Tidak | Sesuai fetch halaman |
 
-Saat Realtime sehat, rekonsiliasi order berjalan maksimal sekali per 5 menit
-dan shift per 10 menit sebagai safety net. Saat channel terganggu, POS fallback
-5 detik, KDS 10 detik, dan shift 60 detik. Tab tersembunyi tidak melakukan polling.
+Saat Realtime sehat, rekonsiliasi order inkremental berjalan maksimal sekali per
+120 detik (15 detik hanya pada warm-up satu menit pertama) dan shift per 10 menit
+sebagai safety net. Saat channel terganggu, POS fallback 25 detik, KDS 30 detik,
+dan shift 60 detik. Rekonsiliasi order memakai kursor `updated_at`, bukan snapshot
+150 order penuh. Tab tersembunyi tidak melakukan polling.
 
 Katalog publik Self-order tidak bergantung pada state shift dari terminal kasir.
 Endpoint katalog lengkap membaca profil, menu, condiment, meja, dan shift cabang
@@ -144,8 +146,10 @@ mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
 - Transaksi penjualan mengubah stok melalui ledger/database, bukan state browser.
 - Perubahan `raw_materials` dan resep `menu_item_ingredients` mengirim invalidation
   kecil pada kanal operations cabang, lalu layar inventory mengambil snapshot resmi.
-- Kanal inventory hanya aktif saat layar inventory/operasional terkait dibuka.
-  Tidak ada polling stok cepat ketika pengguna berada di KDS atau dashboard Owner.
+- Event stok boleh diterima oleh kanal operasional cabang yang sedang aktif,
+  tetapi snapshot `raw_materials` hanya diambil ulang ketika layar Inventory
+  terbuka. POS, KDS, shift, meja, dan settings mengabaikan invalidation stok yang
+  tidak mereka render. Dashboard Owner memiliki snapshot stok ringkas tersendiri.
 - Purchase, waste, adjustment, transfer, dan stock opname harus disimpan sebagai
   movement terpisah agar saldo dapat diaudit; `stock_quantity` adalah saldo hasil,
   bukan satu-satunya histori.
@@ -169,6 +173,21 @@ mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
   (`PROMO`, `VOUCHER`, `SERVICE_RECOVERY`, `OWNER_COMPLIMENTARY`, `OTHER`)
   disimpan eksplisit pada metadata order; data lama tanpa kategori tetap memakai
   inferensi diskon 100% hanya sebagai kompatibilitas baca.
+
+### Baseline egress 22 Agustus 2026
+
+- Siklus 8 Agustus–8 September menunjukkan 2,03 GB terpakai dari kuota gratis
+  5 GB; contoh 21 Agustus sekitar 124 MB/hari.
+- Komposisi contoh hari tersebut: PostgREST 115,765 MB (93,3%), Auth 7,727 MB
+  (6,2%), dan Realtime 576,817 KB (0,5%). Karena itu optimasi tidak menurunkan
+  respons Realtime POS/KDS; fokusnya memangkas kolom dan request REST yang tidak
+  dipakai.
+- Snapshot katalog, order, item order, dan meja memakai daftar kolom eksplisit.
+  Data internal/audit tidak ikut dikirim ke browser bila tidak digunakan.
+- Pada laju 124 MB/hari, proyeksi 31 hari sekitar 3,84 GB. Ini masih di bawah
+  kuota satu cabang, tetapi belum cukup aman bila dua cabang memiliki trafik
+  serupa. Evaluasi berdasarkan tujuh hari produksi setelah optimasi, bukan hari
+  development yang banyak reload/deploy.
 
 ### Metadata racikan cepat
 

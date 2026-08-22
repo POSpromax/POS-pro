@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizeBranchId } from '../utils/branchId';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TABLE_READ_FIELDS = 'id,number,capacity,status,self_order_enabled,active_order_id,branch_id';
 
 const mapTable = (row: any) => ({
   id: row.id,
@@ -48,7 +49,7 @@ export async function handleTableSessionRequest(
   }
 
   if (action === 'LIST') {
-    const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+    const { data: rows, error } = await admin.from('restaurant_tables').select(TABLE_READ_FIELDS).eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Daftar meja outlet gagal dibaca' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
   }
@@ -65,7 +66,7 @@ export async function handleTableSessionRequest(
       capacity,
       status: 'DISABLED',
       self_order_enabled: false,
-    }).select('*').single();
+    }).select(TABLE_READ_FIELDS).single();
     if (error?.code === '23505') return { status: 409, data: { error: `Meja ${tableNumber} sudah ada di outlet ini` } };
     if (error) return { status: 500, data: { error: 'Meja baru gagal disimpan ke cloud' } };
     return { status: 201, data: { table: mapTable(created) } };
@@ -97,7 +98,7 @@ export async function handleTableSessionRequest(
     const { error: repairError } = await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
       .eq('branch_id', branchId).not('active_order_id', 'is', null);
     if (repairError) return { status: 500, data: { error: 'Bill aktif tersimpan tetapi status meja gagal direkonsiliasi' } };
-    const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+    const { data: rows, error } = await admin.from('restaurant_tables').select(TABLE_READ_FIELDS).eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Pengaturan self-order semua meja gagal disimpan' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
   }
@@ -117,12 +118,12 @@ export async function handleTableSessionRequest(
     const { error: occupiedResetError } = await admin.from('restaurant_tables').update({ status: 'OCCUPIED' })
       .eq('branch_id', branchId).not('active_order_id', 'is', null);
     if (occupiedResetError) return { status: 500, data: { error: 'Meja dengan bill aktif gagal direkonsiliasi' } };
-    const { data: rows, error } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).order('number');
+    const { data: rows, error } = await admin.from('restaurant_tables').select(TABLE_READ_FIELDS).eq('branch_id', branchId).order('number');
     if (error) return { status: 500, data: { error: 'Status meja gagal direkonsiliasi' } };
     return { status: 200, data: { tables: (rows || []).map(mapTable) } };
   }
 
-  const { data: table } = await admin.from('restaurant_tables').select('*').eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
+  const { data: table } = await admin.from('restaurant_tables').select(TABLE_READ_FIELDS).eq('branch_id', branchId).eq('number', tableNumber).maybeSingle();
   if (!table) return { status: 404, data: { error: `Meja ${tableNumber} tidak ditemukan` } };
 
   // Aktivasi self-order = flag self_order_enabled. active_order_id, bukan
@@ -136,7 +137,7 @@ export async function handleTableSessionRequest(
     const changes = enabled
       ? { self_order_enabled: true, status: hasActiveBill ? 'OCCUPIED' : 'READY' }
       : { self_order_enabled: false, status: 'DISABLED', active_order_id: null };
-    const { data: updated, error } = await admin.from('restaurant_tables').update(changes).eq('id', table.id).select('*').single();
+    const { data: updated, error } = await admin.from('restaurant_tables').update(changes).eq('id', table.id).select(TABLE_READ_FIELDS).single();
     if (error) return { status: 500, data: { error: 'Pengaturan meja gagal disimpan. Pastikan migrasi meja terbaru sudah dijalankan.' } };
     return { status: 200, data: { table: mapTable(updated) } };
   }
@@ -157,7 +158,7 @@ export async function handleTableSessionRequest(
     const { data: updated, error } = await admin.from('restaurant_tables').update({
       status: normalizedStatus,
       ...(normalizedStatus === 'OCCUPIED' ? {} : { active_order_id: null }),
-    }).eq('id', table.id).select('*').single();
+    }).eq('id', table.id).select(TABLE_READ_FIELDS).single();
     if (error) return { status: 500, data: { error: 'Status meja gagal disimpan' } };
     return { status: 200, data: { table: mapTable(updated) } };
   }
