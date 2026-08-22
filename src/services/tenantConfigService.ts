@@ -7,6 +7,7 @@ type AttendanceConfig = Pick<RestaurantProfile,
   | 'gpsLatitude'
   | 'gpsLongitude'
   | 'gpsRadiusMeters'
+  | 'maxGpsAccuracyMeters'
   | 'requireSelfiePhoto'
   | 'requireGpsActive'
   | 'isAttendanceEnabled'

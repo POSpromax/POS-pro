@@ -61,6 +61,7 @@ import { CondimentBuilderPanel } from './CondimentBuilderPanel';
 import { purgeCompletedOrders } from '../../services/transactionPurgeService';
 import { resetPosData, type DataResetMode, type DataResetScope } from '../../services/dataResetService';
 import { resolveMapsShortLink } from '../../services/geoService';
+import { acquireBestGeoPosition } from '../../utils/geolocation';
 
 const STAFF_WEEKDAYS = [
   { day: 1, short: 'Sen', label: 'Senin' },
@@ -564,7 +565,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSaveConfirmKind('ACCESS');
   };
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = async () => {
     if (!('geolocation' in navigator)) {
       toast('GPS Tidak Didukung', 'Browser/perangkat ini tidak mendukung Geolocation GPS.');
       return;
@@ -573,30 +574,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     // mengisi form (tidak memaksa pindah ke tab Google Maps — itu yang bikin
     // titik tak bisa tersimpan). Tekan SIMPAN untuk menyimpan permanen.
     setIsDetectingGps(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const accuracy = Math.round(pos.coords.accuracy || 0);
-        setFormProfile((prev) => ({ ...prev, gpsLatitude: lat, gpsLongitude: lng }));
-        setDetectedGpsAccuracy(accuracy);
-        setIsDetectingGps(false);
-        toast(
-          'Lokasi Perangkat Terdeteksi',
-          `Titik terisi (akurasi ±${accuracy} m). Tekan SIMPAN untuk mengunci lokasi outlet ini.`,
-        );
-      },
-      (err) => {
-        setIsDetectingGps(false);
-        const reason = err.code === err.PERMISSION_DENIED
-          ? 'Izin lokasi ditolak. Aktifkan izin lokasi untuk aplikasi ini, lalu coba lagi.'
-          : err.code === err.TIMEOUT
-            ? 'Sinyal GPS lambat. Pastikan berada di area outlet dengan langit terbuka, lalu coba lagi.'
-            : err.message || 'Gagal mengambil lokasi.';
-        toast('GPS Gagal', reason);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    setDetectedGpsAccuracy(null);
+    const targetAccuracy = Math.max(5, Number(formProfile.maxGpsAccuracyMeters || 80));
+    try {
+      const best = await acquireBestGeoPosition({
+        targetAccuracyMeters: targetAccuracy,
+        timeoutMs: 15_000,
+        onSample: (sample) => setDetectedGpsAccuracy(Math.round(sample.accuracy)),
+      });
+      const accuracy = Math.round(best.accuracy);
+      setFormProfile((prev) => ({ ...prev, gpsLatitude: best.latitude, gpsLongitude: best.longitude }));
+      setDetectedGpsAccuracy(accuracy);
+      toast(
+        accuracy <= targetAccuracy ? 'Lokasi Perangkat Terdeteksi' : 'Titik Perlu Diverifikasi',
+        accuracy <= targetAccuracy
+          ? `Titik terbaik terisi (akurasi ±${accuracy} m). Verifikasi di Maps lalu tekan SIMPAN.`
+          : `Titik terbaik masih ±${accuracy} m, sedangkan batas ${Math.round(targetAccuracy)} m. Verifikasi pin di Maps sebelum menyimpan.`,
+      );
+    } catch (error) {
+      toast('GPS Gagal', error instanceof Error ? error.message : 'Gagal mengambil lokasi.');
+    } finally {
+      setIsDetectingGps(false);
+    }
   };
 
   // Ambil titik dari teks apa pun: koordinat "lat,lng" atau URL Google Maps PENUH
@@ -1636,7 +1635,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         />
                         <span className="text-xs font-semibold text-[var(--text-tertiary)]">Meter</span>
                       </div>
-                      <p className="mt-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Presensi ditolak jika sensor GPS terlalu tidak akurat.</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[
+                          { value: 50, label: '50 m · ketat' },
+                          { value: 100, label: '100 m · seimbang' },
+                          { value: 150, label: '150 m · indoor' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => setFormProfile({ ...formProfile, maxGpsAccuracyMeters: preset.value })}
+                            className={`rounded-lg border px-2 py-1 text-[9px] font-bold transition-colors ${Number(formProfile.maxGpsAccuracyMeters ?? 80) === preset.value ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary-text)]' : 'border-[var(--panel-border)] bg-white text-[var(--text-tertiary)]'}`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-1.5 text-[10px] font-semibold leading-relaxed text-[var(--text-tertiary)]">50 m aman tetapi sering sulit di dalam bangunan. 100 m direkomendasikan untuk operasional; radius area tetap diperiksa terpisah oleh server.</p>
                     </div>
 
                     <div className="flex flex-col justify-center space-y-2 pt-2">

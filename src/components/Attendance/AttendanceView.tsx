@@ -5,6 +5,7 @@ import { cloudReadiness } from '../../lib/runtimeEnv';
 import { uploadImage } from '../../services/cloudinaryMedia';
 import { DBStorage } from '../../services/dbStorage';
 import { AttendanceHrPanel } from './AttendanceHrPanel';
+import { acquireBestGeoPosition, geoDistanceMeters, type GeoPositionSample } from '../../utils/geolocation';
 
 interface AttendanceViewProps {
   attendanceRecords: AttendanceRecord[];
@@ -19,6 +20,8 @@ interface AttendanceViewProps {
 }
 
 type AttendanceStep = 'PIN' | 'SELFIE_GPS' | 'SUCCESS';
+type VerifiedGpsPosition = GeoPositionSample & { distance: number; effectiveDistance: number };
+type GpsVerification = { valid: boolean; sample?: VerifiedGpsPosition };
 
 const WEEK_DAYS = [
   { day: 1, short: 'Sen', label: 'Senin' },
@@ -72,8 +75,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [gpsMessage, setGpsMessage] = useState('GPS belum diverifikasi');
   const [uploadMessage, setUploadMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [gpsPosition, setGpsPosition] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
+  const [gpsPosition, setGpsPosition] = useState<VerifiedGpsPosition | null>(null);
   const [isGpsValid, setIsGpsValid] = useState(!profile.requireGpsActive);
+  const [isVerifyingGps, setIsVerifyingGps] = useState(false);
 
   // Jam berjalan (live) + ringkasan presensi terakhir untuk layar sukses.
   const [nowTs, setNowTs] = useState(() => new Date());
@@ -175,7 +179,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setSelfiePreview('');
     setSelfieFile(null);
     setGpsMessage('GPS belum diverifikasi');
+    setGpsPosition(null);
     setIsGpsValid(!profile.requireGpsActive);
+    setIsVerifyingGps(false);
     setUploadMessage('');
     stopCameraStream();
 
@@ -203,63 +209,73 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     return profile.shiftScheduleStaff || '09:00';
   };
 
-  const verifyGps = async (): Promise<boolean> => {
+  const verifyGps = async (useRecentValid = false): Promise<GpsVerification> => {
     if (!profile.requireGpsActive) {
       setIsGpsValid(true);
-      return true;
+      return { valid: true, sample: gpsPosition || undefined };
     }
-    // `profile` already contains the effective branch override loaded from
-    // Supabase. Branch columns win when a deployment stores GPS there.
-    const outletLatitude = currentBranch.gpsLatitude ?? profile.gpsLatitude;
-    const outletLongitude = currentBranch.gpsLongitude ?? profile.gpsLongitude;
-    const outletRadius = currentBranch.gpsRadiusMeters ?? profile.gpsRadiusMeters ?? 50;
+    // `profile` adalah konfigurasi efektif yang sama dengan sumber validasi
+    // server (tenant default + branch profile_overrides). Kolom Branch lama
+    // hanya fallback agar browser dan server tidak menilai dua titik berbeda.
+    const outletLatitude = profile.gpsLatitude ?? currentBranch.gpsLatitude;
+    const outletLongitude = profile.gpsLongitude ?? currentBranch.gpsLongitude;
+    const outletRadius = profile.gpsRadiusMeters ?? currentBranch.gpsRadiusMeters ?? 50;
+    const maxAccuracy = Math.max(5, Number(profile.maxGpsAccuracyMeters || 80));
     if (!navigator.geolocation || outletLatitude === undefined || outletLongitude === undefined) {
       setGpsMessage('Konfigurasi GPS outlet belum lengkap');
       setIsGpsValid(false);
-      return false;
+      return { valid: false };
     }
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const toRad = (v: number) => (v * Math.PI) / 180;
-          const R = 6_371_000;
-          const dLat = toRad(position.coords.latitude - outletLatitude);
-          const dLng = toRad(position.coords.longitude - outletLongitude);
-          const lat1 = toRad(outletLatitude);
-          const lat2 = toRad(position.coords.latitude);
-          const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-          const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const maxAccuracy = Math.max(5, Number(profile.maxGpsAccuracyMeters || 80));
-          const accuracyOk = Number.isFinite(position.coords.accuracy) && position.coords.accuracy <= maxAccuracy;
-          // Sama dengan server: beri kelonggaran sebesar margin error GPS,
-          // supaya staf yang benar-benar di outlet tidak ditolak karena
-          // pembacaan HP yang wajar-wajar saja.
-          const effectiveDistance = Math.max(0, distance - (Number(position.coords.accuracy) || 0));
-          const insideRadius = effectiveDistance <= outletRadius;
-          const allowed = insideRadius && accuracyOk;
-          setGpsPosition({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          });
-          setGpsMessage(
-            !accuracyOk
-              ? `Akurasi GPS ±${Math.round(position.coords.accuracy)} m — tunggu hingga ≤ ${Math.round(maxAccuracy)} m`
-              : insideRadius
-                ? `GPS valid · ${Math.round(distance)} m dari outlet · akurasi ±${Math.round(position.coords.accuracy)} m`
-                : `Di luar radius · ${Math.round(distance)} m dari outlet (batas ${Math.round(outletRadius)} m) · akurasi ±${Math.round(position.coords.accuracy)} m`,
-          );
-          setIsGpsValid(allowed);
-          resolve(allowed);
+
+    if (
+      useRecentValid
+      && isGpsValid
+      && gpsPosition
+      && Date.now() - gpsPosition.capturedAt <= 60_000
+    ) return { valid: true, sample: gpsPosition };
+
+    const evaluate = (sample: GeoPositionSample): GpsVerification => {
+      const distance = geoDistanceMeters(outletLatitude, outletLongitude, sample.latitude, sample.longitude);
+      const effectiveDistance = Math.max(0, distance - sample.accuracy);
+      const evaluated = { ...sample, distance, effectiveDistance };
+      const accuracyOk = sample.accuracy <= maxAccuracy;
+      const insideRadius = effectiveDistance <= outletRadius;
+      return { valid: accuracyOk && insideRadius, sample: evaluated };
+    };
+
+    setIsVerifyingGps(true);
+    setGpsMessage('Mencari titik GPS paling akurat…');
+    try {
+      const best = await acquireBestGeoPosition({
+        targetAccuracyMeters: maxAccuracy,
+        timeoutMs: 15_000,
+        onSample: (sample, sampleCount) => {
+          const progress = evaluate(sample);
+          setGpsPosition(progress.sample || null);
+          setGpsMessage(`Meningkatkan akurasi GPS · sampel ${sampleCount} · terbaik ±${Math.round(sample.accuracy)} m`);
         },
-        () => {
-          setGpsMessage('Izin GPS diperlukan untuk absensi');
-          setIsGpsValid(false);
-          resolve(false);
-        },
-        { enableHighAccuracy: true, timeout: 10_000 },
+      });
+      const result = evaluate(best);
+      const sample = result.sample!;
+      setGpsPosition(sample);
+      setIsGpsValid(result.valid);
+      // Jarak yang sangat jauh lebih informatif daripada sekadar akurasi buruk.
+      // Ini langsung membedakan titik outlet salah dari sinyal indoor lemah.
+      setGpsMessage(
+        sample.effectiveDistance > outletRadius
+          ? `Di luar area · ${Math.round(sample.distance).toLocaleString('id-ID')} m dari outlet (batas ${Math.round(outletRadius)} m)`
+          : sample.accuracy > maxAccuracy
+            ? `Sudah di area, tetapi akurasi masih ±${Math.round(sample.accuracy)} m (wajib ≤ ${Math.round(maxAccuracy)} m)`
+            : `GPS valid · ${Math.round(sample.distance)} m dari outlet · akurasi ±${Math.round(sample.accuracy)} m`,
       );
-    });
+      return result;
+    } catch (error) {
+      setGpsMessage(error instanceof Error ? error.message : 'GPS gagal diverifikasi');
+      setIsGpsValid(false);
+      return { valid: false };
+    } finally {
+      setIsVerifyingGps(false);
+    }
   };
 
   useEffect(() => {
@@ -324,12 +340,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       setIsSubmitting(false);
       return;
     }
-    const gpsValidated = await verifyGps();
-    if (profile.requireGpsActive && !gpsValidated) {
+    const gpsVerification = await verifyGps(true);
+    if (profile.requireGpsActive && !gpsVerification.valid) {
       onShowToast('Lokasi Gagal', 'Absensi ditolak karena lokasi belum terverifikasi.');
       setIsSubmitting(false);
       return;
     }
+    const verifiedGps = gpsVerification.sample || gpsPosition;
     const now = new Date();
     const scheduledStart = getScheduledStart();
     const [hour, minute] = scheduledStart.split(':').map(Number);
@@ -368,11 +385,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       scheduledStart,
       minutesLate,
       verificationMethod: profile.requireSelfiePhoto ? 'PIN_GPS_SELFIE' : profile.requireGpsActive ? 'PIN_GPS' : 'PIN',
-      gpsValidated,
+      gpsValidated: gpsVerification.valid,
       selfieValidated: !!selfiePreview,
-      latitude: gpsPosition?.latitude,
-      longitude: gpsPosition?.longitude,
-      accuracyMeters: gpsPosition?.accuracy,
+      latitude: verifiedGps?.latitude,
+      longitude: verifiedGps?.longitude,
+      accuracyMeters: verifiedGps?.accuracy,
     };
     try {
       await onSaveAttendance(record);
@@ -602,17 +619,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <div className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                   <div className="flex items-start gap-2 text-[11px] font-bold text-[var(--text-secondary)]">
                     <MapPin className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isGpsValid ? 'text-emerald-600' : 'text-amber-600'}`} />
-                    <div className="min-w-0 flex-1"><span>{gpsMessage}</span>{gpsPosition && <div className="mt-1.5 flex flex-wrap gap-1.5"><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${gpsPosition.accuracy <= Math.max(5, Number(profile.maxGpsAccuracyMeters || 80)) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>AKURASI ±{Math.round(gpsPosition.accuracy)} M</span><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${isGpsValid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{isGpsValid ? 'DALAM AREA' : 'BELUM VALID'}</span></div>}</div>
+                    <div className="min-w-0 flex-1"><span>{gpsMessage}</span>{gpsPosition && <div className="mt-1.5 flex flex-wrap gap-1.5"><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${gpsPosition.accuracy <= Math.max(5, Number(profile.maxGpsAccuracyMeters || 80)) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>AKURASI ±{Math.round(gpsPosition.accuracy)} M</span><span className="rounded-full bg-sky-50 px-2 py-0.5 text-[8px] font-black text-sky-700">JARAK {Math.round(gpsPosition.distance).toLocaleString('id-ID')} M</span><span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${isGpsValid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{isGpsValid ? 'DALAM AREA' : 'BELUM VALID'}</span></div>}</div>
                   </div>
                 </div>
                 {profile.requireGpsActive && (
                   <div className="w-full space-y-1.5">
                     <button
                       type="button"
-                      onClick={() => verifyGps()}
-                      className={`w-full rounded-xl px-3 py-2.5 text-[11px] font-bold transition-colors cursor-pointer ${isGpsValid ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-[var(--primary)] text-white"}`}
+                      onClick={() => void verifyGps()}
+                      disabled={isVerifyingGps || isSubmitting}
+                      className={`w-full rounded-xl px-3 py-2.5 text-[11px] font-bold transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60 ${isGpsValid ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-[var(--primary)] text-white"}`}
                     >
-                      {isGpsValid ? "Lokasi Terkonfirmasi - Cek Ulang" : "Aktifkan & Konfirmasi Titik GPS Saya"}
+                      {isVerifyingGps ? 'Mencari Sinyal GPS Terbaik…' : isGpsValid ? "Lokasi Terkonfirmasi - Cek Ulang" : "Aktifkan & Konfirmasi Titik GPS Saya"}
                     </button>
                     {gpsPosition && (
                       <p className="text-center text-[10px] font-semibold text-[var(--text-tertiary)]">
@@ -621,7 +639,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     )}
                     {!isGpsValid && (
                       <p className="text-center text-[10px] font-semibold leading-snug text-amber-700">
-                        Belum terkonfirmasi. Pastikan izin lokasi aktif, berdiri di area outlet (dekat pintu/luar ruangan lebih akurat), tunggu beberapa detik lalu tekan tombol di atas lagi.
+                        Belum terkonfirmasi. Aktifkan lokasi presisi dan matikan mode hemat baterai. Jika jarak masih sangat jauh, periksa titik outlet di Pengaturan; jika jarak dekat tetapi akurasi buruk, dekat pintu/jendela lalu coba lagi.
                       </p>
                     )}
                   </div>
@@ -629,7 +647,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 {uploadMessage && <p className="text-[11px] font-extrabold text-[var(--primary-text)]">{uploadMessage}</p>}
               </div>
 
-              <button onClick={handleClockAction} disabled={!configReady || profile.isAttendanceEnabled === false || !hasEligibleIdentity || isSubmitting || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
+              <button onClick={handleClockAction} disabled={!configReady || profile.isAttendanceEnabled === false || !hasEligibleIdentity || isSubmitting || isVerifyingGps || (profile.requireSelfiePhoto && !selfieFile) || (profile.requireGpsActive && !isGpsValid)}
                 className="w-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] hover:from-[var(--primary-solid)] hover:to-[var(--primary-light)] py-3.5 text-xs font-bold text-white transition-all shadow-[var(--shadow-md)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer">
                 {isSubmitting ? 'MENYIMPAN PRESENSI...' : clockType === 'CLOCK_IN' ? 'CLOCK IN SEKARANG' : 'CLOCK OUT SEKARANG'}
               </button>
@@ -739,4 +757,3 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     </div>
   );
 };
-

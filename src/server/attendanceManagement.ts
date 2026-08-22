@@ -170,15 +170,23 @@ export async function handleAttendanceRequest(
   if (requireGps) {
     const outletLat = Number(config.gpsLatitude);
     const outletLon = Number(config.gpsLongitude);
-    const radius = Number(config.gpsRadiusMeters || 50);
+    const latitude = Number(payload.latitude);
+    const longitude = Number(payload.longitude);
+    const radius = Math.max(5, Number(config.gpsRadiusMeters || 50));
     const maxAccuracy = Math.max(5, Number(config.maxGpsAccuracyMeters || 80));
-    if (![payload.latitude, payload.longitude, outletLat, outletLon].every((value) => Number.isFinite(value))) {
+    if (
+      ![latitude, longitude, outletLat, outletLon, radius, maxAccuracy].every((value) => Number.isFinite(value))
+      || Math.abs(latitude) > 90
+      || Math.abs(outletLat) > 90
+      || Math.abs(longitude) > 180
+      || Math.abs(outletLon) > 180
+    ) {
       return fail(400, 'Koordinat GPS tidak lengkap');
     }
     if (!Number.isFinite(payload.accuracyMeters) || Number(payload.accuracyMeters) > maxAccuracy) {
       return fail(400, `Akurasi GPS belum cukup baik. Tunggu hingga akurasi ≤ ${Math.round(maxAccuracy)} m lalu coba lagi.`);
     }
-    distance = distanceMeters(outletLat, outletLon, Number(payload.latitude), Number(payload.longitude));
+    distance = distanceMeters(outletLat, outletLon, latitude, longitude);
     // Perhitungkan MARGIN ERROR GPS. Sistem menerima pembacaan yang meleset
     // sampai maxAccuracy (mis. 80 m), jadi tidak masuk akal menuntut jarak
     // presisi radius kecil (mis. 20 m): HP yang benar-benar di dalam outlet
