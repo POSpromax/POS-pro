@@ -993,8 +993,14 @@ export default function App() {
     return () => { cancelled = true; };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
+  // Dihitung DI LUAR effect supaya dependency-nya berupa boolean turunan, bukan
+  // string tab mentah. POS, KDS, dan Shift sama-sama membutuhkan aliran order
+  // yang sama; dengan activeTab sebagai dependency, berpindah di antara ketiganya
+  // membongkar dan memasang ulang langganan realtime padahal kebutuhannya tidak
+  // berubah sama sekali. Churn koneksi itu tidak gratis di paket gratis.
+  const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
+
   useEffect(() => {
-    const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsLiveOrders) return;
     let active = true;
     const branchId = currentBranch.id;
@@ -1288,7 +1294,10 @@ export default function App() {
       document.removeEventListener('visibilitychange', reconcileVisible);
       unsubscribe();
     };
-  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, systemPortal, activeTab, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
+    // needsLiveOrders menggantikan systemPortal + activeTab: ketiganya sudah
+    // terangkum di dalamnya, dan hanya PERUBAHAN KEBUTUHAN yang boleh memicu
+    // langganan realtime dibangun ulang.
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, needsLiveOrders, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
 
   // Database adalah sumber tunggal status shift. Realtime memberi respons
   // cepat; polling/focus menjadi pengaman saat websocket terputus.
