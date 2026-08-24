@@ -396,8 +396,17 @@ export async function handleOrderRequest(
     // Konten order yang sudah lunas merupakan snapshot transaksi. UI kasir
     // menguncinya, dan API juga wajib menolak klien lama/stale yang mencoba
     // mengganti item, meja, diskon, atau catatan melalui checkout_order.
+    // Cocok HANYA lewat client_request_id berarti terminal mengirim ulang
+    // submission yang sama: jawaban pertama hilang di jaringan padahal
+    // transaksinya sudah masuk. Kasir wajib diberi tahu itu, bukan pesan
+    // 'terkunci' yang membuatnya mengira pembayaran gagal lalu menagih
+    // pelanggan dua kali. Cocok lewat id order tersimpan tetap berarti klien
+    // lama hendak mengubah order lunas, dan itu memang harus ditolak.
+    const isSameSubmissionRetry = !byId && Boolean(byRequest);
     if (source === 'POS' && existingOrder?.payment_status === 'PAID') {
-      return fail(409, 'Pesanan lunas sudah dikunci dan tidak dapat diubah');
+      return fail(409, isSameSubmissionRetry
+        ? 'Pembayaran ini SUDAH berhasil diproses sebelumnya. Jangan tagih ulang — cek Riwayat pesanan.'
+        : 'Pesanan lunas sudah dikunci dan tidak dapat diubah');
     }
     if (source === 'POS' && existingOrder?.status === 'CANCELLED') {
       return fail(409, 'Pesanan yang dibatalkan tidak dapat diubah');
