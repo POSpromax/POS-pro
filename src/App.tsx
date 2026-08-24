@@ -421,6 +421,10 @@ export default function App() {
   // ter-reset, sinkron berikutnya jatuh ke full refetch ~300KB. Berpindah tab
   // puluhan kali sehari x beberapa terminal = ratusan MB egress per hari.
   const orderCursorRef = useRef<{ branchId: string; cursor: string }>({ branchId: '', cursor: '' });
+  // Pintu untuk memicu sinkron inkremental dari luar effect. Dipakai saat kasir
+  // berpindah tab: langganan realtime sengaja TIDAK dibangun ulang lagi, tetapi
+  // datanya tetap harus terasa segar begitu layar berganti.
+  const syncOrdersRef = useRef<null | (() => void)>(null);
 
   const [branchOperationalConfig, setBranchOperationalConfig] = useState<BranchOperationalConfig>(
     () => defaultBranchOperationalConfig(currentBranch.id),
@@ -1228,6 +1232,7 @@ export default function App() {
     };
 
     lastFallbackAt = Date.now();
+    syncOrdersRef.current = syncIncremental;
     syncIncremental();
     const unsubscribe = subscribeCloudOrders(
       branchId,
@@ -1278,7 +1283,7 @@ export default function App() {
     let lastVisibleSyncAt = 0;
     const reconcileVisible = () => {
       if (!isRuntimeActive() || document.visibilityState !== 'visible') return;
-      if (Date.now() - lastVisibleSyncAt < 20_000) return;
+      if (Date.now() - lastVisibleSyncAt < 5_000) return;
       lastVisibleSyncAt = Date.now();
       syncIncremental();
     };
@@ -1287,6 +1292,7 @@ export default function App() {
     document.addEventListener('visibilitychange', reconcileVisible);
     return () => {
       active = false;
+      syncOrdersRef.current = null;
       window.clearTimeout(initialRetryTimer);
       window.clearInterval(fallbackTimer);
       window.removeEventListener('focus', reconcileVisible);
@@ -1298,6 +1304,16 @@ export default function App() {
     // terangkum di dalamnya, dan hanya PERUBAHAN KEBUTUHAN yang boleh memicu
     // langganan realtime dibangun ulang.
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, needsLiveOrders, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
+
+  // Berpindah antara POS, KDS, dan Shift tidak lagi membangun ulang langganan
+  // realtime -- itu memang tujuannya. Tetapi kasir tetap mengharapkan layar baru
+  // langsung menampilkan keadaan terkini, jadi picu sinkron INKREMENTAL di sini.
+  // Biayanya kini hanya beberapa KB: kursor sinkron sudah bertahan lintas tab,
+  // sehingga ini bukan lagi full refetch yang dulu memboroskan egress.
+  useEffect(() => {
+    if (!needsLiveOrders) return;
+    syncOrdersRef.current?.();
+  }, [activeTab, needsLiveOrders]);
 
   // Database adalah sumber tunggal status shift. Realtime memberi respons
   // cepat; polling/focus menjadi pengaman saat websocket terputus.

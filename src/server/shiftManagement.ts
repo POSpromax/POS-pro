@@ -271,6 +271,14 @@ export async function handleShiftRequest(
           .limit(100);
         const from = typeof payload.from === 'string' ? payload.from : '';
         const to = typeof payload.to === 'string' ? payload.to : '';
+        // Riwayat shift memuat omzet, selisih kas, dan setoran seluruh outlet.
+        // Peran non-manajemen hanya boleh melihat shift yang IA sendiri buka atau
+        // tutup; tanpa penyaring ini kasir melihat omzet semua shift, termasuk
+        // milik owner, beserta totalnya.
+        const MANAGEMENT_ROLES = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'];
+        if (!MANAGEMENT_ROLES.includes(actor.role)) {
+          historyQuery = historyQuery.or(`opened_by.eq.${actor.userId},closed_by.eq.${actor.userId}`);
+        }
         if (from) historyQuery = historyQuery.gte('opened_at', from);
         if (to) historyQuery = historyQuery.lt('opened_at', to);
         const { data: rows, error } = await historyQuery;
