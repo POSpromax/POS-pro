@@ -259,7 +259,12 @@ const canAccessTab = (rule: AccessControlRule | undefined, tab: string): boolean
   if (tab === 'inventory') return rule.canAccessInventory;
   if (tab === 'analytics' || tab === 'superowner') return rule.canAccessAnalytics;
   if (tab === 'accounting') return rule.canAccessAnalytics;
-  if (tab === 'attendance') return rule.canAccessAttendance ?? rule.canAccessSettings;
+  // Absensi adalah layanan-mandiri: SETIAP staf wajib bisa melakukannya.
+  // Sebelumnya diwarisi dari canAccessSettings -- izin paling istimewa --
+  // sehingga KASIR, KITCHEN, dan MANAGER (justru peran yang harus absen)
+  // terkunci total, sementara OWNER yang lolos malah ditolak server. Hanya
+  // penolakan eksplisit dari matriks akses yang boleh menutup akses.
+  if (tab === 'attendance') return rule.canAccessAttendance !== false;
   // 'payroll' sempat tertinggal di sini: sidebar menampilkan menunya lewat
   // aturan canAccessSettings, tapi fungsi ini menjatuhkannya ke false, jadi
   // menunya terlihat namun selalu ditolak saat diklik.

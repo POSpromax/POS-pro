@@ -2223,7 +2223,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {(['KASIR', 'KITCHEN', 'MANAGER', 'ADMIN'] as UserRole[]).map((role) => {
                             const roleAbbr = role === 'KASIR' ? 'KAS' : role === 'KITCHEN' ? 'KIT' : role === 'MANAGER' ? 'MGR' : 'ADM';
                             const rule = accessDraft.find((r) => r.role === role);
-                            const isChecked = rule ? (rule as any)[feature.key] ?? (role === 'ADMIN' || (role === 'KASIR' && feature.key === 'canAccessPOS')) : role === 'ADMIN';
+                            // Absensi tercentang secara bawaan untuk semua peran agar tampilan matriks
+                            // sejalan dengan aturan akses di App: hanya penolakan eksplisit yang menutup.
+                            const attendanceDefault = feature.key === 'canAccessAttendance';
+                            const isChecked = rule
+                              ? (rule as any)[feature.key] ?? (attendanceDefault || role === 'ADMIN' || (role === 'KASIR' && feature.key === 'canAccessPOS'))
+                              : (attendanceDefault || role === 'ADMIN');
 
                             return (
                               <div key={role} className="flex flex-col items-center space-y-1">

@@ -917,12 +917,12 @@ export const INITIAL_RESTAURANT_PROFILE: RestaurantProfile = {
 };
 
 export const INITIAL_ACCESS_CONTROL: AccessControlRule[] = [
-  { role: 'SUPER_OWNER', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
-  { role: 'OWNER', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
-  { role: 'MANAGER', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: false, canVoidOrder: true },
-  { role: 'ADMIN', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
-  { role: 'KASIR', canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false },
-  { role: 'KITCHEN', canAccessPOS: false, canAccessKDS: true, canAccessShift: false, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false }
+  { role: 'SUPER_OWNER', canAccessAttendance: true, canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
+  { role: 'OWNER', canAccessAttendance: true, canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
+  { role: 'MANAGER', canAccessAttendance: true, canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: false, canVoidOrder: true },
+  { role: 'ADMIN', canAccessAttendance: true, canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: true, canAccessSettings: true, canVoidOrder: true },
+  { role: 'KASIR', canAccessAttendance: true, canAccessPOS: true, canAccessKDS: true, canAccessShift: true, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false },
+  { role: 'KITCHEN', canAccessAttendance: true, canAccessPOS: false, canAccessKDS: true, canAccessShift: false, canAccessInventory: true, canAccessAnalytics: false, canAccessSettings: false, canVoidOrder: false }
 ];
 
 export const INITIAL_CURRENT_SHIFT: Shift = {
