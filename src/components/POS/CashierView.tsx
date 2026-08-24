@@ -508,9 +508,14 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // antrean & riwayat kasir otomatis mulai dari 0 tiap buka shift baru. Riwayat
   // lengkap lintas shift ada di menu Laporan.
   const activeHoldOrders = sortOrdersFifo(orders.filter((o) => !isOrderClosed(o)));
-  const historyShiftOrders = sortOrdersNewestFirst(orders.filter((order) => (
-    isOrderClosed(order) && order.completedShiftId === currentShift.id
-  )));
+  const historyShiftOrders = sortOrdersNewestFirst(orders.filter((order) => {
+    if (!isOrderClosed(order)) return false;
+    // completedShiftId hanya terisi lewat penyelesaian dapur. Order yang lunas
+    // tetapi tidak pernah ditandai COMPLETED harus tetap terlihat di riwayat
+    // shift asalnya; tanpa cadangan ini order tersebut hilang dari kedua tab.
+    const shiftOfRecord = order.completedShiftId || order.createdShiftId || order.shiftId;
+    return shiftOfRecord === currentShift.id;
+  }));
   const displayedOrders = queueTab === 'ACTIVE' ? activeHoldOrders : historyShiftOrders;
   const activeFifoRanks = buildFifoRankMap(activeHoldOrders);
 
