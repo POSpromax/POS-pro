@@ -410,6 +410,12 @@ export default function App() {
     return list.find((branch) => branch.id === (requestedBranchId || sessionBranchId)) || list[0] || INITIAL_BRANCHES[0];
   });
   const branchRuntimeGuardRef = useRef(new BranchRuntimeGuard());
+  // Kursor sinkron order HARUS hidup lebih lama daripada effect-nya. activeTab
+  // ada di dependency array effect sinkron, sehingga setiap kasir pindah tab
+  // (POS -> KDS -> Shift -> Inventory) effect di-mount ulang. Bila kursor ikut
+  // ter-reset, sinkron berikutnya jatuh ke full refetch ~300KB. Berpindah tab
+  // puluhan kali sehari x beberapa terminal = ratusan MB egress per hari.
+  const orderCursorRef = useRef<{ branchId: string; cursor: string }>({ branchId: '', cursor: '' });
 
   const [branchOperationalConfig, setBranchOperationalConfig] = useState<BranchOperationalConfig>(
     () => defaultBranchOperationalConfig(currentBranch.id),
@@ -1000,7 +1006,7 @@ export default function App() {
     const branchMountedAt = Date.now();
     let lastFallbackAt = 0;
     // Waktu sinkron terakhir untuk penyelaras INKREMENTAL (hemat egress).
-    let lastSyncAt = '';
+    let lastSyncAt = orderCursorRef.current.branchId === branchId ? orderCursorRef.current.cursor : '';
     // Kursor sinkron diambil dari updatedAt milik SERVER, bukan jam perangkat.
     // Jam tablet yang meleset (atau balapan saat request berlangsung) bisa
     // membuat order terlewat permanen dari layar kasir.
@@ -1023,6 +1029,7 @@ export default function App() {
         const stamp = order.updatedAt || order.createdAt;
         if (stamp && stamp > lastSyncAt) lastSyncAt = stamp;
       });
+      orderCursorRef.current = { branchId, cursor: lastSyncAt };
     };
     let consecutiveRefreshFailures = 0;
     let initialRetryTimer = 0;
@@ -1078,6 +1085,10 @@ export default function App() {
           // Order lokal tidak boleh disisipkan ke layar cloud karena dapat membuat
           // kasir/KDS melihat transaksi yang belum pernah diterima server.
           setOrders(cloudOrders);
+          // Tanpa ini kursor tetap kosong setelah full refetch, sehingga SETIAP
+          // sinkron berikutnya jatuh ke full refetch lagi -- mode inkremental
+          // tidak pernah benar-benar aktif.
+          advanceCursor(cloudOrders);
 
           // Update state trackers for next realtime comparison
           knownItemQuantities = nextItemQuantities;
@@ -1250,7 +1261,16 @@ export default function App() {
       lastFallbackAt = Date.now();
       syncIncremental();
     }, 5_000);
-    const reconcileVisible = () => { if (isRuntimeActive() && document.visibilityState === 'visible') syncIncremental(); };
+    // Throttle 20 dtk. focus + visibilitychange + online menyala berkali-kali
+    // tiap kali staf berpindah aplikasi atau mengunci layar; tanpa throttle satu
+    // ketukan bisa memicu beberapa sinkron beruntun.
+    let lastVisibleSyncAt = 0;
+    const reconcileVisible = () => {
+      if (!isRuntimeActive() || document.visibilityState !== 'visible') return;
+      if (Date.now() - lastVisibleSyncAt < 20_000) return;
+      lastVisibleSyncAt = Date.now();
+      syncIncremental();
+    };
     window.addEventListener('focus', reconcileVisible);
     window.addEventListener('online', reconcileVisible);
     document.addEventListener('visibilitychange', reconcileVisible);

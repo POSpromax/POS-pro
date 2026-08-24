@@ -236,11 +236,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
     const evaluate = (sample: GeoPositionSample): GpsVerification => {
       const distance = geoDistanceMeters(outletLatitude, outletLongitude, sample.latitude, sample.longitude);
-      const effectiveDistance = Math.max(0, distance - sample.accuracy);
+      // Akurasi TIDAK boleh menjadi gerbang tersendiri. Staf dapur berdiri paling
+      // dalam di dalam bangunan sehingga akurasinya rutin di atas 100 m; menolak
+      // mentah-mentah membuat mereka tidak pernah bisa absen sama sekali, sementara
+      // kasir di dekat pintu selalu lolos. Sebaliknya akurasi juga tidak boleh jadi
+      // kredit jarak tanpa batas: akurasi +/-2 km akan meloloskan absen dari rumah.
+      // Karena itu akurasi memberi KELONGGARAN yang dibatasi maxAccuracy.
+      const slack = Math.min(sample.accuracy, maxAccuracy);
+      const effectiveDistance = Math.max(0, distance - slack);
       const evaluated = { ...sample, distance, effectiveDistance };
-      const accuracyOk = sample.accuracy <= maxAccuracy;
-      const insideRadius = effectiveDistance <= outletRadius;
-      return { valid: accuracyOk && insideRadius, sample: evaluated };
+      return { valid: effectiveDistance <= outletRadius, sample: evaluated };
     };
 
     setIsVerifyingGps(true);
@@ -263,10 +268,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       // Ini langsung membedakan titik outlet salah dari sinyal indoor lemah.
       setGpsMessage(
         sample.effectiveDistance > outletRadius
-          ? `Di luar area · ${Math.round(sample.distance).toLocaleString('id-ID')} m dari outlet (batas ${Math.round(outletRadius)} m)`
-          : sample.accuracy > maxAccuracy
-            ? `Sudah di area, tetapi akurasi masih ±${Math.round(sample.accuracy)} m (wajib ≤ ${Math.round(maxAccuracy)} m)`
-            : `GPS valid · ${Math.round(sample.distance)} m dari outlet · akurasi ±${Math.round(sample.accuracy)} m`,
+          ? `Di luar area · ${Math.round(sample.distance).toLocaleString('id-ID')} m dari outlet (batas ${Math.round(outletRadius)} m + toleransi akurasi ${Math.round(maxAccuracy)} m)`
+          : `GPS valid · ${Math.round(sample.distance)} m dari outlet · akurasi ±${Math.round(sample.accuracy)} m`,
       );
       return result;
     } catch (error) {
