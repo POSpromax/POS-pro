@@ -484,9 +484,24 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // tetap di antrean aktif dalam keadaan terkunci — kasir belum bisa mengedit,
   // tetapi masih terlihat sampai pesanannya benar-benar diselesaikan.
   const isOrderPaid = (o: Order) => String(o.paymentStatus || '').toUpperCase() === 'PAID';
+  // KUNCI ANTI-KLIK-GANDA. Wajib pakai ref, bukan state: update state React
+  // asinkron, sehingga dua ketukan dalam satu frame (lazim di layar sentuh,
+  // terlebih saat jaringan lambat dan tombol belum sempat ter-disable) sama-sama
+  // lolos dan membuat DUA pesanan untuk satu input kasir.
+  const submitLockRef = React.useRef(0);
+  const acquireSubmitLock = () => {
+    const now = Date.now();
+    if (now - submitLockRef.current < 1500) return false;
+    submitLockRef.current = now;
+    return true;
+  };
+
+  // Sudah dibayar = urusan kasir selesai, keluar dari antrean aktif. Sebelumnya
+  // harus COMPLETED *dan* lunas, sehingga order lunas yang status dapurnya
+  // berhenti di READY menggantung di antrean aktif tanpa batas waktu.
   const isOrderClosed = (o: Order) => {
     const st = String(o.status || '').toUpperCase();
-    return st === 'CANCELLED' || (st === 'COMPLETED' && isOrderPaid(o));
+    return st === 'CANCELLED' || isOrderPaid(o);
   };
 
   // `orders` sudah dibatasi ke SHIFT BERJALAN dari App (prop shiftOrders), jadi
@@ -1065,6 +1080,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   disabled={cartItems.length === 0 || !isShiftActiveForCurrentContext || isPaidOrder}
                   onClick={() => {
                     if (confirmBeforeSaveOrder && pendingConfirm !== 'SAVE') { setPendingConfirm('SAVE'); return; }
+                    if (!acquireSubmitLock()) return;
                     setPendingConfirm(null);
                     const draft = buildCurrentOrderDraft() as Order;
                     onSaveHoldOrder(draft);
@@ -1094,6 +1110,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
                     onClick={() => {
                       if (confirmBeforePayment && pendingConfirm !== 'PAY') { setPendingConfirm('PAY'); return; }
                       setPendingConfirm(null);
+                      if (!acquireSubmitLock()) return;
                       onOpenCheckoutModal(buildCurrentOrderDraft());
                     }}
                     className="col-span-full flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"

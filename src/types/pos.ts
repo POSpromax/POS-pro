@@ -226,6 +226,11 @@ export interface Shift {
   staffId: string;
   staffName: string;
   staffRole: UserRole;
+  // Penutup shift bisa berbeda orang/peran dari pembukanya: satu laci kas dipakai
+  // bergantian antar-peran. Kosong selama shift masih OPEN.
+  closedById?: string;
+  closedByName?: string;
+  closedByRole?: UserRole;
   startTime: string;
   endTime?: string;
   initialCash: number;

@@ -1004,6 +1004,20 @@ export default function App() {
     // Kursor sinkron diambil dari updatedAt milik SERVER, bukan jam perangkat.
     // Jam tablet yang meleset (atau balapan saat request berlangsung) bisa
     // membuat order terlewat permanen dari layar kasir.
+    // Gabungkan order TANPA menimpa data yang lebih baru. Tanpa penjaga ini,
+    // snapshot lama yang tiba terlambat (request tumpang-tindih / refetch
+    // bertarget) menimpa status terkini -> order yang sudah LUNAS/SELESAI
+    // muncul lagi di daftar aktif, bahkan order hari kemarin.
+    const mergeOrderInto = (map: Map<string, Order>, incoming: Order) => {
+      const existing = map.get(incoming.id);
+      if (existing) {
+        const incomingStamp = incoming.updatedAt || incoming.createdAt || '';
+        const existingStamp = existing.updatedAt || existing.createdAt || '';
+        if (incomingStamp && existingStamp && incomingStamp < existingStamp) return;
+      }
+      map.set(incoming.id, incoming);
+    };
+
     const advanceCursor = (rows: Order[]) => {
       rows.forEach((order) => {
         const stamp = order.updatedAt || order.createdAt;
@@ -1115,7 +1129,7 @@ export default function App() {
           scoped.forEach((order) => knownItemQuantities.set(order.id, order.items.reduce((sum, item) => sum + item.quantity, 0)));
           setOrders((current) => {
             const map = new Map(current.map((order) => [order.id, order] as [string, Order]));
-            scoped.forEach((order) => map.set(order.id, order));
+            scoped.forEach((order) => mergeOrderInto(map, order));
             return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           });
           if (!isFirstLoad && changedForNotify.length > 0) {
@@ -1164,7 +1178,7 @@ export default function App() {
         setOrders((current) => {
           const map = new Map(current.map((order) => [order.id, order] as [string, Order]));
           deletedIds.forEach((id) => map.delete(id));
-          fetched.forEach((order) => map.set(order.id, order));
+          fetched.forEach((order) => mergeOrderInto(map, order));
           return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         });
 
@@ -2438,8 +2452,13 @@ export default function App() {
 
   const branchOrders = orders.filter((order) => !order.branchId || order.branchId === currentBranch.id);
   // Hanya order dari shift aktif saat ini — untuk CashierView dan KitchenDisplayView
+  // Order yang SUDAH DIBAYAR dianggap selesai secara operasional, walau status
+  // dapurnya belum COMPLETED (dapur kerap berhenti di READY). Tanpa ini, order
+  // lunas ikut terbawa ke SETIAP shift berikutnya dan muncul lagi berhari-hari
+  // kemudian di daftar aktif. Order yang BELUM dibayar tetap terbawa — itu memang
+  // tagihan terbuka yang harus diselesaikan.
   const isOrderOperationallyClosed = (order: Order) => (
-    order.status === 'CANCELLED' || (order.status === 'COMPLETED' && order.paymentStatus === 'PAID')
+    order.status === 'CANCELLED' || order.paymentStatus === 'PAID'
   );
   const shiftOrders = currentShift.status === 'OPEN'
     ? branchOrders.filter((order) => (order.createdShiftId || order.shiftId) === currentShift.id || !isOrderOperationallyClosed(order))

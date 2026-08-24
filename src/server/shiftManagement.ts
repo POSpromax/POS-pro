@@ -112,7 +112,10 @@ async function aggregateShiftMetrics(shiftId: string, branchId: string, admin: S
 async function mapShiftsBatch(rows: any[], branchId: string, admin: SupabaseClient) {
   if (rows.length === 0) return [];
   const shiftIds = rows.map((row) => row.id);
-  const userIds = [...new Set(rows.map((row) => row.opened_by).filter(Boolean))];
+  // Ikutkan PENUTUP shift, bukan hanya pembukanya. Tanpa ini laporan selalu
+  // menampilkan nama pembuka walau shift ditutup orang lain, sehingga terlihat
+  // seolah sesi pembuka masih menyangkut di shift berjalan.
+  const userIds = [...new Set(rows.flatMap((row) => [row.opened_by, row.closed_by]).filter(Boolean))];
 
   const [profilesRes, membersRes, paymentsRes, expensesRes] = await Promise.all([
     userIds.length
@@ -175,6 +178,9 @@ async function mapShiftsBatch(rows: any[], branchId: string, admin: SupabaseClie
     staffId: row.opened_by || '',
     staffName: names.get(row.opened_by) || 'Kasir',
     staffRole: roles.get(row.opened_by) || 'KASIR',
+    closedById: row.closed_by || undefined,
+    closedByName: row.closed_by ? (names.get(row.closed_by) || 'Kasir') : undefined,
+    closedByRole: row.closed_by ? (roles.get(row.closed_by) || 'KASIR') : undefined,
     startTime: row.opened_at,
     endTime: row.closed_at || undefined,
     initialCash: Number(row.opening_cash || 0),
@@ -189,12 +195,18 @@ async function mapShiftsBatch(rows: any[], branchId: string, admin: SupabaseClie
 }
 
 async function mapShift(row: any, admin: SupabaseClient) {
-  const [{ data: staffProfile }, { data: staffMembership }, metrics] = await Promise.all([
+  const [{ data: staffProfile }, { data: staffMembership }, { data: closerProfile }, { data: closerMembership }, metrics] = await Promise.all([
     row.opened_by
       ? admin.from('user_profiles').select('display_name').eq('user_id', row.opened_by).maybeSingle()
       : Promise.resolve({ data: null }),
     row.opened_by
       ? admin.from('branch_members').select('role').eq('user_id', row.opened_by).eq('branch_id', row.branch_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    row.closed_by
+      ? admin.from('user_profiles').select('display_name').eq('user_id', row.closed_by).maybeSingle()
+      : Promise.resolve({ data: null }),
+    row.closed_by
+      ? admin.from('branch_members').select('role').eq('user_id', row.closed_by).eq('branch_id', row.branch_id).maybeSingle()
       : Promise.resolve({ data: null }),
     aggregateShiftMetrics(row.id, row.branch_id, admin),
   ]);
@@ -204,6 +216,9 @@ async function mapShift(row: any, admin: SupabaseClient) {
     staffId: row.opened_by || '',
     staffName: staffProfile?.display_name || 'Kasir',
     staffRole: staffMembership?.role || 'KASIR',
+    closedById: row.closed_by || undefined,
+    closedByName: row.closed_by ? (closerProfile?.display_name || 'Kasir') : undefined,
+    closedByRole: row.closed_by ? (closerMembership?.role || 'KASIR') : undefined,
     startTime: row.opened_at,
     endTime: row.closed_at || undefined,
     initialCash: Number(row.opening_cash || 0),

@@ -989,6 +989,14 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                                 style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
                                 {shf.staffRole}
                               </span>
+                              {shf.closedByName && shf.closedById !== shf.staffId && (
+                                /* Pembuka dan penutup berbeda orang: tampilkan keduanya supaya
+                                   pertanggungjawaban laci kas jelas, bukan hanya nama pembuka. */
+                                <span className="ml-1.5 text-[10px] font-bold normal-case"
+                                  style={{ color: 'var(--text-tertiary)' }}>
+                                  → ditutup {shf.closedByName}
+                                </span>
+                              )}
                             </p>
                             <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                               {new Date(shf.startTime).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
