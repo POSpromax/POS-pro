@@ -51,6 +51,17 @@ import { CondimentSelectionModal } from './CondimentSelectionModal';
 // Variant-safe cart consolidation. Only truly identical portions are merged.
 const consolidateCartItems = consolidateEquivalentOrderItems;
 
+// Kunci idempotensi harus berbentuk UUID yang sah: server memvalidasinya dengan
+// pola UUID sebelum memakainya, dan kolom orders.client_request_id bertipe uuid.
+const createRequestId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Cadangan untuk WebView Android lama yang belum punya crypto.randomUUID.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
+  });
+};
+
 // Ultra-Compact & Zoomed Emerald Green POS Menu Item Card Component
 const POSMenuItemCard: React.FC<{
   item: MenuItem;
@@ -488,6 +499,25 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // asinkron, sehingga dua ketukan dalam satu frame (lazim di layar sentuh,
   // terlebih saat jaringan lambat dan tombol belum sempat ter-disable) sama-sama
   // lolos dan membuat DUA pesanan untuk satu input kasir.
+  // KUNCI IDEMPOTENSI ORDER BARU. Server memakai ulang baris yang sama untuk
+  // client_request_id yang sama, sehingga percobaan ulang setelah jaringan putus
+  // -- request sebenarnya berhasil tetapi jawabannya hilang -- mendarat di order
+  // yang sama, bukan membuat order kedua.
+  //
+  // Reset DIGERAKKAN OLEH STATE keranjang, bukan oleh callback pembersihan:
+  // reset yang terlewat akan melebur dua transaksi menjadi satu dan omzet hilang
+  // diam-diam. Keranjang kosong adalah satu-satunya penanda bahwa bill sebelumnya
+  // benar-benar selesai, dan penanda itu tidak bisa gagal terpanggil.
+  const newOrderRequestIdRef = React.useRef('');
+  useEffect(() => {
+    if (cartItems.length === 0) newOrderRequestIdRef.current = '';
+  }, [cartItems.length]);
+  // Dibuat saat benar-benar dibutuhkan (di dalam event handler, bukan saat render).
+  const ensureNewOrderRequestId = () => {
+    if (!newOrderRequestIdRef.current) newOrderRequestIdRef.current = createRequestId();
+    return newOrderRequestIdRef.current;
+  };
+
   const submitLockRef = React.useRef(0);
   const acquireSubmitLock = () => {
     const now = Date.now();
@@ -523,6 +553,9 @@ export const CashierView: React.FC<CashierViewProps> = ({
 
   const buildCurrentOrderDraft = (): Partial<Order> => ({
     id: currentEditingOrderId || `ord-${Date.now().toString().slice(-6)}`,
+    // Hanya untuk order BARU. Order yang sudah tersimpan memakai id UUID-nya
+    // sendiri sebagai kunci, dan itu sudah berfungsi sejak semula.
+    clientRequestId: currentEditingOrderId ? undefined : ensureNewOrderRequestId(),
     orderNumber: currentEditingOrder?.orderNumber || `POS-${Date.now().toString().slice(-4)}`,
     branchId: currentBranch.id,
     shiftId: currentShift.id,

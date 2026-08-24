@@ -190,6 +190,9 @@ export type DiscountType = 'NONE' | 'STAFF_EATING' | 'PROMO' | 'VOUCHER' | 'SERV
 export interface Order {
   id: string;
   orderNumber: string; // Identitas unik penuh, mis. "POS-MSNWCM6VFDL"
+  // Kunci idempotensi yang STABIL untuk satu bill baru, dipakai server agar
+  // percobaan ulang tidak membuat order kedua. Kosong untuk order tersimpan.
+  clientRequestId?: string;
   dailyNumber?: number; // Nomor antrean harian per cabang, untuk ditampilkan
   customerName: string;
   notes?: string;

@@ -371,11 +371,25 @@ export async function handleOrderRequest(
   // self-order can already have changed the table to OCCUPIED while the HTTP
   // response was lost. Retrying the same client UUID must return the original
   // order instead of being rejected as a second order.
+  // Kunci idempotensi diturunkan LEBIH AWAL karena dipakai dua kali: untuk
+  // menyelesaikan percobaan ulang di sini, dan sebagai client_request_id saat
+  // checkout. Keduanya WAJIB memakai kunci yang sama. Sebelumnya blok ini hanya
+  // jalan bila input.id berupa UUID -- yang tidak pernah terjadi pada order baru
+  // -- sehingga penjaga 'pesanan lunas dikunci' di bawah terlewat dan percobaan
+  // ulang bisa menimpa order yang sudah dibayar.
+  const requestKey = UUID_PATTERN.test(String(input.clientRequestId || ''))
+    ? String(input.clientRequestId)
+    : UUID_PATTERN.test(String(input.id || ''))
+      ? String(input.id)
+      : '';
   let existingOrderId = '';
-  if (UUID_PATTERN.test(String(input.id || ''))) {
+  if (requestKey) {
+    const hasStoredId = UUID_PATTERN.test(String(input.id || ''));
     const [{ data: byId }, { data: byRequest }] = await Promise.all([
-      admin.from('orders').select('id,status,payment_status').eq('id', input.id).eq('branch_id', branchId).maybeSingle(),
-      admin.from('orders').select('id,status,payment_status').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', input.id).maybeSingle(),
+      hasStoredId
+        ? admin.from('orders').select('id,status,payment_status').eq('id', input.id).eq('branch_id', branchId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      admin.from('orders').select('id,status,payment_status').eq('tenant_id', branch.tenant_id).eq('branch_id', branchId).eq('client_request_id', requestKey).maybeSingle(),
     ]);
     existingOrderId = byId?.id || byRequest?.id || '';
     const existingOrder = byId || byRequest;
@@ -579,7 +593,14 @@ export async function handleOrderRequest(
   const tax = Math.max(0, Math.floor(Number(input.tax) || 0));
   const total = Math.max(0, subtotal - discount + tax);
   const orderNumber = `${source === 'SELF_ORDER' ? 'SO' : 'POS'}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
-  const clientRequestId = UUID_PATTERN.test(String(input.id || '')) ? String(input.id) : crypto.randomUUID();
+  // Kunci idempotensi. Utamakan clientRequestId dari terminal: kasir mengirim
+  // UUID yang STABIL untuk satu bill, sehingga percobaan ulang setelah jaringan
+  // putus mendarat di baris yang sama (checkout_order memakai ulang baris untuk
+  // tenant_id + client_request_id yang sama) alih-alih membuat order kedua.
+  // input.id hanya berupa UUID pada order yang SUDAH tersimpan; untuk order baru
+  // isinya id draf lokal, sehingga tanpa clientRequestId server terpaksa membuat
+  // UUID acak baru pada setiap request dan pengaman duplikat tidak pernah aktif.
+  const clientRequestId = requestKey || crypto.randomUUID();
 
   // Self-order tidak pernah boleh menyatakan dirinya sudah dibayar. Tanpa
   // payment gateway, hanya terminal staff terautentikasi yang mengubah PAID.
