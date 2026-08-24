@@ -213,7 +213,20 @@ export async function handleAttendanceRequest(
     .order('occurred_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (lastEvent?.event_type === payload.type) {
+  // Lupa clock-out TIDAK boleh mengunci staf selamanya. lastEvent adalah kejadian
+  // TERAKHIR tanpa batas waktu, sehingga satu kali lupa clock-out membuat akun itu
+  // gagal clock-in pada hari-hari berikutnya secara permanen -- dan hanya menimpa
+  // sebagian orang, persis pola keluhan di lapangan. Clock-in yang menggantung
+  // lebih dari 12 jam dianggap shift kemarin yang belum ditutup: catatannya tetap
+  // terbuka agar tertandai di laporan, tetapi staf boleh memulai hari ini.
+  const STALE_OPEN_SHIFT_MS = 12 * 60 * 60 * 1000;
+  const lastEventAgeMs = lastEvent?.occurred_at
+    ? Date.now() - new Date(lastEvent.occurred_at).getTime()
+    : 0;
+  const isStaleOpenClockIn = payload.type === 'CLOCK_IN'
+    && lastEvent?.event_type === 'CLOCK_IN'
+    && lastEventAgeMs > STALE_OPEN_SHIFT_MS;
+  if (lastEvent?.event_type === payload.type && !isStaleOpenClockIn) {
     return fail(409, payload.type === 'CLOCK_IN' ? 'Anda sudah clock-in; lakukan clock-out berikutnya' : 'Anda sudah clock-out; lakukan clock-in berikutnya');
   }
 
