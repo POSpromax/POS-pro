@@ -188,6 +188,10 @@ async function startServer() {
 
   app.get('/api/public-catalog', async (req, res) => {
     try {
+      // Katalog publik sama untuk SEMUA pelanggan di satu outlet dan jarang
+      // berubah. Tanpa cache, tiap perangkat yang memindai QR menarik ulang
+      // katalog langsung dari Supabase.
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
       const result = await getPublicCatalog(String(req.query.branchId || ''), getSupabaseAdmin(), String(req.query.tenantId || '') || undefined, String(req.query.branchCode || '') || undefined);
       res.status(result.status).json(result.data);
     } catch {
@@ -197,6 +201,14 @@ async function startServer() {
 
   app.get('/api/public-status', async (req, res) => {
     try {
+      // Endpoint ini dipanggil TIAP 15 DETIK oleh setiap perangkat pelanggan yang
+      // membuka halaman self-order, dan setiap panggilan menjalankan enam query
+      // termasuk join resep + bahan baku. Tanpa cache, 50 pelanggan serentak
+      // berarti 200 panggilan per menit ke Supabase; dengan cache tepi, semuanya
+      // berbagi satu hasil dan hanya menyisakan 4 panggilan per menit per outlet.
+      // Keterlambatan 15 detik aman: klaim meja dan stok tetap divalidasi atomik
+      // saat POST order, bukan bergantung pada polling ini.
+      res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
       const result = await getPublicSelfOrderStatus(
         String(req.query.branchId || ''),
         getSupabaseAdmin(),

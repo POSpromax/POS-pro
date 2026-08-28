@@ -528,10 +528,10 @@ export default function App() {
         .finally(() => { refreshing = false; });
     };
 
-    // 15 detik cukup responsif untuk indikator UI; klaim meja dan stok tetap
+    // 30 detik cukup responsif untuk indikator UI; klaim meja dan stok tetap
     // divalidasi atomik pada POST order sehingga tidak bergantung polling ini.
     refreshPublicStatus();
-    const timer = window.setInterval(refreshPublicStatus, 15_000);
+    const timer = window.setInterval(refreshPublicStatus, 30_000);
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshPublicStatus();
     };
@@ -2841,6 +2841,14 @@ export default function App() {
               searchTerm={searchTerm}
               condimentGroups={condimentGroups}
               onOpenCheckoutModal={handleOpenCheckoutModal}
+              // Daftar nama BAKU untuk diskon Staff Eating. Diurut dan di-dedupe
+              // supaya satu orang tidak pernah muncul dua kali dengan ejaan beda.
+              staffNames={Array.from(new Set(
+                staffAccounts
+                  .filter((account) => account.isActive !== false && (account.branchIds || []).includes(currentBranch.id))
+                  .map((account) => (account.name || '').trim())
+                  .filter(Boolean),
+              )).sort((a, b) => a.localeCompare(b, 'id'))}
               onSaveHoldOrder={handleSaveHoldOrder}
               onCompleteOrder={(orderId) => handleUpdateOrderStatus(orderId, 'COMPLETED')}
               onVoidOrder={handleVoidOrder}

@@ -197,6 +197,9 @@ interface CashierViewProps {
   orders: Order[];
   tables: RestaurantTable[];
   activeUser: UserAccount;
+  // Nama staf BAKU untuk diskon Staff Eating. Nama yang diketik bebas membuat
+  // 'rere' dan 'Rere' terhitung sebagai dua orang berbeda di laporan.
+  staffNames?: string[];
   searchTerm: string;
   condimentGroups?: CondimentGroup[];
   onOpenCheckoutModal: (order: Partial<Order>) => void;
@@ -225,6 +228,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   orders,
   tables,
   activeUser,
+  staffNames = [],
   searchTerm,
   condimentGroups,
   onOpenCheckoutModal,
@@ -1066,6 +1070,27 @@ export const CashierView: React.FC<CashierViewProps> = ({
                   >
                     {SELECTABLE_DISCOUNT_TYPES.map((type) => (
                       <option key={type} value={type}>{DISCOUNT_TYPE_LABELS[type]}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {manualDiscountEnabled && discountAmount > 0 && discountType === 'STAFF_EATING' && staffNames.length > 0 && (
+                /* Pilih dari daftar staf, bukan ketik bebas: ejaan dan huruf besar
+                   yang berbeda membuat satu orang terpecah menjadi beberapa baris
+                   di laporan konsumsi karyawan. */
+                <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
+                  <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-emerald-700">Nama Staf</span>
+                  <select
+                    value={staffNames.includes(customerName) ? customerName : ''}
+                    disabled={isPaidOrder}
+                    onChange={(event) => setCustomerName(event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-xs font-extrabold text-[#111827] outline-none disabled:cursor-not-allowed disabled:text-slate-400"
+                    aria-label="Nama staf yang makan"
+                  >
+                    <option value="">— pilih staf —</option>
+                    {staffNames.map((name) => (
+                      <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
                 </label>
