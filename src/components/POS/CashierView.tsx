@@ -1075,24 +1075,28 @@ export const CashierView: React.FC<CashierViewProps> = ({
                 </label>
               )}
 
-              {manualDiscountEnabled && discountAmount > 0 && discountType === 'STAFF_EATING' && staffNames.length > 0 && (
-                /* Pilih dari daftar staf, bukan ketik bebas: ejaan dan huruf besar
-                   yang berbeda membuat satu orang terpecah menjadi beberapa baris
-                   di laporan konsumsi karyawan. */
+              {manualDiscountEnabled && discountAmount > 0 && discountType === 'STAFF_EATING' && (
+                /* Daftar staf muncul sebagai saran, bukan kurungan: karyawan
+                   perbantuan yang tidak permanen tetap bisa diketik. Saran itu
+                   yang menjaga ejaan konsisten -- mengetik 're' langsung
+                   menawarkan 'Rere', sehingga satu orang tidak terpecah
+                   menjadi beberapa baris di laporan konsumsi karyawan. */
                 <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
                   <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-emerald-700">Nama Staf</span>
-                  <select
-                    value={staffNames.includes(customerName) ? customerName : ''}
+                  <input
+                    list="staff-eating-names"
+                    value={customerName === 'Guest' ? '' : customerName}
                     disabled={isPaidOrder}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-xs font-extrabold text-[#111827] outline-none disabled:cursor-not-allowed disabled:text-slate-400"
+                    onChange={(event) => setCustomerName(event.target.value.trim() || 'Guest')}
+                    placeholder="pilih atau ketik nama"
+                    className="min-w-0 flex-1 bg-transparent text-xs font-extrabold text-[#111827] outline-none placeholder:font-bold placeholder:text-emerald-600/50 disabled:cursor-not-allowed disabled:text-slate-400"
                     aria-label="Nama staf yang makan"
-                  >
-                    <option value="">— pilih staf —</option>
+                  />
+                  <datalist id="staff-eating-names">
                     {staffNames.map((name) => (
-                      <option key={name} value={name}>{name}</option>
+                      <option key={name} value={name} />
                     ))}
-                  </select>
+                  </datalist>
                 </label>
               )}
 
