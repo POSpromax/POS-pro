@@ -76,7 +76,7 @@ export const loadAccounting = (branchId: string, period: string, scope?: 'ALL'):
 
 export interface JournalRecommendation {
   id: string;
-  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL' | 'STAFF_MEAL';
+  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL' | 'STAFF_MEAL' | 'INVENTORY';
   source: string;
   sourceId: string;
   date: string;

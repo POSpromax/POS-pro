@@ -789,6 +789,7 @@ const REC_KIND: Record<JournalRecommendation['kind'], { label: string; tone: str
   INCOME: { label: 'Pemasukan', tone: 'bg-sky-100 text-sky-700' },
   PAYROLL: { label: 'Gaji', tone: 'bg-violet-100 text-violet-700' },
   STAFF_MEAL: { label: 'Makan Staff', tone: 'bg-amber-100 text-amber-700' },
+  INVENTORY: { label: 'Persediaan', tone: 'bg-teal-100 text-teal-700' },
 };
 
 function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm, onDismiss }: {

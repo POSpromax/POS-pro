@@ -130,7 +130,7 @@ const localDateKey = (iso: string, timeZone: string) => {
 
 export interface JournalRecommendation {
   id: string;
-  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL' | 'STAFF_MEAL';
+  kind: 'SALES' | 'EXPENSE' | 'INCOME' | 'PAYROLL' | 'STAFF_MEAL' | 'INVENTORY';
   source: string;
   sourceId: string;
   date: string;
@@ -344,6 +344,50 @@ async function buildRecommendations(
           lines: [{ code: '6-1000', debit: totalNet, credit: 0 }, { code: '1-1000', debit: 0, credit: totalNet }],
         });
       }
+    }
+  }
+
+  // 4) PERSEDIAAN BAHAN BAKU: penyesuaian nilai aset.
+  // Sistem ini memakai metode PERIODIK -- pembelian langsung dibebankan ke HPP
+  // (5-1000) dan persediaan tidak dipelihara per transaksi. Metode itu sah,
+  // TETAPI wajib ditutup dengan penyesuaian akhir periode. Tanpa itu akun
+  // 1-1300 tidak pernah terisi sama sekali: neraca menampilkan persediaan Rp 0
+  // padahal stok fisiknya nyata, dan HPP menanggung seluruh pembelian, bukan
+  // hanya yang benar-benar terpakai. Itulah yang membuat aset inventory terasa
+  // tidak pernah masuk pembukuan.
+  //
+  // Nilai stok yang tersedia adalah nilai SAAT INI (raw_materials.stock_quantity
+  // bersifat hidup, bukan riwayat), jadi penyesuaian hanya ditawarkan untuk
+  // periode berjalan. Menawarkannya untuk bulan lampau berarti memposting nilai
+  // stok hari ini ke neraca bulan lalu -- salah, dan sulit dilacak kemudian.
+  const todayKey = localDateKey(new Date().toISOString(), timeZone);
+  if (todayKey.slice(0, 7) === period) {
+    const [{ data: stockRows }, { data: ledgerRows }] = await Promise.all([
+      admin.from('raw_materials').select('stock_quantity,cost_per_unit').eq('branch_id', branchId),
+      admin.from('journal_lines').select('debit,credit').eq('branch_id', branchId).eq('account_code', '1-1300'),
+    ]);
+    const actualValue = Math.round((stockRows || []).reduce((sum: number, row: any) => (
+      sum + Number(row.stock_quantity || 0) * Number(row.cost_per_unit || 0)
+    ), 0));
+    const bookValue = Math.round((ledgerRows || []).reduce((sum: number, row: any) => (
+      sum + Number(row.debit || 0) - Number(row.credit || 0)
+    ), 0));
+    const delta = actualValue - bookValue;
+    const sourceId = `INVENTORY:${todayKey}`;
+    // Ambang Rp 1.000 menahan jurnal recehan dari pembulatan biaya per unit.
+    if (!posted.has(sourceId) && Math.abs(delta) >= 1000) {
+      const amount = Math.abs(delta);
+      const naik = delta > 0;
+      recommendations.push({
+        id: sourceId, kind: 'INVENTORY', source: 'ADJUSTMENT', sourceId, date: todayKey,
+        title: `Penyesuaian persediaan bahan baku per ${new Date(`${todayKey}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} (stok nyata Rp ${actualValue.toLocaleString('id-ID')})`,
+        amount,
+        // Berbasis SELISIH terhadap saldo buku, bukan nilai penuh, sehingga aman
+        // diposting berulang: tiap posting menyelaraskan buku dengan stok nyata.
+        lines: naik
+          ? [{ code: '1-1300', debit: amount, credit: 0 }, { code: '5-1000', debit: 0, credit: amount }]
+          : [{ code: '5-1000', debit: amount, credit: 0 }, { code: '1-1300', debit: 0, credit: amount }],
+      });
     }
   }
 
