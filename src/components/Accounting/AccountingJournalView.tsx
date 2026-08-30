@@ -9,6 +9,7 @@ import {
   loadRecommendations,
   dismissRecommendation,
   restoreRecommendation,
+  archiveDismissal,
   type DismissedRecommendation,
   computeBalances, buildIncomeStatement, buildBalanceSheet, buildTrialBalance,
   type AccountingData, type Account, type AccountType, type JournalRecommendation, type JournalEntry,
@@ -94,6 +95,15 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
       await loadRecs();
     } catch (err) {
       onShowToast?.('Gagal Mengabaikan', err instanceof Error ? err.message : 'Rekomendasi tidak dapat diabaikan.');
+    }
+  };
+
+  const archiveDismissed = async (sourceId: string) => {
+    try {
+      await archiveDismissal(currentBranch.id, sourceId);
+      await loadRecs();
+    } catch (err) {
+      onShowToast?.('Gagal Menghapus Riwayat', err instanceof Error ? err.message : 'Riwayat tidak dapat dihapus.');
     }
   };
 
@@ -405,6 +415,14 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
                             className="ui-button ui-button-secondary min-h-8 shrink-0 px-3 text-[11px]"
                           >
                             Panggil kembali
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void archiveDismissed(item.sourceId)}
+                            className="ui-button ui-button-secondary min-h-8 shrink-0 px-2.5 text-[11px]"
+                            title="Hapus dari riwayat. Rekomendasi tetap tidak akan muncul lagi."
+                          >
+                            Hapus
                           </button>
                         </div>
                       ))}

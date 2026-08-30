@@ -114,6 +114,11 @@ export const dismissRecommendation = (
   sourceId: rec.sourceId, kind: rec.kind, title: rec.title, amount: rec.amount, date: rec.date,
 });
 
+// Hapus dari RIWAYAT saja: rekomendasinya tetap tertahan, hanya tidak lagi
+// ditampilkan. Berbeda dari restoreRecommendation yang memunculkannya kembali.
+export const archiveDismissal = (branchId: string, sourceId: string): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { branchId, action: 'ARCHIVE_DISMISSAL', sourceId });
+
 export const restoreRecommendation = (branchId: string, sourceId: string): Promise<{ ok: boolean }> =>
   requestAccounting('POST', { branchId, action: 'RESTORE_RECOMMENDATION', sourceId });
 

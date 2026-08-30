@@ -54,7 +54,7 @@ const DEFAULT_COA: DefaultAccount[] = [
 interface AccountingPayload {
   branchId?: string;
   action?: 'SEED_COA' | 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'VOID_ENTRY' | 'DELETE_ENTRY' | 'SAVE_ACCOUNT' | 'DELETE_ACCOUNT'
-    | 'DISMISS_RECOMMENDATION' | 'RESTORE_RECOMMENDATION';
+    | 'DISMISS_RECOMMENDATION' | 'RESTORE_RECOMMENDATION' | 'ARCHIVE_DISMISSAL';
   view?: string;
   // scope=ALL: laporan KONSOLIDASI seluruh cabang yang boleh diakses aktor
   // (hanya untuk BACA; pembuatan/edit jurnal tetap per cabang agar aman).
@@ -315,7 +315,11 @@ async function buildRecommendations(
   // disinkronkan langsung dari stok nyata dapur (lihat inventoryAssetValue), jadi
   // tidak perlu dikonfirmasi manual tiap hari.
 
-  return recommendations;
+  // TERBARU DI ATAS. Sebelumnya penjualan diurut menaik sehingga tiap ganti hari
+  // daftarnya selalu dibuka dari awal bulan, seolah mengulang dari nol. Hari yang
+  // belum diposting tetap ada di bawah -- tidak disembunyikan, karena itu memang
+  // pekerjaan yang belum selesai.
+  return recommendations.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 
 async function seedDefaultCoa(branchId: string, tenantId: string, admin: SupabaseClient) {
@@ -360,6 +364,7 @@ export async function handleAccountingRequest(
           .from('journal_recommendation_dismissals')
           .select('source_id,kind,title,amount,entry_date,dismissed_at')
           .eq('branch_id', branchId)
+          .is('archived_at', null)
           .order('dismissed_at', { ascending: false })
           .limit(100);
         return {
@@ -578,6 +583,19 @@ export async function handleAccountingRequest(
       dismissed_by: actor.actorId || null,
     }, { onConflict: 'branch_id,source_id' });
     if (error) return fail(500, 'Rekomendasi gagal diabaikan. Pastikan migrasi 202608300054 sudah dijalankan.');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'ARCHIVE_DISMISSAL') {
+    const sourceId = String(payload.sourceId || '').trim();
+    if (!sourceId) return fail(400, 'Rekomendasi tidak valid');
+    // Hanya menyembunyikan dari daftar riwayat. Barisnya SENGAJA dipertahankan
+    // supaya rekomendasinya tetap tertahan; menghapus barisnya justru akan
+    // memunculkannya kembali di daftar rekomendasi.
+    const { error } = await admin.from('journal_recommendation_dismissals')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('branch_id', branchId).eq('source_id', sourceId);
+    if (error) return fail(500, 'Riwayat gagal dihapus. Pastikan migrasi 202608300055 sudah dijalankan.');
     return { status: 200, data: { ok: true } };
   }
 
