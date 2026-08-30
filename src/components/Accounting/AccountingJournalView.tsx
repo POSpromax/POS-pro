@@ -823,10 +823,26 @@ function BalanceTab({ sheet }: { sheet: ReturnType<typeof buildBalanceSheet> }) 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">Aset</p>
-          {sheet.assets.map((a) => <Row key={a.account.code} label={a.account.name} value={a.asOfNet} indent />)}
+          {/* Persediaan diberi penanda karena saldonya TIDAK berasal dari jurnal:
+              angkanya disinkronkan dari stok dapur nyata. Tanpa penanda ini, membuka
+              buku besar 1-1300 dan menemukannya kosong terasa seperti kesalahan. */}
+          {sheet.assets.map((a) => (
+            <Row
+              key={a.account.code}
+              label={a.account.code === '1-1300' ? `${a.account.name} (sinkron stok)` : a.account.name}
+              value={a.asOfNet}
+              indent
+            />
+          ))}
           <div className="mt-2 flex justify-between border-t-2 border-[var(--panel-border-strong)] pt-2 text-[13px] font-black">
             <span>TOTAL ASET</span><span className="font-mono">{rp(sheet.totalAssets)}</span>
           </div>
+          {sheet.assets.some((a) => a.account.code === '1-1300') && (
+            <p className="mt-1.5 text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+              Persediaan mengikuti stok dapur secara langsung — ikut turun saat penjualan
+              dan makan staff, ikut naik saat restok. Tidak perlu jurnal manual.
+            </p>
+          )}
         </div>
         <div>
           <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">Kewajiban</p>
