@@ -465,7 +465,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
           )}
           {tab === 'TRIAL' && <TrialTab trial={trial} />}
           {tab === 'INCOME' && <IncomeTab income={income} period={period} />}
-          {tab === 'BALANCE' && <BalanceTab sheet={sheet} />}
+          {tab === 'BALANCE' && <BalanceTab sheet={sheet} inventoryAsset={data?.inventoryAsset} />}
           {tab === 'COA' && (
             <CoaTab
               accounts={data.coa}
@@ -823,7 +823,11 @@ function IncomeTab({ income, period }: { income: ReturnType<typeof buildIncomeSt
 
 // ── Neraca ─────────────────────────────────────────────────────────────────────
 
-function BalanceTab({ sheet }: { sheet: ReturnType<typeof buildBalanceSheet> }) {
+function BalanceTab({ sheet, inventoryAsset }: {
+  sheet: ReturnType<typeof buildBalanceSheet>;
+  // Nilai stok dapur, disajikan sebagai informasi DI LUAR total neraca.
+  inventoryAsset?: number;
+}) {
   const Row = ({ label, value, indent }: { label: string; value: number; indent?: boolean }) => (
     <div className={`flex justify-between py-1 text-[13px] ${indent ? 'pl-2' : ''}`}>
       <span className="text-[var(--text-primary)]">{label}</span>
@@ -841,25 +845,24 @@ function BalanceTab({ sheet }: { sheet: ReturnType<typeof buildBalanceSheet> }) 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">Aset</p>
-          {/* Persediaan diberi penanda karena saldonya TIDAK berasal dari jurnal:
-              angkanya disinkronkan dari stok dapur nyata. Tanpa penanda ini, membuka
-              buku besar 1-1300 dan menemukannya kosong terasa seperti kesalahan. */}
-          {sheet.assets.map((a) => (
-            <Row
-              key={a.account.code}
-              label={a.account.code === '1-1300' ? `${a.account.name} (sinkron stok)` : a.account.name}
-              value={a.asOfNet}
-              indent
-            />
-          ))}
+          {sheet.assets.map((a) => <Row key={a.account.code} label={a.account.name} value={a.asOfNet} indent />)}
           <div className="mt-2 flex justify-between border-t-2 border-[var(--panel-border-strong)] pt-2 text-[13px] font-black">
             <span>TOTAL ASET</span><span className="font-mono">{rp(sheet.totalAssets)}</span>
           </div>
-          {sheet.assets.some((a) => a.account.code === '1-1300') && (
-            <p className="mt-1.5 text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-              Persediaan mengikuti stok dapur secara langsung — ikut turun saat penjualan
-              dan makan staff, ikut naik saat restok. Tidak perlu jurnal manual.
-            </p>
+          {typeof inventoryAsset === 'number' && inventoryAsset > 0 && (
+            /* DI LUAR total neraca. Nilai ini berasal dari stok dapur, bukan dari
+               jurnal, jadi menjumlahkannya ke total aset akan membuat neraca tidak
+               seimbang -- tidak ada sisi kredit yang mengimbanginya. */
+            <div className="mt-3 rounded-xl bg-[var(--surface-secondary)] px-3 py-2">
+              <div className="flex justify-between text-[12px] font-bold">
+                <span style={{ color: 'var(--text-secondary)' }}>Nilai Stok Dapur</span>
+                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{rp(inventoryAsset)}</span>
+              </div>
+              <p className="mt-1 text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                Informasi dari stok nyata, di luar buku besar. Belum dijurnal sebagai aset
+                karena pembeliannya sudah tercatat sebagai beban.
+              </p>
+            </div>
           )}
         </div>
         <div>

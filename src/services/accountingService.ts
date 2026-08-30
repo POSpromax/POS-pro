@@ -196,31 +196,15 @@ export function computeBalances(data: AccountingData): AccountBalance[] {
     });
   });
 
-  // SINKRONISASI PERSEDIAAN. Stok dapur nyata dimasukkan sebagai penyesuaian
-  // semu: aset 1-1300 dinaikkan ke nilai stok, dan HPP 5-1000 dikurangi sebesar
-  // jumlah yang sama. Keduanya bergerak seimbang, jadi neraca tetap seimbang --
-  // aset naik, dan laba ikut naik lewat HPP yang turun.
+  // Persediaan SENGAJA tidak lagi disuntikkan ke saldo akun mana pun.
+  // Percobaan sebelumnya mengkreditkan nilainya ke 5-1000 HPP dengan asumsi
+  // pembelian bahan dibebankan ke sana. Asumsi itu SALAH: pembelian dicatat ke
+  // akun beban tersendiri (Beban Persediaan Bahan Baku, Beban Daging, dan
+  // sejenisnya), sehingga kredit ke HPP tidak berdasar dan membuat HPP menjadi
+  // minus puluhan juta serta total beban negatif.
   //
-  // Dihitung di sini, bukan lewat jurnal tersimpan, karena stok berubah pada
-  // SETIAP transaksi. Menjurnalnya manual tiap hari tidak realistis dan pasti
-  // tertinggal. Order makan staff ikut tercermin otomatis karena tetap memotong
-  // stok seperti penjualan biasa.
-  if (typeof data.inventoryAsset === 'number') {
-    const bookOpen = opening.get('1-1300') || { debit: 0, credit: 0 };
-    const bookPeriod = period.get('1-1300') || { debit: 0, credit: 0 };
-    const bookNet = (bookOpen.debit + bookPeriod.debit) - (bookOpen.credit + bookPeriod.credit);
-    // Berbasis SELISIH terhadap saldo buku, sehingga tetap benar bila suatu saat
-    // ada jurnal manual yang menyentuh akun persediaan.
-    const delta = round2(data.inventoryAsset - bookNet);
-    if (Math.abs(delta) >= 1) {
-      const inv = period.get('1-1300') || { debit: 0, credit: 0 };
-      const cogs = period.get('5-1000') || { debit: 0, credit: 0 };
-      if (delta > 0) { inv.debit += delta; cogs.credit += delta; }
-      else { inv.credit += -delta; cogs.debit += -delta; }
-      period.set('1-1300', inv);
-      period.set('5-1000', cogs);
-    }
-  }
+  // Nilai persediaan kini disajikan sebagai ANGKA INFORMASI terpisah, di luar
+  // buku besar, supaya laba-rugi dan neraca saldo tetap murni berasal dari jurnal.
 
   return data.coa.map((account) => {
     const o = opening.get(account.code) || { debit: 0, credit: 0 };
