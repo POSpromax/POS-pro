@@ -40,7 +40,9 @@ interface AnalyticsExportViewProps {
   profile?: RestaurantProfile;
   branches?: Branch[];
   currentBranchId?: string;
-  onPeriodRangeChange?: (from: string, to: string, branchId?: string) => void | Promise<void>;
+  // forceFresh dipakai tombol Muat Ulang agar melewati cache laporan; ganti
+  // periode atau cabang cukup memakai cache bila masih berlaku.
+  onPeriodRangeChange?: (from: string, to: string, branchId?: string, forceFresh?: boolean) => void | Promise<void>;
 }
 
 type AnalyticsTab = 'OVERVIEW' | 'TOP_ITEMS' | 'VOID' | 'TAX_DISCOUNT' | 'SHIFT_HISTORY' | 'ATTENDANCE_HISTORY' | 'INVENTORY';
@@ -208,6 +210,7 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
   const [inventoryMovementError, setInventoryMovementError] = useState('');
   const [reportRangeLoading, setReportRangeLoading] = useState(false);
   const [reportRefreshNonce, setReportRefreshNonce] = useState(0);
+  const lastReportNonceRef = React.useRef(reportRefreshNonce);
   const [lastReportLoadedAt, setLastReportLoadedAt] = useState<Date | null>(null);
 
   const [period, setPeriod] = useState<ReportPeriod>('TODAY');
@@ -243,7 +246,10 @@ export const AnalyticsExportView: React.FC<AnalyticsExportViewProps> = ({
     if (!onPeriodRangeChange) return;
     let active = true;
     setReportRangeLoading(true);
-    void Promise.resolve(onPeriodRangeChange(periodRange.start.toISOString(), periodRange.end.toISOString(), branchFilter))
+    // Hanya penekanan Muat Ulang yang menembus cache; ganti periode/cabang tidak.
+    const forceFresh = lastReportNonceRef.current !== reportRefreshNonce;
+    lastReportNonceRef.current = reportRefreshNonce;
+    void Promise.resolve(onPeriodRangeChange(periodRange.start.toISOString(), periodRange.end.toISOString(), branchFilter, forceFresh))
       .finally(() => {
         if (!active) return;
         setReportRangeLoading(false);

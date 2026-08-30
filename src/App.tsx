@@ -425,6 +425,13 @@ export default function App() {
   // berpindah tab: langganan realtime sengaja TIDAK dibangun ulang lagi, tetapi
   // datanya tetap harus terasa segar begitu layar berganti.
   const syncOrdersRef = useRef<null | (() => void)>(null);
+  // CACHE LAPORAN OWNER. Setiap ganti filter sebelumnya menarik ulang seluruh
+  // order beserta itemnya -- sekitar 1,7 MB untuk satu bulan. Periode yang sudah
+  // BERAKHIR bersifat tetap, jadi cukup diambil sekali per sesi; periode yang
+  // masih mencakup hari ini diberi umur pendek karena datanya terus bertambah.
+  const ownerReportCacheRef = useRef(new Map<string, { at: number; snapshots: Array<{
+    branchId: string; orders: Order[]; expenses: ExpenseIncomeRecord[]; shifts: Shift[];
+  }> }>());
 
   const [branchOperationalConfig, setBranchOperationalConfig] = useState<BranchOperationalConfig>(
     () => defaultBranchOperationalConfig(currentBranch.id),
@@ -920,8 +927,32 @@ export default function App() {
     };
   }, [isAttendanceTerminal, isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
 
-  const refreshOwnerReportRange = useCallback(async (from: string, to: string, targetBranchId = 'ALL') => {
+  type OwnerReportSnapshot = { branchId: string; orders: Order[]; expenses: ExpenseIncomeRecord[]; shifts: Shift[] };
+  const applyOwnerReportSnapshots = useCallback((snapshots: OwnerReportSnapshot[]) => {
+    setOwnerMonitorData((current) => ({
+      ...current,
+      branchIds: Array.from(new Set([...current.branchIds, ...snapshots.map((snapshot) => snapshot.branchId)])),
+      orders: [
+        ...current.orders.filter((order) => !snapshots.some((snapshot) => snapshot.branchId === order.branchId)),
+        ...snapshots.flatMap((snapshot) => snapshot.orders),
+      ],
+    }));
+    setExpenseRecords(snapshots.flatMap((snapshot) => snapshot.expenses));
+    setShiftHistory(snapshots.flatMap((snapshot) => snapshot.shifts));
+  }, []);
+
+  const refreshOwnerReportRange = useCallback(async (from: string, to: string, targetBranchId = 'ALL', forceFresh = false) => {
     if (!cloudReadiness.supabase || systemPortal !== 'OWNER') return;
+    const cacheKey = `${targetBranchId}|${from}|${to}`;
+    // Periode yang seluruhnya sudah lewat tidak akan berubah lagi; yang menyentuh
+    // hari ini masih tumbuh, jadi hanya ditahan 60 detik.
+    const rangeEndsInPast = new Date(to).getTime() < new Date(new Date().toDateString()).getTime();
+    const maxAgeMs = rangeEndsInPast ? Number.POSITIVE_INFINITY : 60_000;
+    const cached = ownerReportCacheRef.current.get(cacheKey);
+    if (!forceFresh && cached && Date.now() - cached.at < maxAgeMs) {
+      applyOwnerReportSnapshots(cached.snapshots);
+      return;
+    }
     const requestId = ++ownerReportRequestRef.current;
     const allowedBranches = activeUser.branchIds?.length
       ? branches.filter((branch) => activeUser.branchIds?.includes(branch.id))
@@ -954,16 +985,8 @@ export default function App() {
       showPushToast('Laporan Belum Termuat', 'Data periode terpilih gagal dibaca dari seluruh cabang.');
       return;
     }
-    setOwnerMonitorData((current) => ({
-      ...current,
-      branchIds: Array.from(new Set([...current.branchIds, ...snapshots.map((snapshot) => snapshot.branchId)])),
-      orders: [
-        ...current.orders.filter((order) => !snapshots.some((snapshot) => snapshot.branchId === order.branchId)),
-        ...snapshots.flatMap((snapshot) => snapshot.orders),
-      ],
-    }));
-    setExpenseRecords(snapshots.flatMap((snapshot) => snapshot.expenses));
-    setShiftHistory(snapshots.flatMap((snapshot) => snapshot.shifts));
+    ownerReportCacheRef.current.set(cacheKey, { at: Date.now(), snapshots });
+    applyOwnerReportSnapshots(snapshots);
   }, [activeUser.branchIds, branches, systemPortal]);
 
   useEffect(() => {
