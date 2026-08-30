@@ -49,6 +49,10 @@ export interface AccountingData {
   coa: Account[];
   entries: JournalEntry[];
   openingBalances: OpeningBalance[];
+  // Nilai persediaan bahan baku dari stok dapur NYATA, disinkronkan otomatis.
+  // Buku besar tidak pernah mencatat persediaan karena pembelian langsung
+  // dibebankan ke HPP; angka ini yang membuat asetnya tetap tampil.
+  inventoryAsset?: number;
 }
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
@@ -85,8 +89,33 @@ export interface JournalRecommendation {
   lines: Array<{ code: string; debit: number; credit: number }>;
 }
 
-export const loadRecommendations = (branchId: string, period: string): Promise<{ period: string; recommendations: JournalRecommendation[] }> =>
-  requestAccounting('GET', { branchId, period, view: 'recommendations' });
+export interface DismissedRecommendation {
+  sourceId: string;
+  kind: string;
+  title: string;
+  amount: number;
+  date?: string;
+  dismissedAt: string;
+}
+
+export const loadRecommendations = (branchId: string, period: string): Promise<{
+  period: string;
+  recommendations: JournalRecommendation[];
+  dismissed?: DismissedRecommendation[];
+}> => requestAccounting('GET', { branchId, period, view: 'recommendations' });
+
+// Pengabaian disimpan di server, bukan di memori komponen: memuat ulang halaman
+// tidak boleh memunculkan kembali rekomendasi yang sudah ditolak.
+export const dismissRecommendation = (
+  branchId: string,
+  rec: Pick<JournalRecommendation, 'sourceId' | 'kind' | 'title' | 'amount' | 'date'>,
+): Promise<{ ok: boolean }> => requestAccounting('POST', {
+  branchId, action: 'DISMISS_RECOMMENDATION',
+  sourceId: rec.sourceId, kind: rec.kind, title: rec.title, amount: rec.amount, date: rec.date,
+});
+
+export const restoreRecommendation = (branchId: string, sourceId: string): Promise<{ ok: boolean }> =>
+  requestAccounting('POST', { branchId, action: 'RESTORE_RECOMMENDATION', sourceId });
 
 export const seedChartOfAccounts = (branchId: string): Promise<{ ok: boolean }> =>
   requestAccounting('POST', { branchId, action: 'SEED_COA' });
@@ -161,6 +190,32 @@ export function computeBalances(data: AccountingData): AccountBalance[] {
       period.set(line.accountCode, bucket);
     });
   });
+
+  // SINKRONISASI PERSEDIAAN. Stok dapur nyata dimasukkan sebagai penyesuaian
+  // semu: aset 1-1300 dinaikkan ke nilai stok, dan HPP 5-1000 dikurangi sebesar
+  // jumlah yang sama. Keduanya bergerak seimbang, jadi neraca tetap seimbang --
+  // aset naik, dan laba ikut naik lewat HPP yang turun.
+  //
+  // Dihitung di sini, bukan lewat jurnal tersimpan, karena stok berubah pada
+  // SETIAP transaksi. Menjurnalnya manual tiap hari tidak realistis dan pasti
+  // tertinggal. Order makan staff ikut tercermin otomatis karena tetap memotong
+  // stok seperti penjualan biasa.
+  if (typeof data.inventoryAsset === 'number') {
+    const bookOpen = opening.get('1-1300') || { debit: 0, credit: 0 };
+    const bookPeriod = period.get('1-1300') || { debit: 0, credit: 0 };
+    const bookNet = (bookOpen.debit + bookPeriod.debit) - (bookOpen.credit + bookPeriod.credit);
+    // Berbasis SELISIH terhadap saldo buku, sehingga tetap benar bila suatu saat
+    // ada jurnal manual yang menyentuh akun persediaan.
+    const delta = round2(data.inventoryAsset - bookNet);
+    if (Math.abs(delta) >= 1) {
+      const inv = period.get('1-1300') || { debit: 0, credit: 0 };
+      const cogs = period.get('5-1000') || { debit: 0, credit: 0 };
+      if (delta > 0) { inv.debit += delta; cogs.credit += delta; }
+      else { inv.credit += -delta; cogs.debit += -delta; }
+      period.set('1-1300', inv);
+      period.set('5-1000', cogs);
+    }
+  }
 
   return data.coa.map((account) => {
     const o = opening.get(account.code) || { debit: 0, credit: 0 };

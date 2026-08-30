@@ -7,6 +7,9 @@ import {
   loadAccounting, seedChartOfAccounts, createJournalEntry, updateJournalEntry, deleteJournalEntry,
   saveAccount, deleteAccount,
   loadRecommendations,
+  dismissRecommendation,
+  restoreRecommendation,
+  type DismissedRecommendation,
   computeBalances, buildIncomeStatement, buildBalanceSheet, buildTrialBalance,
   type AccountingData, type Account, type AccountType, type JournalRecommendation, type JournalEntry,
 } from '../../services/accountingService';
@@ -65,7 +68,10 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
   // Rekomendasi posting otomatis (perlu konfirmasi/penyesuaian).
   const [recs, setRecs] = useState<JournalRecommendation[]>([]);
   const [recLoading, setRecLoading] = useState(false);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Riwayat pengabaian datang dari SERVER, bukan state lokal: sebelumnya cukup
+  // memuat ulang halaman untuk memunculkan kembali rekomendasi yang sudah ditolak.
+  const [dismissedHistory, setDismissedHistory] = useState<DismissedRecommendation[]>([]);
+  const [showDismissed, setShowDismissed] = useState(false);
   const [postingId, setPostingId] = useState<string | null>(null);
 
   const loadRecs = async () => {
@@ -74,10 +80,30 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     try {
       const result = await loadRecommendations(currentBranch.id, period);
       setRecs(result.recommendations);
+      setDismissedHistory(result.dismissed || []);
     } catch (err) {
       onShowToast?.('Rekomendasi Gagal', err instanceof Error ? err.message : 'Rekomendasi tidak dapat dimuat.');
     } finally {
       setRecLoading(false);
+    }
+  };
+
+  const dismissRec = async (rec: JournalRecommendation) => {
+    try {
+      await dismissRecommendation(currentBranch.id, rec);
+      await loadRecs();
+    } catch (err) {
+      onShowToast?.('Gagal Mengabaikan', err instanceof Error ? err.message : 'Rekomendasi tidak dapat diabaikan.');
+    }
+  };
+
+  const restoreRec = async (sourceId: string) => {
+    try {
+      await restoreRecommendation(currentBranch.id, sourceId);
+      await loadRecs();
+      onShowToast?.('Rekomendasi Dipanggil Kembali', 'Rekomendasi muncul lagi di daftar bila data sumbernya masih ada.');
+    } catch (err) {
+      onShowToast?.('Gagal Memanggil Kembali', err instanceof Error ? err.message : 'Rekomendasi tidak dapat dipulihkan.');
     }
   };
 
@@ -240,7 +266,9 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
 
   const needsSeed = !loading && !error && data != null && data.coa.length === 0;
 
-  const visibleRecs = recs.filter((r) => !dismissed.has(r.id));
+  // Server sudah menyaring rekomendasi yang diabaikan, jadi tidak ada penyaring
+  // lokal lagi -- satu sumber kebenaran, konsisten di semua perangkat.
+  const visibleRecs = recs;
   const tabs: Array<{ id: Tab; label: string; icon: typeof BookOpen }> = [
     { id: 'RECOMMEND', label: 'Rekomendasi', icon: Sparkles },
     { id: 'JOURNAL', label: 'Jurnal Umum', icon: BookOpen },
@@ -336,6 +364,7 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
       {!loading && !error && data && data.coa.length > 0 && (
         <>
           {tab === 'RECOMMEND' && (
+            <>
             <RecommendTab
               recs={visibleRecs}
               loading={recLoading}
@@ -343,8 +372,47 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
               postingId={postingId}
               onReload={() => void loadRecs()}
               onConfirm={(rec, override) => void confirmRec(rec, override)}
-              onDismiss={(id) => setDismissed((current) => new Set(current).add(id))}
+              onDismiss={(rec) => void dismissRec(rec)}
             />
+
+              {dismissedHistory.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-[var(--panel-border)] bg-[var(--surface-secondary)]/60 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDismissed((v) => !v)}
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                  >
+                    <span className="text-[12px] font-black uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+                      Riwayat Diabaikan ({dismissedHistory.length})
+                    </span>
+                    <span className="text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                      {showDismissed ? 'Sembunyikan' : 'Lihat'}
+                    </span>
+                  </button>
+                  {showDismissed && (
+                    <div className="mt-3 space-y-2">
+                      {dismissedHistory.map((item) => (
+                        <div key={item.sourceId} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--surface-primary)] px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+                            <p className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                              Rp {item.amount.toLocaleString('id-ID')} · diabaikan {new Date(item.dismissedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void restoreRec(item.sourceId)}
+                            className="ui-button ui-button-secondary min-h-8 shrink-0 px-3 text-[11px]"
+                          >
+                            Panggil kembali
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
           {tab === 'JOURNAL' && (
             <JournalTab
@@ -799,7 +867,9 @@ function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm,
   postingId: string | null;
   onReload: () => void;
   onConfirm: (rec: JournalRecommendation, override: { lines: Array<{ code: string; debit: number; credit: number }>; entryDate: string; description: string }) => void;
-  onDismiss: (id: string) => void;
+  // Membawa rekomendasi utuh, bukan id: cuplikan judul & nilainya ikut disimpan
+  // ke riwayat agar tetap terbaca walau tidak dihasilkan ulang nanti.
+  onDismiss: (rec: JournalRecommendation) => void;
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
@@ -896,7 +966,7 @@ function RecommendTab({ recs, loading, accounts, postingId, onReload, onConfirm,
                     ))}
                   </div>
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
-                    <button type="button" onClick={() => onDismiss(rec.id)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]"><X className="h-4 w-4" /> Abaikan</button>
+                    <button type="button" onClick={() => onDismiss(rec)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]"><X className="h-4 w-4" /> Abaikan</button>
                     <button type="button" onClick={() => startEdit(rec)} className="ui-button ui-button-secondary min-h-8 px-3 text-[12px]"><Pencil className="h-4 w-4" /> Sesuaikan</button>
                     <button type="button" disabled={isPosting} onClick={() => onConfirm(rec, { lines: rec.lines, entryDate: rec.date, description: rec.title })} className="ui-button ui-button-primary min-h-8 px-3.5 text-[12px]">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Konfirmasi & Posting</button>
                   </div>

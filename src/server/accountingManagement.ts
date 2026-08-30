@@ -53,7 +53,8 @@ const DEFAULT_COA: DefaultAccount[] = [
 
 interface AccountingPayload {
   branchId?: string;
-  action?: 'SEED_COA' | 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'VOID_ENTRY' | 'DELETE_ENTRY' | 'SAVE_ACCOUNT' | 'DELETE_ACCOUNT';
+  action?: 'SEED_COA' | 'CREATE_ENTRY' | 'UPDATE_ENTRY' | 'VOID_ENTRY' | 'DELETE_ENTRY' | 'SAVE_ACCOUNT' | 'DELETE_ACCOUNT'
+    | 'DISMISS_RECOMMENDATION' | 'RESTORE_RECOMMENDATION';
   view?: string;
   // scope=ALL: laporan KONSOLIDASI seluruh cabang yang boleh diakses aktor
   // (hanya untuk BACA; pembuatan/edit jurnal tetap per cabang agar aman).
@@ -68,6 +69,12 @@ interface AccountingPayload {
   entryId?: string;
   account?: { id?: string; code?: string; name?: string; type?: string; normalBalance?: string };
   accountId?: string;
+  // Cuplikan rekomendasi yang diabaikan, disimpan agar riwayat tetap terbaca
+  // walau rekomendasinya tidak lagi dihasilkan ulang.
+  kind?: string;
+  title?: string;
+  amount?: number;
+  date?: string;
 }
 
 const ACCOUNT_TYPES = new Set(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']);
@@ -215,6 +222,14 @@ async function buildRecommendations(
   ]);
 
   const posted = new Set((postedRes.data || []).map((r: any) => r.source_id));
+  // Rekomendasi yang pernah DIABAIKAN diperlakukan sama seperti yang sudah
+  // diposting: tidak ditawarkan lagi. Bedanya, pengabaian bisa dibatalkan lewat
+  // RESTORE_RECOMMENDATION sehingga rekomendasinya muncul kembali.
+  const { data: dismissedRows } = await admin
+    .from('journal_recommendation_dismissals')
+    .select('source_id')
+    .eq('branch_id', branchId);
+  (dismissedRows || []).forEach((row: any) => posted.add(row.source_id));
   const recommendations: JournalRecommendation[] = [];
 
   // 1) Penjualan agregat per hari (dalam bulan periode).
@@ -272,61 +287,10 @@ async function buildRecommendations(
     }
   });
 
-  // 2b) MAKAN STAFF: order berdiskon 100% (potongan menutup seluruh subtotal).
-  // Pembelian bahan sudah dibebankan langsung ke HPP (5-1000), jadi biayanya
-  // SUDAH masuk HPP. Karena itu jurnalnya adalah REKLASIFIKASI senilai HPP:
-  //   Dr 6-1100 Beban Konsumsi Karyawan / Cr 5-1000 HPP
-  // Bukan kredit Persediaan — itu akan dobel-hitung karena persediaan tidak
-  // dipelihara di buku besar pada metode ini. Laba bersih tidak berubah,
-  // tetapi biaya makan staff terlihat sebagai baris tersendiri.
-  const staffMealOrders = (ordersRes.data || []).filter((row: any) => {
-    const sub = Number(row.subtotal_amount || 0);
-    return sub > 0 && Number(row.discount_amount || 0) >= sub;
-  });
-  if (staffMealOrders.length > 0) {
-    // Outlet yang bagan akunnya dibuat sebelum akun ini ada tetap bisa memakai
-    // rekomendasi: pastikan akun tersedia (idempoten, tidak menimpa yang ada).
-    const { data: branchRow } = await admin.from('branches').select('tenant_id').eq('id', branchId).maybeSingle();
-    if (branchRow?.tenant_id) {
-      await admin.from('chart_of_accounts').upsert([{
-        tenant_id: branchRow.tenant_id, branch_id: branchId, code: '6-1100',
-        name: 'Beban Konsumsi Karyawan', type: 'EXPENSE', normal_balance: 'DEBIT',
-        is_system: true, sort_order: 17,
-      }], { onConflict: 'branch_id,code', ignoreDuplicates: true });
-    }
-    const mealOrderIds = staffMealOrders.map((row: any) => row.id);
-    const { data: mealItems } = await admin
-      .from('order_items').select('order_id,menu_item_id,quantity').in('order_id', mealOrderIds);
-    const menuIds = [...new Set((mealItems || []).map((r: any) => r.menu_item_id).filter(Boolean))];
-    const { data: menuRows } = menuIds.length
-      ? await admin.from('menu_items').select('id,hpp_cost').in('id', menuIds)
-      : { data: [] };
-    const hppById = new Map((menuRows || []).map((r: any) => [r.id, Number(r.hpp_cost || 0)]));
-    const dateByOrder = new Map(staffMealOrders.map((row: any) => [row.id, localDateKey(row.created_at, timeZone)]));
-    const costByDay = new Map<string, number>();
-    (mealItems || []).forEach((item: any) => {
-      const dateKey = dateByOrder.get(item.order_id);
-      if (!dateKey || dateKey.slice(0, 7) !== period) return;
-      const cost = (hppById.get(item.menu_item_id) || 0) * Number(item.quantity || 0);
-      if (cost <= 0) return;
-      costByDay.set(dateKey, (costByDay.get(dateKey) || 0) + cost);
-    });
-    [...costByDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([dateKey, cost]) => {
-      const sourceId = `STAFFMEAL:${dateKey}`;
-      if (posted.has(sourceId)) return;
-      const amount = Math.round(cost);
-      if (amount <= 0) return;
-      recommendations.push({
-        id: sourceId, kind: 'STAFF_MEAL', source: 'ADJUSTMENT', sourceId, date: dateKey,
-        title: `Makan staff ${new Date(`${dateKey}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} (senilai HPP)`,
-        amount,
-        lines: [
-          { code: '6-1100', debit: amount, credit: 0 },
-          { code: '5-1000', debit: 0, credit: amount },
-        ],
-      });
-    });
-  }
+  // Makan staff SENGAJA tidak ditawarkan sebagai rekomendasi. Order berdiskon
+  // 100% tetap memotong stok lewat deduct_order_inventory seperti penjualan biasa,
+  // sehingga biayanya SUDAH tercermin otomatis pada penurunan nilai persediaan.
+  // Menjurnalnya lagi berarti menghitung biaya yang sama dua kali.
 
   // 3) Gaji: agregat snapshot payroll periode ini (kredit Kas).
   const snaps = payrollRes.data || [];
@@ -347,49 +311,9 @@ async function buildRecommendations(
     }
   }
 
-  // 4) PERSEDIAAN BAHAN BAKU: penyesuaian nilai aset.
-  // Sistem ini memakai metode PERIODIK -- pembelian langsung dibebankan ke HPP
-  // (5-1000) dan persediaan tidak dipelihara per transaksi. Metode itu sah,
-  // TETAPI wajib ditutup dengan penyesuaian akhir periode. Tanpa itu akun
-  // 1-1300 tidak pernah terisi sama sekali: neraca menampilkan persediaan Rp 0
-  // padahal stok fisiknya nyata, dan HPP menanggung seluruh pembelian, bukan
-  // hanya yang benar-benar terpakai. Itulah yang membuat aset inventory terasa
-  // tidak pernah masuk pembukuan.
-  //
-  // Nilai stok yang tersedia adalah nilai SAAT INI (raw_materials.stock_quantity
-  // bersifat hidup, bukan riwayat), jadi penyesuaian hanya ditawarkan untuk
-  // periode berjalan. Menawarkannya untuk bulan lampau berarti memposting nilai
-  // stok hari ini ke neraca bulan lalu -- salah, dan sulit dilacak kemudian.
-  const todayKey = localDateKey(new Date().toISOString(), timeZone);
-  if (todayKey.slice(0, 7) === period) {
-    const [{ data: stockRows }, { data: ledgerRows }] = await Promise.all([
-      admin.from('raw_materials').select('stock_quantity,cost_per_unit').eq('branch_id', branchId),
-      admin.from('journal_lines').select('debit,credit').eq('branch_id', branchId).eq('account_code', '1-1300'),
-    ]);
-    const actualValue = Math.round((stockRows || []).reduce((sum: number, row: any) => (
-      sum + Number(row.stock_quantity || 0) * Number(row.cost_per_unit || 0)
-    ), 0));
-    const bookValue = Math.round((ledgerRows || []).reduce((sum: number, row: any) => (
-      sum + Number(row.debit || 0) - Number(row.credit || 0)
-    ), 0));
-    const delta = actualValue - bookValue;
-    const sourceId = `INVENTORY:${todayKey}`;
-    // Ambang Rp 1.000 menahan jurnal recehan dari pembulatan biaya per unit.
-    if (!posted.has(sourceId) && Math.abs(delta) >= 1000) {
-      const amount = Math.abs(delta);
-      const naik = delta > 0;
-      recommendations.push({
-        id: sourceId, kind: 'INVENTORY', source: 'ADJUSTMENT', sourceId, date: todayKey,
-        title: `Penyesuaian persediaan bahan baku per ${new Date(`${todayKey}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} (stok nyata Rp ${actualValue.toLocaleString('id-ID')})`,
-        amount,
-        // Berbasis SELISIH terhadap saldo buku, bukan nilai penuh, sehingga aman
-        // diposting berulang: tiap posting menyelaraskan buku dengan stok nyata.
-        lines: naik
-          ? [{ code: '1-1300', debit: amount, credit: 0 }, { code: '5-1000', debit: 0, credit: amount }]
-          : [{ code: '5-1000', debit: amount, credit: 0 }, { code: '1-1300', debit: 0, credit: amount }],
-      });
-    }
-  }
+  // Persediaan bahan baku SENGAJA tidak ditawarkan sebagai rekomendasi: nilainya
+  // disinkronkan langsung dari stok nyata dapur (lihat inventoryAssetValue), jadi
+  // tidak perlu dikonfirmasi manual tiap hari.
 
   return recommendations;
 }
@@ -430,7 +354,29 @@ export async function handleAccountingRequest(
     if (payload.view === 'recommendations') {
       try {
         const recommendations = await buildRecommendations(branchId, period, actor.timeZone, admin);
-        return { status: 200, data: { period, recommendations } };
+        // Riwayat pengabaian ikut dikirim supaya pengguna bisa melihat apa yang
+        // pernah ditolak dan memanggilnya kembali sewaktu-waktu.
+        const { data: dismissedHistory } = await admin
+          .from('journal_recommendation_dismissals')
+          .select('source_id,kind,title,amount,entry_date,dismissed_at')
+          .eq('branch_id', branchId)
+          .order('dismissed_at', { ascending: false })
+          .limit(100);
+        return {
+          status: 200,
+          data: {
+            period,
+            recommendations,
+            dismissed: (dismissedHistory || []).map((row: any) => ({
+              sourceId: row.source_id,
+              kind: row.kind,
+              title: row.title,
+              amount: Number(row.amount || 0),
+              date: row.entry_date || undefined,
+              dismissedAt: row.dismissed_at,
+            })),
+          },
+        };
       } catch (error: any) {
         if (error?.code === '42P01') return fail(503, 'Tabel akuntansi belum ada. Terapkan migrasi akuntansi di Supabase.');
         return fail(500, 'Rekomendasi jurnal gagal dihitung');
@@ -521,7 +467,21 @@ export async function handleAccountingRequest(
       accountCode, debit: v.debit, credit: v.credit,
     }));
 
-    return { status: 200, data: { canManage: true, period, coa, entries, openingBalances, consolidated, branches: branchList } };
+    // NILAI PERSEDIAAN HIDUP, disinkronkan langsung dari stok dapur.
+    // Pembelian bahan dibebankan ke HPP saat dibeli, sehingga buku besar tidak
+    // pernah mencatat persediaan. Menghitungnya di sini membuat aset itu tampil
+    // apa adanya tanpa perlu jurnal penyesuaian manual setiap hari, dan otomatis
+    // ikut turun saat stok terpakai -- termasuk oleh order makan staff.
+    const inventoryBranchIds = consolidated ? branchList.map((b: any) => b.id) : [branchId];
+    const { data: stockRows } = await admin
+      .from('raw_materials')
+      .select('stock_quantity,cost_per_unit')
+      .in('branch_id', inventoryBranchIds);
+    const inventoryAsset = Math.round((stockRows || []).reduce((sum: number, row: any) => (
+      sum + Number(row.stock_quantity || 0) * Number(row.cost_per_unit || 0)
+    ), 0));
+
+    return { status: 200, data: { canManage: true, period, coa, entries, openingBalances, consolidated, branches: branchList, inventoryAsset } };
   }
 
   // POST
@@ -599,6 +559,36 @@ export async function handleAccountingRequest(
     // rekomendasi yang dihapus otomatis muncul lagi di daftar rekomendasi.
     const { error } = await admin.from('journal_entries').delete().eq('id', payload.entryId).eq('branch_id', branchId);
     if (error) return fail(500, 'Jurnal gagal dihapus');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'DISMISS_RECOMMENDATION') {
+    const sourceId = String(payload.sourceId || '').trim();
+    if (!sourceId) return fail(400, 'Rekomendasi tidak valid');
+    // Cuplikan judul & nilai ikut disimpan supaya riwayat tetap terbaca walau
+    // rekomendasinya tidak lagi dihasilkan ulang di kemudian hari.
+    const { error } = await admin.from('journal_recommendation_dismissals').upsert({
+      tenant_id: actor.tenantId,
+      branch_id: branchId,
+      source_id: sourceId,
+      kind: String(payload.kind || 'LAINNYA'),
+      title: String(payload.title || sourceId),
+      amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
+      entry_date: typeof payload.date === 'string' && payload.date ? payload.date : null,
+      dismissed_by: actor.actorId || null,
+    }, { onConflict: 'branch_id,source_id' });
+    if (error) return fail(500, 'Rekomendasi gagal diabaikan. Pastikan migrasi 202608300054 sudah dijalankan.');
+    return { status: 200, data: { ok: true } };
+  }
+
+  if (payload.action === 'RESTORE_RECOMMENDATION') {
+    const sourceId = String(payload.sourceId || '').trim();
+    if (!sourceId) return fail(400, 'Rekomendasi tidak valid');
+    // Menghapus jejak pengabaian; rekomendasinya akan dihasilkan lagi pada
+    // pemuatan berikutnya selama data sumbernya masih ada.
+    const { error } = await admin.from('journal_recommendation_dismissals')
+      .delete().eq('branch_id', branchId).eq('source_id', sourceId);
+    if (error) return fail(500, 'Rekomendasi gagal dipanggil kembali');
     return { status: 200, data: { ok: true } };
   }
 
