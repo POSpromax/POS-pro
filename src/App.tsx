@@ -1232,7 +1232,15 @@ export default function App() {
     };
 
     lastFallbackAt = Date.now();
-    syncOrdersRef.current = syncIncremental;
+    syncOrdersRef.current = () => {
+      // Throttle 10 detik, BERBAGI jam dengan interval fallback. Tanpa ini setiap
+      // ketukan tab memicu satu permintaan: kasir yang bolak-balik POS <-> KDS
+      // menghasilkan puluhan sinkron beruntun. Berbagi jam juga mencegah interval
+      // ikut menembak ulang tepat setelah sinkron pindah-tab.
+      if (Date.now() - lastFallbackAt < 10_000) return;
+      lastFallbackAt = Date.now();
+      syncIncremental();
+    };
     syncIncremental();
     const unsubscribe = subscribeCloudOrders(
       branchId,
@@ -1283,7 +1291,7 @@ export default function App() {
     let lastVisibleSyncAt = 0;
     const reconcileVisible = () => {
       if (!isRuntimeActive() || document.visibilityState !== 'visible') return;
-      if (Date.now() - lastVisibleSyncAt < 5_000) return;
+      if (Date.now() - lastVisibleSyncAt < 15_000) return;
       lastVisibleSyncAt = Date.now();
       syncIncremental();
     };
