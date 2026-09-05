@@ -1301,6 +1301,10 @@ export default function App() {
       // Saat DEGRADED, JANGAN full-refetch tiap 5 detik — itu memicu meltdown
       // (300KB × tiap 5s × banyak terminal -> DB makin jenuh -> tetap degraded).
       // Perlonggar jauh supaya DB bisa pulih dan realtime re-heal.
+      // ORDER SENGAJA TETAP 2 MENIT. Ini data paling sensitif waktu: bila broadcast
+      // gagal diam-diam, KDS bisa terlambat melihat pesanan, dan lima menit di dapur
+      // itu lama. Penghematan invokasi dicari dari polling operasi dan shift yang
+      // isinya jarang berubah, bukan dari sini.
       const fallbackDelay = realtimeState === 'HEALTHY'
         ? (warmup ? 15_000 : 120_000)
         : visibleTab === 'pos' ? 25_000 : visibleTab === 'kds' ? 30_000 : 60_000;
@@ -1416,7 +1420,10 @@ export default function App() {
     );
     const pollTimer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      const fallbackDelay = realtimeState === 'HEALTHY' ? 600_000 : 60_000;
+      // Buka/tutup shift adalah tindakan yang DISENGAJA dan langsung tercermin di
+      // terminal pelakunya; terminal lain cukup menyusul lewat broadcast. 15 menit
+      // aman untuk jaring pengaman yang jarang terpakai ini.
+      const fallbackDelay = realtimeState === 'HEALTHY' ? 900_000 : 60_000;
       if (Date.now() - lastFallbackAt < fallbackDelay) return;
       lastFallbackAt = Date.now();
       void syncShiftFromCloud();
@@ -1651,7 +1658,7 @@ export default function App() {
       const warmup = Date.now() - branchMountedAt < 60_000;
       // Degraded: reconcile jarang (30s), bukan tiap 5s — hindari memperberat DB.
       const delay = realtimeState === 'HEALTHY'
-        ? (warmup ? 15_000 : 120_000)
+        ? (warmup ? 15_000 : 600_000)
         : 30_000;
       if (Date.now() - lastReconcileAt < delay) return;
       void reconcileOperations();
