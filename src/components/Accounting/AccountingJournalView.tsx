@@ -516,10 +516,28 @@ function JournalTab(props: {
   const { data, accounts } = props;
   const isEditing = props.editingEntryId != null;
   const accountName = (code: string) => accounts.find((a) => a.code === code)?.name || code;
+  // Penyaring HARI / MINGGU / BULAN. Bekerja pada data bulan yang SUDAH dimuat,
+  // jadi berganti rentang tidak menembak jaringan sama sekali.
+  const [range, setRange] = useState<'MONTH' | 'WEEK' | 'DAY'>('MONTH');
+  const [pickedDate, setPickedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const visibleEntries = useMemo(() => {
+    if (range === 'DAY') return data.entries.filter((entry) => entry.entryDate === pickedDate);
+    if (range === 'WEEK') {
+      // Tujuh hari terakhir dihitung mundur dari tanggal yang dipilih, bukan
+      // minggu kalender: lebih sesuai cara pemilik memeriksa buku harian.
+      const end = new Date(`${pickedDate}T00:00:00`);
+      const start = new Date(end);
+      start.setDate(start.getDate() - 6);
+      const startKey = start.toISOString().slice(0, 10);
+      return data.entries.filter((entry) => entry.entryDate >= startKey && entry.entryDate <= pickedDate);
+    }
+    return data.entries;
+  }, [data.entries, range, pickedDate]);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-[var(--text-primary)]">Ayat Jurnal Periode Ini <span className="text-[var(--text-tertiary)]">({data.entries.length})</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text-primary)]">Ayat Jurnal Periode Ini <span className="text-[var(--text-tertiary)]">({visibleEntries.length})</span></h3>
         {props.readOnly ? (
           <span className="rounded-xl bg-[var(--surface-secondary)] px-3 py-1.5 text-[11px] font-bold text-[var(--text-tertiary)]">Mode konsolidasi — baca saja</span>
         ) : (
@@ -604,11 +622,40 @@ function JournalTab(props: {
         </div>
       )}
 
-      {data.entries.length === 0 ? (
+      <div className="flex flex-wrap items-center gap-2">
+        {([['MONTH', 'Bulan'], ['WEEK', '7 Hari'], ['DAY', 'Per Hari']] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setRange(value)}
+            className={`min-h-8 rounded-xl px-3 text-[11px] font-bold transition-colors ${
+              range === value
+                ? 'bg-[var(--primary)] text-white'
+                : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-tertiary)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        {range !== 'MONTH' && (
+          <input
+            type="date"
+            value={pickedDate}
+            onChange={(event) => setPickedDate(event.target.value)}
+            className="ui-input max-w-[150px] font-mono text-[12px]"
+            aria-label={range === 'DAY' ? 'Tanggal jurnal' : 'Tanggal akhir rentang 7 hari'}
+          />
+        )}
+        {range === 'WEEK' && (
+          <span className="text-[10px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>7 hari sampai tanggal ini</span>
+        )}
+      </div>
+
+      {visibleEntries.length === 0 ? (
         <p className="rounded-2xl bg-[var(--surface-secondary)] p-10 text-center text-xs font-bold text-[var(--text-tertiary)]">Belum ada jurnal pada periode ini.</p>
       ) : (
         <div className="space-y-3">
-          {data.entries.map((entry) => {
+          {visibleEntries.map((entry) => {
             const total = entry.lines.reduce((s, l) => s + l.debit, 0);
             const isVoid = entry.status === 'VOID';
             return (
