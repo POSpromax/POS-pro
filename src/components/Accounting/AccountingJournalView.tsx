@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  BookOpen, Plus, Trash2, Scale, TrendingUp, Wallet, Layers, Loader2,
+  BookOpen, Plus, Trash2, Scale, TrendingUp, Wallet, Layers, Loader2, CalendarDays,
   CheckCircle2, AlertTriangle, RotateCcw, FileText, Sparkles, Pencil, X,
 } from 'lucide-react';
 import {
@@ -12,6 +12,7 @@ import {
   archiveDismissal,
   type DismissedRecommendation,
   computeBalances, buildIncomeStatement, buildBalanceSheet, buildTrialBalance,
+  type BalanceRange,
   type AccountingData, type Account, type AccountType, type JournalRecommendation, type JournalEntry,
 } from '../../services/accountingService';
 
@@ -173,7 +174,21 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
     () => (data?.coa || []).filter((a) => a.isActive).sort((a, b) => a.code.localeCompare(b.code)),
     [data],
   );
-  const balances = useMemo(() => (data ? computeBalances(data) : []), [data]);
+  // Rentang tanggal BERSAMA untuk semua tab. Bekerja pada data bulan yang sudah
+  // dimuat, jadi berganti rentang tidak menembak jaringan sama sekali.
+  const [range, setRange] = useState<'MONTH' | 'WEEK' | 'DAY'>('MONTH');
+  const [pickedDate, setPickedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const dateRange = useMemo<BalanceRange | undefined>(() => {
+    if (range === 'MONTH') return undefined;
+    if (range === 'DAY') return { from: pickedDate, to: pickedDate };
+    // Tujuh hari mundur dari tanggal yang dipilih, bukan minggu kalender: lebih
+    // sesuai cara pemilik menelusuri buku harian.
+    const end = new Date(`${pickedDate}T00:00:00`);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return { from: start.toISOString().slice(0, 10), to: pickedDate };
+  }, [range, pickedDate]);
+  const balances = useMemo(() => (data ? computeBalances(data, dateRange) : []), [data, dateRange]);
   const income = useMemo(() => buildIncomeStatement(balances), [balances]);
   const sheet = useMemo(() => buildBalanceSheet(balances), [balances]);
   const trial = useMemo(() => buildTrialBalance(balances), [balances]);
@@ -322,6 +337,33 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
           <button type="button" onClick={() => void refresh()} className="ui-button ui-button-secondary min-h-9 px-3" title="Muat ulang">
             <RotateCcw className="h-4 w-4" />
           </button>
+          {/* Rentang berlaku untuk SEMUA tab, jadi kontrolnya di sini, bukan di
+              dalam salah satu tab. Bekerja pada data bulan yang sudah dimuat. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {([['MONTH', 'Bulan'], ['WEEK', '7 Hari'], ['DAY', 'Per Hari']] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setRange(value)}
+                className={`min-h-9 rounded-xl px-3 text-[11px] font-bold transition-colors ${
+                  range === value
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-tertiary)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            {range !== 'MONTH' && (
+              <input
+                type="date"
+                value={pickedDate}
+                onChange={(event) => setPickedDate(event.target.value)}
+                className="ui-input max-w-[150px] font-mono text-[12px]"
+                aria-label={range === 'DAY' ? 'Tanggal laporan' : 'Tanggal akhir rentang 7 hari'}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -432,6 +474,16 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
               )}
             </>
           )}
+          {/* Satu pita periode untuk semua tab laporan, supaya pembaca selalu tahu
+              angka di layar itu untuk tanggal berapa. */}
+          {['JOURNAL', 'LEDGER', 'TRIAL', 'INCOME', 'BALANCE'].includes(tab) && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl bg-[var(--surface-secondary)] px-3 py-2">
+              <CalendarDays className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+              <span className="text-[11px] font-bold" style={{ color: 'var(--text-secondary)' }}>
+                {dateLabel(dateRange, tab === 'BALANCE' || tab === 'TRIAL')}
+              </span>
+            </div>
+          )}
           {tab === 'JOURNAL' && (
             <JournalTab
               data={data}
@@ -461,10 +513,10 @@ export function AccountingJournalView({ currentBranch, activeUser, onShowToast }
             />
           )}
           {tab === 'LEDGER' && (
-            <LedgerTab data={data} accounts={activeAccounts} ledgerCode={ledgerCode} setLedgerCode={setLedgerCode} />
+            <LedgerTab data={data} accounts={activeAccounts} ledgerCode={ledgerCode} setLedgerCode={setLedgerCode} dateRange={dateRange} />
           )}
           {tab === 'TRIAL' && <TrialTab trial={trial} />}
-          {tab === 'INCOME' && <IncomeTab income={income} period={period} />}
+          {tab === 'INCOME' && <IncomeTab income={income} period={period} dateRange={dateRange} />}
           {tab === 'BALANCE' && <BalanceTab sheet={sheet} inventoryAsset={data?.inventoryAsset} />}
           {tab === 'COA' && (
             <CoaTab
@@ -512,27 +564,21 @@ function JournalTab(props: {
   totalDebit: number; totalCredit: number; balanced: boolean;
   saving: boolean; onSubmit: () => void; readOnly?: boolean;
   onStartEdit: (entry: JournalEntry) => void; onDelete: (id: string) => void;
+  dateRange?: BalanceRange;
 }) {
   const { data, accounts } = props;
   const isEditing = props.editingEntryId != null;
   const accountName = (code: string) => accounts.find((a) => a.code === code)?.name || code;
   // Penyaring HARI / MINGGU / BULAN. Bekerja pada data bulan yang SUDAH dimuat,
   // jadi berganti rentang tidak menembak jaringan sama sekali.
-  const [range, setRange] = useState<'MONTH' | 'WEEK' | 'DAY'>('MONTH');
-  const [pickedDate, setPickedDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const visibleEntries = useMemo(() => {
-    if (range === 'DAY') return data.entries.filter((entry) => entry.entryDate === pickedDate);
-    if (range === 'WEEK') {
-      // Tujuh hari terakhir dihitung mundur dari tanggal yang dipilih, bukan
-      // minggu kalender: lebih sesuai cara pemilik memeriksa buku harian.
-      const end = new Date(`${pickedDate}T00:00:00`);
-      const start = new Date(end);
-      start.setDate(start.getDate() - 6);
-      const startKey = start.toISOString().slice(0, 10);
-      return data.entries.filter((entry) => entry.entryDate >= startKey && entry.entryDate <= pickedDate);
-    }
-    return data.entries;
-  }, [data.entries, range, pickedDate]);
+  // Rentang tanggal datang dari tingkat halaman supaya SEMUA tab memakai periode
+  // yang sama -- jurnal, buku besar, neraca, dan laba rugi tidak boleh menampilkan
+  // rentang berbeda di layar yang sama.
+  const visibleEntries = useMemo(() => (
+    props.dateRange
+      ? data.entries.filter((entry) => entry.entryDate >= props.dateRange!.from && entry.entryDate <= props.dateRange!.to)
+      : data.entries
+  ), [data.entries, props.dateRange]);
 
   return (
     <div className="space-y-5">
@@ -622,35 +668,6 @@ function JournalTab(props: {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {([['MONTH', 'Bulan'], ['WEEK', '7 Hari'], ['DAY', 'Per Hari']] as const).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setRange(value)}
-            className={`min-h-8 rounded-xl px-3 text-[11px] font-bold transition-colors ${
-              range === value
-                ? 'bg-[var(--primary)] text-white'
-                : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-tertiary)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        {range !== 'MONTH' && (
-          <input
-            type="date"
-            value={pickedDate}
-            onChange={(event) => setPickedDate(event.target.value)}
-            className="ui-input max-w-[150px] font-mono text-[12px]"
-            aria-label={range === 'DAY' ? 'Tanggal jurnal' : 'Tanggal akhir rentang 7 hari'}
-          />
-        )}
-        {range === 'WEEK' && (
-          <span className="text-[10px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>7 hari sampai tanggal ini</span>
-        )}
-      </div>
-
       {visibleEntries.length === 0 ? (
         <p className="rounded-2xl bg-[var(--surface-secondary)] p-10 text-center text-xs font-bold text-[var(--text-tertiary)]">Belum ada jurnal pada periode ini.</p>
       ) : (
@@ -709,8 +726,9 @@ function JournalTab(props: {
 
 // ── Buku Besar ─────────────────────────────────────────────────────────────────
 
-function LedgerTab({ data, accounts, ledgerCode, setLedgerCode }: {
+function LedgerTab({ data, accounts, ledgerCode, setLedgerCode, dateRange }: {
   data: AccountingData; accounts: Account[]; ledgerCode: string; setLedgerCode: (v: string) => void;
+  dateRange?: BalanceRange;
 }) {
   const account = accounts.find((a) => a.code === ledgerCode);
   const opening = data.openingBalances.find((o) => o.accountCode === ledgerCode);
@@ -721,6 +739,10 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode }: {
     if (!account) return [];
     const entryRows = data.entries
       .filter((e) => e.status !== 'VOID')
+      // Saldo berjalan tetap dimulai dari saldo awal periode, lalu hanya baris di
+      // dalam rentang yang ditampilkan. Itu membuat kolom saldo tetap masuk akal
+      // walau daftarnya dipersempit ke satu hari.
+      .filter((e) => !dateRange || (e.entryDate >= dateRange.from && e.entryDate <= dateRange.to))
       .flatMap((e) => e.lines.filter((l) => l.accountCode === ledgerCode).map((l) => ({ date: e.entryDate, description: e.description, debit: l.debit, credit: l.credit })))
       .sort((a, b) => a.date.localeCompare(b.date));
     let running = openingNet;
@@ -728,7 +750,7 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode }: {
       running += sign * (r.debit - r.credit);
       return { ...r, running };
     });
-  }, [account, data.entries, ledgerCode, openingNet, sign]);
+  }, [account, data.entries, ledgerCode, openingNet, sign, dateRange]);
 
   return (
     <div className="space-y-4">
@@ -834,7 +856,11 @@ function TrialTab({ trial }: { trial: ReturnType<typeof buildTrialBalance> }) {
 
 // ── Laba Rugi ──────────────────────────────────────────────────────────────────
 
-function IncomeTab({ income, period }: { income: ReturnType<typeof buildIncomeStatement>; period: string }) {
+function IncomeTab({ income, period, dateRange }: {
+  income: ReturnType<typeof buildIncomeStatement>;
+  period: string;
+  dateRange?: BalanceRange;
+}) {
   const Section = ({ title, rows }: { title: string; rows: typeof income.revenues }) => (
     <div>
       <p className="mb-1 text-[11px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">{title}</p>
@@ -849,7 +875,11 @@ function IncomeTab({ income, period }: { income: ReturnType<typeof buildIncomeSt
   return (
     <div className="ui-card mx-auto max-w-2xl p-6" style={{ fontVariantNumeric: 'tabular-nums' }}>
       <h3 className="text-center text-sm font-black uppercase tracking-wide text-[var(--text-primary)]">Laporan Laba Rugi</h3>
-      <p className="mb-5 text-center text-[11px] font-semibold text-[var(--text-tertiary)]">Periode {new Date(period + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
+      <p className="mb-5 text-center text-[11px] font-semibold text-[var(--text-tertiary)]">
+        {/* Ikut rentang aktif; tanpa ini judul tetap menyebut satu bulan penuh
+            padahal angkanya sudah dipersempit ke hari atau minggu. */}
+        Periode {dateRange ? dateLabel(dateRange) : new Date(period + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+      </p>
       <div className="space-y-4">
         <Section title="Pendapatan" rows={income.revenues} />
         <div className="flex justify-between border-t border-[var(--panel-border-light)] py-2 text-[13px] font-bold">
@@ -934,6 +964,17 @@ function BalanceTab({ sheet, inventoryAsset }: {
 }
 
 // ── Rekomendasi Posting ────────────────────────────────────────────────────────
+
+// Label periode yang sedang ditampilkan. Neraca dan Neraca Saldo memakai kata
+// 'per' karena keduanya melaporkan saldo PADA satu tanggal, sedangkan jurnal,
+// buku besar, dan laba rugi melaporkan rentang. Membedakannya penting supaya
+// pembaca tidak mengira neraca hanya memuat transaksi rentang itu saja.
+const dateLabel = (range?: { from: string; to: string }, asOf = false) => {
+  const fmt = (key: string) => new Date(`${key}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (!range) return asOf ? 'Akhir periode' : 'Seluruh periode';
+  if (asOf) return `Per ${fmt(range.to)}`;
+  return range.from === range.to ? fmt(range.from) : `${fmt(range.from)} — ${fmt(range.to)}`;
+};
 
 const REC_KIND: Record<JournalRecommendation['kind'], { label: string; tone: string }> = {
   SALES: { label: 'Penjualan', tone: 'bg-emerald-100 text-emerald-700' },

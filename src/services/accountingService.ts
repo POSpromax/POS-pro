@@ -181,18 +181,36 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Menggabungkan COA + saldo awal + mutasi periode menjadi saldo per akun.
  * Baris jurnal berstatus VOID diabaikan.
  */
-export function computeBalances(data: AccountingData): AccountBalance[] {
+// Rentang tanggal opsional untuk seluruh laporan. Format YYYY-MM-DD.
+export interface BalanceRange { from: string; to: string }
+
+export function computeBalances(data: AccountingData, range?: BalanceRange): AccountBalance[] {
   const opening = new Map<string, { debit: number; credit: number }>();
   data.openingBalances.forEach((row) => opening.set(row.accountCode, { debit: row.debit, credit: row.credit }));
 
+  // DUA akumulator, karena dua jenis laporan menuntut cakupan berbeda:
+  //   period -> hanya entri DI DALAM rentang. Dipakai Laba Rugi, yang memang
+  //             melaporkan mutasi selama satu periode.
+  //   asOf   -> semua entri SAMPAI tanggal akhir. Dipakai Neraca dan Neraca
+  //             Saldo, yang melaporkan saldo kumulatif per tanggal tertentu.
+  // Memakai satu akumulator untuk keduanya membuat neraca salah: saldo kas per
+  // 9 September harus memuat seluruh transaksi sampai tanggal itu, bukan hanya
+  // transaksi minggu ini.
   const period = new Map<string, { debit: number; credit: number }>();
+  const asOf = new Map<string, { debit: number; credit: number }>();
+  const add = (map: Map<string, { debit: number; credit: number }>, code: string, debit: number, credit: number) => {
+    const bucket = map.get(code) || { debit: 0, credit: 0 };
+    bucket.debit += debit;
+    bucket.credit += credit;
+    map.set(code, bucket);
+  };
   data.entries.forEach((entry) => {
     if (entry.status === 'VOID') return;
+    const inRange = !range || (entry.entryDate >= range.from && entry.entryDate <= range.to);
+    const upToCutoff = !range || entry.entryDate <= range.to;
     entry.lines.forEach((line) => {
-      const bucket = period.get(line.accountCode) || { debit: 0, credit: 0 };
-      bucket.debit += line.debit;
-      bucket.credit += line.credit;
-      period.set(line.accountCode, bucket);
+      if (inRange) add(period, line.accountCode, line.debit, line.credit);
+      if (upToCutoff) add(asOf, line.accountCode, line.debit, line.credit);
     });
   });
 
@@ -209,8 +227,11 @@ export function computeBalances(data: AccountingData): AccountBalance[] {
   return data.coa.map((account) => {
     const o = opening.get(account.code) || { debit: 0, credit: 0 };
     const p = period.get(account.code) || { debit: 0, credit: 0 };
-    const asOfDebit = round2(o.debit + p.debit);
-    const asOfCredit = round2(o.credit + p.credit);
+    // Saldo kumulatif memakai akumulator asOf, BUKAN period: saldo per tanggal
+    // harus memuat seluruh transaksi sebelum rentang, bukan hanya di dalamnya.
+    const c = asOf.get(account.code) || { debit: 0, credit: 0 };
+    const asOfDebit = round2(o.debit + c.debit);
+    const asOfCredit = round2(o.credit + c.credit);
     const netDebit = asOfDebit - asOfCredit;
     const periodNetDebit = p.debit - p.credit;
     // Searah arah NATURAL TIPE akun (bukan saldo normal akun), supaya akun kontra
