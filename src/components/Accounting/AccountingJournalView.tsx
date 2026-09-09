@@ -752,6 +752,15 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode, dateRange }: {
     });
   }, [account, data.entries, ledgerCode, openingNet, sign, dateRange]);
 
+  // Total mutasi pada rentang yang sedang ditampilkan. Saldo akhir diambil dari
+  // baris terakhir supaya konsisten dengan kolom saldo berjalan, dan jatuh ke
+  // saldo awal bila rentangnya tidak memuat mutasi apa pun.
+  const totals = useMemo(() => ({
+    debit: rows.reduce((sum, r) => sum + r.debit, 0),
+    credit: rows.reduce((sum, r) => sum + r.credit, 0),
+    ending: rows.length > 0 ? rows[rows.length - 1].running : openingNet,
+  }), [rows, openingNet]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -800,6 +809,12 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode, dateRange }: {
                 {rows.length === 0 && (
                   <tr><td colSpan={5} className="p-6 text-center text-[var(--text-tertiary)]">Tidak ada mutasi pada periode ini.</td></tr>
                 )}
+                <tr className="border-t-2 border-[var(--panel-border-strong)] bg-[var(--surface-secondary)]/60">
+                  <td className="p-3 text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]" colSpan={2}>Total Mutasi</td>
+                  <td className="p-3 text-right font-mono font-black text-[var(--text-primary)]">{rp(totals.debit)}</td>
+                  <td className="p-3 text-right font-mono font-black text-[var(--text-primary)]">{rp(totals.credit)}</td>
+                  <td className="p-3 text-right font-mono font-black text-[var(--text-primary)]">{rp(totals.ending)}</td>
+                </tr>
               </tbody>
             </table>
           </div>
