@@ -735,31 +735,44 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode, dateRange }: {
   const sign = account?.normalBalance === 'CREDIT' ? -1 : 1;
   const openingNet = opening ? sign * (opening.debit - opening.credit) : 0;
 
-  const rows = useMemo(() => {
-    if (!account) return [];
-    const entryRows = data.entries
-      .filter((e) => e.status !== 'VOID')
-      // Saldo berjalan tetap dimulai dari saldo awal periode, lalu hanya baris di
-      // dalam rentang yang ditampilkan. Itu membuat kolom saldo tetap masuk akal
-      // walau daftarnya dipersempit ke satu hari.
-      .filter((e) => !dateRange || (e.entryDate >= dateRange.from && e.entryDate <= dateRange.to))
-      .flatMap((e) => e.lines.filter((l) => l.accountCode === ledgerCode).map((l) => ({ date: e.entryDate, description: e.description, debit: l.debit, credit: l.credit })))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    let running = openingNet;
-    return entryRows.map((r) => {
-      running += sign * (r.debit - r.credit);
-      return { ...r, running };
+  // Mutasi SEBELUM rentang harus masuk ke saldo awal, bukan diabaikan. Tanpa ini
+  // memilih tanggal 5 membuat kolom saldo melompat dari saldo awal BULAN langsung
+  // ke tanggal 5 -- transaksi 1 sampai 4 hilang tanpa jejak, sehingga angkanya
+  // bukan saldo harian dan bukan pula kumulatif yang benar.
+  const { rows, rangeOpeningNet } = useMemo(() => {
+    if (!account) return { rows: [] as Array<{ date: string; description: string; debit: number; credit: number; running: number }>, rangeOpeningNet: openingNet };
+    let before = 0;
+    const inRange: Array<{ date: string; description: string; debit: number; credit: number }> = [];
+    data.entries.filter((e) => e.status !== 'VOID').forEach((entry) => {
+      entry.lines.filter((l) => l.accountCode === ledgerCode).forEach((line) => {
+        if (dateRange && entry.entryDate < dateRange.from) {
+          before += sign * (line.debit - line.credit);
+          return;
+        }
+        if (dateRange && entry.entryDate > dateRange.to) return;
+        inRange.push({ date: entry.entryDate, description: entry.description, debit: line.debit, credit: line.credit });
+      });
     });
+    inRange.sort((x, y) => x.date.localeCompare(y.date));
+    const start = openingNet + before;
+    let running = start;
+    return {
+      rows: inRange.map((r) => {
+        running += sign * (r.debit - r.credit);
+        return { ...r, running };
+      }),
+      rangeOpeningNet: start,
+    };
   }, [account, data.entries, ledgerCode, openingNet, sign, dateRange]);
 
-  // Total mutasi pada rentang yang sedang ditampilkan. Saldo akhir diambil dari
-  // baris terakhir supaya konsisten dengan kolom saldo berjalan, dan jatuh ke
-  // saldo awal bila rentangnya tidak memuat mutasi apa pun.
+  // Total mutasi pada rentang yang sedang ditampilkan saja -- tidak ikut membawa
+  // mutasi tanggal lain. Saldo akhir diambil dari baris terakhir agar konsisten
+  // dengan kolom saldo berjalan.
   const totals = useMemo(() => ({
     debit: rows.reduce((sum, r) => sum + r.debit, 0),
     credit: rows.reduce((sum, r) => sum + r.credit, 0),
-    ending: rows.length > 0 ? rows[rows.length - 1].running : openingNet,
-  }), [rows, openingNet]);
+    ending: rows.length > 0 ? rows[rows.length - 1].running : rangeOpeningNet,
+  }), [rows, rangeOpeningNet]);
 
   return (
     <div className="space-y-4">
@@ -794,8 +807,13 @@ function LedgerTab({ data, accounts, ledgerCode, setLedgerCode, dateRange }: {
               </thead>
               <tbody>
                 <tr className="border-b border-[var(--panel-border-light)] bg-[var(--surface-secondary)]/50">
-                  <td className="p-3 font-semibold text-[var(--text-tertiary)]" colSpan={4}>Saldo awal periode</td>
-                  <td className="p-3 text-right font-mono font-bold text-[var(--text-primary)]">{rp(openingNet)}</td>
+                  {/* Saldo tepat SEBELUM rentang yang dipilih, bukan saldo awal bulan.
+                      Labelnya ikut berubah supaya tidak menyesatkan saat rentangnya
+                      dipersempit ke satu hari. */}
+                  <td className="p-3 font-semibold text-[var(--text-tertiary)]" colSpan={4}>
+                    {dateRange ? 'Saldo sebelum rentang ini' : 'Saldo awal periode'}
+                  </td>
+                  <td className="p-3 text-right font-mono font-bold text-[var(--text-primary)]">{rp(rangeOpeningNet)}</td>
                 </tr>
                 {rows.map((r, i) => (
                   <tr key={i} className="border-b border-[var(--panel-border-light)] last:border-0">
