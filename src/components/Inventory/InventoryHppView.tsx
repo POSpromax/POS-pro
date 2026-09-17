@@ -221,6 +221,7 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
     ? rawMaterials.find((material) => material.id === editingRaw.id)
     : undefined;
 
+
   const filteredMenuItems = menuItems.filter((m) => (
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -694,8 +695,8 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
         <section className="relative z-20 mb-4 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input type="search" placeholder={subTab === 'MENU' ? 'Cari menu atau kategori…' : 'Cari nama item…'} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="ui-input min-h-10 pl-9 text-[12px]" />
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input type="search" placeholder={subTab === 'MENU' ? 'Cari menu atau kategori…' : 'Cari nama item…'} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="ui-input min-h-10 !pl-10 !pr-10 text-[12px]" />
             </div>
 
             <div className="flex items-center gap-2">
@@ -1102,27 +1103,24 @@ export const InventoryHppView: React.FC<InventoryHppViewProps> = ({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                              <span className="font-bold text-xs text-[var(--text-primary)] hidden md:inline">
+                            <div className="flex shrink-0 items-center gap-2 md:gap-6">
+                              <span className="hidden text-xs font-bold text-[var(--text-primary)] md:inline">
                                 {isStickyItem ? 'Harga Custom' : `Rp ${item.price.toLocaleString('id-ID')}`}
                               </span>
-
-                              <span className="bg-[var(--surface-secondary)] text-[var(--text-primary)] text-[11px] md:text-xs font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-lg border border-[var(--panel-border)]">
-                                {isStickyItem ? '∞' : (item.stockCount || 100)}
+                              <span className="rounded-lg border border-[var(--panel-border)] bg-[var(--surface-secondary)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-primary)] md:px-3 md:py-1 md:text-xs">
+                                {isStickyItem ? '∞' : (item.stockCount ?? '—')}
                               </span>
-
                               <div className="flex items-center gap-0.5">
                                 <button
                                   onClick={() => handleOpenEditMenuModal(item)}
-                                  className="p-1 md:p-1.5 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] rounded-lg cursor-pointer"
+                                  className="cursor-pointer rounded-lg p-1 text-[var(--primary-hover)] hover:bg-[var(--brand-100)] md:p-1.5"
                                   title="Edit Menu & Resep"
                                 >
-                                  <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                  <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                                 </button>
-
                                 {!canDeleteCatalog ? null : isStickyItem ? (
-                                  <span className="p-1 md:p-1.5 text-slate-300 cursor-not-allowed" title="Item Sistem Melekat (Tidak bisa dihapus)">
-                                    <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-40" />
+                                  <span className="cursor-not-allowed p-1 text-slate-300 md:p-1.5" title="Item Sistem Melekat (Tidak bisa dihapus)">
+                                    <Trash2 className="h-3.5 w-3.5 opacity-40 md:h-4 md:w-4" />
                                   </span>
                                 ) : (
                                   <button

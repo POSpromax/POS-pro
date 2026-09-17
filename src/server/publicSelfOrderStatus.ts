@@ -81,12 +81,15 @@ export async function getPublicSelfOrderStatus(
   const { data: ingredientRows } = menuIds.length
     ? await admin
       .from('menu_item_ingredients')
-      .select('menu_item_id,amount_needed,raw_materials(stock_quantity)')
+      .select('menu_item_id,raw_material_id,amount_needed,raw_materials(stock_quantity)')
       .in('menu_item_id', menuIds)
     : { data: [] };
 
   const unavailableByInventory = new Set<string>();
+  const recipeLinkedMenuIds = new Set<string>();
   for (const ingredient of ingredientRows || []) {
+    if (!(ingredient as any).raw_material_id) continue;
+    recipeLinkedMenuIds.add((ingredient as any).menu_item_id);
     const material = Array.isArray((ingredient as any).raw_materials)
       ? (ingredient as any).raw_materials[0]
       : (ingredient as any).raw_materials;
@@ -97,7 +100,7 @@ export async function getPublicSelfOrderStatus(
 
   const availableMenuIds = businessEnabledMenus
     .filter((menu) => (
-      (menu.stock_count === null || menu.stock_count === undefined || Number(menu.stock_count) > 0)
+      (recipeLinkedMenuIds.has(menu.id) || menu.stock_count === null || menu.stock_count === undefined || Number(menu.stock_count) > 0)
       && !unavailableByInventory.has(menu.id)
     ))
     .map((menu) => menu.id);

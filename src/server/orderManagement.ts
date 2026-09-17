@@ -475,13 +475,17 @@ export async function handleOrderRequest(
       .in('menu_item_id', menuIds)
     : { data: [] };
   const ingredientsByMenu = new Map<string, any[]>();
+  const recipeLinkedMenuIds = new Set<string>();
   const rawStock = new Map<string, { name: string; quantity: number }>();
   for (const row of ingredientStockRows || []) {
     const list = ingredientsByMenu.get(row.menu_item_id) || [];
     list.push(row);
     ingredientsByMenu.set(row.menu_item_id, list);
-    const material = Array.isArray((row as any).raw_materials) ? (row as any).raw_materials[0] : (row as any).raw_materials;
-    rawStock.set(row.raw_material_id, { name: material?.name || 'Bahan baku', quantity: Number(material?.stock_quantity || 0) });
+    if (row.raw_material_id) {
+      recipeLinkedMenuIds.add(row.menu_item_id);
+      const material = Array.isArray((row as any).raw_materials) ? (row as any).raw_materials[0] : (row as any).raw_materials;
+      rawStock.set(row.raw_material_id, { name: material?.name || 'Bahan baku', quantity: Number(material?.stock_quantity || 0) });
+    }
   }
   const requiredRawStock = new Map<string, number>();
   const groupMap = new Map((groups || []).map((group) => [String(group.name).trim().toLocaleLowerCase('id-ID'), group]));
@@ -506,10 +510,11 @@ export async function handleOrderRequest(
     const isManual = /^(menu tambahan )?lain(ya|nya)$/i.test(String(menu.name).trim());
     if (isManual && source === 'SELF_ORDER') return fail(403, 'Item manual hanya tersedia di terminal kasir');
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
-    if (menu.stock_count !== null && menu.stock_count !== undefined && Number(menu.stock_count) < quantity) {
+    if (!recipeLinkedMenuIds.has(menu.id) && menu.stock_count !== null && menu.stock_count !== undefined && Number(menu.stock_count) < quantity) {
       return fail(409, `Stok menu ${menu.name} tidak mencukupi`);
     }
     for (const ingredient of ingredientsByMenu.get(menu.id) || []) {
+      if (!ingredient.raw_material_id) continue;
       requiredRawStock.set(
         ingredient.raw_material_id,
         (requiredRawStock.get(ingredient.raw_material_id) || 0) + Number(ingredient.amount_needed || 0) * quantity,

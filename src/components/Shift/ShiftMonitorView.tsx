@@ -466,7 +466,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                   placeholder="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="ui-input w-full pl-10 pr-3.5 py-3 text-[11px]"
+                  className="ui-input w-full !pl-10 !pr-3.5 py-3 text-[11px]"
                 />
               </div>
 

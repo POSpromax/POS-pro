@@ -653,7 +653,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">Rp</span>
                           <input type="number" min={0} inputMode="numeric" value={tier.amount}
                             onChange={(e) => updateTier(index, { amount: Number(e.target.value) || 0 })}
-                            className="ui-input w-full pl-9 font-mono text-sm" placeholder="0" />
+                            className="ui-input w-full !pl-9 font-mono text-sm" placeholder="0" />
                         </div>
                       </label>
                       <button type="button" onClick={() => removeTier(index)} title="Hapus tingkat"
@@ -800,7 +800,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold" style={{ color: 'var(--text-tertiary)' }}>Rp</span>
                                 <input type="number" min={0} value={bonusDraft}
                                   onChange={(e) => setBonusDraft(e.target.value === '' ? '' : Number(e.target.value))}
-                                  className="ui-input w-32 pl-7 font-mono text-[12px]" placeholder="0" />
+                                  className="ui-input w-32 !pl-7 font-mono text-[12px]" placeholder="0" />
                               </div>
                               <button type="button" disabled={savingBonus} onClick={() => void saveBonus(staff)}
                                 className="ui-button ui-button-secondary text-[11px]" style={{ minHeight: '32px', padding: '0 12px' }}>
@@ -962,7 +962,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                     <span className="ui-form-label">{label}</span>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>Rp</span>
-                      <input type="number" min="0" className="ui-input pl-9 font-mono"
+                      <input type="number" min="0" className="ui-input !pl-9 font-mono"
                         value={payroll[key]}
                         onChange={(e) => setPayroll({ ...payroll, [key]: Number(e.target.value) })} />
                     </div>
@@ -1017,7 +1017,7 @@ export function AttendanceHrPanel({ activeUser, staffAccounts, currentBranch, at
                 <label className="ui-form-label">Nominal Kasbon (Rp)</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>Rp</span>
-                  <input type="number" min="1" className="ui-input pl-9 font-mono"
+                  <input type="number" min="1" className="ui-input !pl-9 font-mono"
                     placeholder="0" value={kasbonAmount}
                     onChange={(e) => setKasbonAmount(e.target.value === '' ? '' : Number(e.target.value))} />
                 </div>

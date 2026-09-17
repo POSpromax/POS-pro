@@ -108,8 +108,8 @@ export const StockOpnamePanel: React.FC<Props> = ({ rawMaterials, branchId, onRe
           </div>
         </div>
         <div className="relative mt-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari bahan…" className="ui-input pl-9 text-[12px]" />
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari bahan…" className="ui-input !pl-10 text-[12px]" />
         </div>
       </div>
 

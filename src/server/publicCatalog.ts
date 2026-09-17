@@ -61,11 +61,16 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
   const { data: ingredientRows } = menuIds.length
     ? await admin
       .from('menu_item_ingredients')
-      .select('menu_item_id,amount_needed,raw_materials(stock_quantity)')
+      .select('menu_item_id,raw_material_id,amount_needed,raw_materials(stock_quantity)')
       .in('menu_item_id', menuIds)
     : { data: [] };
   const unavailableByInventory = new Set<string>();
+  const recipeLinkedMenuIds = new Set<string>();
   for (const ingredient of ingredientRows || []) {
+    // Bahan custom menambah HPP, tetapi memang tidak memiliki saldo inventory.
+    // Hanya resep yang menunjuk raw_material yang menentukan stok menu.
+    if (!(ingredient as any).raw_material_id) continue;
+    recipeLinkedMenuIds.add((ingredient as any).menu_item_id);
     const material = Array.isArray((ingredient as any).raw_materials)
       ? (ingredient as any).raw_materials[0]
       : (ingredient as any).raw_materials;
@@ -74,7 +79,7 @@ export async function getPublicCatalog(branchId: string, admin: SupabaseClient, 
     }
   }
   const availableMenuIds = new Set((menus || []).filter((row) => (
-    (row.stock_count === null || row.stock_count === undefined || Number(row.stock_count) > 0)
+    (recipeLinkedMenuIds.has(row.id) || row.stock_count === null || row.stock_count === undefined || Number(row.stock_count) > 0)
     && !unavailableByInventory.has(row.id)
   )).map((row) => row.id));
   return {

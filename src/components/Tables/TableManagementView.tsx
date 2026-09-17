@@ -186,7 +186,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({
       <div className="ui-card mb-4 grid gap-3 p-3 md:grid-cols-[minmax(220px,1fr)_minmax(260px,1fr)]">
         <label className="relative block">
           <span className="sr-only">Cari nomor meja</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari meja: 17, 38, A7..." className="ui-input w-full !pl-9 !pr-3 text-xs font-bold" />
         </label>
         <label className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2" htmlFor="branch-self-order-url">

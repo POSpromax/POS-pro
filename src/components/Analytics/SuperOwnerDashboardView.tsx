@@ -399,13 +399,13 @@ export const SuperOwnerDashboardView: React.FC<SuperOwnerDashboardViewProps> = (
           </div>
 
           <div className="relative mb-4">
-            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
             <input
               type="text"
               placeholder="Cari outlet..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="ui-input pl-9"
+              className="ui-input !pl-10"
             />
           </div>
 

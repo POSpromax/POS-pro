@@ -4,7 +4,7 @@
  * Nusantara POS & Resto Full-Stack System
  */
 
-import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Sidebar } from './components/Navigation/Sidebar';
 import { HeaderBar } from './components/Navigation/HeaderBar';
@@ -67,6 +67,7 @@ import { normalizeBranchId } from './utils/branchId';
 import { recoverFromAssetVersionError } from './utils/versionRecovery';
 import { BranchRuntimeGuard } from './utils/branchRuntime';
 import { buildOrderItemVariantKey } from './utils/orderItemIdentity';
+import { withEffectiveMenuStock } from './utils/menuStock';
 
 const lazyWithVersionRecovery = <T extends React.ComponentType<any>>(
   key: string,
@@ -571,6 +572,12 @@ export default function App() {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(() => cloudReadiness.supabase ? [] : DBStorage.getMenuItems());
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => cloudReadiness.supabase ? [] : DBStorage.getRawMaterials());
+  // Recipe-linked menu stock is a derived view of the inventory ledger balance.
+  // Keep menu_items.stock_count only for menus that deliberately have no recipe.
+  const effectiveMenuItems = useMemo(
+    () => withEffectiveMenuStock(menuItems, rawMaterials),
+    [menuItems, rawMaterials],
+  );
   const catalogLoadedBranchRef = useRef('');
   const catalogLoadingBranchRef = useRef('');
   const [tables, setTables] = useState<RestaurantTable[]>(() => cloudReadiness.supabase ? [] : DBStorage.getTables());
@@ -1608,11 +1615,10 @@ export default function App() {
             }
           });
         } else if (table === 'raw_materials') {
-          // Deduksi stok terjadi TIAP order dibayar, tetapi POS/KDS/shift/meja
-          // tidak pernah merender rawMaterials. Mengunduh daftar bahan pada
-          // setiap pembayaran di layar-layar tersebut adalah egress murni.
-          // Inventory tetap menerima pembaruan realtime tanpa polling tambahan.
-          if (activeTab !== 'inventory') return;
+          // Inventory dan POS sama-sama menampilkan saldo bahan secara tidak
+          // langsung: stok menu ber-resep = minimum porsi dari bahan. KDS,
+          // shift, dan meja tidak merender saldo sehingga tidak perlu refetch.
+          if (!['inventory', 'pos'].includes(activeTab)) return;
           debounce('rawmaterials', () => {
             void listCloudRawMaterials(branchId)
               .then((mats) => { if (isRuntimeCurrent()) setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name }))); })
@@ -2606,7 +2612,7 @@ export default function App() {
           <Suspense fallback={<RouteFallback />}>
             <SelfOrderLandingPage
               tables={selfOrderTables}
-              menuItems={menuItems}
+              menuItems={effectiveMenuItems}
               profile={profile}
               condimentGroups={condimentGroups}
               isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
@@ -2869,7 +2875,7 @@ export default function App() {
                   onToggleQuickAccess={() => setIsQuickAccessMenuOpen((open) => !open)}
                 />
               }
-              menuItems={menuItems}
+              menuItems={effectiveMenuItems}
               orders={shiftOrders}
               tables={branchTables}
               activeUser={activeUser}
@@ -2910,7 +2916,7 @@ export default function App() {
             <KitchenDisplayView
               orders={shiftOrders}
               condimentGroups={condimentGroups}
-              menuItems={menuItems}
+              menuItems={effectiveMenuItems}
               categoryOrder={profile.kdsCategoryOrder}
               runningText={profile.runningText}
               outletName={currentBranch.name}
@@ -3003,9 +3009,9 @@ export default function App() {
               </div>
               <div className="theme-self-order mx-auto h-[720px] w-full max-w-sm overflow-hidden rounded-2xl border-[8px] border-[var(--panel-border-strong)] bg-white shadow-xl">
                 <div className="h-full overflow-y-auto">
-                  <SelfOrderLandingPage
-                    tables={branchTables}
-                    menuItems={menuItems}
+              <SelfOrderLandingPage
+                tables={branchTables}
+                menuItems={effectiveMenuItems}
                     profile={profile}
                     condimentGroups={condimentGroups}
                     isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
@@ -3212,7 +3218,7 @@ export default function App() {
           {activeTab === 'inventory' && (
             <InventoryHppView
               rawMaterials={rawMaterials}
-              menuItems={menuItems}
+              menuItems={effectiveMenuItems}
               branches={accessibleBranches}
               currentBranch={currentBranch}
               onUpdateRawMaterial={async (mat, stockMovementType, stockReason, stockDelta) => {
@@ -3392,7 +3398,7 @@ export default function App() {
             onClose={() => setIsSelfOrderModalOpen(false)}
             tableNumber={selectedSelfOrderTable}
             tables={branchTables}
-            menuItems={menuItems}
+            menuItems={effectiveMenuItems}
             profile={profile}
             condimentGroups={condimentGroups}
             isSelfOrderSystemEnabled={isSelfOrderSystemEnabled}
