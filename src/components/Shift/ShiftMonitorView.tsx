@@ -28,6 +28,7 @@ interface ShiftMonitorViewProps {
   activeUser?: UserAccount;
   onAddExpenseIncome: (record: ExpenseIncomeRecord) => void;
   onCloseShift: (notes: string, actualCash: number, expectedCash: number, shouldPrintZReport: boolean) => Promise<void>;
+  onLoadShiftOrders?: (shift: Shift) => Promise<Order[]>;
   onReprintZReport?: (shift: Shift) => Promise<void>;
   onOpenNewShift: (staffName: string, role: any, initialCash: number) => Promise<void>;
   onRefreshShift?: () => Promise<void>;
@@ -42,6 +43,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   activeUser,
   onAddExpenseIncome,
   onCloseShift,
+  onLoadShiftOrders,
   onReprintZReport,
   onOpenNewShift,
   onRefreshShift,
@@ -57,11 +59,37 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState<boolean>(false);
   const [isShiftHistoryModalOpen, setIsShiftHistoryModalOpen] = useState<boolean>(false);
   const [selectedHistoryShift, setSelectedHistoryShift] = useState<Shift | null>(null);
+  const [archiveOrdersByShift, setArchiveOrdersByShift] = useState<Record<string, Order[]>>({});
+  const [loadingArchiveShiftId, setLoadingArchiveShiftId] = useState<string>('');
   const [closeNotes, setCloseNotes] = useState<string>('');
   const [actualCashInput, setActualCashInput] = useState<number | ''>('');
   const [shouldPrintZReport, setShouldPrintZReport] = useState(true);
   const [handoverStaffName, setHandoverStaffName] = useState<string>('');
   const [isShiftMutationPending, setIsShiftMutationPending] = useState(false);
+
+  const openShiftArchive = (shift: Shift) => {
+    const willExpand = selectedHistoryShift?.id !== shift.id;
+    setSelectedHistoryShift(willExpand ? shift : null);
+    if (!willExpand || !onLoadShiftOrders || Object.prototype.hasOwnProperty.call(archiveOrdersByShift, shift.id)) return;
+
+    setLoadingArchiveShiftId(shift.id);
+    void onLoadShiftOrders(shift)
+      .then((loaded) => setArchiveOrdersByShift((current) => ({ ...current, [shift.id]: loaded })))
+      .catch((error) => toast('Riwayat Order Belum Dimuat', error instanceof Error ? error.message : 'Order untuk shift ini gagal dimuat.'))
+      .finally(() => setLoadingArchiveShiftId((current) => current === shift.id ? '' : current));
+  };
+
+  const isPotentialDuplicateOrder = (order: Order, ordersForShift: Order[]) => {
+    const customer = String(order.customerName || '').trim().toLocaleLowerCase('id-ID');
+    const createdAt = new Date(order.createdAt).getTime();
+    if (!customer || Number.isNaN(createdAt)) return false;
+    return ordersForShift.some((other) => (
+      other.id !== order.id
+      && String(other.customerName || '').trim().toLocaleLowerCase('id-ID') === customer
+      && Number(other.total) === Number(order.total)
+      && Math.abs(new Date(other.createdAt).getTime() - createdAt) <= 10 * 60 * 1000
+    ));
+  };
 
   const handleSaveRecord = (e: React.FormEvent) => {
     e.preventDefault();
@@ -971,7 +999,7 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                         borderColor: isExpanded ? 'var(--primary-border)' : 'var(--panel-border)',
                         background: isExpanded ? 'var(--primary-soft)' : 'var(--surface-card)'
                       }}
-                      onClick={() => setSelectedHistoryShift(isExpanded ? null : shf)}>
+                      onClick={() => openShiftArchive(shf)}>
 
                       {/* Row header */}
                       <div className="flex items-center justify-between gap-3 p-3.5">
@@ -1063,6 +1091,56 @@ export const ShiftMonitorView: React.FC<ShiftMonitorViewProps> = ({
                               {shf.notes}
                             </div>
                           )}
+
+                          {/* Order dimuat saat shift dibuka agar arsip tetap ringan,
+                              tetapi audit selalu memakai paid_shift_id yang tepat. */}
+                          {(() => {
+                            const archiveOrders = archiveOrdersByShift[shf.id] || [];
+                            const archiveLoaded = Object.prototype.hasOwnProperty.call(archiveOrdersByShift, shf.id);
+                            const isLoadingArchive = loadingArchiveShiftId === shf.id;
+                            return (
+                              <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--panel-border)' }}>
+                                <div className="flex items-center justify-between gap-2 border-b px-3 py-2" style={{ borderColor: 'var(--panel-border-light)', background: 'var(--surface-card)' }}>
+                                  <div>
+                                    <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>Riwayat order shift</p>
+                                    <p className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Nama, nominal, metode bayar, dan indikasi input ganda.</p>
+                                  </div>
+                                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>
+                                    {isLoadingArchive ? 'Memuat…' : `${archiveOrders.length} struk`}
+                                  </span>
+                                </div>
+                                {isLoadingArchive ? (
+                                  <p className="p-3 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Memuat transaksi dari arsip server…</p>
+                                ) : !archiveLoaded ? (
+                                  <p className="p-3 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Buka ulang shift ini untuk memuat struk audit.</p>
+                                ) : archiveOrders.length === 0 ? (
+                                  <p className="p-3 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Tidak ada transaksi dibayar atau void pada shift ini.</p>
+                                ) : (
+                                  <div className="max-h-56 divide-y overflow-y-auto" style={{ borderColor: 'var(--panel-border-light)' }}>
+                                    {archiveOrders.map((order) => {
+                                      const potentialDuplicate = isPotentialDuplicateOrder(order, archiveOrders);
+                                      return (
+                                        <div key={order.id} className={`grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2.5 ${potentialDuplicate ? 'bg-amber-50/70' : 'bg-[var(--surface-card)]'}`}>
+                                          <span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                                            {new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                          <div className="min-w-0">
+                                            <p className="truncate text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{order.customerName || 'Pelanggan'} <span className="font-mono" style={{ color: 'var(--text-tertiary)' }}>#{order.orderNumber}</span></p>
+                                            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                                              <span className="rounded px-1.5 py-0.5 text-[9px] font-bold" style={{ background: 'var(--surface-secondary)', color: 'var(--text-secondary)' }}>{order.paymentMethod || 'BELUM BAYAR'}</span>
+                                              {order.status === 'CANCELLED' && <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-700">VOID</span>}
+                                              {potentialDuplicate && <span className="rounded bg-amber-200 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-900">POTENSI DUPLIKAT</span>}
+                                            </div>
+                                          </div>
+                                          <span className="text-right text-[11px] font-extrabold tabular-nums" style={{ color: potentialDuplicate ? '#b45309' : 'var(--text-primary)' }}>Rp {order.total.toLocaleString('id-ID')}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {onReprintZReport && (
                             <div className="flex justify-end">

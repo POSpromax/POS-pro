@@ -94,6 +94,7 @@ async function readOrders(
   summary = false,
   since?: string,
   reportRange?: { from: string; to: string; offset: number; limit: number },
+  auditShiftId?: string,
 ) {
   const select = ORDER_READ_FIELDS;
   let rows: any[] = [];
@@ -108,6 +109,16 @@ async function readOrders(
       .lt('created_at', reportRange.to)
       .order('created_at', { ascending: false })
       .range(reportRange.offset, reportRange.offset + reportRange.limit - 1);
+    if (error) throw error;
+    rows = data || [];
+  } else if (auditShiftId) {
+    // Audit kas mengikuti saat pembayaran/void dicatat, bukan created_at.
+    // Ini menjaga rekonsiliasi apabila sebuah bill ditutup pada shift berikutnya.
+    const { data, error } = await admin.from('orders').select(select)
+      .eq('branch_id', branchId)
+      .or(`paid_shift_id.eq.${auditShiftId},completed_shift_id.eq.${auditShiftId}`)
+      .order('created_at', { ascending: false })
+      .limit(500);
     if (error) throw error;
     rows = data || [];
   } else if (since) {
@@ -170,6 +181,11 @@ export async function handleOrderRequest(
     if (!actor && (!orderId || !UUID_PATTERN.test(orderId))) return fail(401, 'Sesi telah berakhir');
     const summary = payload.summary === '1' || payload.summary === true || payload.summary === 'true';
     const since = typeof payload.since === 'string' && payload.since ? payload.since : undefined;
+    const auditShiftId = typeof payload.shiftId === 'string' ? payload.shiftId : undefined;
+    if (auditShiftId && !UUID_PATTERN.test(auditShiftId)) return fail(400, 'ID shift tidak valid');
+    if (auditShiftId && !['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(actor?.role || '')) {
+      return fail(403, 'Role tidak memiliki akses audit shift');
+    }
     const reportRangeRequested = typeof payload.from === 'string' || typeof payload.to === 'string';
     const from = typeof payload.from === 'string' ? new Date(payload.from) : null;
     const to = typeof payload.to === 'string' ? new Date(payload.to) : null;
@@ -186,7 +202,7 @@ export async function handleOrderRequest(
         to: to!.toISOString(),
         offset: reportPage * reportPageSize,
         limit: reportPageSize,
-      } : undefined);
+      } : undefined, auditShiftId);
       return { status: 200, data: orderId ? (orders[0] || null) : orders };
     } catch {
       return fail(500, 'Pesanan tidak dapat dimuat');

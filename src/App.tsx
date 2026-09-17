@@ -52,7 +52,7 @@ import {
 import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from './services/attendanceService';
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
-import { getCloudOrder, listCloudOrders, listCloudOrdersForReport, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
+import { getCloudOrder, listCloudOrders, listCloudOrdersForReport, listCloudOrdersForShiftAudit, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
 import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
 import { getPublicCatalogContext, getPublicSelfOrderStatus } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
@@ -3035,6 +3035,12 @@ export default function App() {
               shiftHistory={shiftHistory}
               activeUser={activeUser}
               onShowToast={showPushToast}
+              onLoadShiftOrders={async (shift) => {
+                if (!cloudReadiness.supabase) {
+                  return branchOrders.filter((order) => order.paidShiftId === shift.id || order.completedShiftId === shift.id);
+                }
+                return listCloudOrdersForShiftAudit(currentBranch.id, shift.id);
+              }}
               onReprintZReport={async (shift) => {
                 await printZReport(shift, branchOrders);
               }}

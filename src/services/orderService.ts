@@ -54,6 +54,12 @@ export async function listCloudOrdersForReport(branchId: string, from: string, t
   return rows;
 }
 
+// Arsip shift memuat transaksi berdasarkan shift pembayaran, bukan berdasarkan
+// tanggal dibuatnya order. Dengan begitu bill yang dibuat sebelum pergantian
+// shift tetapi dibayar sesudahnya tetap muncul pada audit shift yang benar.
+export const listCloudOrdersForShiftAudit = (branchId: string, shiftId: string): Promise<Order[]> =>
+  request<Order[]>(`/api/orders?branchId=${encodeURIComponent(branchId)}&shiftId=${encodeURIComponent(shiftId)}&summary=1`);
+
 // Ambil SATU order (beserta itemnya) — dipakai refetch bertarget saat realtime,
 // jauh lebih hemat egress daripada mengunduh ulang seluruh daftar order.
 // Mengembalikan null bila order tidak ada (mis. terhapus).
