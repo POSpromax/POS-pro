@@ -263,16 +263,15 @@ export const CashierView: React.FC<CashierViewProps> = ({
   // State for POS Queue Tab & Global Topping Saklar Switch
   const [queueTab, setQueueTab] = useState<'ACTIVE' | 'HISTORY'>('ACTIVE');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  // Saklar Topping/Condiment: preferensi KASIR yang persisten (localStorage),
-  // supaya tidak reset saat pindah tab/muat ulang dan tidak "melompat" saat
-  // membuka order lama. Hanya memengaruhi terminal kasir — self-order selalu
-  // menampilkan condiment apa pun status saklar ini.
+  // Saklar Topping/Condiment disimpan hanya untuk tab terminal saat ini.
+  // Data operasional tidak boleh hidup di localStorage ketika mode cloud aktif;
+  // self-order selalu menampilkan condiment apa pun status saklar ini.
   const [isCondimentsEnabled, setIsCondimentsEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem('pos_cashier_condiments') !== 'off'; } catch { return true; }
+    try { return sessionStorage.getItem('pos_cashier_condiments') !== 'off'; } catch { return true; }
   });
   const toggleCondiments = () => setIsCondimentsEnabled((prev) => {
     const next = !prev;
-    try { localStorage.setItem('pos_cashier_condiments', next ? 'on' : 'off'); } catch { /* storage tak tersedia */ }
+    try { sessionStorage.setItem('pos_cashier_condiments', next ? 'on' : 'off'); } catch { /* storage tak tersedia */ }
     return next;
   });
 

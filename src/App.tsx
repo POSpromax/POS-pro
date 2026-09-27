@@ -39,6 +39,7 @@ import { DBStorage } from './services/dbStorage';
 import { INITIAL_BRANCHES } from './data/initialData';
 import { cloudReadiness } from './lib/runtimeEnv';
 import { getSupabase } from './lib/supabase';
+import { getTerminalPrinterConfig, saveTerminalPrinterConfig } from './lib/terminalPrinterConfig';
 import { watchSessionExpiry } from './lib/sessionGuard';
 import { PWAUpdatePrompt } from './components/System/PWAUpdatePrompt';
 import { cloudSignOut } from './services/authService';
@@ -105,6 +106,15 @@ const TERMINAL_SESSION_KEY = 'omnipos_terminal_session_v2';
 const TERMINAL_BRANCH_KEY = 'omnipos_terminal_branch';
 const TERMINAL_MODE_KEY = 'omnipos_terminal_mode';
 const condimentCloudSaveTimers = new Map<string, number>();
+
+const getDevicePrinterConfig = (): PrinterConfig => (
+  cloudReadiness.supabase ? getTerminalPrinterConfig() : DBStorage.getPrinterConfig()
+);
+
+const saveDevicePrinterConfig = (config: PrinterConfig): void => {
+  if (cloudReadiness.supabase) saveTerminalPrinterConfig(config);
+  else DBStorage.savePrinterConfig(config);
+};
 
 // Server hanya menerima id order berupa UUID cloud. Order yang masih memakai id
 // lokal (mis. `ord-123456`) belum pernah sampai ke database, sehingga PATCH
@@ -605,7 +615,7 @@ export default function App() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
   const [isAttendanceConfigReady, setIsAttendanceConfigReady] = useState<boolean>(() => !cloudReadiness.supabase);
-  const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(() => DBStorage.getPrinterConfig());
+  const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(getDevicePrinterConfig);
   const printerConfigRef = useRef(printerConfig);
   useEffect(() => { printerConfigRef.current = printerConfig; }, [printerConfig]);
 
@@ -628,7 +638,7 @@ export default function App() {
   const handleToggleAutoPrintKitchen = useCallback(() => {
     setPrinterConfig((current) => {
       const next: PrinterConfig = { ...current, autoPrintKitchenOnNewOrder: !current.autoPrintKitchenOnNewOrder };
-      DBStorage.savePrinterConfig(next);
+      saveDevicePrinterConfig(next);
       showPushToast(
         next.autoPrintKitchenOnNewOrder ? 'Auto Print Dinyalakan' : 'Auto Print Dimatikan',
         next.autoPrintKitchenOnNewOrder
@@ -2960,7 +2970,7 @@ export default function App() {
               onAddBranch={handleAddBranch}
               printerConfig={printerConfig}
               onUpdatePrinterConfig={(cfg) => {
-                DBStorage.savePrinterConfig(cfg);
+                saveDevicePrinterConfig(cfg);
                 setPrinterConfig(cfg);
               }}
               menuItems={menuItems}
@@ -3463,7 +3473,7 @@ export default function App() {
         onClose={() => setIsPrinterModalOpen(false)}
         config={printerConfig}
         onSaveConfig={(cfg) => {
-          DBStorage.savePrinterConfig(cfg);
+          saveDevicePrinterConfig(cfg);
           setPrinterConfig(cfg);
         }}
       />

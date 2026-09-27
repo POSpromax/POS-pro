@@ -1,16 +1,8 @@
 import type { CondimentGroup, CondimentLegacyQuickPreset, CondimentQuickPreset } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
+import { getCloudTenantContext } from './tenantContextService';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-async function tenantContext() {
-  const supabase = getSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Sesi telah berakhir');
-  const { data, error } = await supabase.from('user_profiles').select('tenant_id').eq('user_id', user.id).single();
-  if (error || !data?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
-  return { supabase, tenantId: data.tenant_id as string };
-}
 
 type SelfOrderRole = NonNullable<CondimentGroup['selfOrderRole']>;
 
@@ -92,7 +84,7 @@ export async function listCloudCondiments(branchId: string): Promise<CondimentGr
   // Hanya instalasi legacy sebelum migration 017 yang membutuhkan fallback
   // tenant. Jalur normal cukup dua query paralel tanpa auth/profile tambahan.
   if (!branchConfig) {
-    const { tenantId } = await tenantContext();
+    const { tenantId } = await getCloudTenantContext();
     const { data: config } = await supabase
       .from('tenant_config')
       .select('kds_config')

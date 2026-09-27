@@ -1,5 +1,6 @@
 import type { ExpenseIncomeRecord } from '../types/pos';
 import { getSupabase } from '../lib/supabase';
+import { getCloudTenantContext } from './tenantContextService';
 
 interface ExpenseRow {
   id: string;
@@ -45,25 +46,17 @@ export async function saveCloudExpenseRecord(
   branchId: string,
   record: ExpenseIncomeRecord,
 ): Promise<ExpenseIncomeRecord> {
-  const supabase = getSupabase();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) throw new Error('Sesi pengguna tidak valid');
-  const { data: profile, error: profileError } = await supabase
-    .from('user_profiles')
-    .select('tenant_id')
-    .eq('user_id', auth.user.id)
-    .maybeSingle();
-  if (profileError || !profile?.tenant_id) throw profileError || new Error('Tenant pengguna tidak ditemukan');
+  const { supabase, tenantId, userId } = await getCloudTenantContext();
   const { data, error } = await supabase
     .from('expense_income_records')
     .insert({
-      tenant_id: profile.tenant_id,
+      tenant_id: tenantId,
       branch_id: branchId,
       shift_id: record.shiftId || null,
       record_type: record.type,
       amount: record.amount,
       description: record.description,
-      recorded_by: auth.user.id,
+      recorded_by: userId,
     })
     .select('id,shift_id,record_type,amount,description,recorded_by,created_at')
     .single();

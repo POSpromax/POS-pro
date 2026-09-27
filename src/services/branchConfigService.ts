@@ -1,5 +1,6 @@
 import type { BranchOperationalConfig } from '../types/pos';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { getCloudTenantContext } from './tenantContextService';
 
 const defaultBaseUrl = () => typeof window === 'undefined' ? '' : window.location.origin;
 
@@ -42,15 +43,7 @@ export async function getCloudBranchOperationalConfig(branchId: string): Promise
 export async function saveCloudBranchOperationalConfig(
   config: BranchOperationalConfig,
 ): Promise<BranchOperationalConfig> {
-  const supabase = getSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Sesi telah berakhir');
-  const { data: profile, error: profileError } = await supabase
-    .from('user_profiles')
-    .select('tenant_id')
-    .eq('user_id', user.id)
-    .single();
-  if (profileError || !profile?.tenant_id) throw new Error('Tenant akun tidak ditemukan');
+  const { supabase, tenantId } = await getCloudTenantContext();
 
   const { isSelfOrderEnabled: _legacyGlobalSelfOrder, ...profileOverrides } = (config.profileOverrides || {}) as Record<string, unknown>;
   const payload = {
@@ -64,7 +57,7 @@ export async function saveCloudBranchOperationalConfig(
     .from('branch_operational_config')
     .update(payload)
     .eq('branch_id', config.branchId)
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', tenantId)
     .select('branch_id,tenant_id,self_order_enabled,self_order_base_url,profile_overrides')
     .maybeSingle();
   if (error) throw new Error(error.message);
