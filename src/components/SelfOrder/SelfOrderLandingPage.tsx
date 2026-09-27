@@ -215,7 +215,9 @@ export const SelfOrderLandingPage: React.FC<SelfOrderLandingPageProps> = ({
     };
 
     refreshSubmittedOrder();
-    const timer = window.setInterval(refreshSubmittedOrder, 15_000);
+    // Tracking pelanggan bukan jalur transaksi. Tiga puluh detik menjaga
+    // status tetap nyaman dibaca sambil memangkas setengah request publik.
+    const timer = window.setInterval(refreshSubmittedOrder, 30_000);
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshSubmittedOrder();
     };

@@ -1,4 +1,7 @@
-export type BranchRuntimeChannel = 'ORDERS' | 'OPERATIONS' | 'SHIFT';
+// Hanya ORDERS adalah koneksi realtime. Domain lain tetap dicatat sebagai
+// snapshot agar diagnostik tidak menyiratkan socket yang sebenarnya tidak ada.
+export type BranchRuntimeRealtimeChannel = 'ORDERS';
+export type BranchRuntimeSyncDomain = BranchRuntimeRealtimeChannel | 'SHIFT';
 export type BranchRuntimeConnectionState = 'CONNECTING' | 'HEALTHY' | 'DEGRADED';
 
 export interface BranchRuntimeToken {
@@ -10,15 +13,13 @@ export interface BranchRuntimeDiagnostic {
   branchId: string;
   epoch: number;
   startedAt: number;
-  channels: Record<BranchRuntimeChannel, BranchRuntimeConnectionState>;
-  lastRealtimeEvent: Partial<Record<BranchRuntimeChannel, number>>;
-  lastSuccessfulSync: Partial<Record<BranchRuntimeChannel, number>>;
+  channels: Record<BranchRuntimeRealtimeChannel, BranchRuntimeConnectionState>;
+  lastRealtimeEvent: Partial<Record<BranchRuntimeRealtimeChannel, number>>;
+  lastSuccessfulSync: Partial<Record<BranchRuntimeSyncDomain, number>>;
 }
 
-const initialChannels = (): Record<BranchRuntimeChannel, BranchRuntimeConnectionState> => ({
+const initialChannels = (): Record<BranchRuntimeRealtimeChannel, BranchRuntimeConnectionState> => ({
   ORDERS: 'CONNECTING',
-  OPERATIONS: 'CONNECTING',
-  SHIFT: 'CONNECTING',
 });
 
 /**
@@ -33,8 +34,8 @@ export class BranchRuntimeGuard {
   private epoch = 0;
   private startedAt = Date.now();
   private channels = initialChannels();
-  private lastRealtimeEvent: Partial<Record<BranchRuntimeChannel, number>> = {};
-  private lastSuccessfulSync: Partial<Record<BranchRuntimeChannel, number>> = {};
+  private lastRealtimeEvent: Partial<Record<BranchRuntimeRealtimeChannel, number>> = {};
+  private lastSuccessfulSync: Partial<Record<BranchRuntimeSyncDomain, number>> = {};
 
   begin(branchId: string): BranchRuntimeToken {
     if (this.branchId !== branchId) {
@@ -56,17 +57,17 @@ export class BranchRuntimeGuard {
     return token.branchId === this.branchId && token.epoch === this.epoch;
   }
 
-  recordConnection(token: BranchRuntimeToken, channel: BranchRuntimeChannel, state: BranchRuntimeConnectionState): void {
+  recordConnection(token: BranchRuntimeToken, channel: BranchRuntimeRealtimeChannel, state: BranchRuntimeConnectionState): void {
     if (!this.isCurrent(token)) return;
     this.channels[channel] = state;
   }
 
-  recordRealtime(token: BranchRuntimeToken, channel: BranchRuntimeChannel): void {
+  recordRealtime(token: BranchRuntimeToken, channel: BranchRuntimeRealtimeChannel): void {
     if (!this.isCurrent(token)) return;
     this.lastRealtimeEvent[channel] = Date.now();
   }
 
-  recordSync(token: BranchRuntimeToken, channel: BranchRuntimeChannel): void {
+  recordSync(token: BranchRuntimeToken, channel: BranchRuntimeSyncDomain): void {
     if (!this.isCurrent(token)) return;
     this.lastSuccessfulSync[channel] = Date.now();
   }

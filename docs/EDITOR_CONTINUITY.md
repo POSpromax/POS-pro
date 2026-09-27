@@ -47,10 +47,10 @@ Mode `ATTENDANCE` memakai shell terisolasi; jangan memuat query order, shift, me
 
 - Cloud aktif: jangan baca/tulis salinan operasional `localStorage`.
 - Browser session: hanya status lock terminal, branch aktif, portal, dan tab di `sessionStorage`.
-- Order: realtime saat POS/KDS aktif; polling cepat hanya ketika realtime turun.
-- Shift: realtime saat modul operasi aktif; fallback sekitar satu menit saat koneksi turun.
-- Katalog/meja/config: event realtime memicu satu refresh ter-debounce, bukan stream state penuh.
-- Owner monitoring lintas cabang memakai satu channel order dan satu channel operasional per cabang hanya ketika Dashboard/Laporan owner aktif. Event order mengambil satu order berdasarkan ID; interval 120 detik tetap menjadi rekonsiliasi cadangan.
+- Order: satu realtime channel saat POS/KDS aktif; polling cepat hanya ketika channel order turun.
+- Shift: snapshot database saat masuk/fokus dan rekonsiliasi maksimal lima menit; tidak ada channel shift.
+- Katalog/meja/config: snapshot saat layar membutuhkan data atau setelah aksi langsung; tidak ada channel operations.
+- Owner monitoring lintas cabang adalah snapshot saat dashboard dibuka dan paling cepat setiap 10 menit. Tidak ada channel lintas cabang.
 - Laporan historis memakai `/api/orders?from=&to=&page=` dan membaca per 500 order. Jangan mengembalikan laporan ke daftar operasional 150 order.
 - Saat route Self-order terbuka, status publik disegarkan ketika tab kembali aktif dan setiap 60 detik. Submit order tetap melakukan validasi shift dan meja sekali lagi di server.
 

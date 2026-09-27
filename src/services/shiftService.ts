@@ -1,6 +1,5 @@
 import type { Shift } from '../types/pos';
-import { ensureRealtimeAuth, getSupabase, isSupabaseConfigured } from '../lib/supabase';
-import type { RealtimeConnectionState } from './orderService';
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 
 export class ShiftServiceError extends Error {
   constructor(message: string, public readonly status: number) {
@@ -93,48 +92,4 @@ export async function closeCloudShift(params: {
       varianceAmount: params.varianceAmount,
     }),
   });
-}
-
-export function subscribeCloudShift(
-  branchId: string,
-  onChange: () => void,
-  onConnectionState?: (state: RealtimeConnectionState) => void,
-): () => void {
-  if (!isSupabaseConfigured() || !branchId) return () => undefined;
-  const supabase = getSupabase();
-  let timer = 0;
-  let disposed = false;
-  let dbChannel: ReturnType<typeof supabase.channel> | null = null;
-
-  const notify = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(onChange, 220);
-  };
-
-  onConnectionState?.('CONNECTING');
-
-  void ensureRealtimeAuth()
-    .then(() => {
-      if (disposed) return;
-      dbChannel = supabase
-        .channel(`branch:${branchId}:shift`, { config: { private: true } })
-        .on('broadcast', { event: 'INSERT' }, notify)
-        .on('broadcast', { event: 'UPDATE' }, notify)
-        .on('broadcast', { event: 'DELETE' }, notify)
-        .subscribe((status) => {
-          if (disposed) return;
-          if (status === 'SUBSCRIBED') onConnectionState?.('HEALTHY');
-          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onConnectionState?.('DEGRADED');
-          else onConnectionState?.('CONNECTING');
-        });
-    })
-    .catch(() => {
-      if (!disposed) onConnectionState?.('DEGRADED');
-    });
-
-  return () => {
-    disposed = true;
-    window.clearTimeout(timer);
-    if (dbChannel) void supabase.removeChannel(dbChannel);
-  };
 }

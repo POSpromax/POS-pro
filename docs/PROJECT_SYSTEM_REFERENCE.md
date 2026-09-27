@@ -49,9 +49,9 @@ Jangan membangun ulang `order_items` saat membayar order lama dan jangan menghit
 ## Dashboard dan laporan
 
 - Dashboard owner memuat summary order hari berjalan untuk tiap cabang.
-- Saat Dashboard/Laporan aktif, tersedia satu subscription order dan satu subscription operasional per cabang.
-- Broadcast order membawa ID; klien mengambil satu order yang berubah. Tabel/stok direfresh hanya untuk tabel sumber event, ter-debounce.
-- Poll 120 detik adalah rekonsiliasi cadangan, bukan jalur utama.
+- Dashboard/Laporan tidak membuka subscription lintas cabang; keduanya mengambil snapshot sesuai halaman/filter. Dashboard owner paling cepat menyegarkan otomatis setiap 10 menit.
+- Broadcast order membawa ID; hanya POS/KDS mengambil satu order yang berubah. Snapshot meja POS diringkas satu kali setelah burst event order; KDS tidak pernah mengambil meja untuk perubahan status dapur.
+- Rekonsiliasi order inkremental 120 detik adalah cadangan POS/KDS, bukan jalur utama.
 - Laporan tidak memakai jendela operasional 150 order. Endpoint rentang waktu dipaginasi 500 order dan query item dipecah per 150 ID.
 - Filter kalender mengendalikan KPI, grafik, tabel, CSV, PDF, mutasi stok, shift, dan presensi.
 

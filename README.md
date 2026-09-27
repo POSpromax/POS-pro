@@ -28,7 +28,7 @@ Gunakan `npm.cmd run clean` untuk menghapus output build secara portable.
 - Supabase adalah sumber kebenaran data lintas perangkat.
 - Data selalu dibatasi tenant dan cabang melalui API/RLS.
 - POS/KDS memakai realtime per cabang dengan polling cadangan hemat free-tier.
-- Shift memakai realtime dan rekonsiliasi database; tidak memakai cache browser sebagai status pusat.
+- Shift memakai snapshot database saat halaman dibuka/fokus serta rekonsiliasi berkala; tidak memakai cache browser sebagai status pusat.
 - QR self-order permanen per cabang. Kasir mengaktifkan atau menonaktifkan meja dari server.
 - Status buka Self-order dibaca dari shift aktif cabang di server, bukan dari sesi terminal kasir yang membuka halaman.
 - POS mempertahankan status shift terakhir yang sudah terkonfirmasi selama rekonsiliasi sehingga tidak menampilkan layar terkunci sesaat ketika berpindah halaman.

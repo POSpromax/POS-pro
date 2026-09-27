@@ -1,6 +1,43 @@
 # Handoff Aktif POS-PRO
 
-Terakhir diperbarui: 17 Agustus 2026.
+Terakhir diperbarui: 27 September 2026.
+
+## Update 27 September 2026 — Realtime order-only dan audit Log Ingestion
+
+- WebSocket privat sekarang hanya dapat dibuat oleh `subscribeCloudOrders()` pada
+  POS/KDS: `branch:{branchId}:orders`. Subscription shift, master operasional,
+  serta dashboard owner lintas cabang sudah dihapus dari browser.
+- Shift tetap memakai database sebagai sumber kebenaran melalui snapshot saat
+  masuk/fokus dan rekonsiliasi maksimal lima menit. Dashboard owner memuat
+  snapshot lintas cabang saat dibuka lalu maksimal setiap 10 menit; tombol sync
+  header tetap dapat memuat ulang snapshot tersebut secara manual.
+- Event order hanya mengambil order yang berubah. Refresh meja di-batch dan hanya
+  dilakukan saat POS aktif; KDS tidak lagi mengunduh daftar meja pada setiap
+  perubahan status dapur. Void mengambil satu order resmi, bukan snapshot daftar
+  order penuh.
+- Polling publik dikurangi: status self-order 60 detik dan pelacakan order
+  pelanggan 30 detik. Validasi branch, meja, shift, stok, harga, dan role tetap
+  terjadi pada server/RPC ketika mutasi dilakukan.
+- Tambahkan migration `202609270057_realtime_orders_only.sql`. **Urutan rilis:**
+  deploy kode ini lebih dulu, lalu jalankan migration di Supabase. Migration
+  menonaktifkan trigger/policy broadcast shift dan operations; jangan mengedit
+  migration lama.
+- Validasi lokal lulus: `npm.cmd run lint`, `npm.cmd run build`, dan
+  `git diff --check`. Audit dependency produksi: 0 vulnerability. Lockfile
+  mengunci `fast-uri@3.1.8` dan `@xmldom/xmldom@0.9.12`; tersisa 3 moderate
+  development-only dari rantai `@capacitor/cli -> xcode -> uuid`. Jangan memakai
+  `npm audit fix --force`: rekomendasi npm berupa perubahan toolchain Capacitor
+  dan perlu uji Android terpisah.
+
+### Validasi production wajib setelah rilis
+
+1. Buka POS dan KDS pada cabang sama; buat/ubah status order, pastikan kedua
+   layar menerima perubahan tanpa reload.
+2. Pastikan Dashboard Owner, Shift, Inventory, Settings, dan Meja tidak membuka
+   koneksi Realtime; refresh data melalui buka layar, fokus, atau tombol sync.
+3. Jalankan migration 057 dan cek Supabase Logs Explorer selama 24 jam. Pantau
+   khusus penurunan request `branch_members`, `user_profiles`, daftar meja, dan
+   koneksi Realtime di luar POS/KDS.
 
 ## Update 17 Agustus 2026 (sesi ini)
 
@@ -304,8 +341,9 @@ diinferensikan dari diskon 100% untuk kompatibilitas histori.
   simpan menu+resep serta simpan/hapus grup condiment+opsi+scope atomik. Ia juga
   mengamankan edit/hapus master katalog dengan validasi role dan cabang.
 - Snapshot katalog, condiment, dan konteks cabang dimuat sekali per cabang.
-  Perpindahan tab tidak lagi mengulang unduhan besar; broadcast dan fallback
-  terarah tetap menjaga konsistensi.
+  Perpindahan tab tidak lagi mengulang unduhan besar; perubahan master muncul
+  setelah layar dibuka/fokus atau aksi langsung, sedangkan realtime dikhususkan
+  untuk order POS/KDS.
 - Array condiment kosong diperlakukan sebagai snapshot valid. Ini mencegah
   condiment cabang sebelumnya terlihat sesaat pada cabang tanpa konfigurasi.
 - Pembuatan cabang baru sekarang wajib membuat membership Owner dan

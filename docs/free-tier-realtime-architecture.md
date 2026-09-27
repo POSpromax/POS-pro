@@ -3,7 +3,6 @@
 ## Keputusan implementasi
 
 - Satu kanal order privat per cabang aktif: `branch:{branchId}:orders`.
-- Satu kanal perubahan master operasional: `branch:{branchId}:operations`.
 - Database hanya menyiarkan event kecil `INSERT`, `UPDATE`, atau `DELETE`; aplikasi tidak lagi menyiarkan seluruh array order.
 - Event diringkas dengan debounce lalu mengambil hanya order ID yang berubah.
   Snapshot maksimal 150 order beserta item hanya dipakai pada bootstrap; safety
@@ -13,18 +12,15 @@
 - Harga menu dan condiment dihitung ulang di server. Browser tidak menjadi sumber kebenaran harga.
 - Katalog, KDS, HR, payroll, inventory, settings, dan self-order dimuat sebagai chunk terpisah setelah dibutuhkan.
 - PWA hanya menyimpan aset antarmuka; transaksi cloud tidak disimpan sebagai antrean offline lokal.
-- Event operations hanya membawa metadata perubahan. Setelah event diterima,
-  aplikasi membaca ulang row resmi dari database; event tidak membawa array
-  state dan tidak pernah ditulis ke `localStorage`.
-- Subscription hanya hidup pada layar yang membutuhkan. Kanal operasi bersama
-  boleh hidup di POS/KDS, tetapi event stok tidak memicu unduhan bahan baku di
-  luar layar Inventory. Dashboard Owner memakai snapshot ringkas berkala.
+- Realtime hanya hidup di POS/KDS dan hanya pada kanal order. Shift, master
+  operasional, dan dashboard owner memakai snapshot server saat halaman dibuka,
+  kembali aktif, atau pengguna menyegarkan layar.
 - Perubahan order mengirim satu invalidation per row order; event per item
   dihapus karena item selalu disimpan bersama perubahan row order.
 
 ## Guardrail operasional
 
-- Jangan membuka subscription per kartu order atau per item. Satu cabang cukup satu kanal.
+- Jangan membuka subscription selain kanal order POS/KDS. Satu cabang cukup satu kanal.
 - Jangan melakukan polling daftar order pada terminal staff. Realtime event adalah pemicu refresh.
 - Batasi histori layar operasional; ekspor laporan harus menggunakan rentang tanggal dan pagination.
 - Kompres gambar menu melalui Cloudinary (`f_auto,q_auto,w_...`) dan lazy-load gambar di luar viewport.

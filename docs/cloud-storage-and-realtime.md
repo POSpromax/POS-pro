@@ -11,12 +11,12 @@ mengambil ulang data resmi; payload realtime tidak menjadi database kedua.
 | Domain | Penyimpanan | Jalur pembaruan |
 |---|---|---|
 | Order dan item | `orders`, `order_items` | `branch:{branchId}:orders` lalu re-fetch API |
-| Shift | `cashier_shifts` | `branch:{branchId}:shift` lalu re-fetch API |
-| Meja | `restaurant_tables` | `branch:{branchId}:operations` lalu re-fetch |
-| Menu dan bahan | `menu_items`, `raw_materials` | operations lalu re-fetch katalog |
-| Condiment | `condiment_groups`, `condiment_options` | operations lalu re-fetch |
-| Konfigurasi cabang | `branch_operational_config` | operations lalu re-fetch |
-| Pengeluaran/pemasukan | `expense_income_records` | operations lalu re-fetch |
+| Shift | `cashier_shifts` | Snapshot API saat halaman dibuka/fokus, aksi langsung tetap fresh |
+| Meja | `restaurant_tables` | Snapshot API saat halaman dibuka, aksi langsung, atau event order di POS |
+| Menu dan bahan | `menu_items`, `raw_materials` | Snapshot katalog saat layar membutuhkan data |
+| Condiment | `condiment_groups`, `condiment_options` | Snapshot saat POS/settings/self-order dibuka |
+| Konfigurasi cabang | `branch_operational_config` | Snapshot saat cabang/layar terkait dibuka |
+| Pengeluaran/pemasukan | `expense_income_records` | Snapshot saat layar shift/laporan dibuka |
 | Staff dan akses | `user_profiles`, `branch_members` | API staff dan validasi membership |
 | Presensi | `attendance_events` | API attendance dengan sesi Auth staff |
 
@@ -45,8 +45,8 @@ boleh dibaca dari localStorage sebagai hasil sinkronisasi.
 
 1. Event realtime diterima dan di-debounce.
 2. Aplikasi melakukan re-fetch pada cabang aktif.
-3. Saat channel gagal, order memiliki polling layar aktif dan shift memiliki
-   rekonsiliasi berkala/focus/online.
+3. Saat channel order gagal, POS/KDS memiliki rekonsiliasi inkremental layar
+   aktif. Shift memakai rekonsiliasi snapshot berkala/focus/online tanpa socket.
 4. Saat Supabase dikonfigurasi, kegagalan POST/PATCH tidak membuat transaksi
    lokal. UI mengembalikan state dari cloud dan operator mencoba ulang.
 5. Setelah sinkronisasi manual, layar dibangun ulang dari respons cloud.
@@ -61,13 +61,16 @@ Jalankan migrasi berurutan sampai:
 4. `202608130020_permanent_branch_qr_tables.sql`
 5. `202608130021_atomic_paid_table_state.sql`
 6. `202608130022_shift_attribution_public_route.sql`
+7. `202609270057_realtime_orders_only.sql`
 
 Migrasi 018 menghapus izin kanal `branch:{branchId}:sync` lama sehingga browser
 tidak lagi dapat mengirim seluruh isi localStorage ke perangkat lain.
 
-Migrasi 019 mengganti payload full-row menjadi invalidation kecil, menghapus
-event duplikat per `order_item`, dan memindahkan shift dari Postgres Changes ke
-Broadcast privat.
+Migrasi 019 mengganti payload order full-row menjadi invalidation kecil dan
+menghapus event duplikat per `order_item`.
+
+Migrasi 057 menonaktifkan trigger dan policy broadcast shift/operasional.
+Setelahnya satu-satunya broadcast database adalah perubahan order untuk POS/KDS.
 
 Migrasi 020 menetapkan QR permanen per cabang, sesi aktivasi meja di server, dan
 relasi `active_order_id`. Query embed order-meja harus menyebut foreign key
@@ -83,29 +86,30 @@ sebagai nilai unik global.
 
 ## Matriks subscription aktif
 
-| Layar | Order | Shift | Operations |
-|---|---:|---:|---:|
-| Kasir POS | Ya | Ya | Ya |
-| Kitchen/KDS | Ya | Ya | Tidak |
-| Monitor shift | Ya | Ya | Ya, untuk kas |
-| Inventory | Tidak | Tidak | Ya |
-| Meja/settings/self-order admin | Tidak | Tidak | Ya |
-| Dashboard Owner | Ya, satu channel/cabang | Tidak | Ya, refresh ter-debounce + rekonsiliasi 120 detik |
-| Laporan analytics | Tidak | Tidak | Snapshot saat buka/filter/manual refresh |
-| Attendance/payroll | Tidak | Tidak | Sesuai fetch halaman |
+| Layar | Order realtime | Snapshot API |
+|---|---:|---|
+| Kasir POS | Ya | Shift/meja/master saat perlu |
+| Kitchen/KDS | Ya | Shift saat masuk/fokus |
+| Monitor shift | Tidak | Shift, kas, dan histori saat buka/fokus |
+| Inventory | Tidak | Katalog/stok saat buka atau refresh |
+| Meja/settings/self-order admin | Tidak | Data terkait saat buka atau aksi langsung |
+| Dashboard Owner | Tidak | Snapshot lintas cabang saat buka, lalu maksimal tiap 10 menit |
+| Laporan analytics | Tidak | Snapshot saat buka/filter/manual refresh |
+| Attendance/payroll | Tidak | Sesuai fetch halaman |
 
 Saat Realtime sehat, rekonsiliasi order inkremental berjalan maksimal sekali per
-120 detik (15 detik hanya pada warm-up satu menit pertama) dan shift per 10 menit
-sebagai safety net. Saat channel terganggu, POS fallback 25 detik, KDS 30 detik,
-dan shift 60 detik. Rekonsiliasi order memakai kursor `updated_at`, bukan snapshot
-150 order penuh. Tab tersembunyi tidak melakukan polling.
+120 detik (15 detik hanya pada warm-up satu menit pertama). Saat channel order
+terganggu, POS fallback 25 detik dan KDS 30 detik. Shift memakai snapshot maksimal
+setiap lima menit, serta refresh ter-throttle saat tab kembali aktif. Rekonsiliasi
+order memakai kursor `updated_at`, bukan snapshot 150 order penuh. Tab tersembunyi
+tidak melakukan polling.
 
 Katalog publik Self-order tidak bergantung pada state shift dari terminal kasir.
 Endpoint katalog lengkap membaca profil, menu, condiment, meja, dan shift cabang
 langsung dari database satu kali saat halaman dibuka. Snapshot berat tersebut
 hanya dimuat ulang ketika tab kembali aktif dan usianya sudah lebih dari lima
 menit. Status operasional memakai `/api/public-status`: payload ringkas berisi
-shift, meja, dan ID menu tersedia, diperbarui setiap 15 detik hanya saat tab
+shift, meja, dan ID menu tersedia, diperbarui setiap 60 detik hanya saat tab
 terlihat. Respons ringkas dapat dibagi oleh cache edge selama lima detik.
 
 Endpoint submit selalu mengulang validasi branch, shift, stok, condiment, dan
@@ -117,8 +121,9 @@ mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
 ## Verifikasi minimum
 
 - buka cabang yang sama pada dua browser;
-- ubah meja, menu, stok, condiment, dan pengeluaran pada browser A;
-- pastikan browser B berubah setelah event/re-fetch tanpa reload manual;
+- ubah order pada browser A dan pastikan POS/KDS browser B berubah lewat event;
+- ubah meja, menu, stok, condiment, atau pengeluaran lalu pastikan browser B
+  mengambil snapshot resmi saat halaman dibuka, difokuskan, atau disegarkan;
 - buka cabang berbeda dan pastikan tidak ada perubahan silang;
 - tutup WebSocket, ubah order/shift, lalu pulihkan koneksi dan pastikan state
   kembali sama dengan database;
@@ -144,12 +149,9 @@ mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
 ## Inventory
 
 - Transaksi penjualan mengubah stok melalui ledger/database, bukan state browser.
-- Perubahan `raw_materials` dan resep `menu_item_ingredients` mengirim invalidation
-  kecil pada kanal operations cabang, lalu layar inventory mengambil snapshot resmi.
-- Event stok boleh diterima oleh kanal operasional cabang yang sedang aktif,
-  tetapi snapshot `raw_materials` hanya diambil ulang ketika layar Inventory
-  terbuka. POS, KDS, shift, meja, dan settings mengabaikan invalidation stok yang
-  tidak mereka render. Dashboard Owner memiliki snapshot stok ringkas tersendiri.
+- Perubahan `raw_materials` dan resep `menu_item_ingredients` tidak menyiarkan
+  broadcast. Layar inventory mengambil snapshot resmi saat dibuka atau saat
+  operator menekan refresh; mutasi pada layar yang sama langsung memperbarui state.
 - Purchase, waste, adjustment, transfer, dan stock opname harus disimpan sebagai
   movement terpisah agar saldo dapat diaudit; `stock_quantity` adalah saldo hasil,
   bukan satu-satunya histori.
@@ -163,9 +165,9 @@ mengunduh ulang seluruh `order_items` setiap kali status dapur diperiksa.
   yang dibaca. Gabungan lintas cabang baru dibaca saat filter **Semua Cabang**.
 - Query kas dan histori shift menerima batas waktu laporan sehingga histori di
   luar periode tidak ikut dikirim dari Supabase.
-- Dashboard owner tetap realtime untuk kebutuhan monitoring operasional, tetapi
-  analytics adalah snapshot historis. Keduanya tidak boleh berbagi polling atau
-  subscription karena tujuan dan frekuensi aksesnya berbeda.
+- Dashboard owner dan analytics sama-sama snapshot; dashboard owner dapat
+  menyegarkan otomatis paling cepat setiap 10 menit. Keduanya tidak membuka
+  subscription karena realtime dikhususkan untuk order POS/KDS.
 - Transaksi dengan metadata kategori `STAFF_EATING` diklasifikasikan sebagai staff eating pada laporan dan
   dikeluarkan dari omzet penjualan, jumlah struk, average order value, distribusi
   pembayaran, tren, serta menu terlaris. Nilainya tetap terlihat pada panel

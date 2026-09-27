@@ -54,13 +54,12 @@ import { AttendanceSessionError, listCloudAttendance, saveCloudAttendance } from
 import { deleteCloudMenuItem, deleteCloudRawMaterial, listCloudCatalog, listCloudRawMaterials, saveCloudMenuItem, saveCloudRawMaterial } from './services/catalogService';
 import { deleteCloudCondimentGroup, listCloudCondiments, saveCloudCondimentGroup } from './services/condimentService';
 import { getCloudOrder, listCloudOrders, listCloudOrdersForReport, listCloudOrdersForShiftAudit, listCloudOrdersSince, payCloudOrder, submitCloudOrder, subscribeCloudOrders, updateCloudOrderStatus, RealtimeConnectionState } from './services/orderService';
-import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError, subscribeCloudShift } from './services/shiftService';
+import { getCloudActiveShift, listCloudShiftHistory, openCloudShift, closeCloudShift, ShiftServiceError } from './services/shiftService';
 import { getPublicCatalogContext, getPublicSelfOrderStatus } from './services/publicCatalogService';
 import { createCloudTable, listCloudTables, setAllCloudTablesEnabled, updateCloudTableSession } from './services/tableService';
 import { defaultBranchOperationalConfig, getCloudBranchOperationalConfig, saveCloudBranchOperationalConfig } from './services/branchConfigService';
 import { getCloudAttendanceConfig, getCloudTenantBrand, saveCloudTenantBrand } from './services/tenantConfigService';
 import { listCloudExpenseRecords, saveCloudExpenseRecord } from './services/expenseService';
-import { subscribeBranchOperations } from './services/operationalRealtimeService';
 import { createCloudBranch, listCloudBranches } from './services/branchService';
 import { formatOrderLabel } from './utils/orderNumber';
 import { buildBranchSelfOrderUrl } from './utils/selfOrderUrl';
@@ -546,10 +545,10 @@ export default function App() {
         .finally(() => { refreshing = false; });
     };
 
-    // 30 detik cukup responsif untuk indikator UI; klaim meja dan stok tetap
+    // Satu menit cukup untuk indikator UI; klaim meja dan stok tetap
     // divalidasi atomik pada POST order sehingga tidak bergantung polling ini.
     refreshPublicStatus();
-    const timer = window.setInterval(refreshPublicStatus, 30_000);
+    const timer = window.setInterval(refreshPublicStatus, 60_000);
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshPublicStatus();
     };
@@ -608,12 +607,18 @@ export default function App() {
     rawMaterials: RawMaterial[];
   }>({ branchIds: [], orders: [], tables: [], rawMaterials: [] });
   const ownerReportRequestRef = useRef(0);
+  const ownerMonitorRefreshRef = useRef<(() => void) | null>(null);
   const [currentShift, setCurrentShift] = useState<Shift>(() => cloudReadiness.supabase ? createInactiveShift(currentBranch.id) : DBStorage.getCurrentShift(currentBranch.id));
   const [isShiftStatusLoading, setIsShiftStatusLoading] = useState<boolean>(cloudReadiness.supabase);
   const [shiftHistory, setShiftHistory] = useState<Shift[]>(() => cloudReadiness.supabase ? [] : DBStorage.getShiftHistory());
   const [expenseRecords, setExpenseRecords] = useState<ExpenseIncomeRecord[]>(() => cloudReadiness.supabase ? [] : DBStorage.getExpenseRecords());
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => DBStorage.getAttendanceRecords());
   const [profile, setProfile] = useState<RestaurantProfile>(() => DBStorage.getProfile());
+  // Handler realtime hidup lebih lama dari render yang membangunnya. Simpan
+  // profil terkini di ref agar perubahan suara/preferensi tidak membongkar
+  // socket order lalu menyambungkannya lagi.
+  const profileRef = useRef(profile);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
   const [isAttendanceConfigReady, setIsAttendanceConfigReady] = useState<boolean>(() => !cloudReadiness.supabase);
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>(getDevicePrinterConfig);
   const printerConfigRef = useRef(printerConfig);
@@ -808,9 +813,9 @@ export default function App() {
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   useEffect(() => {
-    // Monitoring pusat tetap realtime. Halaman laporan sengaja dikecualikan:
-    // laporan memuat snapshot hanya ketika dibuka/filter berubah agar tidak
-    // mempertahankan subscription dan polling lintas cabang yang boros egress.
+    // Dashboard owner adalah snapshot lintas cabang, bukan layar transaksi.
+    // Ia tidak boleh membuka satu socket per cabang karena kebutuhan realtime
+    // dibatasi hanya untuk alur order POS/KDS.
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || systemPortal !== 'OWNER' || activeTab !== 'superowner') return;
     if (!['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'].includes(activeUser.role)) return;
     let cancelled = false;
@@ -824,23 +829,6 @@ export default function App() {
       const end = new Date(start);
       end.setDate(end.getDate() + 1);
       return listCloudOrdersForReport(branchId, start.toISOString(), end.toISOString(), true);
-    };
-    const replaceBranchSnapshot = (snapshot: { branchId: string; orders?: Order[]; tables?: RestaurantTable[]; rawMaterials?: RawMaterial[] }) => {
-      if (cancelled) return;
-      setOwnerMonitorData((current) => ({
-        branchIds: current.branchIds.includes(snapshot.branchId)
-          ? current.branchIds
-          : [...current.branchIds, snapshot.branchId],
-        orders: snapshot.orders
-          ? [...current.orders.filter((order) => order.branchId !== snapshot.branchId), ...snapshot.orders]
-          : current.orders,
-        tables: snapshot.tables
-          ? [...current.tables.filter((table) => table.branchId !== snapshot.branchId), ...snapshot.tables]
-          : current.tables,
-        rawMaterials: snapshot.rawMaterials
-          ? [...current.rawMaterials.filter((material) => material.branchId !== snapshot.branchId), ...snapshot.rawMaterials]
-          : current.rawMaterials,
-      }));
     };
     const refreshOwnerMonitor = async () => {
       if (running) return;
@@ -879,68 +867,24 @@ export default function App() {
       }
     };
     void refreshOwnerMonitor();
+    const refreshOwnerManually = () => { void refreshOwnerMonitor(); };
+    ownerMonitorRefreshRef.current = refreshOwnerManually;
 
-    // Dashboard pusat memakai satu channel per cabang. Event order
-    // mengambil satu row yang berubah saja; tabel/stok hanya memuat ulang bagian
-    // yang terdampak. Ini membuat KPI terasa realtime tanpa polling agresif.
-    const realtimeUnsubscribers = branches.flatMap((branch) => {
-      let operationTimer = 0;
-      const unsubscribeOrders = subscribeCloudOrders(branch.id, (changedOrderIds) => {
-        if (cancelled) return;
-        if (!changedOrderIds || changedOrderIds.length === 0) {
-          void loadOwnerOrders(branch.id)
-            .then((branchOrders) => replaceBranchSnapshot({ branchId: branch.id, orders: branchOrders }))
-            .catch(() => undefined);
-          return;
-        }
-        void Promise.all(changedOrderIds.map((orderId) => getCloudOrder(branch.id, orderId)))
-          .then((changedOrders) => {
-            if (cancelled) return;
-            const changedIds = new Set(changedOrderIds);
-            setOwnerMonitorData((current) => ({
-              ...current,
-              orders: [
-                ...current.orders.filter((order) => !changedIds.has(order.id)),
-                ...changedOrders.filter((order): order is Order => Boolean(order)),
-              ],
-            }));
-          })
-          .catch(() => undefined);
-      });
-      const unsubscribeOperations = subscribeBranchOperations(branch.id, (table) => {
-        if (cancelled || !['restaurant_tables', 'raw_materials'].includes(table)) return;
-        window.clearTimeout(operationTimer);
-        operationTimer = window.setTimeout(() => {
-          if (table === 'restaurant_tables') {
-            void listCloudTables(branch.id)
-              .then((branchTables) => replaceBranchSnapshot({ branchId: branch.id, tables: branchTables }))
-              .catch(() => undefined);
-          } else {
-            void listCloudRawMaterials(branch.id)
-              .then((materials) => replaceBranchSnapshot({
-                branchId: branch.id,
-                rawMaterials: materials.map((material) => ({ ...material, branchName: branch.name })),
-              }))
-              .catch(() => undefined);
-          }
-        }, 350);
-      });
-      return [unsubscribeOrders, unsubscribeOperations, () => window.clearTimeout(operationTimer)];
-    });
     const refreshWhenVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      // Throttle fokus: abaikan bila baru saja refresh (<30 dtk). Interval 120s
-      // tidak terpengaruh karena selalu > 30s.
-      if (Date.now() - lastOwnerRefreshAt < 30_000) return;
+      // Snapshot lintas cabang cukup diperbarui tiap 10 menit. Fokus jendela
+      // mengikuti batas yang sama agar klik/pindah tab tidak membaca semua
+      // order, meja, dan bahan dari setiap outlet berulang kali.
+      if (Date.now() - lastOwnerRefreshAt < 600_000) return;
       void refreshOwnerMonitor();
     };
-    const timer = window.setInterval(refreshWhenVisible, 120_000);
+    const timer = window.setInterval(refreshWhenVisible, 600_000);
     window.addEventListener('focus', refreshWhenVisible);
     return () => {
       cancelled = true;
+      if (ownerMonitorRefreshRef.current === refreshOwnerManually) ownerMonitorRefreshRef.current = null;
       window.clearInterval(timer);
       window.removeEventListener('focus', refreshWhenVisible);
-      realtimeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [isAttendanceTerminal, isTerminalUnlocked, systemPortal, activeTab, activeUser.id, activeUser.role, branches]);
 
@@ -1037,12 +981,12 @@ export default function App() {
     return () => { cancelled = true; };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
-  // Dihitung DI LUAR effect supaya dependency-nya berupa boolean turunan, bukan
-  // string tab mentah. POS, KDS, dan Shift sama-sama membutuhkan aliran order
-  // yang sama; dengan activeTab sebagai dependency, berpindah di antara ketiganya
-  // membongkar dan memasang ulang langganan realtime padahal kebutuhannya tidak
-  // berubah sama sekali. Churn koneksi itu tidak gratis di paket gratis.
-  const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
+  // Hanya alur order POS/KDS yang berhak membuka WebSocket. Shift, master
+  // operasional, dashboard owner, dan laporan memakai snapshot/focus/manual
+  // refresh supaya tidak menghabiskan connection, broadcast, dan log quota.
+  // Boolean turunan juga mencegah reconnect ketika berpindah POS <-> KDS.
+  const needsLiveOrders = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds'].includes(activeTab);
+  const needsShiftSnapshot = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsLiveOrders) return;
@@ -1060,6 +1004,7 @@ export default function App() {
     let realtimeState: RealtimeConnectionState = 'CONNECTING';
     const branchMountedAt = Date.now();
     let lastFallbackAt = 0;
+    let tableRefreshTimer = 0;
     // Waktu sinkron terakhir untuk penyelaras INKREMENTAL (hemat egress).
     let lastSyncAt = orderCursorRef.current.branchId === branchId ? orderCursorRef.current.cursor : '';
     // Kursor sinkron diambil dari updatedAt milik SERVER, bukan jam perangkat.
@@ -1107,8 +1052,8 @@ export default function App() {
             const selfOrders = changedOrders.filter((order) => order.source === 'SELF_ORDER');
 
             if (selfOrders.length > 0) {
-              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
-                playSelfOrderAlertSound(profile.soundCustomerOrder);
+              if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+                playSelfOrderAlertSound(profileRef.current.soundCustomerOrder);
               }
               selfOrders.forEach((order) => {
                 showPushToast(
@@ -1117,8 +1062,8 @@ export default function App() {
                 );
               });
             } else {
-              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
-                playNewOrderSound(profile.soundPesananMasuk);
+              if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+                playNewOrderSound(profileRef.current.soundPesananMasuk);
               }
             }
 
@@ -1128,7 +1073,7 @@ export default function App() {
             // perlu) supaya menyimpan input pesanan tidak memicu resi tak diinginkan.
             if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
               selfOrders.forEach((order) => {
-                void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
+                void BluetoothPrinterService.printKitchenTicket(order, profileRef.current, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                   if (!result.success) {
                     showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
                   }
@@ -1201,17 +1146,17 @@ export default function App() {
           if (!isFirstLoad && changedForNotify.length > 0) {
             const selfOrders = changedForNotify.filter((order) => order.source === 'SELF_ORDER');
             if (selfOrders.length > 0) {
-              if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profile.soundCustomerOrder);
+              if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profileRef.current.soundCustomerOrder);
               selfOrders.forEach((order) => showPushToast('Pesanan Self-order Masuk', `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`));
               if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
                 selfOrders.forEach((order) => {
-                  void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
+                  void BluetoothPrinterService.printKitchenTicket(order, profileRef.current, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                     if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
                   });
                 });
               }
-            } else if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
-              playNewOrderSound(profile.soundPesananMasuk);
+            } else if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+              playNewOrderSound(profileRef.current.soundPesananMasuk);
             }
           }
         })
@@ -1251,15 +1196,15 @@ export default function App() {
         if (changedForNotify.length > 0) {
           const selfOrders = changedForNotify.filter((order) => order.source === 'SELF_ORDER');
           if (selfOrders.length > 0) {
-            if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profile.soundCustomerOrder);
+            if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') playSelfOrderAlertSound(profileRef.current.soundCustomerOrder);
             selfOrders.forEach((order) => showPushToast('Pesanan Self-order Masuk', `Meja ${order.tableNumber} — ${order.orderNumber} menerima item baru.`));
-          } else if (profile.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
-            playNewOrderSound(profile.soundPesananMasuk);
+          } else if (profileRef.current.soundNotificationsEnabled !== false && activeTabRef.current !== 'kds') {
+            playNewOrderSound(profileRef.current.soundPesananMasuk);
           }
           // Auto-cetak dapur HANYA untuk self-order (bukan order input kasir).
           if (printerConfigRef.current.autoPrintKitchenOnNewOrder) {
             selfOrders.forEach((order) => {
-              void BluetoothPrinterService.printKitchenTicket(order, profile, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
+              void BluetoothPrinterService.printKitchenTicket(order, profileRef.current, printerConfigRef.current, condimentGroupsRef.current, menuItemsRef.current).then((result) => {
                 if (!result.success) showPushToast('Auto Print Gagal', `${formatOrderLabel(order)} — ${result.error || 'Periksa koneksi printer.'}`);
               });
             });
@@ -1271,6 +1216,19 @@ export default function App() {
       }).catch(() => { /* jaringan sesaat — event/fallback berikutnya menyusul */ });
     };
 
+    // Status meja hanya dirender kasir. KDS menerima banyak update status dapur
+    // tetapi tidak memerlukan snapshot meja; menarik seluruh daftar pada setiap
+    // event order adalah request/log yang murni terbuang. Di POS, ringkas event
+    // beruntun menjadi satu refresh agar klaim/bebas meja dari self-order tetap
+    // terlihat cepat.
+    const scheduleBranchTableRefresh = () => {
+      if (activeTabRef.current !== 'pos') return;
+      window.clearTimeout(tableRefreshTimer);
+      tableRefreshTimer = window.setTimeout(() => {
+        void refreshBranchTables(branchId).catch(() => undefined);
+      }, 350);
+    };
+
     lastFallbackAt = Date.now();
     syncOrdersRef.current = () => {
       // Throttle 10 detik, BERBAGI jam dengan interval fallback. Tanpa ini setiap
@@ -1280,6 +1238,7 @@ export default function App() {
       if (Date.now() - lastFallbackAt < 10_000) return;
       lastFallbackAt = Date.now();
       syncIncremental();
+      scheduleBranchTableRefresh();
     };
     syncIncremental();
     const unsubscribe = subscribeCloudOrders(
@@ -1294,7 +1253,7 @@ export default function App() {
         } else {
           refresh();
         }
-        void refreshBranchTables(branchId);
+        scheduleBranchTableRefresh();
       },
       (state) => {
         if (!isRuntimeActive()) return;
@@ -1304,7 +1263,7 @@ export default function App() {
         branchRuntimeGuardRef.current.recordConnection(runtimeToken, 'ORDERS', state);
         if (recovered) {
           refresh();
-          void refreshBranchTables(branchId);
+          scheduleBranchTableRefresh();
         }
       },
     );
@@ -1346,6 +1305,7 @@ export default function App() {
       active = false;
       syncOrdersRef.current = null;
       window.clearTimeout(initialRetryTimer);
+      window.clearTimeout(tableRefreshTimer);
       window.clearInterval(fallbackTimer);
       window.removeEventListener('focus', reconcileVisible);
       window.removeEventListener('online', reconcileVisible);
@@ -1355,11 +1315,11 @@ export default function App() {
     // needsLiveOrders menggantikan systemPortal + activeTab: ketiganya sudah
     // terangkum di dalamnya, dan hanya PERUBAHAN KEBUTUHAN yang boleh memicu
     // langganan realtime dibangun ulang.
-  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, needsLiveOrders, profile.soundNotificationsEnabled, profile.soundCustomerOrder, profile.soundPesananMasuk]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, needsLiveOrders]);
 
-  // Berpindah antara POS, KDS, dan Shift tidak lagi membangun ulang langganan
-  // realtime -- itu memang tujuannya. Tetapi kasir tetap mengharapkan layar baru
-  // langsung menampilkan keadaan terkini, jadi picu sinkron INKREMENTAL di sini.
+  // Berpindah POS <-> KDS tidak membangun ulang langganan realtime. Saat masuk
+  // ke salah satunya, terminal tetap menyelaraskan cursor inkremental agar layar
+  // baru langsung menampilkan keadaan terkini.
   // Biayanya kini hanya beberapa KB: kursor sinkron sudah bertahan lintas tab,
   // sehingga ini bukan lagi full refetch yang dulu memboroskan egress.
   useEffect(() => {
@@ -1367,47 +1327,40 @@ export default function App() {
     syncOrdersRef.current?.();
   }, [activeTab, needsLiveOrders]);
 
-  // Database adalah sumber tunggal status shift. Realtime memberi respons
-  // cepat; polling/focus menjadi pengaman saat websocket terputus.
+  // Shift tidak lagi membuka kanal realtime. Buka/tutup shift pada terminal
+  // pelaku sudah memperbarui state langsung; terminal lain memakai snapshot
+  // saat masuk/fokus dan rekonsiliasi lima menit. Ini sengaja menjaga WebSocket
+  // privat hanya untuk order POS/KDS tanpa menjadikan status shift browser-local.
   useEffect(() => {
-    const needsLiveShift = !isAttendanceTerminal && systemPortal === 'KASIR' && ['pos', 'kds', 'shift'].includes(activeTab);
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsLiveShift) return;
+    if (!cloudReadiness.supabase || !isTerminalUnlocked || !currentBranch.id || !needsShiftSnapshot) return;
     let cancelled = false;
     const branchId = currentBranch.id;
     const runtimeToken = branchRuntimeGuardRef.current.snapshot(branchId);
     const isRuntimeCurrent = () => !cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken);
     let requestSequence = 0;
     let syncErrorShown = false;
-    let realtimeState: RealtimeConnectionState = 'CONNECTING';
-    let lastFallbackAt = 0;
+    let lastSnapshotAt = 0;
+    let lastForegroundSyncAt = 0;
 
-    // Pertahankan hasil server terakhir untuk cabang yang sama ketika pindah tab.
-    // Saat cabang berubah, tampilkan status verifikasi tanpa sempat memakai shift cabang lama.
     setIsShiftStatusLoading(true);
     setCurrentShift((current) => current.branchId === branchId ? current : createInactiveShift(branchId));
 
-    const syncShiftFromCloud = async () => {
-      // Block sync during the close-shift window to prevent race condition:
-      // after closeCloudShift(), the realtime listener fires and getCloudActiveShift()
-      // returns null → clearCurrentShift() would overwrite the just-saved CLOSED shift.
+    const syncShiftFromCloud = async (force = false) => {
       if (isClosingShiftRef.current) return;
+      if (!force && Date.now() - lastSnapshotAt < 300_000) return;
+      lastSnapshotAt = Date.now();
       const sequence = ++requestSequence;
       try {
         const cloudShift = await getCloudActiveShift(branchId);
-        if (!isRuntimeCurrent() || sequence !== requestSequence) return;
-        if (isClosingShiftRef.current) return;
-        const nextShift = cloudShift || createInactiveShift(currentBranch.id);
-        setCurrentShift(nextShift);
+        if (!isRuntimeCurrent() || sequence !== requestSequence || isClosingShiftRef.current) return;
+        setCurrentShift(cloudShift || createInactiveShift(branchId));
         setIsShiftStatusLoading(false);
-        setShiftSyncHealth((current) => ({ ...current, lastSuccessfulSync: Date.now() }));
         branchRuntimeGuardRef.current.recordSync(runtimeToken, 'SHIFT');
         syncErrorShown = false;
       } catch (error) {
         if (!isRuntimeCurrent() || sequence !== requestSequence || syncErrorShown) return;
         syncErrorShown = true;
-        if (error instanceof ShiftServiceError && error.status === 401) {
-          clearTerminalSessionState();
-        }
+        if (error instanceof ShiftServiceError && error.status === 401) clearTerminalSessionState();
         showPushToast(
           'Status Shift Belum Tersinkron',
           error instanceof Error ? error.message : 'Data shift pusat belum dapat dibaca.',
@@ -1415,38 +1368,15 @@ export default function App() {
       }
     };
 
-    lastFallbackAt = Date.now();
-    void syncShiftFromCloud();
-    const unsubscribe = subscribeCloudShift(
-      branchId,
-      () => {
-        if (!isRuntimeCurrent()) return;
-        setShiftSyncHealth((current) => ({ ...current, lastRealtimeEvent: Date.now() }));
-        branchRuntimeGuardRef.current.recordRealtime(runtimeToken, 'SHIFT');
-        void syncShiftFromCloud();
-        void listCloudShiftHistory(branchId).then((history) => { if (isRuntimeCurrent()) setShiftHistory(history); }).catch(() => {});
-      },
-      (state) => {
-        if (!isRuntimeCurrent()) return;
-        const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
-        realtimeState = state;
-        setShiftSyncHealth((current) => ({ ...current, connectionState: state }));
-        branchRuntimeGuardRef.current.recordConnection(runtimeToken, 'SHIFT', state);
-        if (recovered) void syncShiftFromCloud();
-      },
-    );
+    lastForegroundSyncAt = Date.now();
+    void syncShiftFromCloud(true);
     const pollTimer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      // Buka/tutup shift adalah tindakan yang DISENGAJA dan langsung tercermin di
-      // terminal pelakunya; terminal lain cukup menyusul lewat broadcast. 15 menit
-      // aman untuk jaring pengaman yang jarang terpakai ini.
-      const fallbackDelay = realtimeState === 'HEALTHY' ? 900_000 : 60_000;
-      if (Date.now() - lastFallbackAt < fallbackDelay) return;
-      lastFallbackAt = Date.now();
-      void syncShiftFromCloud();
-    }, 15_000);
-    const syncWhenVisible = () => {
       if (document.visibilityState === 'visible') void syncShiftFromCloud();
+    }, 60_000);
+    const syncWhenVisible = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastForegroundSyncAt < 60_000) return;
+      lastForegroundSyncAt = Date.now();
+      void syncShiftFromCloud(true);
     };
     window.addEventListener('focus', syncWhenVisible);
     window.addEventListener('online', syncWhenVisible);
@@ -1457,16 +1387,16 @@ export default function App() {
       window.removeEventListener('focus', syncWhenVisible);
       window.removeEventListener('online', syncWhenVisible);
       document.removeEventListener('visibilitychange', syncWhenVisible);
-      unsubscribe();
     };
-  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeUser.id, systemPortal, activeTab]);
+  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, needsShiftSnapshot]);
 
   useEffect(() => {
     if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !['pos', 'kds', 'settings', 'selforder'].includes(activeTab)) return;
     let cancelled = false;
     const branchId = currentBranch.id;
-    // Sama seperti katalog: tab POS/KDS/Settings berbagi snapshot condiment
-    // cabang. Muat sekali per cabang lalu rekonsiliasi lewat broadcast.
+    // POS/KDS/Settings berbagi snapshot condiment per cabang. Tanpa kanal
+    // operations, data dimuat sekali saat diperlukan dan mutasi layar yang sama
+    // langsung memperbarui state resmi yang baru tersimpan.
     if (condimentLoadedBranchRef.current === branchId || condimentLoadingBranchRef.current === branchId) return;
     condimentLoadingBranchRef.current = branchId;
     setCondimentGroups([]);
@@ -1511,191 +1441,6 @@ export default function App() {
       });
     refreshFinance();
     return () => { cancelled = true; };
-  }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
-
-  useEffect(() => {
-    const needsOperations = ['pos', 'kds', 'shift', 'inventory', 'tables', 'settings', 'selforder'].includes(activeTab);
-    if (!cloudReadiness.supabase || !isTerminalUnlocked || isAttendanceTerminal || !currentBranch.id || !needsOperations) return;
-
-    let cancelled = false;
-    const branchId = currentBranch.id;
-    const runtimeToken = branchRuntimeGuardRef.current.snapshot(branchId);
-    const isRuntimeCurrent = () => !cancelled && branchRuntimeGuardRef.current.isCurrent(runtimeToken);
-    let realtimeState: RealtimeConnectionState = 'CONNECTING';
-    const branchMountedAt = Date.now();
-    // Domain effects di atas sedang memuat snapshot awal. Mulai watchdog dari
-    // waktu mount agar ia tidak langsung mengulang request pada tick pertama.
-    let lastReconcileAt = branchMountedAt;
-    let reconciling = false;
-    const timers = new Map<string, number>();
-
-    const debounce = (key: string, action: () => void) => {
-      const previous = timers.get(key);
-      if (previous) window.clearTimeout(previous);
-      timers.set(key, window.setTimeout(action, 350));
-    };
-
-    const mergeTables = (cloudTables: RestaurantTable[]) => {
-      if (!isRuntimeCurrent()) return;
-      setTables((existing) => [
-        ...existing.filter((item) => item.branchId !== branchId),
-        ...cloudTables,
-      ]);
-    };
-
-    const applyOperationalConfig = (config: BranchOperationalConfig) => {
-      if (!isRuntimeCurrent()) return;
-      setBranchOperationalConfig(config);
-      setIsSelfOrderSystemEnabled(config.selfOrderEnabled);
-      setProfile((current) => ({
-        ...current,
-        ...(config.profileOverrides || {}),
-        isSelfOrderEnabled: config.selfOrderEnabled,
-      }));
-    };
-
-    const reconcileOperations = async () => {
-      if (!isRuntimeCurrent() || reconciling || document.visibilityState === 'hidden') return;
-      reconciling = true;
-      try {
-        const jobs: Promise<unknown>[] = [];
-        // Inventory dan layar shift tidak memakai meja. Jangan menarik daftar
-        // meja hanya karena channel operasi baru tersambung pada tab tersebut.
-        if (['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) {
-          jobs.push(listCloudTables(branchId).then(mergeTables));
-        }
-
-        // Condiment & config sudah punya handler broadcast bertarget sendiri.
-        // Saat realtime SEHAT, menariknya lagi tiap 120 dtk adalah duplikasi
-        // murni (condiment lengkap bisa puluhan KB) -> pemborosan egress besar.
-        // Hanya ditarik ulang saat realtime DEGRADED, ketika broadcast tak tiba.
-        const needFullReconcile = realtimeState !== 'HEALTHY';
-        if (needFullReconcile && ['pos', 'kds', 'settings', 'selforder'].includes(activeTab)) {
-          jobs.push(
-            listCloudCondiments(branchId).then((groups) => {
-              if (isRuntimeCurrent()) setCondimentGroups(groups);
-            }),
-          );
-        }
-
-        if (needFullReconcile && ['pos', 'kds', 'tables', 'settings', 'selforder'].includes(activeTab)) {
-          jobs.push(
-            getCloudBranchOperationalConfig(branchId).then(applyOperationalConfig),
-          );
-        }
-
-        // Katalog TIDAK di-refetch di reconcile: perubahan menu/bahan sudah punya
-        // handler broadcast bertarget sendiri + dimuat saat ganti tab. Refetch
-        // katalog penuh (~50KB) tiap reconcile hanya memboroskan egress.
-
-        if (activeTab === 'shift') {
-          jobs.push(
-            listCloudExpenseRecords(branchId).then((records) => {
-              if (isRuntimeCurrent()) setExpenseRecords(records);
-            }),
-          );
-        }
-
-        await Promise.allSettled(jobs);
-        if (isRuntimeCurrent()) {
-          lastReconcileAt = Date.now();
-          branchRuntimeGuardRef.current.recordSync(runtimeToken, 'OPERATIONS');
-        }
-      } finally {
-        reconciling = false;
-      }
-    };
-
-    const unsubscribe = subscribeBranchOperations(
-      branchId,
-      (table) => {
-        if (!isRuntimeCurrent()) return;
-        branchRuntimeGuardRef.current.recordRealtime(runtimeToken, 'OPERATIONS');
-
-        if (table === 'restaurant_tables') {
-          debounce('tables', () => {
-            if (isSelfOrderUrlParam) {
-              void getPublicCatalogContext(branchId)
-                .then((ctx) => mergeTables(ctx.tables))
-                .catch(() => undefined);
-            } else {
-              void listCloudTables(branchId)
-                .then(mergeTables)
-                .catch(() => undefined);
-            }
-          });
-        } else if (table === 'raw_materials') {
-          // Inventory dan POS sama-sama menampilkan saldo bahan secara tidak
-          // langsung: stok menu ber-resep = minimum porsi dari bahan. KDS,
-          // shift, dan meja tidak merender saldo sehingga tidak perlu refetch.
-          if (!['inventory', 'pos'].includes(activeTab)) return;
-          debounce('rawmaterials', () => {
-            void listCloudRawMaterials(branchId)
-              .then((mats) => { if (isRuntimeCurrent()) setRawMaterials(mats.map((m) => ({ ...m, branchName: currentBranch.name }))); })
-              .catch(() => undefined);
-          });
-        } else if (table === 'menu_items' || table === 'menu_item_ingredients') {
-          debounce('catalog', () => { void refreshCloudCatalog(branchId, currentBranch.name); });
-        } else if (table === 'condiment_groups' || table === 'condiment_options') {
-          debounce('condiments', () => {
-            void listCloudCondiments(branchId)
-              .then((groups) => { if (isRuntimeCurrent()) setCondimentGroups(groups); })
-              .catch(() => undefined);
-          });
-        } else if (table === 'branch_operational_config') {
-          debounce('config', () => {
-            void getCloudBranchOperationalConfig(branchId)
-              .then(applyOperationalConfig)
-              .catch(() => undefined);
-          });
-        } else if (table === 'expense_income_records') {
-          debounce('expenses', () => {
-            void listCloudExpenseRecords(branchId)
-              .then((records) => { if (isRuntimeCurrent()) setExpenseRecords(records); })
-              .catch(() => undefined);
-          });
-        }
-      },
-      (state) => {
-        if (!isRuntimeCurrent()) return;
-        const recovered = realtimeState === 'DEGRADED' && state === 'HEALTHY';
-        realtimeState = state;
-        branchRuntimeGuardRef.current.recordConnection(runtimeToken, 'OPERATIONS', state);
-        // Initial snapshots dimuat oleh effect per domain. Rekonsiliasi penuh
-        // hanya perlu ketika koneksi benar-benar pulih dari kondisi terputus.
-        if (recovered) void reconcileOperations();
-      },
-    );
-
-    // Broadcast is primary. This watchdog only prevents an outlet from staying
-    // stale when a private channel is authorized late or briefly reconnects.
-    const fallbackTimer = window.setInterval(() => {
-      if (!isRuntimeCurrent() || document.visibilityState !== 'visible') return;
-      const warmup = Date.now() - branchMountedAt < 60_000;
-      // Degraded: reconcile jarang (30s), bukan tiap 5s — hindari memperberat DB.
-      const delay = realtimeState === 'HEALTHY'
-        ? (warmup ? 15_000 : 600_000)
-        : 30_000;
-      if (Date.now() - lastReconcileAt < delay) return;
-      void reconcileOperations();
-    }, 5_000);
-
-    const reconcileWhenVisible = () => {
-      if (isRuntimeCurrent() && document.visibilityState === 'visible') void reconcileOperations();
-    };
-    window.addEventListener('focus', reconcileWhenVisible);
-    window.addEventListener('online', reconcileWhenVisible);
-    document.addEventListener('visibilitychange', reconcileWhenVisible);
-
-    return () => {
-      cancelled = true;
-      timers.forEach((timer) => window.clearTimeout(timer));
-      window.clearInterval(fallbackTimer);
-      window.removeEventListener('focus', reconcileWhenVisible);
-      window.removeEventListener('online', reconcileWhenVisible);
-      document.removeEventListener('visibilitychange', reconcileWhenVisible);
-      unsubscribe();
-    };
   }, [isAttendanceTerminal, isTerminalUnlocked, currentBranch.id, activeTab]);
 
   const refreshCloudStaff = async () => {
@@ -1839,15 +1584,14 @@ export default function App() {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => cloudReadiness.supabase ? 0 : DBStorage.getOfflineQueue().length);
   const [orderSyncHealth, setOrderSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
-  const [shiftSyncHealth, setShiftSyncHealth] = useState<SyncHealth>({ connectionState: 'CONNECTING', lastSuccessfulSync: null, lastRealtimeEvent: null });
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
   // 5. Toast Push Notifications State
   const [toastNotification, setToastNotification] = useState<{ title: string; message: string } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
-  // Flag to block cloud shift sync immediately after closeShift — prevents race condition
-  // where subscribeCloudShift fires right after close and overwrites the saved CLOSED shift
+  // Flag to block an in-flight cloud shift snapshot immediately after closeShift
+  // so a delayed response cannot overwrite the newly saved CLOSED shift.
   const isClosingShiftRef = useRef<boolean>(false);
 
   // 6. Modals State
@@ -1924,6 +1668,12 @@ export default function App() {
   const handleManualSync = async () => {
     if (cloudReadiness.supabase && !isOnline) {
       showPushToast('Sinkronisasi Gagal', 'Terminal sedang offline. Tidak ada transaksi lokal yang dibuat.');
+      return;
+    }
+    if (cloudReadiness.supabase && systemPortal === 'OWNER' && activeTab === 'superowner') {
+      ownerMonitorRefreshRef.current?.();
+      setPendingSyncCount(0);
+      showPushToast('Dashboard Dimuat Ulang', 'Snapshot lintas cabang sedang diambil dari cloud.');
       return;
     }
     if (cloudReadiness.supabase && isOnline) {
@@ -2132,7 +1882,6 @@ export default function App() {
               ...current.filter((order) => order.id !== authoritative.id),
             ]);
           }
-          await refreshBranchTables(currentBranch.id);
           showPushToast('Update Status Dapur', `Status order ${label} diperbarui menjadi ${newStatus}.`);
         })
         .catch((error) => {
@@ -2221,8 +1970,13 @@ export default function App() {
       if (!isOnline || !isCloudOrderId(orderId)) throw new Error('Void membutuhkan koneksi dan order cloud yang valid.');
       try {
         await updateCloudOrderStatus(currentBranch.id, orderId, 'CANCELLED', currentShift.id, reason);
-        const [cloudOrders] = await Promise.all([listCloudOrders(currentBranch.id), refreshBranchTables(currentBranch.id)]);
-        setOrders(cloudOrders);
+        const [authoritative] = await Promise.all([
+          getCloudOrder(currentBranch.id, orderId),
+          refreshBranchTables(currentBranch.id),
+        ]);
+        if (authoritative) {
+          setOrders((current) => [authoritative, ...current.filter((order) => order.id !== authoritative.id)]);
+        }
         showPushToast('Pesanan Berhasil Divoid', `${label} dibatalkan dan stok dikembalikan.`);
       } catch (error) {
         showPushToast('Void Pesanan Gagal', error instanceof Error ? error.message : 'Pesanan tidak dapat dibatalkan.');

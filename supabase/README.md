@@ -74,3 +74,9 @@ Migration `052` wajib diterapkan setelah `051` untuk model operasional tempat
 Kasir juga bertindak sebagai kepala outlet. KASIR mendapat CRUD master bahan dan
 menu hanya pada cabang membership aktifnya. Hak reset massal katalog tetap tidak
 diberikan kepada KASIR dari UI.
+
+Migration `057` wajib diterapkan setelah seluruh migration sebelumnya. Migration
+ini menonaktifkan trigger/policy broadcast shift dan master operasional; satu-
+satunya broadcast yang tersisa adalah invalidation order cabang untuk POS/KDS.
+Jalankan migration ini hanya setelah deployment aplikasi yang sudah tidak membuka
+kanal `:shift` maupun `:operations`.
