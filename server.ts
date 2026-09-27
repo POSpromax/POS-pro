@@ -17,6 +17,7 @@ import { handleCloudinarySign } from './src/server/cloudinarySign';
 import { handleTableSessionRequest } from './src/server/tableSession';
 import { handleBranchRequest } from './src/server/branchManagement';
 import { handleDataResetRequest } from './src/server/dataReset';
+import { handleTransactionPurgeRequest } from './src/server/transactionPurge';
 
 async function startServer() {
   const app = express();
@@ -183,6 +184,18 @@ async function startServer() {
       res.status(result.status).json(result.data);
     } catch {
       res.status(503).json({ error: 'Server reset data belum dikonfigurasi' });
+    }
+  });
+
+  app.post('/api/transaction-purge', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      const authorization = req.header('Authorization') || '';
+      const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+      const result = await handleTransactionPurgeRequest(req.method, req.body || {}, accessToken, admin);
+      res.status(result.status).json(result.data);
+    } catch {
+      res.status(503).json({ error: 'Server purge transaksi belum dikonfigurasi' });
     }
   });
 
