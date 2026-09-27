@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { READ_AUTHORIZATION_CACHE_TTL_MS, resolveBranchActor } from './requestAuthorization';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
@@ -161,22 +162,19 @@ const periodBounds = (period: string) => {
   return { start: fmt(start), end: fmt(end), openingTo: fmt(openingTo) };
 };
 
-async function resolveActor(payload: AccountingPayload, accessToken: string, admin: SupabaseClient) {
-  const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
-  if (authError || !authData.user) return { error: fail(401, 'Sesi telah berakhir') as AccountingRequestResult };
-  const actorId = authData.user.id;
-  const [{ data: profile }, { data: membership }, { data: branch }] = await Promise.all([
-    admin.from('user_profiles').select('tenant_id,is_active').eq('user_id', actorId).maybeSingle(),
-    admin.from('branch_members').select('role,is_active').eq('user_id', actorId).eq('branch_id', payload.branchId).maybeSingle(),
-    admin.from('branches').select('tenant_id,is_active,timezone').eq('id', payload.branchId).maybeSingle(),
-  ]);
-  if (!profile?.is_active || !membership?.is_active || !branch?.is_active || profile.tenant_id !== branch.tenant_id) {
+async function resolveActor(payload: AccountingPayload, accessToken: string, admin: SupabaseClient, cacheTtlMs: number) {
+  const branchId = String(payload.branchId || '');
+  const actor = await resolveBranchActor(admin, accessToken, branchId, cacheTtlMs);
+  if (!actor) return { error: fail(401, 'Sesi telah berakhir') as AccountingRequestResult };
+  const { data: branch } = await admin
+    .from('branches').select('tenant_id,is_active,timezone').eq('id', branchId).maybeSingle();
+  if (!branch?.is_active || actor.tenantId !== branch.tenant_id) {
     return { error: fail(403, 'Akun tidak memiliki akses ke outlet ini') as AccountingRequestResult };
   }
-  if (!MANAGEMENT_ROLES.has(membership.role)) {
+  if (!MANAGEMENT_ROLES.has(actor.role)) {
     return { error: fail(403, 'Hanya manajemen yang dapat mengakses akuntansi') as AccountingRequestResult };
   }
-  return { actorId, tenantId: profile.tenant_id as string, timeZone: (branch.timezone as string) || 'Asia/Jakarta' };
+  return { actorId: actor.userId, tenantId: actor.tenantId, timeZone: (branch.timezone as string) || 'Asia/Jakarta' };
 }
 
 
@@ -348,7 +346,12 @@ export async function handleAccountingRequest(
   if (!accessToken) return fail(401, 'Sesi telah berakhir');
   if (!payload.branchId || !UUID_PATTERN.test(payload.branchId)) return fail(400, 'Outlet tidak valid');
 
-  const actor = await resolveActor(payload, accessToken, admin);
+  const actor = await resolveActor(
+    payload,
+    accessToken,
+    admin,
+    method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+  );
   if ('error' in actor) return actor.error;
   const branchId = payload.branchId;
 

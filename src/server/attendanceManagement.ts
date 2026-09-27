@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { READ_AUTHORIZATION_CACHE_TTL_MS, resolveBranchActor } from './requestAuthorization';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -51,18 +52,21 @@ export async function handleAttendanceRequest(
   if (!accessToken) return fail(401, 'Sesi absensi tidak tersedia');
   if (!payload.branchId || !UUID_PATTERN.test(payload.branchId)) return fail(400, 'Outlet tidak valid');
 
-  const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
-  if (authError || !authData.user) return fail(401, 'Sesi absensi telah berakhir');
-  const userId = authData.user.id;
-
-  const [{ data: profile }, { data: membership }, { data: branch }] = await Promise.all([
-    admin.from('user_profiles').select('tenant_id,display_name,is_active').eq('user_id', userId).maybeSingle(),
-    admin.from('branch_members').select('role,is_active').eq('user_id', userId).eq('branch_id', payload.branchId).maybeSingle(),
-    admin.from('branches').select('tenant_id,name,timezone,is_active').eq('id', payload.branchId).maybeSingle(),
-  ]);
-  if (!profile?.is_active || !membership?.is_active || !branch?.is_active || profile.tenant_id !== branch.tenant_id) {
+  const actor = await resolveBranchActor(
+    admin,
+    accessToken,
+    payload.branchId,
+    method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+  );
+  if (!actor) return fail(401, 'Sesi absensi telah berakhir');
+  const { data: branch } = await admin
+    .from('branches').select('tenant_id,name,timezone,is_active').eq('id', payload.branchId).maybeSingle();
+  if (!branch?.is_active || actor.tenantId !== branch.tenant_id) {
     return fail(403, 'Akun tidak memiliki akses absensi di outlet ini');
   }
+  const userId = actor.userId;
+  const profile = { tenant_id: actor.tenantId, display_name: actor.displayName };
+  const membership = { role: actor.role };
 
   if (method === 'GET') {
     const managementRoles = ['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN'];

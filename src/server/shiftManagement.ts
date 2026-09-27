@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { READ_AUTHORIZATION_CACHE_TTL_MS, resolveBranchActor } from './requestAuthorization';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIVE_STATUSES = ['OPEN', 'HANDOVER'];
@@ -14,26 +15,15 @@ export interface ShiftRequestResult {
 
 const fail = (status: number, error: string): ShiftRequestResult => ({ status, data: { error } });
 
-async function getActor(accessToken: string, branchId: string, admin: SupabaseClient) {
-  if (!accessToken) return null;
-  const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
-  if (authError || !authData.user) return null;
-  const userId = authData.user.id;
-
-  const [{ data: profile, error: profileError }, { data: membership, error: membershipError }] = await Promise.all([
-    admin.from('user_profiles').select('tenant_id,display_name,is_active').eq('user_id', userId).maybeSingle(),
-    admin.from('branch_members').select('role,is_active').eq('user_id', userId).eq('branch_id', branchId).maybeSingle(),
-  ]);
-
-  if (profileError) throw profileError;
-  if (membershipError) throw membershipError;
-  if (!profile?.is_active || !membership?.is_active) return null;
-  const role = membership.role || 'KASIR';
+async function getActor(accessToken: string, branchId: string, admin: SupabaseClient, cacheTtlMs: number) {
+  const actor = await resolveBranchActor(admin, accessToken, branchId, cacheTtlMs);
+  if (!actor) return null;
+  const role = actor.role || 'KASIR';
   if (!ALLOWED_ROLES.has(role)) return null;
   return {
-    userId,
-    tenantId: profile.tenant_id,
-    name: profile.display_name || 'Kasir',
+    userId: actor.userId,
+    tenantId: actor.tenantId,
+    name: actor.displayName || 'Kasir',
     role,
   };
 }
@@ -244,7 +234,12 @@ export async function handleShiftRequest(
 
   let actor;
   try {
-    actor = await getActor(accessToken, branchId, admin);
+    actor = await getActor(
+      accessToken,
+      branchId,
+      admin,
+      method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+    );
   } catch (error) {
     console.error('Error validating shift actor:', error);
     return fail(500, 'Gagal memverifikasi sesi shift');

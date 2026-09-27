@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { invalidateAuthorizationForUser, READ_AUTHORIZATION_CACHE_TTL_MS, resolveTenantActor } from './requestAuthorization';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ROLES = new Set(['SUPER_OWNER', 'OWNER', 'MANAGER', 'ADMIN', 'KASIR', 'KITCHEN']);
@@ -35,30 +36,14 @@ export interface StaffRequestResult {
 
 const fail = (status: number, error: string): StaffRequestResult => ({ status, data: { error } });
 
-async function authorize(admin: SupabaseClient, accessToken: string) {
-  if (!accessToken) return null;
-  const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
-  if (authError || !authData.user) return null;
-
-  const userId = authData.user.id;
-  const { data: profile } = await admin
-    .from('user_profiles')
-    .select('tenant_id,display_name,is_active')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (!profile?.is_active) return null;
-
-  const { data: memberships } = await admin
-    .from('branch_members')
-    .select('branch_id,role,is_active')
-    .eq('user_id', userId)
-    .eq('is_active', true);
-
-  const managementMemberships = (memberships || []).filter((item) => MANAGEMENT_ROLES.has(item.role));
+async function authorize(admin: SupabaseClient, accessToken: string, cacheTtlMs: number) {
+  const actor = await resolveTenantActor(admin, accessToken, cacheTtlMs);
+  if (!actor) return null;
+  const managementMemberships = actor.memberships.filter((item) => MANAGEMENT_ROLES.has(item.role));
   if (!managementMemberships.length) return null;
   return {
-    userId,
-    tenantId: profile.tenant_id as string,
+    userId: actor.userId,
+    tenantId: actor.tenantId,
     memberships: managementMemberships as Array<{ branch_id: string; role: string; is_active: boolean }>,
   };
 }
@@ -264,6 +249,7 @@ async function updateStaff(
       .eq('user_id', payload.id)
       .in('branch_id', scopedBranches);
     if (permError) return fail(500, 'Hak akses staff gagal diperbarui');
+    invalidateAuthorizationForUser(payload.id);
     return { status: 200, data: { success: true } };
   }
 
@@ -332,6 +318,7 @@ async function updateStaff(
   } catch {
     return fail(500, 'Jadwal staff gagal diperbarui');
   }
+  invalidateAuthorizationForUser(payload.id);
   return { status: 200, data: { id: payload.id } };
 }
 
@@ -359,6 +346,7 @@ async function deactivateStaff(
   }
   await admin.from('user_profiles').update({ is_active: false }).eq('user_id', userId);
   await admin.from('branch_members').update({ is_active: false }).eq('user_id', userId);
+  invalidateAuthorizationForUser(userId);
   return { status: 200, data: { id: userId, isActive: false } };
 }
 
@@ -368,7 +356,11 @@ export async function handleStaffRequest(
   accessToken: string,
   admin: SupabaseClient,
 ): Promise<StaffRequestResult> {
-  const auth = await authorize(admin, accessToken);
+  const auth = await authorize(
+    admin,
+    accessToken,
+    method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+  );
   if (!auth) return fail(403, 'Akses manajemen staff ditolak');
   if (method === 'GET') return listStaff(admin, auth);
   if (method === 'POST') return createStaff(admin, auth, body);

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { invalidateAuthorizationForUser, READ_AUTHORIZATION_CACHE_TTL_MS, resolveTenantActor } from './requestAuthorization';
 
 export async function handleBranchRequest(
   method: string,
@@ -6,14 +7,15 @@ export async function handleBranchRequest(
   accessToken: string,
   admin: SupabaseClient,
 ) {
-  if (!accessToken) return { status: 401, data: { error: 'Tidak terautentikasi' } };
-  const { data: { user } } = await admin.auth.getUser(accessToken);
-  if (!user) return { status: 401, data: { error: 'Sesi tidak valid' } };
-  const { data: profile } = await admin.from('user_profiles').select('tenant_id,is_active').eq('user_id', user.id).maybeSingle();
-  if (!profile?.is_active || !profile.tenant_id) return { status: 403, data: { error: 'Profil tenant tidak aktif' } };
-
-  const { data: memberships } = await admin.from('branch_members').select('branch_id,role,is_active').eq('user_id', user.id).eq('is_active', true);
-  const allowedIds = (memberships || []).map((membership) => membership.branch_id);
+  const actor = await resolveTenantActor(
+    admin,
+    accessToken,
+    method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+  );
+  if (!actor) return { status: 401, data: { error: 'Sesi tidak valid' } };
+  const profile = { tenant_id: actor.tenantId };
+  const memberships = actor.memberships;
+  const allowedIds = memberships.map((membership) => membership.branch_id);
 
   if (method === 'GET') {
     const query = admin.from('branches').select('id,code,name,address,phone,is_active').eq('tenant_id', profile.tenant_id).eq('is_active', true).order('name');
@@ -46,7 +48,7 @@ export async function handleBranchRequest(
   // Self-order, profil outlet, atau scope topping.
   const { error: memberError } = await admin.from('branch_members').insert({
     branch_id: branch.id,
-    user_id: user.id,
+    user_id: actor.userId,
     role: ownerRole,
     is_active: true,
   });
@@ -93,5 +95,8 @@ export async function handleBranchRequest(
     await admin.from('branches').delete().eq('id', branch.id);
     return { status: 500, data: { error: 'Konfigurasi operasional cabang gagal dibuat' } };
   }
+  // The current Owner received a new membership, so a cached branch list must
+  // not hide the newly created outlet until its normal TTL expires.
+  invalidateAuthorizationForUser(actor.userId);
   return { status: 201, data: branch };
 }

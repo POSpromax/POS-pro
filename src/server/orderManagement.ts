@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { READ_AUTHORIZATION_CACHE_TTL_MS, resolveBranchActor } from './requestAuthorization';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_STATUSES = new Set(['NEW', 'COOKING', 'READY', 'COMPLETED', 'CANCELLED']);
@@ -73,16 +74,10 @@ const mapOrder = (row: any, items: any[] = []) => {
   });
 };
 
-async function getActor(accessToken: string, branchId: string, admin: SupabaseClient) {
-  if (!accessToken) return null;
-  const { data: authData } = await admin.auth.getUser(accessToken);
-  if (!authData.user) return null;
-  const [{ data: profile }, { data: member }] = await Promise.all([
-    admin.from('user_profiles').select('tenant_id,display_name,is_active').eq('user_id', authData.user.id).maybeSingle(),
-    admin.from('branch_members').select('role,is_active').eq('user_id', authData.user.id).eq('branch_id', branchId).maybeSingle(),
-  ]);
-  if (!profile?.is_active || !member?.is_active) return null;
-  return { id: authData.user.id, tenantId: profile.tenant_id, name: profile.display_name || 'Staff', role: member.role };
+async function getActor(accessToken: string, branchId: string, admin: SupabaseClient, cacheTtlMs: number) {
+  const actor = await resolveBranchActor(admin, accessToken, branchId, cacheTtlMs);
+  if (!actor) return null;
+  return { id: actor.userId, tenantId: actor.tenantId, name: actor.displayName, role: actor.role };
 }
 
 // summary=true melewati pengambilan order_items (payload jauh lebih kecil) —
@@ -174,7 +169,14 @@ export async function handleOrderRequest(
   if (!['GET', 'POST', 'PATCH'].includes(method)) return fail(405, 'Method not allowed');
   const branchId = String(payload.branchId || '');
   if (!UUID_PATTERN.test(branchId)) return fail(400, 'Outlet tidak valid');
-  const actor = await getActor(accessToken, branchId, admin);
+  // Only GET uses the tiny shared cache. Checkout, payment, and status changes
+  // always verify the session and membership directly against Supabase.
+  const actor = await getActor(
+    accessToken,
+    branchId,
+    admin,
+    method === 'GET' ? READ_AUTHORIZATION_CACHE_TTL_MS : 0,
+  );
 
   if (method === 'GET') {
     const orderId = payload.orderId ? String(payload.orderId) : undefined;
