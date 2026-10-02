@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -38,7 +37,16 @@ const tenantActorCache = new Map<string, CacheEntry<TenantActor>>();
 const verifiedSessionInFlight = new Map<string, Promise<{ userId: string } | null>>();
 const tenantActorInFlight = new Map<string, Promise<TenantActor | null>>();
 
-const fingerprint = (accessToken: string) => createHash('sha256').update(accessToken).digest('hex');
+// Web Crypto is available in both Vercel Edge Functions and current Node.js.
+// Do not import `node:crypto`: these authorization helpers are shared by every
+// Edge API route. The cache continues to retain only a token fingerprint.
+const fingerprint = async (accessToken: string): Promise<string> => {
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(accessToken),
+  );
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
 
 const readCache = <T>(cache: Map<string, CacheEntry<T>>, key: string): T | null => {
   const entry = cache.get(key);
@@ -66,7 +74,7 @@ async function resolveVerifiedUserId(
   cacheTtlMs: number,
 ): Promise<{ userId: string; tokenKey: string } | null> {
   if (!accessToken) return null;
-  const tokenKey = fingerprint(accessToken);
+  const tokenKey = await fingerprint(accessToken);
   if (cacheTtlMs > 0) {
     const cached = readCache(verifiedSessionCache, tokenKey);
     if (cached) return { ...cached, tokenKey };
